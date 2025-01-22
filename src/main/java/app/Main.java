@@ -11,9 +11,8 @@ public class Main {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Main::createAndShowGUI);
     }
-    
+
     private static void createAndShowGUI() {
-        // ToDo: May use dependency injection via Spring or other frameworks
         MainController controller = new MainController();
 
         JFrame frame = new JFrame("Web Testing Dashboard");
@@ -23,13 +22,18 @@ public class Main {
         JToolBar toolBar = new JToolBar();
         toolBar.setFloatable(false);
 
+        JButton launchButton = new JButton("Launch Browser");
+        JComboBox<String> browserSelector = new JComboBox<>(
+                new String[]{"Firefox", "Chrome", "Edge", "Safari"}
+        );
+
         JButton navigateButton = new JButton("Navigate");
         JTextField addressBar = new JTextField("https://www.google.com");
-        JComboBox<String> browserSelector = new JComboBox<>(new String[]{"Chrome"});
 
+        toolBar.add(launchButton);
+        toolBar.add(browserSelector);
         toolBar.add(navigateButton);
         toolBar.add(addressBar);
-        toolBar.add(browserSelector);
 
         // Layout
         frame.setLayout(new BorderLayout());
@@ -40,10 +44,7 @@ public class Main {
         frame.setVisible(true);
 
         // Event Listeners
-        controller.setupListeners(navigateButton, addressBar, browserSelector);
-
-        // Launch Browser on Start
-        controller.onLaunchBrowser();
+        controller.setupListeners(launchButton, browserSelector, navigateButton, addressBar);
 
         // Close Browser on Exit
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
@@ -52,4 +53,5 @@ public class Main {
             }
         });
     }
+
 }
