@@ -23,16 +23,38 @@ public class MainController {
         browserService.closeBrowser();
     }
 
-    public void setupListeners(JTextField portField, JComboBox<String> browserSelector, JButton launchButton, JButton terminateButton, JButton navigateButton, JTextField addressBar) {
+    public void setupListeners(
+            JTextField portField,
+            JTextField profilePathField,
+            JCheckBox headlessCheckbox,
+            JCheckBox disableGpuCheckbox,
+            JCheckBox noRemoteCheckbox,
+            JComboBox<String> browserSelector,
+            JButton launchButton,
+            JButton terminateButton,
+            JButton navigateButton,
+            JTextField addressBar
+    ) {
         // Browser starten
         launchButton.addActionListener(e -> {
             String selectedBrowser = (String) browserSelector.getSelectedItem();
             String portText = portField.getText();
+            String profilePath = profilePathField.getText();
+            boolean headless = headlessCheckbox.isSelected();
+            boolean disableGpu = disableGpuCheckbox.isSelected();
+            boolean noRemote = noRemoteCheckbox.isSelected();
 
             if (selectedBrowser != null && !portText.isEmpty()) {
                 try {
                     int port = Integer.parseInt(portText); // Port in Integer umwandeln
-                    browserService.launchBrowser(BrowserType.valueOf(selectedBrowser.toUpperCase()), port);
+                    browserService.launchBrowser(
+                            selectedBrowser.toUpperCase(),
+                            port,
+                            profilePath,
+                            headless,
+                            disableGpu,
+                            noRemote
+                    );
                 } catch (NumberFormatException ex) {
                     JOptionPane.showMessageDialog(null, "Bitte eine gültige Portnummer eingeben.");
                 } catch (IllegalArgumentException ex) {

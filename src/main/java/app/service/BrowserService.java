@@ -23,28 +23,28 @@ public class BrowserService {
 
     private Process browserProcess;
 
-    public void launchBrowser(BrowserType browserType, int port) {
+    public void launchBrowser(String browserName, int port, String profilePath, boolean headless, boolean disableGpu, boolean noRemote) {
         try {
-            browserProcess = browserType.launch(port); // Speichert den gestarteten Prozess
-            if( browserProcess == null ) {
-                System.out.println("Browser konnte nicht gestartet werden, probieren Sie einen anderen.");
-                return;
-            }
+            BrowserType browserType = BrowserType.valueOf(browserName);
+            browserType.setProfilePath(profilePath);
+            browserType.setHeadless(headless);
+            browserType.setDisableGpu(disableGpu);
+            browserType.setNoRemote(noRemote);
 
-            Thread.sleep(1000); // Wartezeit, bis der Browser gestartet ist
+            browserType.launch(port);
 
-            String websocketUrl = WebSocketEndpointHelper.getWebSocketUrl(port);
-            System.out.println("WebSocket-URL: " + websocketUrl);
-
-            client = new BiDiWebSocketClient(new URI(websocketUrl));
-            client.connect();
-
-            System.out.println("Browser gestartet auf Port " + port);
+            System.out.println(browserName + " gestartet mit den folgenden Optionen:");
+            System.out.println("Port: " + port);
+            System.out.println("Profile Path: " + profilePath);
+            System.out.println("Headless: " + headless);
+            System.out.println("Disable GPU: " + disableGpu);
+            System.out.println("No Remote: " + noRemote);
         } catch (Exception e) {
             System.out.println("Fehler beim Starten des Browsers:");
             e.printStackTrace();
         }
     }
+
 
     public void terminateBrowser() {
         if (browserProcess != null) {

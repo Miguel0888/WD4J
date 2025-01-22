@@ -25,6 +25,14 @@ public class Main {
         // Port-Eingabe
         JTextField portField = new JTextField("9222", 5); // Standardport: 9222
 
+        // ProfilePath-Eingabe
+        JTextField profilePathField = new JTextField("C:\\BrowserProfile", 15);
+
+        // Checkboxen für Optionen
+        JCheckBox headlessCheckbox = new JCheckBox("Headless");
+        JCheckBox disableGpuCheckbox = new JCheckBox("Disable GPU");
+        JCheckBox noRemoteCheckbox = new JCheckBox("No Remote");
+
         // Dropdown für Browserauswahl
         JComboBox<String> browserSelector = new JComboBox<>(
                 new String[]{"Firefox", "Chrome", "Edge", "Safari"}
@@ -32,21 +40,27 @@ public class Main {
 
         // Buttons
         JButton launchButton = new JButton("Launch Browser");
-        JButton terminateButton = new JButton("Terminate Browser"); // Neuer Button
+        JButton terminateButton = new JButton("Terminate Browser");
         JButton navigateButton = new JButton("Navigate");
 
         // Adressfeld
         JTextField addressBar = new JTextField("https://www.google.com");
 
         // Toolbar zusammenstellen
+        toolBar.add(new JLabel("URL:"));
         toolBar.add(addressBar);
         toolBar.add(navigateButton);
+        toolBar.add(new JLabel("Browser:"));
         toolBar.add(browserSelector);
         toolBar.add(new JLabel("Port:"));
         toolBar.add(portField);
+        toolBar.add(new JLabel("Profile Path:"));
+        toolBar.add(profilePathField);
+        toolBar.add(headlessCheckbox);
+        toolBar.add(disableGpuCheckbox);
+        toolBar.add(noRemoteCheckbox);
         toolBar.add(launchButton);
-        toolBar.add(terminateButton); // Terminate-Button hinzufügen
-
+        toolBar.add(terminateButton);
 
         // Layout
         frame.setLayout(new BorderLayout());
@@ -57,7 +71,18 @@ public class Main {
         frame.setVisible(true);
 
         // Event Listeners
-        controller.setupListeners(portField, browserSelector, launchButton, terminateButton, navigateButton, addressBar);
+        controller.setupListeners(
+                portField,
+                profilePathField,
+                headlessCheckbox,
+                disableGpuCheckbox,
+                noRemoteCheckbox,
+                browserSelector,
+                launchButton,
+                terminateButton,
+                navigateButton,
+                addressBar
+        );
 
         // Close Browser on Exit
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
@@ -66,4 +91,5 @@ public class Main {
             }
         });
     }
+
 }
