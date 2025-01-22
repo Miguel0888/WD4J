@@ -9,6 +9,10 @@ version = '1.0-SNAPSHOT'
 group = 'WD4J'
 version = '1.0.0'
 
+repositories {
+    mavenCentral() // Hier wird definiert, wo die Abhängigkeiten gesucht werden
+}
+
 dependencies {
 
     implementation 'org.java-websocket:Java-WebSocket:1.5.2'
