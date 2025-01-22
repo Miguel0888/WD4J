@@ -14,18 +14,29 @@ public class BiDiWebDriver implements WebDriver {
     private final BrowserType browserType;
     private final int port;
 
-    public BiDiWebDriver(BrowserType browserType, int port) {
+    public BiDiWebDriver(BrowserType browserType) {
         this.browserType = browserType;
-        this.port = port;
+        this.port = browserType.getPort();
 
         try {
             // Browser starten
-            Process browserProcess = browserType.launch(port);
+            Process browserProcess = browserType.launch();
             System.out.println(browserType.name() + " gestartet auf Port " + port);
 
             // WebSocket-Verbindung herstellen
             String websocketUrl = WebSocketEndpointHelper.getWebSocketUrl(port);
             this.webSocketConnection = new WebSocketConnection(new URI(websocketUrl));
+
+            // Hinzufügen eines Listeners für die WebSocket-Verbindung
+            this.webSocketConnection.setOnClose((code, reason) -> {
+                System.out.println("CALLBACK: WebSocket closed. Code: " + code + ", Reason: " + reason);
+                if (browserProcess.isAlive()) {
+//                    browserProcess.destroy();
+                    browserProcess.destroyForcibly();
+                    System.out.println("Browser-Prozess wurde beendet.");
+                }
+            });
+
             this.webSocketConnection.connect();
         } catch (Exception e) {
             throw new RuntimeException("Fehler beim Starten des Browsers oder Aufbau der WebSocket-Verbindung", e);
@@ -129,5 +140,5 @@ public class BiDiWebDriver implements WebDriver {
         }
         throw new RuntimeException("Context ID not found in response: " + response);
     }
-    
+
 }

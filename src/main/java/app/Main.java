@@ -8,6 +8,8 @@ import javax.swing.*;
 import java.awt.*;
 
 public class Main {
+    private static String lastProfilePath;
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Main::createAndShowGUI);
     }
@@ -25,8 +27,22 @@ public class Main {
         // Port-Eingabe
         JTextField portField = new JTextField("9222", 5); // Standardport: 9222
 
+        // Checkbox zur Steuerung der Profilverwendung
+        JCheckBox useProfileCheckbox = new JCheckBox("", true); // Standardmäßig aktiviert
         // ProfilePath-Eingabe
         JTextField profilePathField = new JTextField("C:\\BrowserProfile", 15);
+        // Synchronisierung des Status der Checkbox und der Textbox
+        useProfileCheckbox.addActionListener(e -> {
+            boolean isSelected = useProfileCheckbox.isSelected();
+            profilePathField.setEnabled(isSelected); // Textbox aktivieren/deaktivieren
+            if (!isSelected) {
+                lastProfilePath = profilePathField.getText(); // Letzten Profilpfad speichern
+                profilePathField.setText(null); // Textbox-Inhalt auf null setzen
+            }
+            else {
+                profilePathField.setText(lastProfilePath); // Letzten Profilpfad wiederherstellen
+            }
+        });
 
         // Checkboxen für Optionen
         JCheckBox headlessCheckbox = new JCheckBox("Headless");
@@ -47,6 +63,7 @@ public class Main {
         browserToolBar.add(browserSelector);
         browserToolBar.add(new JLabel("Port:"));
         browserToolBar.add(portField);
+        browserToolBar.add(useProfileCheckbox);
         browserToolBar.add(new JLabel("Profile Path:"));
         browserToolBar.add(profilePathField);
         browserToolBar.add(headlessCheckbox);

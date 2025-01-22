@@ -15,12 +15,13 @@ public class BrowserService {
     public void createWebDriver(String browserName, int port, String profilePath, boolean headless, boolean disableGpu, boolean noRemote) {
         try {
             BrowserType browserType = BrowserType.valueOf(browserName.toUpperCase());
+            browserType.setPort(port);
             browserType.setProfilePath(profilePath);
             browserType.setHeadless(headless);
             browserType.setDisableGpu(disableGpu);
             browserType.setNoRemote(noRemote);
 
-            this.webDriver = new BiDiWebDriver(browserType, port);
+            this.webDriver = new BiDiWebDriver(browserType);
         } catch (Exception e) {
             throw new RuntimeException("Fehler beim Erstellen des WebDrivers", e);
         }

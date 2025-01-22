@@ -1,17 +1,18 @@
 package wd4j.impl;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.net.URI;
+import java.util.function.BiConsumer;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
-import java.net.URI;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-
 public class WebSocketConnection {
     private final WebSocketClient webSocketClient;
     private final BlockingQueue<String> messageQueue = new LinkedBlockingQueue<>();
+    private BiConsumer<Integer, String> onClose;
 
     public WebSocketConnection(URI uri) {
         this.webSocketClient = new WebSocketClient(uri) {
@@ -33,7 +34,10 @@ public class WebSocketConnection {
 
             @Override
             public void onClose(int code, String reason, boolean remote) {
-                System.out.println("WebSocket closed. Code: " + code + ", Reason: " + reason);
+                System.out.println("WebSocketConnection closed. Code: " + code + ", Reason: " + reason);
+                if (onClose != null) {
+                    onClose.accept(code, reason);
+                }
             }
 
             @Override
@@ -64,5 +68,14 @@ public class WebSocketConnection {
 
     public void close() {
         webSocketClient.close();
+    }
+
+    /**
+     * Set a consumer to be called when the WebSocket connection is closed (Callback).
+     *
+     * @param onClose Consumer to be called when the WebSocket connection is closed
+     */
+    public void setOnClose(BiConsumer<Integer, String> onClose) {
+        this.onClose = onClose;
     }
 }

@@ -38,7 +38,11 @@ public class MainController {
         launchButton.addActionListener(e -> {
             String selectedBrowser = (String) browserSelector.getSelectedItem();
             String portText = portField.getText();
-            String profilePath = profilePathField.getText();
+            String profilePath = null;
+            if( profilePathField.isEnabled())
+            {
+                profilePath = profilePathField.getText();
+            }
             boolean headless = headlessCheckbox.isSelected();
             boolean disableGpu = disableGpuCheckbox.isSelected();
             boolean noRemote = noRemoteCheckbox.isSelected();
