@@ -38,12 +38,12 @@ public class Main {
         JTextField addressBar = new JTextField("https://www.google.com");
 
         // Toolbar zusammenstellen
+        toolBar.add(addressBar);
+        toolBar.add(navigateButton);
+        toolBar.add(browserSelector);
         toolBar.add(new JLabel("Port:"));
         toolBar.add(portField);
-        toolBar.add(browserSelector);
         toolBar.add(launchButton);
-        toolBar.add(navigateButton);
-        toolBar.add(addressBar);
 
         // Layout
         frame.setLayout(new BorderLayout());

@@ -40,9 +40,9 @@ public enum BrowserType {
             Process process = new ProcessBuilder(
                     chromePath,
                     "--remote-debugging-port=" + port,
-                    "--user-data-dir=C:\\ChromeProfile", // Benutzerdefiniertes Profil
-                    "--disable-gpu",                    // Optional: Deaktiviert GPU-Beschleunigung
-                    "--headless"                        // Optional: Headless-Modus
+                    "--user-data-dir=C:\\ChromeProfile"//, // Benutzerdefiniertes Profil
+//                    "--disable-gpu",                    // Optional: Deaktiviert GPU-Beschleunigung
+//                    "--headless"                        // Optional: Headless-Modus
             )
                     .redirectErrorStream(true)
                     .start();
