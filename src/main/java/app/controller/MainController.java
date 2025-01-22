@@ -23,28 +23,23 @@ public class MainController {
         browserService.closeBrowser();
     }
 
-    public void setupListeners(JButton navigateButton, JTextField addressBar, JComboBox<String> browserSelector) {
-        navigateButton.addActionListener(e -> {
-            String url = addressBar.getText();
-            if (!url.isEmpty()) {
-                browserService.navigateTo(url);
-            } else {
-                JOptionPane.showMessageDialog(null, "Bitte eine URL eingeben.");
-            }
-        });
-    }
-
-    public void setupListeners(JButton launchButton, JComboBox<String> browserSelector, JButton navigateButton, JTextField addressBar) {
+    public void setupListeners(JTextField portField, JComboBox<String> browserSelector, JButton launchButton, JButton navigateButton, JTextField addressBar) {
         // Browser starten
         launchButton.addActionListener(e -> {
             String selectedBrowser = (String) browserSelector.getSelectedItem();
-            if (selectedBrowser != null) {
+            String portText = portField.getText();
+
+            if (selectedBrowser != null && !portText.isEmpty()) {
                 try {
-                    // Browser basierend auf der Auswahl starten
-                    browserService.launchBrowser(BrowserType.valueOf(selectedBrowser.toUpperCase()));
+                    int port = Integer.parseInt(portText); // Port in Integer umwandeln
+                    browserService.launchBrowser(BrowserType.valueOf(selectedBrowser.toUpperCase()), port);
+                } catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(null, "Bitte eine gültige Portnummer eingeben.");
                 } catch (IllegalArgumentException ex) {
                     JOptionPane.showMessageDialog(null, "Der ausgewählte Browser wird nicht unterstützt.");
                 }
+            } else {
+                JOptionPane.showMessageDialog(null, "Bitte einen Browser und einen gültigen Port auswählen.");
             }
         });
 
@@ -58,5 +53,4 @@ public class MainController {
             }
         });
     }
-
 }

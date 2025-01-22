@@ -22,16 +22,26 @@ public class Main {
         JToolBar toolBar = new JToolBar();
         toolBar.setFloatable(false);
 
-        JButton launchButton = new JButton("Launch Browser");
+        // Port-Eingabe
+        JTextField portField = new JTextField("9222", 5); // Standardport: 9222
+
+        // Dropdown für Browserauswahl
         JComboBox<String> browserSelector = new JComboBox<>(
                 new String[]{"Firefox", "Chrome", "Edge", "Safari"}
         );
 
+        // Buttons
+        JButton launchButton = new JButton("Launch Browser");
         JButton navigateButton = new JButton("Navigate");
+
+        // Adressfeld
         JTextField addressBar = new JTextField("https://www.google.com");
 
-        toolBar.add(launchButton);
+        // Toolbar zusammenstellen
+        toolBar.add(new JLabel("Port:"));
+        toolBar.add(portField);
         toolBar.add(browserSelector);
+        toolBar.add(launchButton);
         toolBar.add(navigateButton);
         toolBar.add(addressBar);
 
@@ -44,7 +54,7 @@ public class Main {
         frame.setVisible(true);
 
         // Event Listeners
-        controller.setupListeners(launchButton, browserSelector, navigateButton, addressBar);
+        controller.setupListeners(portField, browserSelector, launchButton, navigateButton, addressBar);
 
         // Close Browser on Exit
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
@@ -53,5 +63,4 @@ public class Main {
             }
         });
     }
-
 }

@@ -21,8 +21,9 @@ public class BrowserService {
 
     private BiDiWebSocketClient client;
 
-    public void launchBrowser(BrowserType browserType) {
+    public void launchBrowser(BrowserType browserType, int port) {
         try {
+            // Browser mit dem angegebenen Port starten
             browserType.launch(port);
 
             Thread.sleep(1000); // Wartezeit, bis der Browser gestartet ist
@@ -33,12 +34,13 @@ public class BrowserService {
             client = new BiDiWebSocketClient(new URI(websocketUrl));
             client.connect();
 
-            System.out.println("Browser gestartet.");
+            System.out.println("Browser gestartet auf Port " + port);
         } catch (Exception e) {
             System.out.println("Fehler beim Starten des Browsers:");
             e.printStackTrace();
         }
     }
+
 
     public void navigateTo(String url) {
         try {
