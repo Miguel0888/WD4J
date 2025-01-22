@@ -32,6 +32,7 @@ public class Main {
 
         // Buttons
         JButton launchButton = new JButton("Launch Browser");
+        JButton terminateButton = new JButton("Terminate Browser"); // Neuer Button
         JButton navigateButton = new JButton("Navigate");
 
         // Adressfeld
@@ -44,6 +45,8 @@ public class Main {
         toolBar.add(new JLabel("Port:"));
         toolBar.add(portField);
         toolBar.add(launchButton);
+        toolBar.add(terminateButton); // Terminate-Button hinzufügen
+
 
         // Layout
         frame.setLayout(new BorderLayout());
@@ -54,7 +57,7 @@ public class Main {
         frame.setVisible(true);
 
         // Event Listeners
-        controller.setupListeners(portField, browserSelector, launchButton, navigateButton, addressBar);
+        controller.setupListeners(portField, browserSelector, launchButton, terminateButton, navigateButton, addressBar);
 
         // Close Browser on Exit
         frame.addWindowListener(new java.awt.event.WindowAdapter() {

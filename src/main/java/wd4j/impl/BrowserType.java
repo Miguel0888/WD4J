@@ -7,7 +7,7 @@ public enum BrowserType {
 
     FIREFOX {
         @Override
-        public void launch(int port) throws Exception {
+        public Process launch(int port) throws Exception {
             String firefoxPath = "C:\\Program Files\\Mozilla Firefox\\firefox.exe";
             String firefoxProfileDirectory = "C:\\FirefoxProfile";
 
@@ -29,12 +29,13 @@ public enum BrowserType {
             }
 
             System.out.println("Firefox gestartet für WebDriver BiDi.");
+            return process;
         }
     },
 
     CHROME {
         @Override
-        public void launch(int port) throws Exception {
+        public Process launch(int port) throws Exception {
             String chromePath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 
             Process process = new ProcessBuilder(
@@ -55,12 +56,13 @@ public enum BrowserType {
             }
 
             System.out.println("Chrome gestartet für WebDriver BiDi.");
+            return process;
         }
     },
 
     EDGE {
         @Override
-        public void launch(int port) throws Exception {
+        public Process launch(int port) throws Exception {
             String edgePath = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
 
             Process process = new ProcessBuilder(
@@ -79,16 +81,18 @@ public enum BrowserType {
             }
 
             System.out.println("Edge gestartet für WebDriver BiDi.");
+            return process;
         }
     },
 
     SAFARI {
         @Override
-        public void launch(int port) throws Exception {
+        public Process launch(int port) throws Exception {
             System.out.println("Safari-WebDriver-Integration ist derzeit nur auf macOS möglich.");
+            return null;
         }
     };
 
     // Abstrakte Methode, die von jedem Enum-Typ implementiert wird
-    public abstract void launch(int port) throws Exception;
+    public abstract Process launch(int port) throws Exception;
 }

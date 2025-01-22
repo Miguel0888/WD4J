@@ -21,10 +21,15 @@ public class BrowserService {
 
     private BiDiWebSocketClient client;
 
+    private Process browserProcess;
+
     public void launchBrowser(BrowserType browserType, int port) {
         try {
-            // Browser mit dem angegebenen Port starten
-            browserType.launch(port);
+            browserProcess = browserType.launch(port); // Speichert den gestarteten Prozess
+            if( browserProcess == null ) {
+                System.out.println("Browser konnte nicht gestartet werden, probieren Sie einen anderen.");
+                return;
+            }
 
             Thread.sleep(1000); // Wartezeit, bis der Browser gestartet ist
 
@@ -38,6 +43,16 @@ public class BrowserService {
         } catch (Exception e) {
             System.out.println("Fehler beim Starten des Browsers:");
             e.printStackTrace();
+        }
+    }
+
+    public void terminateBrowser() {
+        if (browserProcess != null) {
+            browserProcess.destroy(); // Beendet den Browserprozess
+            browserProcess = null;
+            System.out.println("Browser-Prozess wurde beendet.");
+        } else {
+            System.out.println("Kein Browser-Prozess aktiv.");
         }
     }
 

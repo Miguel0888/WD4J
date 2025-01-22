@@ -23,7 +23,7 @@ public class MainController {
         browserService.closeBrowser();
     }
 
-    public void setupListeners(JTextField portField, JComboBox<String> browserSelector, JButton launchButton, JButton navigateButton, JTextField addressBar) {
+    public void setupListeners(JTextField portField, JComboBox<String> browserSelector, JButton launchButton, JButton terminateButton, JButton navigateButton, JTextField addressBar) {
         // Browser starten
         launchButton.addActionListener(e -> {
             String selectedBrowser = (String) browserSelector.getSelectedItem();
@@ -43,6 +43,11 @@ public class MainController {
             }
         });
 
+        // Browser beenden
+        terminateButton.addActionListener(e -> {
+            browserService.terminateBrowser();
+        });
+
         // Navigieren
         navigateButton.addActionListener(e -> {
             String url = addressBar.getText();
@@ -53,4 +58,5 @@ public class MainController {
             }
         });
     }
+
 }
