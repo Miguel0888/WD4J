@@ -24,7 +24,7 @@ public class BrowserService {
         try {
             launchFirefox();
 
-            Thread.sleep(5000); // Warte 5 Sekunden
+            Thread.sleep(1000); // Warte 1 Sekunden
 
 
             // URI zur WebSocket-Schnittstelle von Firefox

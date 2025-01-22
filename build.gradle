@@ -16,6 +16,7 @@ repositories {
 dependencies {
     implementation 'ch.qos.logback:logback-classic:1.2.11' // letzte Java 8-kompatible Version
     implementation 'org.java-websocket:Java-WebSocket:1.5.2'
+    implementation 'com.google.code.gson:gson:2.8.9'
 
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -40,4 +41,8 @@ jar {
 
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
+}
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs.add('-Xlint:-options')
 }

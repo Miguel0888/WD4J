@@ -3,8 +3,11 @@ package wd4j.impl;
 import wd4j.api.By;
 import wd4j.api.WebDriver;
 import wd4j.api.WebElement;
-
+import wd4j.impl.Command;
 import java.net.URI;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 
 public class BiDiWebDriver implements WebDriver {
     private final WebSocketConnection webSocketConnection;
@@ -37,12 +40,45 @@ public class BiDiWebDriver implements WebDriver {
 
     @Override
     public void get(String url) {
-        String command = String.format(
-                "{\"id\":1,\"method\":\"browsingContext.navigate\",\"params\":{\"url\":\"%s\"}}",
-                url
+        Gson gson = new Gson();
+
+        // Befehl für getTree erstellen
+        Command getContextCommand = new Command(2, "browsingContext.getTree", new Object());
+        String getContextCommandJson = gson.toJson(getContextCommand);
+        webSocketConnection.send(getContextCommandJson);
+
+        String response;
+        try {
+            response = webSocketConnection.receive();
+            System.out.println("Received context response: " + response);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Failed to retrieve context", e);
+        }
+
+        // Extrahiere die Context-ID aus der Antwort
+        String contextId = extractContextIdWithGson(response);
+
+        // Befehl für navigate erstellen
+        Command navigateCommand = new Command(1, "browsingContext.navigate",
+            new JsonObjectBuilder()
+                .addProperty("url", url)
+                .addProperty("context", contextId)
+                .build()
         );
-        webSocketConnection.send(command);
+        String navigateCommandJson = gson.toJson(navigateCommand);
+
+        webSocketConnection.send(navigateCommandJson);
+
+        try {
+            String navigationResponse = webSocketConnection.receive();
+            System.out.println("Navigation response: " + navigationResponse);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Navigation failed", e);
+        }
     }
+
 
     @Override
     public String getCurrentUrl() {
@@ -68,4 +104,19 @@ public class BiDiWebDriver implements WebDriver {
                 using, value
         );
     }
+
+    private String extractContextIdWithGson(String response) {
+        Gson gson = new Gson();
+        try {
+            JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
+            JsonObject result = jsonResponse.getAsJsonObject("result");
+            if (result != null) {
+                return result.getAsJsonArray("contexts").get(0).getAsJsonObject().get("context").getAsString();
+            }
+        } catch (JsonParseException | NullPointerException e) {
+            throw new RuntimeException("Failed to parse context ID from response: " + response, e);
+        }
+        throw new RuntimeException("Context ID not found in response: " + response);
+    }
+    
 }
