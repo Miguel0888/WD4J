@@ -1,17 +1,14 @@
 package app.controller;
 
 import app.service.BrowserService;
-import wd4j.impl.BrowserType;
 
 import javax.swing.*;
-
 
 public class MainController {
     private final BrowserService browserService;
 
-    // ToDo: May use dependency injection via Spring or other frameworks
-    public MainController()
-    {
+    // Konstruktor
+    public MainController() {
         this(new BrowserService());
     }
 
@@ -19,10 +16,12 @@ public class MainController {
         this.browserService = browserService;
     }
 
+    // Browser schließen
     public void onCloseBrowser() {
-        browserService.closeBrowser();
+        browserService.terminateWebDriver();
     }
 
+    // Listener-Setup
     public void setupListeners(
             JTextField portField,
             JTextField profilePathField,
@@ -46,19 +45,20 @@ public class MainController {
 
             if (selectedBrowser != null && !portText.isEmpty()) {
                 try {
-                    int port = Integer.parseInt(portText); // Port in Integer umwandeln
-                    browserService.launchBrowser(
-                            selectedBrowser.toUpperCase(),
-                            port,
-                            profilePath,
-                            headless,
-                            disableGpu,
-                            noRemote
+                    int port = Integer.parseInt(portText); // Portnummer verarbeiten
+                    browserService.createWebDriver(
+                            selectedBrowser,   // Browser-Typ (z. B. "Chrome")
+                            port,              // Port
+                            profilePath,       // Profilpfad
+                            headless,          // Headless-Modus
+                            disableGpu,        // GPU deaktivieren
+                            noRemote           // No Remote
                     );
+                    JOptionPane.showMessageDialog(null, selectedBrowser + " erfolgreich gestartet.");
                 } catch (NumberFormatException ex) {
                     JOptionPane.showMessageDialog(null, "Bitte eine gültige Portnummer eingeben.");
-                } catch (IllegalArgumentException ex) {
-                    JOptionPane.showMessageDialog(null, "Der ausgewählte Browser wird nicht unterstützt.");
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(null, "Fehler beim Starten des Browsers: " + ex.getMessage());
                 }
             } else {
                 JOptionPane.showMessageDialog(null, "Bitte einen Browser und einen gültigen Port auswählen.");
@@ -67,18 +67,23 @@ public class MainController {
 
         // Browser beenden
         terminateButton.addActionListener(e -> {
-            browserService.terminateBrowser();
+            browserService.terminateWebDriver();
+            JOptionPane.showMessageDialog(null, "Browser wurde beendet.");
         });
 
-        // Navigieren
+        // URL navigieren
         navigateButton.addActionListener(e -> {
             String url = addressBar.getText();
             if (!url.isEmpty()) {
-                browserService.navigateTo(url);
+                try {
+                    browserService.navigateTo(url);
+                    JOptionPane.showMessageDialog(null, "Navigiere zu: " + url);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(null, "Fehler beim Navigieren: " + ex.getMessage());
+                }
             } else {
-                JOptionPane.showMessageDialog(null, "Bitte eine URL eingeben.");
+                JOptionPane.showMessageDialog(null, "Bitte eine gültige URL eingeben.");
             }
         });
     }
-
 }

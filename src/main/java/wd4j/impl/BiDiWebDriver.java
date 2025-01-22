@@ -11,17 +11,28 @@ import com.google.gson.JsonParseException;
 
 public class BiDiWebDriver implements WebDriver {
     private final WebSocketConnection webSocketConnection;
+    private final BrowserType browserType;
+    private final int port;
 
-    public BiDiWebDriver(URI websocketUri) {
-        this.webSocketConnection = new WebSocketConnection(websocketUri);
+    public BiDiWebDriver(BrowserType browserType, int port) {
+        this.browserType = browserType;
+        this.port = port;
+
         try {
+            // Browser starten
+            Process browserProcess = browserType.launch(port);
+            System.out.println(browserType.name() + " gestartet auf Port " + port);
+
+            // WebSocket-Verbindung herstellen
+            String websocketUrl = WebSocketEndpointHelper.getWebSocketUrl(port);
+            this.webSocketConnection = new WebSocketConnection(new URI(websocketUrl));
             this.webSocketConnection.connect();
-            // Setze die Verbindung in den WebDriverContext
-            WebDriverContext.setConnection(webSocketConnection);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Fehler beim Aufbau der WebSocket-Verbindung", e);
+        } catch (Exception e) {
+            throw new RuntimeException("Fehler beim Starten des Browsers oder Aufbau der WebSocket-Verbindung", e);
         }
+
+        // Verbindung im Kontext setzen
+        WebDriverContext.setConnection(webSocketConnection);
     }
 
     @Override
