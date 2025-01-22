@@ -1,13 +1,13 @@
 plugins {
     id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1' //um Fat-Jar mit allen Dependendies zu erzeugen
 }
 
 group = 'org.example'
 version = '1.0-SNAPSHOT'
 
-repositories {
-    mavenCentral()
-}
+group = 'WD4J'
+version = '1.0.0'
 
 dependencies {
 
@@ -19,4 +19,21 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+jar {
+    manifest {
+        attributes(
+            'Main-Class': 'app.Main' // Die Main-Klasse, die gestartet werden soll
+        )
+    }
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
 }

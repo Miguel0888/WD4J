@@ -1,0 +1,94 @@
+name: Release Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build project with shadowJar
+        run: ./gradlew shadowJar
+
+      # Debug: List build artifacts
+      - name: List build artifacts
+        run: ls -l build/libs
+
+      - name: Determine version
+        id: version
+        run: |
+          version=$(grep 'version=' gradle.properties | cut -d'=' -f2)
+          echo "current_version=$version" >> $GITHUB_ENV
+          new_version=$(echo $version | awk -F. '{$NF += 1; OFS="."; print $0}')
+          echo "new_version=$new_version" >> $GITHUB_ENV
+
+      - name: Update version in gradle.properties
+        run: |
+          sed -i "s/version=$current_version/version=$new_version/" gradle.properties
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gradle.properties
+          git commit -m "Bump version to $new_version"
+          git remote set-url origin https://x-access-token:${{ secrets.PAT }}@github.com/${{ github.repository }}
+          git push origin main
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          if git ls-remote --tags origin | grep -q "refs/tags/v$new_version$"; then
+            echo "exists=true" >> $GITHUB_ENV
+          else
+            echo "exists=false" >> $GITHUB_ENV
+          fi
+
+      - name: Create Git tag
+        if: env.exists == 'false'
+        run: |
+          git tag "v$new_version"
+          git push origin "v$new_version"
+
+      - name: Create GitHub Release
+        if: env.exists == 'false'
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: "v${{ env.new_version }}"
+          release_name: "Release v${{ env.new_version }}"
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+
+      - name: Debug upload URL
+        run: echo "${{ steps.create_release.outputs.upload_url }}"
+
+      - name: Find JAR file
+        id: find_jar
+        run: |
+          JAR_FILE=$(ls build/libs/*-all.jar)
+          echo "JAR_FILE=$JAR_FILE" >> $GITHUB_ENV
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.JAR_FILE }}
+          asset_name: WD4J-${{ env.new_version }}.jar
+          asset_content_type: application/java-archive
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
