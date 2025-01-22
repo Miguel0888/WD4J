@@ -18,9 +18,9 @@ public class Main {
         JFrame frame = new JFrame("Web Testing Dashboard");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        // Toolbar
-        JToolBar toolBar = new JToolBar();
-        toolBar.setFloatable(false);
+        // Toolbar für die erste Zeile
+        JToolBar browserToolBar = new JToolBar();
+        browserToolBar.setFloatable(false);
 
         // Port-Eingabe
         JTextField portField = new JTextField("9222", 5); // Standardport: 9222
@@ -38,35 +38,46 @@ public class Main {
                 new String[]{"Firefox", "Chrome", "Edge", "Safari"}
         );
 
-        // Buttons
+        // Buttons für Browsersteuerung
         JButton launchButton = new JButton("Launch Browser");
         JButton terminateButton = new JButton("Terminate Browser");
+
+        // Erste Zeile zusammenstellen
+        browserToolBar.add(new JLabel("Browser:"));
+        browserToolBar.add(browserSelector);
+        browserToolBar.add(new JLabel("Port:"));
+        browserToolBar.add(portField);
+        browserToolBar.add(new JLabel("Profile Path:"));
+        browserToolBar.add(profilePathField);
+        browserToolBar.add(headlessCheckbox);
+        browserToolBar.add(disableGpuCheckbox);
+        browserToolBar.add(noRemoteCheckbox);
+        browserToolBar.add(launchButton);
+        browserToolBar.add(terminateButton);
+
+        // Toolbar für die zweite Zeile
+        JToolBar navigationToolBar = new JToolBar();
+        navigationToolBar.setFloatable(false);
+
+        // Adresszeile und Navigations-Button
+        JTextField addressBar = new JTextField("https://www.google.com", 30);
         JButton navigateButton = new JButton("Navigate");
 
-        // Adressfeld
-        JTextField addressBar = new JTextField("https://www.google.com");
-
-        // Toolbar zusammenstellen
-        toolBar.add(new JLabel("URL:"));
-        toolBar.add(addressBar);
-        toolBar.add(navigateButton);
-        toolBar.add(new JLabel("Browser:"));
-        toolBar.add(browserSelector);
-        toolBar.add(new JLabel("Port:"));
-        toolBar.add(portField);
-        toolBar.add(new JLabel("Profile Path:"));
-        toolBar.add(profilePathField);
-        toolBar.add(headlessCheckbox);
-        toolBar.add(disableGpuCheckbox);
-        toolBar.add(noRemoteCheckbox);
-        toolBar.add(launchButton);
-        toolBar.add(terminateButton);
+        // Zweite Zeile zusammenstellen
+        navigationToolBar.add(new JLabel("URL:"));
+        navigationToolBar.add(addressBar);
+        navigationToolBar.add(navigateButton);
 
         // Layout
-        frame.setLayout(new BorderLayout());
-        frame.add(toolBar, BorderLayout.NORTH);
+        JPanel toolBarPanel = new JPanel();
+        toolBarPanel.setLayout(new GridLayout(2, 1)); // Zwei Zeilen
+        toolBarPanel.add(browserToolBar);
+        toolBarPanel.add(navigationToolBar);
 
-        frame.setSize(800, 600);
+        frame.setLayout(new BorderLayout());
+        frame.add(toolBarPanel, BorderLayout.NORTH);
+
+        frame.setSize(1024, 768);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
 
@@ -91,5 +102,6 @@ public class Main {
             }
         });
     }
+
 
 }
