@@ -67,7 +67,7 @@ WD4J bietet eine moderne, native Alternative:
 ## Nutzung
 
 ### Voraussetzungen
-- **Java 11+**
+- **Java 8+**
 - Unterstützte Browser:
     - Google Chrome (Version 96+ mit BiDi-Unterstützung)
     - Microsoft Edge (Version 96+ mit BiDi-Unterstützung)
