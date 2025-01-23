@@ -1,5 +1,8 @@
 package wd4j.impl.modules;
 
+import wd4j.impl.generic.Module;
+import wd4j.impl.generic.Type;
+
 public class Browser implements Module {
 
     public ClientWindow clientWindow;

@@ -1,6 +1,12 @@
 package wd4j.impl.modules;
 
+import com.google.gson.JsonObject;
 import wd4j.impl.WebSocketConnection;
+import wd4j.impl.generic.Event;
+import wd4j.impl.generic.Module;
+import wd4j.impl.generic.Type;
+
+import java.util.concurrent.CompletableFuture;
 
 public class Session implements Module {
     private final WebSocketConnection connection;
@@ -8,10 +14,8 @@ public class Session implements Module {
     public Session(WebSocketConnection connection) {
         this.connection = connection;
 
-        // Register for events:
-        connection.addEventListener(event -> {
-            System.out.println(event -> onEvent(event));
-        });
+        // Register for events
+        connection.addEventListener(event -> onEvent(event));
     }
 
     private void onEvent(Event event) {

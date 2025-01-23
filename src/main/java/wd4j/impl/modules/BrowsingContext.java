@@ -1,5 +1,11 @@
 package wd4j.impl.modules;
 
+import com.google.gson.JsonObject;
+import wd4j.impl.WebSocketConnection;
+import wd4j.impl.generic.Module;
+
+import java.util.concurrent.CompletableFuture;
+
 public class BrowsingContext implements Module {
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

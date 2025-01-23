@@ -1,12 +1,15 @@
 package wd4j.impl;
 
-import wd4j.impl.BiDiWebDriver.WebDriverEvent;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import wd4j.impl.generic.Event;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
 import java.net.URI;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
@@ -34,34 +37,26 @@ public class WebSocketConnection {
                     System.out.println("Received message: " + message);
                     JsonObject jsonMessage = new Gson().fromJson(message, JsonObject.class);
                     if (jsonMessage.has("id")) {
+                        // Antwort auf ein Kommando
                         int id = jsonMessage.get("id").getAsInt();
                         CompletableFuture<String> future = pendingCommands.remove(id);
                         if (future != null) {
                             future.complete(message);
                         }
+                    } else if (jsonMessage.has("type")) {
+                        // Event verarbeiten
+                        String eventType = jsonMessage.get("type").getAsString();
+                        JsonObject eventData = jsonMessage.getAsJsonObject("data");
+                        Event event = new BiDiWebDriver.WebDriverEvent(eventType, eventData);
+                        notifyEventListeners(event);
                     } else {
                         // ToDo: Check this! Possible overflow in pendingCommands!
-                        messageQueue.put(message); // Für Events ohne ID
-                        WebDriverEvent event = new WebDriverEvent(eventType, eventData);
-                        notifyEventListeners(event);
+                        messageQueue.put(message); // Unerwartete Nachrichten
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     System.err.println("Error processing message: " + e.getMessage());
                 }
-            }
-
-            public synchronized int getNextCommandId() {
-                return ++commandCounter;
-            }
-
-            public CompletableFuture<String> sendAsync(JsonObject command) {
-                int id = getNextCommandId();
-                command.addProperty("id", id);
-                CompletableFuture<String> future = new CompletableFuture<>();
-                pendingCommands.put(id, future);
-                webSocketClient.send(command.toString());
-                return future;
             }
 
             @Override
@@ -78,6 +73,19 @@ public class WebSocketConnection {
                 ex.printStackTrace();
             }
         };
+    }
+
+    public synchronized int getNextCommandId() {
+        return ++commandCounter;
+    }
+
+    public CompletableFuture<String> sendAsync(JsonObject command) {
+        int id = getNextCommandId();
+        command.addProperty("id", id);
+        CompletableFuture<String> future = new CompletableFuture<>();
+        pendingCommands.put(id, future);
+        webSocketClient.send(command.toString());
+        return future;
     }
 
     public void addEventListener(Consumer<Event> listener) {
@@ -127,6 +135,6 @@ public class WebSocketConnection {
 
     public WebSocketClient getClient()
     {
-        return connection;
+        return webSocketClient;
     }
 }
