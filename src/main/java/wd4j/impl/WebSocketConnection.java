@@ -25,7 +25,13 @@ public class WebSocketConnection {
     private final List<Consumer<Event>> eventListeners = new ArrayList<>();
 
     public WebSocketConnection(URI uri) {
-        this.webSocketClient = new WebSocketClient(uri) {
+
+        webSocketClient = createAndConfigureWebSocketClient(uri);
+    }
+
+    private WebSocketClient createAndConfigureWebSocketClient(URI uri) {
+        final WebSocketClient webSocketClient;
+        webSocketClient = new WebSocketClient(uri) {
             @Override
             public void onOpen(ServerHandshake handshakedata) {
                 System.out.println("WebSocket connected: " + handshakedata.getHttpStatusMessage());
@@ -73,6 +79,7 @@ public class WebSocketConnection {
                 ex.printStackTrace();
             }
         };
+        return webSocketClient;
     }
 
     public synchronized int getNextCommandId() {

@@ -1,5 +1,6 @@
 package wd4j.impl;
 
+// ToDo: Remove static
 public class WebDriverContext {
     private static WebSocketConnection connection;
 

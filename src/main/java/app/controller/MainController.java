@@ -58,7 +58,7 @@ public class MainController {
                             disableGpu,        // GPU deaktivieren
                             noRemote           // No Remote
                     );
-                    JOptionPane.showMessageDialog(null, selectedBrowser + " erfolgreich gestartet.");
+//                    JOptionPane.showMessageDialog(null, selectedBrowser + " erfolgreich gestartet.");
                 } catch (NumberFormatException ex) {
                     JOptionPane.showMessageDialog(null, "Bitte eine gültige Portnummer eingeben.");
                 } catch (Exception ex) {
@@ -72,7 +72,7 @@ public class MainController {
         // Browser beenden
         terminateButton.addActionListener(e -> {
             browserService.terminateWebDriver();
-            JOptionPane.showMessageDialog(null, "Browser wurde beendet.");
+//            JOptionPane.showMessageDialog(null, "Browser wurde beendet.");
         });
 
         // URL navigieren

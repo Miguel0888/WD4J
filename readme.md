@@ -134,6 +134,7 @@ Beiträge sind willkommen! Wenn du helfen möchtest:
 - [Session Management im WebDriver BiDi-Protokoll](https://w3c.github.io/webdriver-bidi/#session): Details zur Sitzungserstellung und -verwaltung.
 - [Module des WebDriver BiDi-Protokolls](https://w3c.github.io/webdriver-bidi/#modules): Überblick über die einzelnen Module und deren Funktionen (z. B. `session`, `browsingContext`).
 - [WebSocket-Kommunikation im BiDi-Protokoll](https://w3c.github.io/webdriver-bidi/#transport): Beschreibung der bidirektionalen Kommunikation zwischen Client und Browser.
+- [Capabilities für WebSocket-URLs](https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/webSocketUrl): Informationen zum Erlangen der WebSocket-URL mit WebDriver-Capabilities.
 
 ---
 
