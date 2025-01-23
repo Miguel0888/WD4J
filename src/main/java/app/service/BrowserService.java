@@ -1,7 +1,6 @@
 package app.service;
 
 import wd4j.impl.BiDiWebDriver;
-import wd4j.impl.BiDiWebSocketClient;
 import wd4j.impl.BrowserType;
 import wd4j.impl.WebSocketEndpointHelper;
 

@@ -126,6 +126,15 @@ Beiträge sind willkommen! Wenn du helfen möchtest:
 - Schaue in den [Issue Tracker](https://github.com/Miguel0888/WD4J/issues), um offene Aufgaben zu finden.
 - Reiche Pull Requests ein, um Funktionen oder Fehlerbehebungen vorzuschlagen.
 
+------
+
+## Siehe auch
+
+- [WebDriver BiDi Spezifikation (W3C)](https://w3c.github.io/webdriver-bidi/): Offizielle Dokumentation und Beschreibung des WebDriver BiDi-Protokolls.
+- [Session Management im WebDriver BiDi-Protokoll](https://w3c.github.io/webdriver-bidi/#session): Details zur Sitzungserstellung und -verwaltung.
+- [Module des WebDriver BiDi-Protokolls](https://w3c.github.io/webdriver-bidi/#modules): Überblick über die einzelnen Module und deren Funktionen (z. B. `session`, `browsingContext`).
+- [WebSocket-Kommunikation im BiDi-Protokoll](https://w3c.github.io/webdriver-bidi/#transport): Beschreibung der bidirektionalen Kommunikation zwischen Client und Browser.
+
 ---
 
 ## Lizenz

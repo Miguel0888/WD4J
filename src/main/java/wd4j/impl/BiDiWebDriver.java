@@ -4,6 +4,7 @@ import wd4j.api.By;
 import wd4j.api.WebDriver;
 import wd4j.api.WebElement;
 import wd4j.impl.Command;
+import wd4j.impl.generic.Event;
 import java.net.URI;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -141,4 +142,24 @@ public class BiDiWebDriver implements WebDriver {
         throw new RuntimeException("Context ID not found in response: " + response);
     }
 
+    // ToDo: Check location of this class!
+    public static class WebDriverEvent implements Event {
+        private final String type;
+        private final JsonObject data;
+    
+        public WebDriverEvent(String type, JsonObject data) {
+            this.type = type;
+            this.data = data;
+        }
+    
+        @Override
+        public String getType() {
+            return type;
+        }
+    
+        @Override
+        public JsonObject getData() {
+            return data;
+        }
+    }
 }
