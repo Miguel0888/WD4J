@@ -1,19 +1,21 @@
 package wd4j.impl;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import wd4j.api.By;
 import wd4j.api.WebDriver;
 import wd4j.api.WebElement;
-import wd4j.impl.Command;
-import wd4j.impl.generic.Event;
+import wd4j.impl.*;
+import wd4j.impl.modules.Session;
+
 import java.net.URI;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
 
 public class BiDiWebDriver implements WebDriver {
     private final WebSocketConnection webSocketConnection;
     private final BrowserType browserType;
     private final int port;
+    private final Session session;
+    private String defaultContextId; // Speichert die Standard-Kontext-ID
 
     public BiDiWebDriver(BrowserType browserType) {
         this.browserType = browserType;
@@ -32,13 +34,22 @@ public class BiDiWebDriver implements WebDriver {
             this.webSocketConnection.setOnClose((code, reason) -> {
                 System.out.println("CALLBACK: WebSocket closed. Code: " + code + ", Reason: " + reason);
                 if (browserProcess.isAlive()) {
-//                    browserProcess.destroy();
                     browserProcess.destroyForcibly();
                     System.out.println("Browser-Prozess wurde beendet.");
                 }
             });
 
             this.webSocketConnection.connect();
+
+            // Session initialisieren
+            this.session = new Session(webSocketConnection);
+            String sessionResponse = session.newSession(browserType.name()).get();
+            System.out.println("Session gestartet: " + sessionResponse);
+
+            // Standard-Kontext-ID extrahieren
+            this.defaultContextId = extractDefaultContextId(sessionResponse);
+            System.out.println("Default Context ID: " + defaultContextId);
+
         } catch (Exception e) {
             throw new RuntimeException("Fehler beim Starten des Browsers oder Aufbau der WebSocket-Verbindung", e);
         }
@@ -47,50 +58,35 @@ public class BiDiWebDriver implements WebDriver {
         WebDriverContext.setConnection(webSocketConnection);
     }
 
+    private String extractDefaultContextId(String sessionResponse) {
+        Gson gson = new Gson();
+        JsonObject jsonResponse = gson.fromJson(sessionResponse, JsonObject.class);
+        return jsonResponse.getAsJsonObject("result").getAsJsonObject("capabilities")
+                .getAsJsonObject("browsingContext").get("context").getAsString();
+    }
+
     @Override
     public WebElement findElement(By locator) {
-        String command = createFindElementCommand(locator);
-        webSocketConnection.send(command);
-
-        try {
-            String response = webSocketConnection.receive();
-            return new BiDiWebElement(response);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Fehler beim Empfangen der Antwort", e);
-        }
+        return null;
     }
 
     @Override
     public void get(String url) {
-        Gson gson = new Gson();
-
-        // Befehl für getTree erstellen
-        Command getContextCommand = new Command(2, "browsingContext.getTree", new Object());
-        String getContextCommandJson = gson.toJson(getContextCommand);
-        webSocketConnection.send(getContextCommandJson);
-
-        String response;
-        try {
-            response = webSocketConnection.receive();
-            System.out.println("Received context response: " + response);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Failed to retrieve context", e);
+        if (defaultContextId == null) {
+            throw new IllegalStateException("No browsing context available.");
         }
 
-        // Extrahiere die Context-ID aus der Antwort
-        String contextId = extractContextIdWithGson(response);
-
-        // Befehl für navigate erstellen
-        Command navigateCommand = new Command(1, "browsingContext.navigate",
-            new JsonObjectBuilder()
-                .addProperty("url", url)
-                .addProperty("context", contextId)
-                .build()
+        Gson gson = new Gson();
+        Command navigateCommand = new Command(
+                webSocketConnection.getNextCommandId(),
+                "browsingContext.navigate",
+                new JsonObjectBuilder()
+                        .addProperty("url", url)
+                        .addProperty("context", defaultContextId)
+                        .build()
         );
-        String navigateCommandJson = gson.toJson(navigateCommand);
 
+        String navigateCommandJson = gson.toJson(navigateCommand);
         webSocketConnection.send(navigateCommandJson);
 
         try {
@@ -102,7 +98,6 @@ public class BiDiWebDriver implements WebDriver {
         }
     }
 
-
     @Override
     public String getCurrentUrl() {
         return "";
@@ -113,53 +108,9 @@ public class BiDiWebDriver implements WebDriver {
         return "";
     }
 
-    // Methode zum Schließen der Verbindung und Bereinigung des Kontextes
+    @Override
     public void close() {
         WebDriverContext.clearConnection();
-    }
-
-    private String createFindElementCommand(By locator) {
-        String using = locator.getStrategy();
-        String value = locator.getValue();
-
-        return String.format(
-                "{\"id\":4,\"method\":\"element.get\",\"params\":{\"using\":\"%s\",\"value\":\"%s\"}}",
-                using, value
-        );
-    }
-
-    private String extractContextIdWithGson(String response) {
-        Gson gson = new Gson();
-        try {
-            JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
-            JsonObject result = jsonResponse.getAsJsonObject("result");
-            if (result != null) {
-                return result.getAsJsonArray("contexts").get(0).getAsJsonObject().get("context").getAsString();
-            }
-        } catch (JsonParseException | NullPointerException e) {
-            throw new RuntimeException("Failed to parse context ID from response: " + response, e);
-        }
-        throw new RuntimeException("Context ID not found in response: " + response);
-    }
-
-    // ToDo: Check location of this class!
-    public static class WebDriverEvent implements Event {
-        private final String type;
-        private final JsonObject data;
-    
-        public WebDriverEvent(String type, JsonObject data) {
-            this.type = type;
-            this.data = data;
-        }
-    
-        @Override
-        public String getType() {
-            return type;
-        }
-    
-        @Override
-        public JsonObject getData() {
-            return data;
-        }
+        session.endSession();
     }
 }

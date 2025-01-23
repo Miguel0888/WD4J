@@ -5,5 +5,7 @@ public interface WebDriver {
     void get(String url);
     String getCurrentUrl();
     String getTitle();
+
+    void close();
     // Weitere Methoden...
 }

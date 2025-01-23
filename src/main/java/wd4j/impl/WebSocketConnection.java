@@ -47,7 +47,7 @@ public class WebSocketConnection {
                         // Event verarbeiten
                         String eventType = jsonMessage.get("type").getAsString();
                         JsonObject eventData = jsonMessage.getAsJsonObject("data");
-                        Event event = new BiDiWebDriver.WebDriverEvent(eventType, eventData);
+                        Event event = new Event.WebDriverEvent(eventType, eventData);
                         notifyEventListeners(event);
                     } else {
                         // ToDo: Check this! Possible overflow in pendingCommands!

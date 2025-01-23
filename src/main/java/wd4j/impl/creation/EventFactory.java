@@ -1,7 +1,6 @@
 package wd4j.impl.creation;
 
 import com.google.gson.JsonObject;
-import wd4j.impl.BiDiWebDriver.WebDriverEvent;
 import wd4j.impl.generic.Event;
 
 public class EventFactory {

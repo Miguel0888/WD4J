@@ -22,9 +22,4 @@ public class BrowsingContext {
         );
         connection.send(command);
     }
-
-    public void listContexts() {
-        String command = "{\"id\":3,\"method\":\"browsingContext.getTree\",\"params\":{}}";
-        connection.send(command);
-    }
 }
