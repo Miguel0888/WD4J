@@ -39,23 +39,20 @@ public class BiDiWebDriver implements WebDriver {
             System.out.println(browserType.name() + " gestartet auf Port " + port);
 
             // ToDo: How is the right way to extract the WebSocket URL?
-//            String serverUrl = "ws://127.0.0.1:" + port;
             String serverUrl = "http://127.0.0.1:9222/session"; // ToDo: Check port!
             String websocketUrl = "ws://127.0.0.1:" + port;
 
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//            // Session erstellen und WebSocket-URL extrahieren
-//            String jsonResponse = connect(serverUrl);
-//            System.out.println("WebSocket-URL: " + websocketUrl);
-//            websocketUrl = extractWebSocketUrl(jsonResponse);
-
-
-            this.webSocketConnection = new WebSocketConnection(new URI(websocketUrl));
+            this.webSocketConnection = new WebSocketConnection(new URI(websocketUrl + "/session"));
 
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
             this.webSocketConnection.connect();
             System.out.println("WebSocket-Verbindung hergestellt: " + websocketUrl);
+
+            ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
             session = createSession(browserType);
             System.out.println("Session erstellt: " + session);
 
@@ -67,65 +64,10 @@ public class BiDiWebDriver implements WebDriver {
 //        WebDriverContext.setConnection(webSocketConnection);
     }
 
-    public static String extractWebSocketUrl(String jsonResponse) {
-        JsonObject response = JsonParser.parseString(jsonResponse).getAsJsonObject();
-        return response.getAsJsonObject("value")
-                .getAsJsonObject("capabilities")
-                .get("webSocketUrl")
-                .getAsString();
-    }
-
-    public static String connect(String serverUrl) throws IOException {
-        // Erstelle den HTTP-Client
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-            // Baue die URL
-            String endpoint = serverUrl + "/session";
-
-            // Erstelle die POST-Anfrage
-            HttpPost postRequest = new HttpPost(endpoint);
-
-            // Setze die Header
-            postRequest.addHeader("Content-Type", "application/json");
-
-            // Baue die JSON-Payload
-            String payload = buildInitPayload();
-            postRequest.setEntity(new StringEntity(payload, ContentType.APPLICATION_JSON));
-
-            // Führe die Anfrage aus und verarbeite die Antwort
-            try (CloseableHttpResponse response = httpClient.execute(postRequest)) {
-                int statusCode = response.getCode();
-
-                if (statusCode == 200) {
-                    // Lese den Response-Body
-                    return readInputStream(response.getEntity().getContent());
-                } else {
-                    throw new IOException("Failed to create session: HTTP " + statusCode);
-                }
-            }
-        }
-    }
-
     private static String readInputStream(InputStream inputStream) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
             return reader.lines().collect(Collectors.joining("\n"));
         }
-    }
-
-
-    public static String buildInitPayload() {
-        // Hauptobjekt erstellen
-        JsonObject payload = new JsonObject();
-
-        // capabilities hinzufügen
-        JsonObject capabilities = new JsonObject();
-        JsonObject alwaysMatch = new JsonObject();
-        alwaysMatch.addProperty("webSocketUrl", true);
-        capabilities.add("alwaysMatch", alwaysMatch);
-
-        payload.add("capabilities", capabilities);
-
-        // Gson generiert daraus den JSON-String
-        return new Gson().toJson(payload);
     }
 
     private Session createSession(BrowserType browserType) throws InterruptedException, ExecutionException {
@@ -144,9 +86,51 @@ public class BiDiWebDriver implements WebDriver {
     private String extractDefaultContextId(String sessionResponse) {
         Gson gson = new Gson();
         JsonObject jsonResponse = gson.fromJson(sessionResponse, JsonObject.class);
-        return jsonResponse.getAsJsonObject("result").getAsJsonObject("capabilities")
-                .getAsJsonObject("browsingContext").get("context").getAsString();
+        JsonObject result = jsonResponse.getAsJsonObject("result");
+
+        if (result != null && result.has("browsingContext")) {
+            return result.getAsJsonObject("browsingContext").get("context").getAsString();
+        }
+
+        // Wenn nicht vorhanden, rufe getTree auf, um die Context-ID zu erhalten
+        System.out.println("--- Keine Context-ID in Session-Antwort. Führe browsingContext.getTree aus. ---");
+
+        return fetchDefaultContextFromTree();
     }
+
+    private String fetchDefaultContextFromTree() {
+        Gson gson = new Gson();
+        Command getTreeCommand = new Command(
+                webSocketConnection.getNextCommandId(),
+                "browsingContext.getTree",
+                new JsonObject() // Kein Parameter erforderlich
+        );
+
+        String commandJson = gson.toJson(getTreeCommand);
+        webSocketConnection.send(commandJson);
+
+        try {
+            String response = webSocketConnection.receive();
+            System.out.println("browsingContext.getTree response: " + response);
+
+            JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
+            JsonObject result = jsonResponse.getAsJsonObject("result");
+
+            if (result != null && result.has("contexts")) {
+                return result.getAsJsonArray("contexts")
+                        .get(0)
+                        .getAsJsonObject()
+                        .get("context")
+                        .getAsString();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Failed to retrieve context tree", e);
+        }
+
+        throw new IllegalStateException("Default browsing context not found in tree.");
+    }
+
 
     @Override
     public WebElement findElement(By locator) {
