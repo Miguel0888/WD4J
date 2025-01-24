@@ -108,7 +108,6 @@ public class BiDiWebDriver implements WebDriver {
         throw new IllegalStateException("Failed to create context using sessionId: " + sessionId);
     }
     
-
     private Session createSession(BrowserType browserType) throws InterruptedException, ExecutionException {
         final Session session;
         // Session initialisieren
@@ -155,6 +154,7 @@ public class BiDiWebDriver implements WebDriver {
     }
     
 
+    // Fallback-Methode: Kontext über getTree suchen
     private String fetchDefaultContextFromTree() {
         Gson gson = new Gson();
         Command getTreeCommand = new Command(
@@ -162,17 +162,17 @@ public class BiDiWebDriver implements WebDriver {
                 "browsingContext.getTree",
                 new JsonObject() // Kein Parameter erforderlich
         );
-    
+
         String commandJson = gson.toJson(getTreeCommand);
         webSocketConnection.send(commandJson);
-    
+
         try {
             String response = webSocketConnection.receive();
             System.out.println("browsingContext.getTree response: " + response);
-    
+
             JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
             JsonObject result = jsonResponse.getAsJsonObject("result");
-    
+
             if (result != null && result.has("contexts")) {
                 return result.getAsJsonArray("contexts")
                         .get(0)
@@ -183,13 +183,10 @@ public class BiDiWebDriver implements WebDriver {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Failed to retrieve context tree", e);
-        } catch (IllegalStateException e) {
-            System.out.println("`browsingContext.getTree` fehlgeschlagen, erstelle neuen Kontext.");
-            return createBrowsingContext();
         }
-    
+
         throw new IllegalStateException("Default browsing context not found in tree.");
-    }    
+    }
 
     @Override
     public WebElement findElement(By locator) {
