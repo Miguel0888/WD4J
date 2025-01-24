@@ -96,7 +96,7 @@ public class BiDiWebDriver implements WebDriver {
             if (context.has("context")) {
                 String contextId = context.get("context").getAsString();
                 System.out.println( "--- Context-ID: " + contextId);
-                return contextId
+                return contextId;
             }
         }
 
