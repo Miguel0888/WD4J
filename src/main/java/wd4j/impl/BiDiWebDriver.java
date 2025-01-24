@@ -76,25 +76,27 @@ public class BiDiWebDriver implements WebDriver {
     // Hilfsmethode: Neuen Context erstellen
     private String createContext(String sessionId) {
         Gson gson = new Gson();
+    
+        // Erstelle die Parameter für den Command
         JsonObject params = new JsonObject();
-        params.addProperty("context", sessionId); // Verwende die Session-ID als Basis
-
+        params.addProperty("type", "tab"); // Standardmäßig einen neuen Tab erstellen
+    
         Command createContextCommand = new Command(
                 webSocketConnection.getNextCommandId(),
                 "browsingContext.create",
                 params
         );
-
+    
         String commandJson = gson.toJson(createContextCommand);
         webSocketConnection.send(commandJson);
-
+    
         try {
             String response = webSocketConnection.receive();
             System.out.println("browsingContext.create response: " + response);
-
+    
             JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
             JsonObject result = jsonResponse.getAsJsonObject("result");
-
+    
             if (result != null && result.has("context")) {
                 String contextId = result.get("context").getAsString();
                 System.out.println("--- Neuer Context erstellt: " + contextId);
@@ -104,9 +106,10 @@ public class BiDiWebDriver implements WebDriver {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Failed to create browsing context", e);
         }
-
+    
         throw new IllegalStateException("Failed to create context using sessionId: " + sessionId);
     }
+    
     
     private Session createSession(BrowserType browserType) throws InterruptedException, ExecutionException {
         final Session session;
@@ -144,7 +147,7 @@ public class BiDiWebDriver implements WebDriver {
             System.out.println("--- Session-ID gefunden: " + sessionId);
     
             // Fallback: Browsing-Kontext abrufen, wenn nötig
-            System.out.println("--- Keine Context-ID in Session-Antwort. Führe browsingContext.getTree aus. ---");
+            System.out.println("--- Keine Context-ID in Session-Antwort. Führe browsingContext.create aus. ---");
             return createContext(sessionId);
         }
     
