@@ -100,6 +100,13 @@ public class BiDiWebDriver implements WebDriver {
             }
         }
 
+        if (result != null && result.has("sessionId")) {
+            String sessionId = result.get("sessionId").getAsString();
+            System.out.println("--- Session-ID gefunden: " + sessionId);
+    
+            return sessionId;
+        }
+
         // Wenn nicht vorhanden, rufe getTree auf, um die Context-ID zu erhalten
         System.out.println("--- Keine Context-ID in Session-Antwort. Führe browsingContext.getTree aus. ---");
 
