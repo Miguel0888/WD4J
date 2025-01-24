@@ -1,21 +1,24 @@
 package wd4j.impl.modules;
 
 import com.google.gson.JsonObject;
+import wd4j.impl.JsonObjectBuilder;
 import wd4j.impl.WebSocketConnection;
 import wd4j.impl.generic.Event;
 import wd4j.impl.generic.Module;
 import wd4j.impl.generic.Type;
 
+import wd4j.impl.Command;
+
 import java.util.concurrent.CompletableFuture;
 
 public class Session implements Module {
-    private final WebSocketConnection connection;
+    private final WebSocketConnection webSocketConnection;
 
-    public Session(WebSocketConnection connection) {
-        this.connection = connection;
+    public Session(WebSocketConnection webSocketConnection) {
+        this.webSocketConnection = webSocketConnection;
 
         // Register for events
-        connection.addEventListener(event -> onEvent(event));
+        webSocketConnection.addEventListener(event -> onEvent(event));
     }
 
     private void onEvent(Event event) {
@@ -36,24 +39,29 @@ public class Session implements Module {
 
     // new() - Since plain "new" is a reserved word in Java!
     public CompletableFuture<String> newSession(String browserName) {
-        JsonObject command = new JsonObject();
-        command.addProperty("method", "session.new");
-        JsonObject params = new JsonObject();
-        JsonObject capabilities = new JsonObject();
-        capabilities.addProperty("browserName", browserName);
-        params.add("capabilities", capabilities);
-        command.add("params", params);
-
-        return connection.sendAsync(command);
-    }
+        Command newSessionCommand = new Command(
+            webSocketConnection,
+            "session.new",
+            new JsonObjectBuilder()
+                .add("capabilities", new JsonObjectBuilder()
+                    .addProperty("browserName", browserName)
+                    .build())
+                .build()
+        );
+    
+        return webSocketConnection.sendAsync(newSessionCommand);
+    }    
 
     // end() - In corespondance to new!
     public CompletableFuture<String> endSession() {
-        JsonObject command = new JsonObject();
-        command.addProperty("method", "session.delete");
-
-        return connection.sendAsync(command);
-    }
+        Command endSessionCommand = new Command(
+            webSocketConnection,
+            "session.delete",
+            new JsonObject() // Kein Parameter erforderlich
+        );
+    
+        return webSocketConnection.sendAsync(endSessionCommand);
+    }    
 
     public void subscribe()
     {}

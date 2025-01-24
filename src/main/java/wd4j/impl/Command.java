@@ -1,6 +1,7 @@
 package wd4j.impl;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 public class Command {
     private final int id;
@@ -23,5 +24,25 @@ public class Command {
 
     public Object getParams() {
         return params;
+    }
+
+    /**
+     * Converts the command to a JsonObject.
+     *
+     * @return JsonObject representation of the command
+     */
+    public JsonObject toJsonObject() {
+        Gson gson = new Gson();
+        return gson.toJsonTree(this).getAsJsonObject();
+    }
+
+    /**
+     * Converts the command to a JSON string.
+     *
+     * @return JSON string representation of the command
+     */
+    public String toJsonString() {
+        Gson gson = new Gson();
+        return gson.toJson(this);
     }
 }

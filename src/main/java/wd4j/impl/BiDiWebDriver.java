@@ -75,26 +75,19 @@ public class BiDiWebDriver implements WebDriver {
      */
     // Hilfsmethode: Neuen Context erstellen
     private String createContext(String sessionId) {
-        Gson gson = new Gson();
-    
-        // Erstelle die Parameter für den Command
-        JsonObject params = new JsonObject();
-        params.addProperty("type", "tab"); // Standardmäßig einen neuen Tab erstellen
-    
         Command createContextCommand = new Command(
-                webSocketConnection,
-                "browsingContext.create",
-                params
+            webSocketConnection,
+            "browsingContext.create",
+            new JsonObjectBuilder()
+                .addProperty("type", "tab") // Standardmäßig einen neuen Tab erstellen
+                .build()
         );
     
-        String commandJson = gson.toJson(createContextCommand);
-        webSocketConnection.send(commandJson);
-    
         try {
-            String response = webSocketConnection.receive();
+            String response = webSocketConnection.send(createContextCommand);
             System.out.println("browsingContext.create response: " + response);
     
-            JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
+            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonObject result = jsonResponse.getAsJsonObject("result");
     
             if (result != null && result.has("context")) {
@@ -102,14 +95,13 @@ public class BiDiWebDriver implements WebDriver {
                 System.out.println("--- Neuer Context erstellt: " + contextId);
                 return contextId;
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Failed to create browsing context", e);
+        } catch (RuntimeException e) {
+            System.out.println("Error creating context: " + e.getMessage());
+            throw e;
         }
     
         throw new IllegalStateException("Failed to create context using sessionId: " + sessionId);
     }
-    
     
     private Session createSession(BrowserType browserType) throws InterruptedException, ExecutionException {
         final Session session;
@@ -159,23 +151,19 @@ public class BiDiWebDriver implements WebDriver {
 
     // Fallback-Methode: Kontext über getTree suchen
     private String fetchDefaultContextFromTree() {
-        Gson gson = new Gson();
         Command getTreeCommand = new Command(
-                webSocketConnection,
-                "browsingContext.getTree",
-                new JsonObject() // Kein Parameter erforderlich
+            webSocketConnection,
+            "browsingContext.getTree",
+            new JsonObject() // Kein Parameter erforderlich
         );
-
-        String commandJson = gson.toJson(getTreeCommand);
-        webSocketConnection.send(commandJson);
-
+    
         try {
-            String response = webSocketConnection.receive();
+            String response = webSocketConnection.send(getTreeCommand);
             System.out.println("browsingContext.getTree response: " + response);
-
-            JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
+    
+            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonObject result = jsonResponse.getAsJsonObject("result");
-
+    
             if (result != null && result.has("contexts")) {
                 return result.getAsJsonArray("contexts")
                         .get(0)
@@ -183,13 +171,14 @@ public class BiDiWebDriver implements WebDriver {
                         .get("context")
                         .getAsString();
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Failed to retrieve context tree", e);
+        } catch (RuntimeException e) {
+            System.out.println("Error fetching context tree: " + e.getMessage());
+            throw e;
         }
-
+    
         throw new IllegalStateException("Default browsing context not found in tree.");
     }
+    
 
     @Override
     public WebElement findElement(By locator) {
@@ -198,30 +187,30 @@ public class BiDiWebDriver implements WebDriver {
 
     @Override
     public void get(String url) {
-        if (defaultContextId == null) {
-            throw new IllegalStateException("No browsing context available.");
-        }
+        // if (defaultContextId == null) {
+        //     throw new IllegalStateException("No browsing context available.");
+        // }
 
-        Gson gson = new Gson();
-        Command navigateCommand = new Command(
-                webSocketConnection,
-                "browsingContext.navigate",
-                new JsonObjectBuilder()
-                        .addProperty("url", url)
-                        .addProperty("context", defaultContextId)
-                        .build()
-        );
+        // Gson gson = new Gson();
+        // Command navigateCommand = new Command(
+        //         webSocketConnection,
+        //         "browsingContext.navigate",
+        //         new JsonObjectBuilder()
+        //                 .addProperty("url", url)
+        //                 .addProperty("context", defaultContextId)
+        //                 .build()
+        // );
 
-        String navigateCommandJson = gson.toJson(navigateCommand);
-        webSocketConnection.send(navigateCommandJson);
+        // String navigateCommandJson = gson.toJson(navigateCommand);
+        // webSocketConnection.send(navigateCommandJson);
 
-        try {
-            String navigationResponse = webSocketConnection.receive();
-            System.out.println("Navigation response: " + navigationResponse);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Navigation failed", e);
-        }
+        // try {
+        //     String navigationResponse = webSocketConnection.receive();
+        //     System.out.println("Navigation response: " + navigationResponse);
+        // } catch (InterruptedException e) {
+        //     Thread.currentThread().interrupt();
+        //     throw new RuntimeException("Navigation failed", e);
+        // }
     }
 
     @Override

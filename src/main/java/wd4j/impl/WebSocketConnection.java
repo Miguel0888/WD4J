@@ -86,15 +86,6 @@ public class WebSocketConnection {
         return ++commandCounter;
     }
 
-    public CompletableFuture<String> sendAsync(JsonObject command) {
-        int id = getNextCommandId();
-        command.addProperty("id", id);
-        CompletableFuture<String> future = new CompletableFuture<>();
-        pendingCommands.put(id, future);
-        webSocketClient.send(command.toString());
-        return future;
-    }
-
     public void addEventListener(Consumer<Event> listener) {
         eventListeners.add(listener);
     }
@@ -113,23 +104,56 @@ public class WebSocketConnection {
         webSocketClient.connectBlocking();
     }
 
-    public void send(String message) {
-        System.out.println("Sending message: " + message);
-        webSocketClient.send(message);
-    }
-
-    public String receive() throws InterruptedException {
-        // Set a timeout for receiving messages
-        String message = messageQueue.poll(10, TimeUnit.SECONDS);
-        if (message == null) {
-            throw new RuntimeException("Timeout while waiting for a WebSocket response");
+    public String send(Command command) {
+        int commandId = command.getId();
+        JsonObject commandJson = command.toJsonObject(); // Konvertierung in JsonObject
+    
+        // Command abschicken
+        CompletableFuture<String> future = new CompletableFuture<>();
+        pendingCommands.put(commandId, future);
+        webSocketClient.send(commandJson.toString());
+    
+        // Antwort blockierend abholen
+        try {
+            return receive(commandId);
+        } catch( InterruptedException e)
+        {
+            // Todo
         }
-        return message;
+        finally {
+            // Aufräumen, um Speicherlecks zu vermeiden
+            pendingCommands.remove(commandId);
+        }
+        return null;
     }
 
-    public void close() {
-        webSocketClient.close();
+    public CompletableFuture<String> sendAsync(Command command) {
+        JsonObject commandJson = command.toJsonObject(); // Konvertierung in JsonObject
+        CompletableFuture<String> future = new CompletableFuture<>();
+        pendingCommands.put(command.getId(), future);
+        webSocketClient.send(commandJson.toString()); // Senden als JSON-String
+        return future;
     }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private String receive(int commandId) throws InterruptedException {
+        // Warten auf die Antwort des spezifischen Kommandos
+        CompletableFuture<String> future = pendingCommands.get(commandId);
+        if (future == null) {
+            throw new IllegalStateException("No pending command found with ID: " + commandId);
+        }
+    
+        try {
+            // Timeout von 20 Sekunden für die Antwort
+            return future.get(20, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            throw new RuntimeException("Timeout while waiting for response with ID: " + commandId, e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException("Error while waiting for response", e);
+        }
+    }
+    
 
     /**
      * Set a consumer to be called when the WebSocket connection is closed (Callback).
@@ -144,4 +168,24 @@ public class WebSocketConnection {
     {
         return webSocketClient;
     }
+
+    public void close() {
+        try {
+            // Schließe alle offenen CompletableFuture und benachrichtige über ausstehende Kommandos
+            pendingCommands.forEach((id, future) -> future.completeExceptionally(
+                    new RuntimeException("Connection closed before receiving response for command ID: " + id))
+            );
+            pendingCommands.clear();
+    
+            // Schließe die WebSocket-Verbindung
+            if (webSocketClient.isOpen()) {
+                webSocketClient.close();
+            }
+    
+            System.out.println("WebSocket connection closed.");
+        } catch (Exception e) {
+            System.err.println("Error while closing WebSocket connection: " + e.getMessage());
+        }
+    }
+    
 }
