@@ -12,6 +12,7 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 import wd4j.api.By;
 import wd4j.api.WebDriver;
 import wd4j.api.WebElement;
+import wd4j.impl.modules.BrowsingContext;
 import wd4j.impl.modules.Session;
 
 import java.io.*;
@@ -28,6 +29,7 @@ public class BiDiWebDriver implements WebDriver {
     private final BrowserType browserType;
     private final int port;
     private String defaultContextId; // Speichert die Standard-Kontext-ID
+    private BrowsingContext browsingContext;
 
     public BiDiWebDriver(BrowserType browserType) {
         this.browserType = browserType;
@@ -103,6 +105,7 @@ public class BiDiWebDriver implements WebDriver {
         throw new IllegalStateException("Failed to create context using sessionId: " + sessionId);
     }
     
+    // ToDo: Check if BrowsingContext comes first!
     private Session createSession(BrowserType browserType) throws InterruptedException, ExecutionException {
         final Session session;
         // Session initialisieren
@@ -113,6 +116,12 @@ public class BiDiWebDriver implements WebDriver {
         // Standard-Kontext-ID extrahieren
         this.defaultContextId = extractDefaultContextId(sessionResponse);
         System.out.println("Default Context ID: " + defaultContextId);
+
+        // BrowsingContext erstellen und speichern
+        // ToDo: Might be the wrong place, but works for now!
+        this.browsingContext = new BrowsingContext(webSocketConnection, defaultContextId);
+        System.out.println("BrowsingContext erstellt mit ID: " + defaultContextId);
+
         return session;
     }
 
@@ -185,32 +194,17 @@ public class BiDiWebDriver implements WebDriver {
         return null;
     }
 
+    // ToDo: Check if "get" is standard conform
     @Override
     public void get(String url) {
-        // if (defaultContextId == null) {
-        //     throw new IllegalStateException("No browsing context available.");
-        // }
-
-        // Gson gson = new Gson();
-        // Command navigateCommand = new Command(
-        //         webSocketConnection,
-        //         "browsingContext.navigate",
-        //         new JsonObjectBuilder()
-        //                 .addProperty("url", url)
-        //                 .addProperty("context", defaultContextId)
-        //                 .build()
-        // );
-
-        // String navigateCommandJson = gson.toJson(navigateCommand);
-        // webSocketConnection.send(navigateCommandJson);
-
-        // try {
-        //     String navigationResponse = webSocketConnection.receive();
-        //     System.out.println("Navigation response: " + navigationResponse);
-        // } catch (InterruptedException e) {
-        //     Thread.currentThread().interrupt();
-        //     throw new RuntimeException("Navigation failed", e);
-        // }
+        try
+        {
+            browsingContext.navigate(url);
+        }
+        catch( ExecutionException | InterruptedException e)
+        {
+            // Todo
+        }
     }
 
     @Override
@@ -227,5 +221,11 @@ public class BiDiWebDriver implements WebDriver {
     public void close() {
         WebDriverContext.clearConnection();
         session.endSession();
+    }
+
+    // ToDo: Not very good practice, I know!
+    public BrowsingContext getBrowsingContext()
+    {
+        return browsingContext;
     }
 }

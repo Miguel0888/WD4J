@@ -4,8 +4,10 @@ import com.google.gson.JsonObject;
 import wd4j.impl.WebSocketConnection;
 import wd4j.impl.generic.Module;
 import wd4j.impl.generic.Event;
+import wd4j.impl.Command;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class BrowsingContext implements Module {
 
@@ -14,14 +16,22 @@ public class BrowsingContext implements Module {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private final WebSocketConnection connection;
+    private final String contextId;
 
-    public BrowsingContext(WebSocketConnection connection) {
+    // public BrowsingContext(WebSocketConnection connection) {
+    //     this.connection = connection;
+    // }
+
+    public BrowsingContext(WebSocketConnection connection, String contextId) {
         this.connection = connection;
+        this.contextId = contextId;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// ToDo: Commands (Methods)
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // ToDo: Move create context from BiDiWebDriver to here!
 
     // public CompletableFuture<String> createContext() {
     //     JsonObject command = new JsonObject();
@@ -29,16 +39,28 @@ public class BrowsingContext implements Module {
     //     return connection.sendAsync(command);
     // }
 
-    public CompletableFuture<String> navigate(String contextId, String url) {
-        // JsonObject command = new JsonObject();
-        // command.addProperty("method", "browsingContext.navigate");
-        // JsonObject params = new JsonObject();
-        // params.addProperty("context", contextId);
-        // params.addProperty("url", url);
-        // command.add("params", params);
+    /**
+     * Navigates to the given URL within this browsing context.
+     *
+     * @param url The target URL to navigate to.
+     * @return The response of the navigation command.
+     * @throws ExecutionException   if an error occurs during execution.
+     * @throws InterruptedException if the operation is interrupted.
+     */
+    public void navigate(String url) throws ExecutionException, InterruptedException {
+        // Create the command payload
+        JsonObject params = new JsonObject();
+        params.addProperty("url", url);
+        params.addProperty("context", contextId);
 
-        // return connection.sendAsync(command);
-        return null;
+        Command navigateCommand = new Command(
+                connection,
+                "browsingContext.navigate",
+                params
+        );
+
+        // Send the command and wait for the response
+        connection.sendAsync(navigateCommand);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
