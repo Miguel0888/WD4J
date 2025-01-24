@@ -1,4 +1,4 @@
-package wd4j.impl;
+package wd4j.helper;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;

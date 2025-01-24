@@ -1,4 +1,4 @@
-package wd4j.impl;
+package wd4j.core;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;

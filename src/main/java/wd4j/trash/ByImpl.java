@@ -1,4 +1,6 @@
-package wd4j.api;
+package wd4j.trash;
+
+import wd4j.api.By;
 
 public class ByImpl implements By {
     private final String strategy;

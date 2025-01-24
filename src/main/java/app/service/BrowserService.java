@@ -1,12 +1,7 @@
 package app.service;
 
-import wd4j.impl.BiDiWebDriver;
-import wd4j.impl.BrowserType;
-import wd4j.impl.WebSocketEndpointHelper;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.URI;
+import wd4j.core.BiDiWebDriver;
+import wd4j.helper.BrowserType;
 
 public class BrowserService {
     private BiDiWebDriver webDriver;

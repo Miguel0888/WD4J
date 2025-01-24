@@ -1,13 +1,13 @@
 package wd4j.impl.modules;
 
 import com.google.gson.JsonObject;
-import wd4j.impl.JsonObjectBuilder;
-import wd4j.impl.WebSocketConnection;
+import wd4j.helper.JsonObjectBuilder;
+import wd4j.core.WebSocketConnection;
 import wd4j.impl.generic.Event;
 import wd4j.impl.generic.Module;
 import wd4j.impl.generic.Type;
 
-import wd4j.impl.Command;
+import wd4j.core.Command;
 
 import java.util.concurrent.CompletableFuture;
 

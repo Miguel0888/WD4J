@@ -1,25 +1,17 @@
-package wd4j.impl;
+package wd4j.core;
 
+import wd4j.helper.BrowserConnector;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import org.apache.hc.client5.http.classic.methods.HttpPost;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.core5.http.ContentType;
-import org.apache.hc.core5.http.io.entity.StringEntity;
 import wd4j.api.By;
 import wd4j.api.WebDriver;
 import wd4j.api.WebElement;
+import wd4j.helper.BrowserType;
+import wd4j.helper.JsonObjectBuilder;
 import wd4j.impl.modules.BrowsingContext;
 import wd4j.impl.modules.Session;
 
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.net.URL;
-import java.util.Scanner;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -46,7 +38,8 @@ public class BiDiWebDriver implements WebDriver {
 
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-            this.webSocketConnection = new WebSocketConnection(new URI(websocketUrl + "/session"));
+            // WebSocket-Verbindung erstellen
+            webSocketConnection = BrowserConnector.getConnection(browserType, websocketUrl, port);
 
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -219,7 +212,6 @@ public class BiDiWebDriver implements WebDriver {
 
     @Override
     public void close() {
-        WebDriverContext.clearConnection();
         session.endSession();
     }
 

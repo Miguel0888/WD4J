@@ -1,12 +1,19 @@
-package wd4j.impl;
+package wd4j.helper;
+
+import wd4j.core.WebSocketConnection;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 
-public class WebSocketEndpointHelper {
+/**
+ * Hilfsklasse für den Aufbau der WebSocket-Verbindung zum Browser, da der Verbindungsaufbau sich je nach Browser-Typ
+ * unterscheidet.
+ */
+public class BrowserConnector {
 
 //    public static String getWebSocketUrl(int port) throws Exception {
 //        // URL für die Debugging-Schnittstelle
@@ -88,5 +95,17 @@ public class WebSocketEndpointHelper {
         // WebSocket-URL extrahieren
         int endIndex = jsonResponse.indexOf("\"", wsIndex);
         return jsonResponse.substring(wsIndex, endIndex);
+    }
+
+    public static WebSocketConnection getConnection(BrowserType browserType, String websocketUrl, int port) throws Exception {
+        WebSocketConnection webSocketConnection;
+        if(browserType == BrowserType.FIREFOX)
+        {
+            webSocketConnection = new WebSocketConnection(new URI(websocketUrl + "/session"));
+        }
+        else { // Chrome & Edge
+            webSocketConnection = new WebSocketConnection(URI.create(getWebSocketUrl(port)));
+        }
+        return webSocketConnection;
     }
 }
