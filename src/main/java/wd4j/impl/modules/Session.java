@@ -39,7 +39,7 @@ public class Session implements Module {
         webSocketConnection.addEventListener(event -> onEvent(event));
 
         // Create a new session
-        String sessionResponse = newSession(browserType.name()).get();
+        String sessionResponse = newSession(browserType.name()).get(); // ToDo: Does not work with Chrome!
         // Debug output
         System.out.println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
         System.out.println("Session response: " + sessionResponse);

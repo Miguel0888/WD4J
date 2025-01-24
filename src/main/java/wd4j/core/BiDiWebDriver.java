@@ -43,11 +43,12 @@ public class BiDiWebDriver implements WebDriver {
 
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+            System.out.println("Trying to connect to WebSocket..");
             this.webSocketConnection.connect();
-            System.out.println("WebSocket-Verbindung hergestellt: " + websocketUrl);
 
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+            System.out.println("Starting the Session..");
             session = new Session(browserType, webSocketConnection);
             System.out.println("Session erstellt: " + session);
 

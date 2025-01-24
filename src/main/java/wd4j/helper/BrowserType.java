@@ -10,7 +10,6 @@ public enum BrowserType {
     FIREFOX("C:\\Program Files\\Mozilla Firefox\\firefox.exe", "C:\\FirefoxProfile", "/session",false, true, false, false) {
         @Override
         public Process launch() throws Exception {
-            enableBiDi = false; // Has not be enabled for Firefox
             List<String> args = buildArguments();
             ProcessBuilder builder = new ProcessBuilder(args);
 
@@ -21,7 +20,6 @@ public enum BrowserType {
     CHROME("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\ChromeProfile", "",true, false, true, true) {
         @Override
         public Process launch() throws Exception {
-            enableBiDi = false; // Has to be enabled for Edge, otherwise only Chrome DevTools Protocol is available
             List<String> args = buildArguments();
             ProcessBuilder builder = new ProcessBuilder(args);
 
@@ -35,7 +33,6 @@ public enum BrowserType {
     EDGE("C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe", "C:\\EdgeProfile", "",true, false, true, false) {
         @Override
         public Process launch() throws Exception {
-            enableBiDi = false; // Has to be enabled for Edge, otherwise only Chrome DevTools Protocol is available
             List<String> args = buildArguments();
             ProcessBuilder builder = new ProcessBuilder(args);
 
@@ -59,7 +56,7 @@ public enum BrowserType {
     protected boolean noRemote = false;
     protected boolean disableGpu = false;
     protected boolean startMaximized = false;
-    protected boolean enableBiDi = false; // For Chrome and Edge only - has to be set to true then
+    protected boolean useCdp = false; // For Chrome and Edge only - u may use CDP instead of BiDi, not implemented yet!
     private String webSocketEndpoint;
 
     // Konstruktor
@@ -137,7 +134,7 @@ public enum BrowserType {
         if (startMaximized) {
             args.add("--start-maximized");
         }
-        if (enableBiDi) {
+        if (useCdp) {
             args.add("--enable-blink-features=WebDriverBiDi");
         }
 
@@ -173,11 +170,11 @@ public enum BrowserType {
         this.noRemote = noRemote;
     }
 
-    public void setEnableBiDi(boolean enableBiDi) {
-        this.enableBiDi = enableBiDi;
+    public void setUseCdp(boolean useCdp) {
+        this.useCdp = useCdp;
     }
 
-    public boolean isEnableBiDi() {
-        return enableBiDi;
+    public boolean useCdp() {
+        return useCdp;
     }
 }

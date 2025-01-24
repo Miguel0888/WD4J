@@ -31,10 +31,11 @@ public class BrowserConnector {
             webSocketConnection = new WebSocketConnection(new URI(websocketUrl + browserType.getWebsocketEndpoint()));
         }
         else { // Chrome & Edge
-            if( browserType.isEnableBiDi() ) {
-                webSocketConnection = new WebSocketConnection(URI.create(getWebSocketUrl(port))); // BiDi
-            } else {
-                webSocketConnection = new WebSocketConnection(URI.create(getWebSocketUrl(port))); // CDP
+            // BiDi URL may differ from CDP URL in the future:
+            if( !browserType.useCdp() ) { // BiDi
+                webSocketConnection = new WebSocketConnection(URI.create(getWebSocketUrl(port) + browserType.getWebsocketEndpoint()));
+            } else { // CDP
+                webSocketConnection = new WebSocketConnection(URI.create(getWebSocketUrl(port)));
             }
         }
         return webSocketConnection;
