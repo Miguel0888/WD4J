@@ -7,8 +7,8 @@ public class Command {
     private final String method;
     private final Object params;
 
-    public Command(int id, String method, Object params) {
-        this.id = id;
+    public Command(WebSocketConnection webSocketConnection, String method, Object params) {
+        this.id = webSocketConnection.getNextCommandId();
         this.method = method;
         this.params = params;
     }

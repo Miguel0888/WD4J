@@ -82,7 +82,7 @@ public class BiDiWebDriver implements WebDriver {
         params.addProperty("type", "tab"); // Standardmäßig einen neuen Tab erstellen
     
         Command createContextCommand = new Command(
-                webSocketConnection.getNextCommandId(),
+                webSocketConnection,
                 "browsingContext.create",
                 params
         );
@@ -161,7 +161,7 @@ public class BiDiWebDriver implements WebDriver {
     private String fetchDefaultContextFromTree() {
         Gson gson = new Gson();
         Command getTreeCommand = new Command(
-                webSocketConnection.getNextCommandId(),
+                webSocketConnection,
                 "browsingContext.getTree",
                 new JsonObject() // Kein Parameter erforderlich
         );
@@ -204,7 +204,7 @@ public class BiDiWebDriver implements WebDriver {
 
         Gson gson = new Gson();
         Command navigateCommand = new Command(
-                webSocketConnection.getNextCommandId(),
+                webSocketConnection,
                 "browsingContext.navigate",
                 new JsonObjectBuilder()
                         .addProperty("url", url)
