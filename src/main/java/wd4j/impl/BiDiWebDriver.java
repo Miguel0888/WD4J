@@ -70,6 +70,43 @@ public class BiDiWebDriver implements WebDriver {
         }
     }
 
+    /*
+     * Required for Firefox ESR ?
+     */
+    private String createBrowsingContext() {
+        Gson gson = new Gson();
+    
+        // Erstelle das Kommando für browsingContext.create
+        Command createContextCommand = new Command(
+                webSocketConnection.getNextCommandId(),
+                "browsingContext.create",
+                new JsonObjectBuilder()
+                        .addProperty("type", "tab") // Neuer Tab erstellen
+                        .build()
+        );
+    
+        String commandJson = gson.toJson(createContextCommand);
+        webSocketConnection.send(commandJson);
+    
+        try {
+            String response = webSocketConnection.receive();
+            System.out.println("browsingContext.create response: " + response);
+    
+            JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
+            JsonObject result = jsonResponse.getAsJsonObject("result");
+    
+            if (result != null && result.has("context")) {
+                return result.get("context").getAsString();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Failed to create browsing context", e);
+        }
+    
+        throw new IllegalStateException("Failed to create a browsing context.");
+    }
+    
+
     private Session createSession(BrowserType browserType) throws InterruptedException, ExecutionException {
         final Session session;
         // Session initialisieren
@@ -87,31 +124,34 @@ public class BiDiWebDriver implements WebDriver {
         Gson gson = new Gson();
         JsonObject jsonResponse = gson.fromJson(sessionResponse, JsonObject.class);
         JsonObject result = jsonResponse.getAsJsonObject("result");
-
-        // Prüfe, ob die Antwort bereits einen Kontext enthält
+    
+        // Prüfe, ob ein Browsing-Kontext in der Antwort enthalten ist
         if (result != null && result.has("contexts")) {
             JsonObject context = result.getAsJsonArray("contexts")
                                         .get(0)
                                         .getAsJsonObject();
             if (context.has("context")) {
                 String contextId = context.get("context").getAsString();
-                System.out.println( "--- Context-ID: " + contextId);
+                System.out.println("--- Browsing Context-ID gefunden: " + contextId);
                 return contextId;
             }
         }
-
+    
+        // Prüfe, ob die Antwort eine Session-ID enthält
         if (result != null && result.has("sessionId")) {
             String sessionId = result.get("sessionId").getAsString();
             System.out.println("--- Session-ID gefunden: " + sessionId);
     
-            return sessionId;
+            // Fallback: Browsing-Kontext abrufen, wenn nötig
+            System.out.println("--- Keine Context-ID in Session-Antwort. Führe browsingContext.getTree aus. ---");
+            return fetchDefaultContextFromTree();
         }
-
-        // Wenn nicht vorhanden, rufe getTree auf, um die Context-ID zu erhalten
-        System.out.println("--- Keine Context-ID in Session-Antwort. Führe browsingContext.getTree aus. ---");
-
+    
+        // Fallback zu browsingContext.getTree, wenn kein Kontext gefunden wurde
+        System.out.println("--- Weder Context-ID noch Session-ID gefunden. Führe browsingContext.getTree aus. ---");
         return fetchDefaultContextFromTree();
     }
+    
 
     private String fetchDefaultContextFromTree() {
         Gson gson = new Gson();
@@ -120,17 +160,17 @@ public class BiDiWebDriver implements WebDriver {
                 "browsingContext.getTree",
                 new JsonObject() // Kein Parameter erforderlich
         );
-
+    
         String commandJson = gson.toJson(getTreeCommand);
         webSocketConnection.send(commandJson);
-
+    
         try {
             String response = webSocketConnection.receive();
             System.out.println("browsingContext.getTree response: " + response);
-
+    
             JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
             JsonObject result = jsonResponse.getAsJsonObject("result");
-
+    
             if (result != null && result.has("contexts")) {
                 return result.getAsJsonArray("contexts")
                         .get(0)
@@ -141,11 +181,13 @@ public class BiDiWebDriver implements WebDriver {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Failed to retrieve context tree", e);
+        } catch (IllegalStateException e) {
+            System.out.println("`browsingContext.getTree` fehlgeschlagen, erstelle neuen Kontext.");
+            return createBrowsingContext();
         }
-
+    
         throw new IllegalStateException("Default browsing context not found in tree.");
-    }
-
+    }    
 
     @Override
     public WebElement findElement(By locator) {
