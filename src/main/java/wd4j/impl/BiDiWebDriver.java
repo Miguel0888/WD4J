@@ -73,37 +73,39 @@ public class BiDiWebDriver implements WebDriver {
     /*
      * Required for Firefox ESR ?
      */
-    private String createBrowsingContext() {
+    // Hilfsmethode: Neuen Context erstellen
+    private String createContext(String sessionId) {
         Gson gson = new Gson();
-    
-        // Erstelle das Kommando für browsingContext.create
+        JsonObject params = new JsonObject();
+        params.addProperty("context", sessionId); // Verwende die Session-ID als Basis
+
         Command createContextCommand = new Command(
                 webSocketConnection.getNextCommandId(),
                 "browsingContext.create",
-                new JsonObjectBuilder()
-                        .addProperty("type", "tab") // Neuer Tab erstellen
-                        .build()
+                params
         );
-    
+
         String commandJson = gson.toJson(createContextCommand);
         webSocketConnection.send(commandJson);
-    
+
         try {
             String response = webSocketConnection.receive();
             System.out.println("browsingContext.create response: " + response);
-    
+
             JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
             JsonObject result = jsonResponse.getAsJsonObject("result");
-    
+
             if (result != null && result.has("context")) {
-                return result.get("context").getAsString();
+                String contextId = result.get("context").getAsString();
+                System.out.println("--- Neuer Context erstellt: " + contextId);
+                return contextId;
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Failed to create browsing context", e);
         }
-    
-        throw new IllegalStateException("Failed to create a browsing context.");
+
+        throw new IllegalStateException("Failed to create context using sessionId: " + sessionId);
     }
     
 
@@ -144,7 +146,7 @@ public class BiDiWebDriver implements WebDriver {
     
             // Fallback: Browsing-Kontext abrufen, wenn nötig
             System.out.println("--- Keine Context-ID in Session-Antwort. Führe browsingContext.getTree aus. ---");
-            return fetchDefaultContextFromTree();
+            return createContext(sessionId);
         }
     
         // Fallback zu browsingContext.getTree, wenn kein Kontext gefunden wurde
