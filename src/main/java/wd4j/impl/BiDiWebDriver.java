@@ -87,21 +87,25 @@ public class BiDiWebDriver implements WebDriver {
         Gson gson = new Gson();
         JsonObject jsonResponse = gson.fromJson(sessionResponse, JsonObject.class);
         JsonObject result = jsonResponse.getAsJsonObject("result");
-    
+
         // Prüfe, ob die Antwort bereits einen Kontext enthält
         if (result != null && result.has("contexts")) {
             JsonObject context = result.getAsJsonArray("contexts")
                                         .get(0)
                                         .getAsJsonObject();
             if (context.has("context")) {
-                return context.get("context").getAsString();
+                String contextId = context.get("context").getAsString();
+                System.out.println( "--- Context-ID: " + contextId);
+                return contextId
             }
         }
-    
-        // Wenn kein Kontext vorhanden, wirf Ausnahme oder nutze alternative Methode
-        throw new IllegalStateException("Default browsing context not found in session response.");
+
+        // Wenn nicht vorhanden, rufe getTree auf, um die Context-ID zu erhalten
+        System.out.println("--- Keine Context-ID in Session-Antwort. Führe browsingContext.getTree aus. ---");
+
+        return fetchDefaultContextFromTree();
     }
-    
+
     private String fetchDefaultContextFromTree() {
         Gson gson = new Gson();
         Command getTreeCommand = new Command(
