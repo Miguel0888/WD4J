@@ -1,7 +1,9 @@
 package wd4j.impl.modules;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.core.WebSocketConnection;
+import wd4j.helper.JsonObjectBuilder;
 import wd4j.impl.generic.Module;
 import wd4j.impl.generic.Event;
 import wd4j.core.Command;
@@ -14,16 +16,50 @@ public class BrowsingContext implements Module {
     /// ToDo: Import the Specs: Commands (Methodes) and Types (Classes)
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private final WebSocketConnection connection;
+    private final WebSocketConnection webSocketConnection;
     private final String contextId;
 
-    // public BrowsingContext(WebSocketConnection connection) {
-    //     this.connection = connection;
-    // }
+    public BrowsingContext(WebSocketConnection webSocketConnection) {
+        this.webSocketConnection = webSocketConnection;
+        this.contextId = createContext();
+    }
 
-    public BrowsingContext(WebSocketConnection connection, String contextId) {
-        this.connection = connection;
+    public BrowsingContext(WebSocketConnection webSocketConnection, String contextId) {
+        this.webSocketConnection = webSocketConnection;
         this.contextId = contextId;
+    }
+
+    /*
+     * Required for Firefox ESR ?
+     */
+    // Hilfsmethode: Neuen Context erstellen
+    private String createContext() {
+        Command createContextCommand = new Command(
+                webSocketConnection,
+                "browsingContext.create",
+                new JsonObjectBuilder()
+                        .addProperty("type", "tab") // Standardmäßig einen neuen Tab erstellen
+                        .build()
+        );
+
+        try {
+            String response = webSocketConnection.send(createContextCommand);
+            System.out.println("browsingContext.create response: " + response);
+
+            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
+            JsonObject result = jsonResponse.getAsJsonObject("result");
+
+            if (result != null && result.has("context")) {
+                String contextId = result.get("context").getAsString();
+                System.out.println("--- Neuer Context erstellt: " + contextId);
+                return contextId;
+            }
+        } catch (RuntimeException e) {
+            System.out.println("Error creating context: " + e.getMessage());
+            throw e;
+        }
+
+        throw new IllegalStateException("Failed to create new context."); // ToDo: Maybe return null instead?
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -53,13 +89,13 @@ public class BrowsingContext implements Module {
         params.addProperty("context", contextId);
 
         Command navigateCommand = new Command(
-                connection,
+                webSocketConnection,
                 "browsingContext.navigate",
                 params
         );
 
         // Send the command and wait for the response
-        connection.sendAsync(navigateCommand);
+        webSocketConnection.sendAsync(navigateCommand);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
