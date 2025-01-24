@@ -7,9 +7,10 @@ import java.util.List;
 
 // ToDo: Externalize browser paths and profile paths etc. to a configuration file
 public enum BrowserType {
-    FIREFOX("C:\\Program Files\\Mozilla Firefox\\firefox.exe", "C:\\FirefoxProfile", false, true, false, false) {
+    FIREFOX("C:\\Program Files\\Mozilla Firefox\\firefox.exe", "C:\\FirefoxProfile", "/session",false, true, false, false) {
         @Override
         public Process launch() throws Exception {
+            enableBiDi = false; // Has not be enabled for Firefox
             List<String> args = buildArguments();
             ProcessBuilder builder = new ProcessBuilder(args);
 
@@ -17,19 +18,24 @@ public enum BrowserType {
         }
     },
 
-    CHROME("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\ChromeProfile", true, false, true, true) {
+    CHROME("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\ChromeProfile", "",true, false, true, true) {
         @Override
         public Process launch() throws Exception {
+            enableBiDi = false; // Has to be enabled for Edge, otherwise only Chrome DevTools Protocol is available
             List<String> args = buildArguments();
             ProcessBuilder builder = new ProcessBuilder(args);
+
+
+          //  Use the command line flag --remote-allow-origins=http://localhost:9222 to allow connections from this origin or --remote-allow-origins=* to allow all origins.
 
             return startProcess(builder, "[Chrome Log]");
         }
     },
 
-    EDGE("C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe", "C:\\EdgeProfile", true, false, true, false) {
+    EDGE("C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe", "C:\\EdgeProfile", "",true, false, true, false) {
         @Override
         public Process launch() throws Exception {
+            enableBiDi = false; // Has to be enabled for Edge, otherwise only Chrome DevTools Protocol is available
             List<String> args = buildArguments();
             ProcessBuilder builder = new ProcessBuilder(args);
 
@@ -37,7 +43,7 @@ public enum BrowserType {
         }
     },
 
-    SAFARI(null, null, false, false, false, false) {
+    SAFARI(null, null, "",false, false, false, false) {
         @Override
         public Process launch() throws Exception {
             System.out.println("Safari-WebDriver-Integration ist derzeit nur auf macOS möglich.");
@@ -53,11 +59,14 @@ public enum BrowserType {
     protected boolean noRemote = false;
     protected boolean disableGpu = false;
     protected boolean startMaximized = false;
+    protected boolean enableBiDi = false; // For Chrome and Edge only - has to be set to true then
+    private String webSocketEndpoint;
 
     // Konstruktor
-    BrowserType(String browserPath, String profilePath, boolean headless, boolean noRemote, boolean disableGpu, boolean startMaximized) {
+    BrowserType(String browserPath, String profilePath, String webSocketEndpoint, boolean headless, boolean noRemote, boolean disableGpu, boolean startMaximized) {
         this.browserPath = browserPath;
         this.profilePath = profilePath;
+        this.webSocketEndpoint = webSocketEndpoint;
         this.headless = headless;
         this.noRemote = noRemote;
         this.disableGpu = disableGpu;
@@ -128,6 +137,9 @@ public enum BrowserType {
         if (startMaximized) {
             args.add("--start-maximized");
         }
+        if (enableBiDi) {
+            args.add("--enable-blink-features=WebDriverBiDi");
+        }
 
         return args;
     }
@@ -139,6 +151,11 @@ public enum BrowserType {
     public int getPort() {
         return port;
     }
+
+    public String getWebsocketEndpoint() {
+        return webSocketEndpoint;
+    }
+
 
     public void setProfilePath(String profilePath) {
         this.profilePath = profilePath;
@@ -154,5 +171,13 @@ public enum BrowserType {
 
     public void setNoRemote(boolean noRemote) {
         this.noRemote = noRemote;
+    }
+
+    public void setEnableBiDi(boolean enableBiDi) {
+        this.enableBiDi = enableBiDi;
+    }
+
+    public boolean isEnableBiDi() {
+        return enableBiDi;
     }
 }

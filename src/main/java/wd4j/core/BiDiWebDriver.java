@@ -12,29 +12,31 @@ import wd4j.impl.modules.BrowsingContext;
 import wd4j.impl.modules.Session;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 public class BiDiWebDriver implements WebDriver {
+    private final Process browserProcess; // The Handle to the Browser Process
+    private final String websocketUrl;
     private WebSocketConnection webSocketConnection = null;
     private final Session session;
     private final BrowserType browserType;
     private final int port;
-    private String defaultContextId; // Speichert die Standard-Kontext-ID
-    private BrowsingContext browsingContext;
+    private String contextId; // Speichert die Standard-Kontext-ID
+    private List<BrowsingContext> browsingContext = new ArrayList<>(); // ToDo: Maybe use a HashMap instead?
 
     public BiDiWebDriver(BrowserType browserType) {
         this.browserType = browserType;
-        this.port = browserType.getPort();
+        this.port = browserType.getPort(); // Makes sure the port is not changed!
+        this.websocketUrl = "ws://127.0.0.1:" + port;
 
         try {
             // Browser starten
-            Process browserProcess = browserType.launch();
+            browserProcess = browserType.launch();
             System.out.println(browserType.name() + " gestartet auf Port " + port);
-
-            // ToDo: How is the right way to extract the WebSocket URL?
-            String serverUrl = "http://127.0.0.1:9222/session"; // ToDo: Check port!
-            String websocketUrl = "ws://127.0.0.1:" + port;
 
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -98,32 +100,43 @@ public class BiDiWebDriver implements WebDriver {
         throw new IllegalStateException("Failed to create context using sessionId: " + sessionId);
     }
     
-    // ToDo: Check if BrowsingContext comes first!
+    /**
+     * Erstellt eine neue Session und gibt diese zurück.
+     * Da einige Browser einen Standard-Kontext erstellen, wird mti diesem direkt ein neuer Browsing-Kontext erstellt.
+     * Damit das Verhalten konsistent ist, wird ein neuer Kontext erstellt, wenn kein Standard-Kontext gefunden wird.
+     *
+     * @param browserType Der Browsertyp
+     * @return Die erstellte Session
+     */
     private Session createSession(BrowserType browserType) throws InterruptedException, ExecutionException {
         final Session session;
         // Session initialisieren
         session = new Session(webSocketConnection);
         String sessionResponse = session.newSession(browserType.name()).get();
-        System.out.println("Session gestartet: " + sessionResponse);
 
-        // Standard-Kontext-ID extrahieren
-        this.defaultContextId = extractDefaultContextId(sessionResponse);
-        System.out.println("Default Context ID: " + defaultContextId);
+        // Debug output
+        System.out.println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+        System.out.println("Session response: " + sessionResponse);
+        System.out.println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+
+        // Kontext-ID extrahieren oder neuen Kontext erstellen
+        this.contextId = extractDefaultContextIdOrCreateNewContextOtherwise(sessionResponse);
+        System.out.println("Context ID: " + contextId);
 
         // BrowsingContext erstellen und speichern
         // ToDo: Might be the wrong place, but works for now!
-        this.browsingContext = new BrowsingContext(webSocketConnection, defaultContextId);
-        System.out.println("BrowsingContext erstellt mit ID: " + defaultContextId);
+        this.browsingContext.add(new BrowsingContext(webSocketConnection, contextId));
+        System.out.println("BrowsingContext erstellt mit ID: " + contextId);
 
         return session;
     }
 
-    private String extractDefaultContextId(String sessionResponse) {
+    private String extractDefaultContextIdOrCreateNewContextOtherwise(String sessionResponse) {
         Gson gson = new Gson();
         JsonObject jsonResponse = gson.fromJson(sessionResponse, JsonObject.class);
         JsonObject result = jsonResponse.getAsJsonObject("result");
     
-        // Prüfe, ob ein Browsing-Kontext in der Antwort enthalten ist
+        // Prüfe, ob ein Default Browsing-Kontext in der Antwort enthalten ist
         if (result != null && result.has("contexts")) {
             JsonObject context = result.getAsJsonArray("contexts")
                                         .get(0)
@@ -192,7 +205,7 @@ public class BiDiWebDriver implements WebDriver {
     public void get(String url) {
         try
         {
-            browsingContext.navigate(url);
+            browsingContext.get(0).navigate(url); // ToDo: Check if index 0 is always the right one!
         }
         catch( ExecutionException | InterruptedException e)
         {
@@ -212,12 +225,19 @@ public class BiDiWebDriver implements WebDriver {
 
     @Override
     public void close() {
+        // ToDo: Maybe close all BrowsingContexts?
         session.endSession();
     }
 
-    // ToDo: Not very good practice, I know!
-    public BrowsingContext getBrowsingContext()
-    {
-        return browsingContext;
+    /**
+     * Returns the BrowsingContext at the given index.
+     * A BrowsingContext is a tab or window in the browser!
+     *
+     * @param index The index of the BrowsingContext.
+     * @return The BrowsingContext at the given index.
+     */
+    // ToDo: Not very good practice?!?
+    public BrowsingContext getBrowsingContext(int index) {
+        return browsingContext.get(index);
     }
 }

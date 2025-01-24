@@ -11,35 +11,44 @@ import java.net.URL;
 
 /**
  * Hilfsklasse für den Aufbau der WebSocket-Verbindung zum Browser, da der Verbindungsaufbau sich je nach Browser-Typ
- * unterscheidet.
+ * unterscheiden kann, solange Chrome und Edge BiDi nicht per Default aktiviert haben sondern weiter auf CDP setzen.
+ *
+ * In der Klasse gibt es daher auch die Möglichkeit zusammen mit der BrowserConnector-Klasse für Chrome und Edge
+ * statt BiDi die CDP zu verwenden. Allerdins müsste dann für alle Commands ein Adapter geschrieben werden, der die
+ * BiDi-Commands in CDP-Commands umwandelt. Das ist nicht Ziel dieser Implementierung und wird daher nicht weiter
+ * verfolgt.
+ *
+ * Man beachte, dass bei BiDi direkt eine WebSocket-Verbindung aufgebaut zu ws://localhost:port/session, während bei
+ * CDP eine HTTP-Verbindung aufgebaut wird zu http://localhost:port/json und die WebSocket-URL aus der Antwort extrahiert
+ * wird, womit dann die WebSocketClient gefüttert wird.
  */
 public class BrowserConnector {
 
-//    public static String getWebSocketUrl(int port) throws Exception {
-//        // URL für die Debugging-Schnittstelle
-//        String endpointUrl = "http://localhost:" + port + "/json";
-//
-//        Thread.sleep(2000); // 2 Sekunden warten, bevor die Debugging-Schnittstelle abgefragt wird
-//
-//        // HTTP-Verbindung aufbauen
-//        HttpURLConnection connection = (HttpURLConnection) new URL(endpointUrl).openConnection();
-//        connection.setRequestMethod("GET");
-//
-//        // Antwort lesen
-//        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
-//            StringBuilder response = new StringBuilder();
-//            String line;
-//            while ((line = reader.readLine()) != null) {
-//                response.append(line);
-//            }
-//
-//            // JSON-Antwort zurückgeben
-//            return parseWebSocketDebuggerUrl(response.toString());
-//        }
-//    }
+    public static WebSocketConnection getConnection(BrowserType browserType, String websocketUrl, int port) throws Exception {
+        WebSocketConnection webSocketConnection;
+        if(browserType == BrowserType.FIREFOX)
+        {
+            webSocketConnection = new WebSocketConnection(new URI(websocketUrl + browserType.getWebsocketEndpoint()));
+        }
+        else { // Chrome & Edge
+            if( browserType.isEnableBiDi() ) {
+                webSocketConnection = new WebSocketConnection(URI.create(getWebSocketUrl(port))); // BiDi
+            } else {
+                webSocketConnection = new WebSocketConnection(URI.create(getWebSocketUrl(port))); // CDP
+            }
+        }
+        return webSocketConnection;
+    }
 
+    /**
+     * Get the WebSocket URL from the JSON response of the debugging endpoint (CDP only).
+     *
+     * @param port
+     * @return
+     * @throws Exception
+     */
     // ToDo: May fail if localhost:port/json is not reachable (WebDriver BiDi)
-    public static String getWebSocketUrl(int port) throws Exception {
+    private static String getWebSocketUrl(int port) throws Exception {
         String endpointUrl = "http://localhost:" + port + "/json";
         int retries = 10; // Anzahl der Wiederholungen
         int delayMs = 500; // Wartezeit zwischen den Versuchen
@@ -70,7 +79,8 @@ public class BrowserConnector {
         throw new RuntimeException("Debugging-Endpunkt konnte nach mehreren Versuchen nicht erreicht werden.");
     }
 
-    public static String getWebSocketUrlFromLog(Process browserProcess) throws Exception {
+    @Deprecated
+    private static String getWebSocketUrlFromLog(Process browserProcess) throws Exception {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(browserProcess.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -95,17 +105,5 @@ public class BrowserConnector {
         // WebSocket-URL extrahieren
         int endIndex = jsonResponse.indexOf("\"", wsIndex);
         return jsonResponse.substring(wsIndex, endIndex);
-    }
-
-    public static WebSocketConnection getConnection(BrowserType browserType, String websocketUrl, int port) throws Exception {
-        WebSocketConnection webSocketConnection;
-        if(browserType == BrowserType.FIREFOX)
-        {
-            webSocketConnection = new WebSocketConnection(new URI(websocketUrl + "/session"));
-        }
-        else { // Chrome & Edge
-            webSocketConnection = new WebSocketConnection(URI.create(getWebSocketUrl(port)));
-        }
-        return webSocketConnection;
     }
 }
