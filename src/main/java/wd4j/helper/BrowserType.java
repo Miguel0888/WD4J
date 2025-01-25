@@ -56,8 +56,10 @@ public enum BrowserType {
     protected boolean noRemote = false;
     protected boolean disableGpu = false;
     protected boolean startMaximized = false;
-    protected boolean useCdp = false; // For Chrome and Edge only - u may use CDP instead of BiDi, not implemented yet!
+    protected boolean useCdp = true; // For Chrome and Edge only - u may use CDP instead of BiDi, not implemented yet!
     private String webSocketEndpoint;
+    // Thread-sicherer Speicher für die WebSocket-URL aus dem Terminal-Output:
+    final String[] devToolsUrl = {null};
 
     // Konstruktor
     BrowserType(String browserPath, String profilePath, String webSocketEndpoint, boolean headless, boolean noRemote, boolean disableGpu, boolean startMaximized) {
@@ -84,11 +86,35 @@ public enum BrowserType {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     System.out.println(logPrefix + " " + line);
+
+                    // WebSocket-URL aus der Log-Ausgabe extrahieren
+                    if (line.contains("DevTools listening on ws://")) {
+                        String url = line.substring(line.indexOf("ws://")).trim();
+                        synchronized (devToolsUrl) {
+                            devToolsUrl[0] = url; // Speichere die URL
+                        }
+                    }
                 }
             } catch (Exception e) {
                 System.err.println("Fehler beim Lesen der Prozess-Ausgabe: " + e.getMessage());
             }
         }).start();
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        if (!this.name().equals("FIREFOX")) {
+            // Warte auf die WebSocket-URL, falls erforderlich
+            for (int i = 0; i < 10; i++) { // Maximal 10 Sekunden warten
+                synchronized (devToolsUrl) {
+                    if (devToolsUrl[0] != null) {
+                        break;
+                    }
+                }
+                Thread.sleep(1000); // Warte 1 Sekunde
+            }
+
+            System.out.println("Gefundene DevTools-URL: " + devToolsUrl[0]);
+        }
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         return process;
     }
@@ -176,5 +202,11 @@ public enum BrowserType {
 
     public boolean useCdp() {
         return useCdp;
+    }
+
+    public String getDevToolsUrl() {
+        synchronized (devToolsUrl) {
+            return devToolsUrl[0];
+        }
     }
 }

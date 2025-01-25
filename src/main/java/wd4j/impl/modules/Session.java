@@ -139,8 +139,16 @@ public class Session implements Module {
         }
     }
 
-    public void status()
-    {}
+    public CompletableFuture<String> status() {
+        Command statusCommand = new Command(
+                webSocketConnection,
+                "session.status",
+                new JsonObjectBuilder() // Keine Parameter hinzufügen
+                        .build()
+        );
+
+        return webSocketConnection.sendAsync(statusCommand);
+    }
 
     // new() - Since plain "new" is a reserved word in Java!
     public CompletableFuture<String> newSession(String browserName) {

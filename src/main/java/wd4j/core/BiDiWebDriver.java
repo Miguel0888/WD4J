@@ -52,6 +52,12 @@ public class BiDiWebDriver implements WebDriver {
             session = new Session(browserType, webSocketConnection);
             System.out.println("***** ***** ***** Session erstellt ***** ***** *****");
 
+
+            ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // Print BiDi status of the browser
+            System.out.println("Obtaining status..");
+            String statusResponse = session.status().get();
+
         } catch (Exception e) {
             throw new RuntimeException("Fehler beim Starten des Browsers oder Aufbau der WebSocket-Verbindung", e);
         }

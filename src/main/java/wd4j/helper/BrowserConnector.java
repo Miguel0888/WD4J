@@ -24,18 +24,42 @@ import java.net.URL;
  */
 public class BrowserConnector {
 
+    /**
+     * Erstellt eine WebSocket-Verbindung zum Browser.
+     * Je nach Browser-Typ wird die WebSocket-URL unterschiedlich aufgebaut.
+     * Für Firefox wird die URL direkt aufgebaut, während für Chrome und Edge die URL aus dem Terminal-Output
+     * extrahiert wird. Alternativ kann die Url auch aus dem /json-Endpoint extrahiert werden, der mit HTTP aufgerufen
+     * wird.
+     *
+     * @param browserType
+     * @param websocketUrl
+     * @param port
+     * @return
+     * @throws Exception
+     */
     public static WebSocketConnection getConnection(BrowserType browserType, String websocketUrl, int port) throws Exception {
         WebSocketConnection webSocketConnection;
         if(browserType == BrowserType.FIREFOX)
         {
-            webSocketConnection = new WebSocketConnection(new URI(websocketUrl + browserType.getWebsocketEndpoint()));
+            String webSocketUrl = websocketUrl + browserType.getWebsocketEndpoint();
+            System.out.println("FIREFOX with WebSocket URL " + webSocketUrl);
+            webSocketConnection = new WebSocketConnection(new URI(webSocketUrl));
         }
         else { // Chrome & Edge
             // BiDi URL may differ from CDP URL in the future:
             if( !browserType.useCdp() ) { // BiDi
-                webSocketConnection = new WebSocketConnection(URI.create(getWebSocketUrl(port) + browserType.getWebsocketEndpoint()));
+                String webSocketUrl = getWebSocketUrl(port) + browserType.getWebsocketEndpoint();
+                System.out.println("Using BiDi with WebSocket URL " + webSocketUrl);
+                webSocketConnection = new WebSocketConnection(URI.create(webSocketUrl));
             } else { // CDP
-                webSocketConnection = new WebSocketConnection(URI.create(getWebSocketUrl(port)));
+                if( browserType.getDevToolsUrl() != null ) { // Use Terminal Output primarily
+                    System.out.println("Using CDP for with Terminal URL " + browserType.getDevToolsUrl());
+                    webSocketConnection = new WebSocketConnection(URI.create(browserType.getDevToolsUrl()));
+                } else {
+                    String webSocketUrl = getWebSocketUrl(port);
+                    System.out.println("Using CDP with /json URL " + webSocketUrl);
+                    webSocketConnection = new WebSocketConnection(URI.create(webSocketUrl));
+                }
             }
         }
         return webSocketConnection;
