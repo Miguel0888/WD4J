@@ -50,7 +50,7 @@ public class BiDiWebDriver implements WebDriver {
 
             System.out.println("Starting the Session..");
             session = new Session(browserType, webSocketConnection);
-            System.out.println("Session erstellt: " + session);
+            System.out.println("***** ***** ***** Session erstellt ***** ***** *****");
 
         } catch (Exception e) {
             throw new RuntimeException("Fehler beim Starten des Browsers oder Aufbau der WebSocket-Verbindung", e);

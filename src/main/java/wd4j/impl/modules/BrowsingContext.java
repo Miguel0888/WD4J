@@ -44,7 +44,6 @@ public class BrowsingContext implements Module {
 
         try {
             String response = webSocketConnection.send(createContextCommand);
-            System.out.println("browsingContext.create response: " + response);
 
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonObject result = jsonResponse.getAsJsonObject("result");

@@ -40,9 +40,9 @@ public class WebSocketConnection {
             @Override
             public void onMessage(String message) {
                 try {
-                    System.out.println("Received message: " + message);
                     JsonObject jsonMessage = new Gson().fromJson(message, JsonObject.class);
                     if (jsonMessage.has("id")) {
+                        System.out.println("Received response: " + message);
                         // Antwort auf ein Kommando
                         int id = jsonMessage.get("id").getAsInt();
                         CompletableFuture<String> future = pendingCommands.remove(id);
@@ -50,12 +50,14 @@ public class WebSocketConnection {
                             future.complete(message);
                         }
                     } else if (jsonMessage.has("type")) {
+                        System.out.println("Received event: " + message);
                         // Event verarbeiten
                         String eventType = jsonMessage.get("type").getAsString();
                         JsonObject eventData = jsonMessage.getAsJsonObject("data");
                         Event event = new Event.WebDriverEvent(eventType, eventData);
                         notifyEventListeners(event);
                     } else {
+                        System.out.println("Received message: " + message);
                         // ToDo: Check this! Possible overflow in pendingCommands!
                         messageQueue.put(message); // Unerwartete Nachrichten
                     }

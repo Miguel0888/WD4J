@@ -40,10 +40,6 @@ public class Session implements Module {
 
         // Create a new session
         String sessionResponse = newSession(browserType.name()).get(); // ToDo: Does not work with Chrome!
-        // Debug output
-        System.out.println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-        System.out.println("Session response: " + sessionResponse);
-        System.out.println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 
         // Kontext-ID extrahieren oder neuen Kontext erstellen
         processInitResponse(sessionResponse);
@@ -63,6 +59,17 @@ public class Session implements Module {
             System.out.println("No default context found, creating a new one.");
             this.browsingContext.add(new BrowsingContext(webSocketConnection)); // ToDo: This step is optional!
         }
+    }
+
+    /**
+     * Verwendet eine vorhandene Session-ID, um eine neue Session zu erstellen. Es wird kein new-Command ausgeführt.
+     */
+    public Session(BrowserType browserType, WebSocketConnection webSocketConnection, String SessionId) throws ExecutionException, InterruptedException {
+        this.browserType = browserType;
+        this.webSocketConnection = webSocketConnection;
+        this.sessionId = SessionId;
+
+        // ToDo: Get the defaultContextId from the SessionId OR create a new one!
     }
 
     private void processInitResponse(String sessionResponse) {
@@ -98,7 +105,6 @@ public class Session implements Module {
 
         try {
             String response = webSocketConnection.send(getTreeCommand);
-            System.out.println("browsingContext.getTree response: " + response);
 
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonObject result = jsonResponse.getAsJsonObject("result");
