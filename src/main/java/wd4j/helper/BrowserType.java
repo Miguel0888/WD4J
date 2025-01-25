@@ -160,8 +160,8 @@ public enum BrowserType {
         if (startMaximized) {
             args.add("--start-maximized");
         }
-        if (useCdp) {
-            args.add("--enable-blink-features=WebDriverBiDi");
+        if (!useCdp) {
+//            args.add("--remote-debugging-address=127.0.0.1");
         }
 
         return args;
