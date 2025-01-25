@@ -106,9 +106,9 @@ public class WebSocketConnection {
         webSocketClient.connectBlocking();
     }
 
-    public String send(Command command) {
-        int commandId = command.getId();
-        JsonObject commandJson = command.toJsonObject(); // Konvertierung in JsonObject
+    public String send(CommandImpl commandImpl) {
+        int commandId = commandImpl.getId();
+        JsonObject commandJson = commandImpl.toJsonObject(); // Konvertierung in JsonObject
     
         // Command abschicken
         CompletableFuture<String> future = new CompletableFuture<>();
@@ -129,10 +129,10 @@ public class WebSocketConnection {
         return null;
     }
 
-    public CompletableFuture<String> sendAsync(Command command) {
-        JsonObject commandJson = command.toJsonObject(); // Konvertierung in JsonObject
+    public CompletableFuture<String> sendAsync(CommandImpl commandImpl) {
+        JsonObject commandJson = commandImpl.toJsonObject(); // Konvertierung in JsonObject
         CompletableFuture<String> future = new CompletableFuture<>();
-        pendingCommands.put(command.getId(), future);
+        pendingCommands.put(commandImpl.getId(), future);
         webSocketClient.send(commandJson.toString()); // Senden als JSON-String
         return future;
     }

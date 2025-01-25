@@ -2,14 +2,13 @@ package wd4j.impl.modules;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import wd4j.core.CommandImpl;
 import wd4j.helper.BrowserType;
 import wd4j.helper.JsonObjectBuilder;
 import wd4j.core.WebSocketConnection;
 import wd4j.impl.generic.Event;
 import wd4j.impl.generic.Module;
 import wd4j.impl.generic.Type;
-
-import wd4j.core.Command;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -97,14 +96,14 @@ public class Session implements Module {
 
     // Fallback-Methode: Kontext über getTree suchen
     private String fetchDefaultContextFromTree() {
-        Command getTreeCommand = new Command(
+        CommandImpl getTreeCommandImpl = new CommandImpl(
                 webSocketConnection,
                 "browsingContext.getTree",
                 new JsonObject() // Kein Parameter erforderlich
         );
 
         try {
-            String response = webSocketConnection.send(getTreeCommand);
+            String response = webSocketConnection.send(getTreeCommandImpl);
 
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonObject result = jsonResponse.getAsJsonObject("result");
@@ -140,19 +139,19 @@ public class Session implements Module {
     }
 
     public CompletableFuture<String> status() {
-        Command statusCommand = new Command(
+        CommandImpl statusCommandImpl = new CommandImpl(
                 webSocketConnection,
                 "session.status",
                 new JsonObjectBuilder() // Keine Parameter hinzufügen
                         .build()
         );
 
-        return webSocketConnection.sendAsync(statusCommand);
+        return webSocketConnection.sendAsync(statusCommandImpl);
     }
 
     // new() - Since plain "new" is a reserved word in Java!
     public CompletableFuture<String> newSession(String browserName) {
-        Command newSessionCommand = new Command(
+        CommandImpl newSessionCommandImpl = new CommandImpl(
             webSocketConnection,
             "session.new",
             new JsonObjectBuilder()
@@ -162,19 +161,19 @@ public class Session implements Module {
                 .build()
         );
     
-        return webSocketConnection.sendAsync(newSessionCommand);
+        return webSocketConnection.sendAsync(newSessionCommandImpl);
     }    
 
     // end() - In corespondance to new!
     public CompletableFuture<String> endSession() {
         // ToDo: Maybe close all BrowsingContexts?
-        Command endSessionCommand = new Command(
+        CommandImpl endSessionCommandImpl = new CommandImpl(
             webSocketConnection,
             "session.delete",
             new JsonObject() // Kein Parameter erforderlich
         );
     
-        return webSocketConnection.sendAsync(endSessionCommand);
+        return webSocketConnection.sendAsync(endSessionCommandImpl);
     }    
 
     public void subscribe()

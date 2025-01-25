@@ -2,11 +2,11 @@ package wd4j.impl.modules;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import wd4j.core.CommandImpl;
 import wd4j.core.WebSocketConnection;
 import wd4j.helper.JsonObjectBuilder;
 import wd4j.impl.generic.Module;
 import wd4j.impl.generic.Event;
-import wd4j.core.Command;
 
 import java.util.concurrent.ExecutionException;
 
@@ -34,7 +34,7 @@ public class BrowsingContext implements Module {
      */
     // Hilfsmethode: Neuen Context erstellen
     private String createContext() {
-        Command createContextCommand = new Command(
+        CommandImpl createContextCommandImpl = new CommandImpl(
                 webSocketConnection,
                 "browsingContext.create",
                 new JsonObjectBuilder()
@@ -43,7 +43,7 @@ public class BrowsingContext implements Module {
         );
 
         try {
-            String response = webSocketConnection.send(createContextCommand);
+            String response = webSocketConnection.send(createContextCommandImpl);
 
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonObject result = jsonResponse.getAsJsonObject("result");
@@ -87,14 +87,14 @@ public class BrowsingContext implements Module {
         params.addProperty("url", url);
         params.addProperty("context", contextId);
 
-        Command navigateCommand = new Command(
+        CommandImpl navigateCommandImpl = new CommandImpl(
                 webSocketConnection,
                 "browsingContext.navigate",
                 params
         );
 
         // Send the command and wait for the response
-        webSocketConnection.sendAsync(navigateCommand);
+        webSocketConnection.sendAsync(navigateCommandImpl);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
