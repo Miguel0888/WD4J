@@ -6,6 +6,7 @@ import wd4j.core.CommandImpl;
 import wd4j.helper.BrowserType;
 import wd4j.helper.JsonObjectBuilder;
 import wd4j.core.WebSocketConnection;
+import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Event;
 import wd4j.impl.generic.Module;
 import wd4j.impl.generic.Type;
@@ -96,14 +97,10 @@ public class Session implements Module {
 
     // Fallback-Methode: Kontext über getTree suchen
     private String fetchDefaultContextFromTree() {
-        CommandImpl getTreeCommandImpl = new CommandImpl(
-                webSocketConnection,
-                "browsingContext.getTree",
-                new JsonObject() // Kein Parameter erforderlich
-        );
+        CommandImpl getTreeCommand = new GetTreeCommand();
 
         try {
-            String response = webSocketConnection.send(getTreeCommandImpl);
+            String response = webSocketConnection.send(getTreeCommand);
 
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonObject result = jsonResponse.getAsJsonObject("result");
@@ -139,41 +136,20 @@ public class Session implements Module {
     }
 
     public CompletableFuture<String> status() {
-        CommandImpl statusCommandImpl = new CommandImpl(
-                webSocketConnection,
-                "session.status",
-                new JsonObjectBuilder() // Keine Parameter hinzufügen
-                        .build()
-        );
-
-        return webSocketConnection.sendAsync(statusCommandImpl);
+        return webSocketConnection.sendAsync(new StatusCommand());
     }
 
     // new() - Since plain "new" is a reserved word in Java!
     public CompletableFuture<String> newSession(String browserName) {
-        CommandImpl newSessionCommandImpl = new CommandImpl(
-            webSocketConnection,
-            "session.new",
-            new JsonObjectBuilder()
-                .add("capabilities", new JsonObjectBuilder()
-                    .addProperty("browserName", browserName)
-                    .build())
-                .build()
-        );
-    
-        return webSocketConnection.sendAsync(newSessionCommandImpl);
-    }    
+        return webSocketConnection.sendAsync(new Session.NewSessionCommand(browserName));
+    }
 
     // end() - In corespondance to new!
     public CompletableFuture<String> endSession() {
         // ToDo: Maybe close all BrowsingContexts?
-        CommandImpl endSessionCommandImpl = new CommandImpl(
-            webSocketConnection,
-            "session.delete",
-            new JsonObject() // Kein Parameter erforderlich
-        );
+        CommandImpl endSessionCommand = new EndSessionCommand();
     
-        return webSocketConnection.sendAsync(endSessionCommandImpl);
+        return webSocketConnection.sendAsync(endSessionCommand);
     }    
 
     public void subscribe()
@@ -222,4 +198,71 @@ public class Session implements Module {
     public BrowsingContext getBrowsingContext(int index) {
         return browsingContext.get(index);
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Events (Classes)
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Commands (Classes)
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static class NewSessionCommand extends CommandImpl<NewSessionCommand.ParamsImpl> {
+
+        public NewSessionCommand(String browserName) {
+            super("session.new", new ParamsImpl(browserName));
+        }
+
+        // Parameterklasse
+        public static class ParamsImpl implements Command.Params {
+            private  final Capabilities capabilities;
+
+            public ParamsImpl(String browserName) {
+                this.capabilities = new Capabilities(browserName);
+            }
+
+            private static class Capabilities {
+                private  final String browserName;
+
+                public Capabilities(String browserName) {
+                    this.browserName = browserName;
+                }
+            }
+        }
+    }
+
+    public static class StatusCommand extends CommandImpl<StatusCommand.ParamsImpl> {
+
+        public StatusCommand() {
+            super("session.status", new ParamsImpl());
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            // Keine Parameter notwendig für diesen Command
+        }
+    }
+
+    public static class GetTreeCommand extends CommandImpl<GetTreeCommand.ParamsImpl> {
+
+        public GetTreeCommand() {
+            super("browsingContext.getTree", new ParamsImpl());
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            // Keine Parameter erforderlich, daher bleibt die Klasse leer.
+        }
+    }
+
+    public static class EndSessionCommand extends CommandImpl<EndSessionCommand.ParamsImpl> {
+
+        public EndSessionCommand() {
+            super("session.delete", new ParamsImpl());
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            // Keine Parameter erforderlich, daher bleibt die Klasse leer.
+        }
+    }
+
+
 }

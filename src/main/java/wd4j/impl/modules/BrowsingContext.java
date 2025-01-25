@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import wd4j.core.CommandImpl;
 import wd4j.core.WebSocketConnection;
 import wd4j.helper.JsonObjectBuilder;
+import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Module;
 import wd4j.impl.generic.Event;
 
@@ -34,16 +35,10 @@ public class BrowsingContext implements Module {
      */
     // Hilfsmethode: Neuen Context erstellen
     private String createContext() {
-        CommandImpl createContextCommandImpl = new CommandImpl(
-                webSocketConnection,
-                "browsingContext.create",
-                new JsonObjectBuilder()
-                        .addProperty("type", "tab") // Standardmäßig einen neuen Tab erstellen
-                        .build()
-        );
+        CommandImpl createContextCommand = new CreateContextCommand("tab");
 
         try {
-            String response = webSocketConnection.send(createContextCommandImpl);
+            String response = webSocketConnection.send(createContextCommand);
 
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonObject result = jsonResponse.getAsJsonObject("result");
@@ -82,19 +77,8 @@ public class BrowsingContext implements Module {
      * @throws InterruptedException if the operation is interrupted.
      */
     public void navigate(String url) throws ExecutionException, InterruptedException {
-        // Create the command payload
-        JsonObject params = new JsonObject();
-        params.addProperty("url", url);
-        params.addProperty("context", contextId);
-
-        CommandImpl navigateCommandImpl = new CommandImpl(
-                webSocketConnection,
-                "browsingContext.navigate",
-                params
-        );
-
         // Send the command and wait for the response
-        webSocketConnection.sendAsync(navigateCommandImpl);
+        webSocketConnection.sendAsync(new NavigateCommand(url, contextId));
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -137,4 +121,51 @@ public class BrowsingContext implements Module {
             return data;
         }
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Commands (Classes)
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static class CreateContextCommand extends CommandImpl<CreateContextCommand.ParamsImpl> {
+
+        public CreateContextCommand(String type) {
+            super("browsingContext.create", new ParamsImpl(type));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String type;
+
+            public ParamsImpl(String type) {
+                if (type == null || type.isEmpty()) {
+                    throw new IllegalArgumentException("Type must not be null or empty.");
+                }
+                this.type = type;
+            }
+        }
+    }
+
+    public static class NavigateCommand extends CommandImpl<NavigateCommand.ParamsImpl> {
+
+        public NavigateCommand(String url, String contextId) {
+            super("browsingContext.navigate", new ParamsImpl(url, contextId));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String url;
+            private final String context;
+
+            public ParamsImpl(String url, String contextId) {
+                if (url == null || url.isEmpty()) {
+                    throw new IllegalArgumentException("URL must not be null or empty.");
+                }
+                if (contextId == null || contextId.isEmpty()) {
+                    throw new IllegalArgumentException("Context ID must not be null or empty.");
+                }
+                this.url = url;
+                this.context = contextId;
+            }
+        }
+    }
+
+
 }

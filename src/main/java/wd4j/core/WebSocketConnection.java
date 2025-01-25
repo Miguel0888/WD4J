@@ -2,6 +2,7 @@ package wd4j.core;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Event;
 
 import java.util.ArrayList;
@@ -106,33 +107,29 @@ public class WebSocketConnection {
         webSocketClient.connectBlocking();
     }
 
-    public String send(CommandImpl commandImpl) {
-        int commandId = commandImpl.getId();
-        JsonObject commandJson = commandImpl.toJsonObject(); // Konvertierung in JsonObject
-    
+    public String send(Command command) {
         // Command abschicken
-        CompletableFuture<String> future = new CompletableFuture<>();
-        pendingCommands.put(commandId, future);
-        webSocketClient.send(commandJson.toString());
+        CompletableFuture<String> future = sendAsync(command);
     
         // Antwort blockierend abholen
         try {
-            return receive(commandId);
+            return receive(command.getId());
         } catch( InterruptedException e)
         {
             // Todo
         }
         finally {
             // Aufräumen, um Speicherlecks zu vermeiden
-            pendingCommands.remove(commandId);
+            pendingCommands.remove(command.getId());
         }
         return null;
     }
 
-    public CompletableFuture<String> sendAsync(CommandImpl commandImpl) {
-        JsonObject commandJson = commandImpl.toJsonObject(); // Konvertierung in JsonObject
+    public CompletableFuture<String> sendAsync(Command command) {
+        command.setId(getNextCommandId());
+        JsonObject commandJson = command.toJson(); // Konvertierung in JsonObject
         CompletableFuture<String> future = new CompletableFuture<>();
-        pendingCommands.put(commandImpl.getId(), future);
+        pendingCommands.put(command.getId(), future);
         webSocketClient.send(commandJson.toString()); // Senden als JSON-String
         return future;
     }
