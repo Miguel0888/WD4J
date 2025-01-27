@@ -52,10 +52,29 @@ public class WebSocketConnection {
                         }
                     } else if (jsonMessage.has("type")) {
                         System.out.println("Received event: " + message);
-                        // Event verarbeiten
                         String eventType = jsonMessage.get("type").getAsString();
                         JsonObject eventData = jsonMessage.getAsJsonObject("data");
-                        Event event = new Event.WebDriverEvent(eventType, eventData);
+
+                        //ToDo: How to work with Events?
+//                        Event event;
+//                        switch (eventType) {
+//                            case "browsingContext.contextCreated":
+//                                event = new BrowsingContextEvents.ContextCreatedEvent(eventType, eventData);
+//                                break;
+//                            case "browsingContext.contextDestroyed":
+//                                event = new BrowsingContextEvents.ContextDestroyedEvent(eventType, eventData);
+//                                break;
+//                            case "browsingContext.contextLoaded":
+//                                event = new BrowsingContextEvents.ContextLoadedEvent(eventType, eventData);
+//                                break;
+//                            case "browsingContext.fragmentNavigated":
+//                                event = new BrowsingContextEvents.ContextFragmentNavigatedEvent(eventType, eventData);
+//                                break;
+//                            default:
+//                                event = new Event.WebDriverEvent(eventType, eventData);
+//                                break;
+//                        }
+
                         notifyEventListeners(event);
                     } else {
                         System.out.println("Received message: " + message);
