@@ -74,8 +74,8 @@ public class WebSocketConnection {
 //                                event = new Event.WebDriverEvent(eventType, eventData);
 //                                break;
 //                        }
-
-                        notifyEventListeners(event);
+//
+//                        notifyEventListeners(event);
                     } else {
                         System.out.println("Received message: " + message);
                         // ToDo: Check this! Possible overflow in pendingCommands!
