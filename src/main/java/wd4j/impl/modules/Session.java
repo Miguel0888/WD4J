@@ -253,13 +253,43 @@ public class Session implements Module {
         }
     }
 
-    public static class Subscribe  extends CommandImpl<Subscribe .ParamsImpl> {
+    public static class SubscribeCommand extends CommandImpl<SubscribeCommand.ParamsImpl> {
 
+        public SubscribeCommand(List<String> events) {
+            super("session.subscribe", new ParamsImpl(events));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final List<String> events;
+
+            public ParamsImpl(List<String> events) {
+                if (events == null || events.isEmpty()) {
+                    throw new IllegalArgumentException("Events list must not be null or empty.");
+                }
+                this.events = events;
+            }
+        }
     }
 
-    public static class Unsubscribe  extends CommandImpl<Unsubscribe .ParamsImpl> {
 
+    public static class UnsubscribeCommand extends CommandImpl<UnsubscribeCommand.ParamsImpl> {
+
+        public UnsubscribeCommand(List<String> events) {
+            super("session.unsubscribe", new ParamsImpl(events));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final List<String> events;
+
+            public ParamsImpl(List<String> events) {
+                if (events == null || events.isEmpty()) {
+                    throw new IllegalArgumentException("Events list must not be null or empty.");
+                }
+                this.events = events;
+            }
+        }
     }
+
 
 
 }

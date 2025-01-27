@@ -125,17 +125,62 @@ public class BrowsingContext implements Module {
     // Commands (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class Activate  extends CommandImpl<BrowsingContext.Activate.ParamsImpl> {
+    public static class ActivateCommand extends CommandImpl<ActivateCommand.ParamsImpl> {
 
+        public ActivateCommand(String contextId) {
+            super("browsingContext.activate", new ParamsImpl(contextId));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String context;
+
+            public ParamsImpl(String contextId) {
+                if (contextId == null || contextId.isEmpty()) {
+                    throw new IllegalArgumentException("Context ID must not be null or empty.");
+                }
+                this.context = contextId;
+            }
+        }
     }
 
-    public static class CaptureScreenshot extends CommandImpl<BrowsingContext.CaptureScreenshot .ParamsImpl> {
 
+    public static class CaptureScreenshotCommand extends CommandImpl<CaptureScreenshotCommand.ParamsImpl> {
+
+        public CaptureScreenshotCommand(String contextId) {
+            super("browsingContext.captureScreenshot", new ParamsImpl(contextId));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String context;
+
+            public ParamsImpl(String contextId) {
+                if (contextId == null || contextId.isEmpty()) {
+                    throw new IllegalArgumentException("Context ID must not be null or empty.");
+                }
+                this.context = contextId;
+            }
+        }
     }
 
-    public static class Close extends CommandImpl<BrowsingContext.Close.ParamsImpl> {
 
+    public static class CloseCommand extends CommandImpl<CloseCommand.ParamsImpl> {
+
+        public CloseCommand(String contextId) {
+            super("browsingContext.close", new ParamsImpl(contextId));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String context;
+
+            public ParamsImpl(String contextId) {
+                if (contextId == null || contextId.isEmpty()) {
+                    throw new IllegalArgumentException("Context ID must not be null or empty.");
+                }
+                this.context = contextId;
+            }
+        }
     }
+
 
     public static class CreateCommand extends CommandImpl<CreateCommand.ParamsImpl> {
 
@@ -166,12 +211,49 @@ public class BrowsingContext implements Module {
         }
     }
 
-    public static class HandleUserPrompt extends CommandImpl<BrowsingContext.HandleUserPrompt.ParamsImpl> {
+    public static class HandleUserPromptCommand extends CommandImpl<HandleUserPromptCommand.ParamsImpl> {
 
-    }
-    public static class LocateNodes extends CommandImpl<BrowsingContext.LocateNodes.ParamsImpl> {
+        public HandleUserPromptCommand(String contextId, String userText) {
+            super("browsingContext.handleUserPrompt", new ParamsImpl(contextId, userText));
+        }
 
+        public static class ParamsImpl implements Command.Params {
+            private final String context;
+            private final String userText;
+
+            public ParamsImpl(String contextId, String userText) {
+                if (contextId == null || contextId.isEmpty()) {
+                    throw new IllegalArgumentException("Context ID must not be null or empty.");
+                }
+                this.context = contextId;
+                this.userText = userText; // `userText` kann null sein, falls der Nutzer keinen Text eingibt.
+            }
+        }
     }
+
+    public static class LocateNodesCommand extends CommandImpl<LocateNodesCommand.ParamsImpl> {
+
+        public LocateNodesCommand(String contextId, String selector) {
+            super("browsingContext.locateNodes", new ParamsImpl(contextId, selector));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String context;
+            private final String selector;
+
+            public ParamsImpl(String contextId, String selector) {
+                if (contextId == null || contextId.isEmpty()) {
+                    throw new IllegalArgumentException("Context ID must not be null or empty.");
+                }
+                if (selector == null || selector.isEmpty()) {
+                    throw new IllegalArgumentException("Selector must not be null or empty.");
+                }
+                this.context = contextId;
+                this.selector = selector;
+            }
+        }
+    }
+
 
     public static class NavigateCommand extends CommandImpl<NavigateCommand.ParamsImpl> {
 
@@ -196,21 +278,93 @@ public class BrowsingContext implements Module {
         }
     }
 
-    public static class Print  extends CommandImpl<BrowsingContext.Print .ParamsImpl> {
+    public static class PrintCommand extends CommandImpl<PrintCommand.ParamsImpl> {
 
+        public PrintCommand(String contextId) {
+            super("browsingContext.print", new ParamsImpl(contextId));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String context;
+
+            public ParamsImpl(String contextId) {
+                if (contextId == null || contextId.isEmpty()) {
+                    throw new IllegalArgumentException("Context ID must not be null or empty.");
+                }
+                this.context = contextId;
+            }
+        }
     }
 
-    public static class Reload  extends CommandImpl<BrowsingContext.Reload .ParamsImpl> {
 
+    public static class ReloadCommand extends CommandImpl<ReloadCommand.ParamsImpl> {
+
+        public ReloadCommand(String contextId) {
+            super("browsingContext.reload", new ParamsImpl(contextId));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String context;
+
+            public ParamsImpl(String contextId) {
+                if (contextId == null || contextId.isEmpty()) {
+                    throw new IllegalArgumentException("Context ID must not be null or empty.");
+                }
+                this.context = contextId;
+            }
+        }
     }
 
-    public static class SetViewport  extends CommandImpl<BrowsingContext.SetViewport .ParamsImpl> {
 
+    public static class SetViewportCommand extends CommandImpl<SetViewportCommand.ParamsImpl> {
+
+        public SetViewportCommand(String contextId, int width, int height) {
+            super("browsingContext.setViewport", new ParamsImpl(contextId, width, height));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String context;
+            private final int width;
+            private final int height;
+
+            public ParamsImpl(String contextId, int width, int height) {
+                if (contextId == null || contextId.isEmpty()) {
+                    throw new IllegalArgumentException("Context ID must not be null or empty.");
+                }
+                if (width <= 0) {
+                    throw new IllegalArgumentException("Width must be greater than 0.");
+                }
+                if (height <= 0) {
+                    throw new IllegalArgumentException("Height must be greater than 0.");
+                }
+                this.context = contextId;
+                this.width = width;
+                this.height = height;
+            }
+        }
     }
 
-    public static class TraverseHistory  extends CommandImpl<BrowsingContext.TraverseHistory .ParamsImpl> {
 
+    public static class TraverseHistoryCommand extends CommandImpl<TraverseHistoryCommand.ParamsImpl> {
+
+        public TraverseHistoryCommand(String contextId, int delta) {
+            super("browsingContext.traverseHistory", new ParamsImpl(contextId, delta));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String context;
+            private final int delta;
+
+            public ParamsImpl(String contextId, int delta) {
+                if (contextId == null || contextId.isEmpty()) {
+                    throw new IllegalArgumentException("Context ID must not be null or empty.");
+                }
+                this.context = contextId;
+                this.delta = delta;
+            }
+        }
     }
+
 
 
 }

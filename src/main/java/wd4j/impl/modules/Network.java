@@ -1,6 +1,7 @@
 package wd4j.impl.modules;
 
 import wd4j.core.CommandImpl;
+import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Module;
 
 public class Network implements Module {
@@ -13,36 +14,164 @@ public class Network implements Module {
     // Commands (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class AddIntercept extends CommandImpl<Network.AddIntercept.ParamsImpl> {
+    public static class AddIntercept extends CommandImpl<AddIntercept.ParamsImpl> {
 
+        public AddIntercept(String urlPattern) {
+            super("network.addIntercept", new ParamsImpl(urlPattern));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String urlPattern;
+
+            public ParamsImpl(String urlPattern) {
+                if (urlPattern == null || urlPattern.isEmpty()) {
+                    throw new IllegalArgumentException("URL pattern must not be null or empty.");
+                }
+                this.urlPattern = urlPattern;
+            }
+        }
     }
 
-    public static class ContinueRequest extends CommandImpl<Network.ContinueRequest.ParamsImpl> {
+    public static class ContinueRequest extends CommandImpl<ContinueRequest.ParamsImpl> {
 
+        public ContinueRequest(String requestId) {
+            super("network.continueRequest", new ParamsImpl(requestId));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String requestId;
+
+            public ParamsImpl(String requestId) {
+                if (requestId == null || requestId.isEmpty()) {
+                    throw new IllegalArgumentException("Request ID must not be null or empty.");
+                }
+                this.requestId = requestId;
+            }
+        }
     }
 
-    public static class ContinueResponse extends CommandImpl<Network.ContinueResponse.ParamsImpl> {
+    public static class ContinueResponse extends CommandImpl<ContinueResponse.ParamsImpl> {
 
+        public ContinueResponse(String requestId) {
+            super("network.continueResponse", new ParamsImpl(requestId));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String requestId;
+
+            public ParamsImpl(String requestId) {
+                if (requestId == null || requestId.isEmpty()) {
+                    throw new IllegalArgumentException("Request ID must not be null or empty.");
+                }
+                this.requestId = requestId;
+            }
+        }
     }
 
-    public static class ContinueWithAuth extends CommandImpl<Network.ContinueWithAuth.ParamsImpl> {
+    public static class ContinueWithAuth extends CommandImpl<ContinueWithAuth.ParamsImpl> {
 
+        public ContinueWithAuth(String requestId, String authChallengeResponse) {
+            super("network.continueWithAuth", new ParamsImpl(requestId, authChallengeResponse));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String requestId;
+            private final String authChallengeResponse;
+
+            public ParamsImpl(String requestId, String authChallengeResponse) {
+                if (requestId == null || requestId.isEmpty()) {
+                    throw new IllegalArgumentException("Request ID must not be null or empty.");
+                }
+                if (authChallengeResponse == null || authChallengeResponse.isEmpty()) {
+                    throw new IllegalArgumentException("Auth challenge response must not be null or empty.");
+                }
+                this.requestId = requestId;
+                this.authChallengeResponse = authChallengeResponse;
+            }
+        }
     }
 
-    public static class FailRequest extends CommandImpl<Network.FailRequest.ParamsImpl> {
+    public static class FailRequest extends CommandImpl<FailRequest.ParamsImpl> {
 
+        public FailRequest(String requestId) {
+            super("network.failRequest", new ParamsImpl(requestId));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String requestId;
+
+            public ParamsImpl(String requestId) {
+                if (requestId == null || requestId.isEmpty()) {
+                    throw new IllegalArgumentException("Request ID must not be null or empty.");
+                }
+                this.requestId = requestId;
+            }
+        }
     }
 
-    public static class ProvideResponse extends CommandImpl<Network.ProvideResponse.ParamsImpl> {
+    public static class ProvideResponse extends CommandImpl<ProvideResponse.ParamsImpl> {
 
+        public ProvideResponse(String requestId, String responseBody) {
+            super("network.provideResponse", new ParamsImpl(requestId, responseBody));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String requestId;
+            private final String responseBody;
+
+            public ParamsImpl(String requestId, String responseBody) {
+                if (requestId == null || requestId.isEmpty()) {
+                    throw new IllegalArgumentException("Request ID must not be null or empty.");
+                }
+                if (responseBody == null || responseBody.isEmpty()) {
+                    throw new IllegalArgumentException("Response body must not be null or empty.");
+                }
+                this.requestId = requestId;
+                this.responseBody = responseBody;
+            }
+        }
     }
 
-    public static class RemoveIntercept extends CommandImpl<Network.RemoveIntercept.ParamsImpl> {
+    public static class RemoveIntercept extends CommandImpl<RemoveIntercept.ParamsImpl> {
 
+        public RemoveIntercept(String interceptId) {
+            super("network.removeIntercept", new ParamsImpl(interceptId));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String interceptId;
+
+            public ParamsImpl(String interceptId) {
+                if (interceptId == null || interceptId.isEmpty()) {
+                    throw new IllegalArgumentException("Intercept ID must not be null or empty.");
+                }
+                this.interceptId = interceptId;
+            }
+        }
     }
 
-    public static class SetCacheBehavior extends CommandImpl<Network.SetCacheBehavior.ParamsImpl> {
+    public static class SetCacheBehavior extends CommandImpl<SetCacheBehavior.ParamsImpl> {
 
+        public SetCacheBehavior(String contextId, String cacheMode) {
+            super("network.setCacheBehavior", new ParamsImpl(contextId, cacheMode));
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            private final String contextId;
+            private final String cacheMode;
+
+            public ParamsImpl(String contextId, String cacheMode) {
+                if (contextId == null || contextId.isEmpty()) {
+                    throw new IllegalArgumentException("Context ID must not be null or empty.");
+                }
+                if (cacheMode == null || cacheMode.isEmpty()) {
+                    throw new IllegalArgumentException("Cache mode must not be null or empty.");
+                }
+                this.contextId = contextId;
+                this.cacheMode = cacheMode;
+            }
+        }
     }
+
 
 }
