@@ -232,6 +232,164 @@ public class BrowsingContext implements Module {
     //     return connection.sendAsync(command);
     // }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Types (Classes)
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // ToDo: Naming collides with the class name
+    public class BrowsingContextType {
+        private final String id;
+
+        public BrowsingContextType(String id) {
+            if (id == null || id.isEmpty()) {
+                throw new IllegalArgumentException("ID must not be null or empty.");
+            }
+            this.id = id;
+        }
+
+        public String getId() {
+            return id;
+        }
+    }
+
+    public class BrowsingContextInfo {
+        private final String id;
+        private final String parent;
+        private final String url;
+        private final String children;
+
+        public BrowsingContextInfo(String id, String parent, String url, String children) {
+            if (id == null || id.isEmpty()) {
+                throw new IllegalArgumentException("ID must not be null or empty.");
+            }
+            this.id = id;
+            this.parent = parent;
+            this.url = url;
+            this.children = children;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public String getParent() {
+            return parent;
+        }
+
+        public String getUrl() {
+            return url;
+        }
+
+        public String getChildren() {
+            return children;
+        }
+    }
+
+    public class BrowsingContextLocator {
+        private final String strategy;
+        private final String selector;
+
+        public BrowsingContextLocator(String strategy, String selector) {
+            if (strategy == null || strategy.isEmpty()) {
+                throw new IllegalArgumentException("Strategy must not be null or empty.");
+            }
+            if (selector == null || selector.isEmpty()) {
+                throw new IllegalArgumentException("Selector must not be null or empty.");
+            }
+            this.strategy = strategy;
+            this.selector = selector;
+        }
+
+        public String getStrategy() {
+            return strategy;
+        }
+
+        public String getSelector() {
+            return selector;
+        }
+    }
+
+    public class BrowsingContextNavigation {
+        private final String context;
+        private final String navigationId;
+
+        public BrowsingContextNavigation(String context, String navigationId) {
+            if (context == null || context.isEmpty()) {
+                throw new IllegalArgumentException("Context must not be null or empty.");
+            }
+            this.context = context;
+            this.navigationId = navigationId;
+        }
+
+        public String getContext() {
+            return context;
+        }
+
+        public String getNavigationId() {
+            return navigationId;
+        }
+    }
+
+    public class BrowsingContextNavigationInfo {
+        private final String navigationId;
+        private final String url;
+        private final BrowsingContextReadinessState readinessState;
+
+        public BrowsingContextNavigationInfo(String navigationId, String url, BrowsingContextReadinessState readinessState) {
+            if (navigationId == null || navigationId.isEmpty()) {
+                throw new IllegalArgumentException("Navigation ID must not be null or empty.");
+            }
+            if (url == null || url.isEmpty()) {
+                throw new IllegalArgumentException("URL must not be null or empty.");
+            }
+            this.navigationId = navigationId;
+            this.url = url;
+            this.readinessState = readinessState;
+        }
+
+        public String getNavigationId() {
+            return navigationId;
+        }
+
+        public String getUrl() {
+            return url;
+        }
+
+        public BrowsingContextReadinessState getReadinessState() {
+            return readinessState;
+        }
+    }
+
+    public class BrowsingContextReadinessState {
+        private final String state;
+
+        public BrowsingContextReadinessState(String state) {
+            if (state == null || state.isEmpty()) {
+                throw new IllegalArgumentException("State must not be null or empty.");
+            }
+            this.state = state;
+        }
+
+        public String getState() {
+            return state;
+        }
+    }
+
+    public class BrowsingContextUserPromptType {
+        private final String type;
+
+        public BrowsingContextUserPromptType(String type) {
+            if (type == null || type.isEmpty()) {
+                throw new IllegalArgumentException("Type must not be null or empty.");
+            }
+            this.type = type;
+        }
+
+        public String getType() {
+            return type;
+        }
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// Events (Classes)
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

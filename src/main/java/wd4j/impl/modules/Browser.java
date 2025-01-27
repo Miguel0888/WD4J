@@ -15,10 +15,11 @@ import java.util.List;
 public class Browser implements Module {
 
     private final WebSocketConnection webSocketConnection;
-    public ClientWindow clientWindow;
-    public ClientWindowInfo clientWindowInfo;
-    public UserContext userContext;
-    public UserContextInfo userContextInfo;
+
+    public BrowserClientWindow clientWindow;
+    public BrowserClientWindowInfo clientWindowInfo;
+    public BrowserUserContext userContext;
+    public BrowserUserContextInfo userContextInfo;
 
     public Browser(WebSocketConnection webSocketConnection) {
         this.webSocketConnection = webSocketConnection;
@@ -141,21 +142,84 @@ public class Browser implements Module {
     // Types (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class ClientWindow implements Type {
-        // ToDo
+    public class BrowserClientWindow {
+        private final String id;
+
+        public BrowserClientWindow(String id) {
+            if (id == null || id.isEmpty()) {
+                throw new IllegalArgumentException("ID must not be null or empty.");
+            }
+            this.id = id;
+        }
+
+        public String getId() {
+            return id;
+        }
     }
 
-    public static class ClientWindowInfo implements Type {
-        // ToDo
+    public class BrowserClientWindowInfo {
+        private final String id;
+        private final String state;
+
+        public BrowserClientWindowInfo(String id, String state) {
+            if (id == null || id.isEmpty()) {
+                throw new IllegalArgumentException("ID must not be null or empty.");
+            }
+            if (state == null || state.isEmpty()) {
+                throw new IllegalArgumentException("State must not be null or empty.");
+            }
+            this.id = id;
+            this.state = state;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public String getState() {
+            return state;
+        }
     }
 
-    public static class UserContext implements Type {
-        // ToDo
+    public class BrowserUserContext {
+        private final String id;
+
+        public BrowserUserContext(String id) {
+            if (id == null || id.isEmpty()) {
+                throw new IllegalArgumentException("ID must not be null or empty.");
+            }
+            this.id = id;
+        }
+
+        public String getId() {
+            return id;
+        }
     }
 
-    public static class UserContextInfo implements Type {
-        // ToDo
+    public class BrowserUserContextInfo {
+        private final String id;
+        private final String type;
+
+        public BrowserUserContextInfo(String id, String type) {
+            if (id == null || id.isEmpty()) {
+                throw new IllegalArgumentException("ID must not be null or empty.");
+            }
+            if (type == null || type.isEmpty()) {
+                throw new IllegalArgumentException("Type must not be null or empty.");
+            }
+            this.id = id;
+            this.type = type;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public String getType() {
+            return type;
+        }
     }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Events (Classes)

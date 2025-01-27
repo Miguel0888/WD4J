@@ -132,7 +132,264 @@ public class Script implements Module {
         }
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Types (Classes)
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public class ScriptChannel {
+        private final String channel;
+
+        public ScriptChannel(String channel) {
+            if (channel == null || channel.isEmpty()) {
+                throw new IllegalArgumentException("Channel must not be null or empty.");
+            }
+            this.channel = channel;
+        }
+
+        public String getChannel() {
+            return channel;
+        }
+    }
+
+    public class ScriptChannelValue {
+        private final String value;
+
+        public ScriptChannelValue(String value) {
+            if (value == null || value.isEmpty()) {
+                throw new IllegalArgumentException("Value must not be null or empty.");
+            }
+            this.value = value;
+        }
+
+        public String getValue() {
+            return value;
+        }
+    }
+
+    public class ScriptEvaluateResult {
+        private final Object result;
+        private final ScriptExceptionDetails exceptionDetails;
+
+        public ScriptEvaluateResult(Object result, ScriptExceptionDetails exceptionDetails) {
+            this.result = result;
+            this.exceptionDetails = exceptionDetails;
+        }
+
+        public Object getResult() {
+            return result;
+        }
+
+        public ScriptExceptionDetails getExceptionDetails() {
+            return exceptionDetails;
+        }
+    }
+
+    public class ScriptExceptionDetails {
+        private final String text;
+        private final ScriptStackTrace stackTrace;
+
+        public ScriptExceptionDetails(String text, ScriptStackTrace stackTrace) {
+            if (text == null || text.isEmpty()) {
+                throw new IllegalArgumentException("Text must not be null or empty.");
+            }
+            this.text = text;
+            this.stackTrace = stackTrace;
+        }
+
+        public String getText() {
+            return text;
+        }
+
+        public ScriptStackTrace getStackTrace() {
+            return stackTrace;
+        }
+    }
+
+    public class ScriptHandle {
+        private final String handle;
+
+        public ScriptHandle(String handle) {
+            if (handle == null || handle.isEmpty()) {
+                throw new IllegalArgumentException("Handle must not be null or empty.");
+            }
+            this.handle = handle;
+        }
+
+        public String getHandle() {
+            return handle;
+        }
+    }
+
+    public class ScriptInternalId {
+        private final String id;
+
+        public ScriptInternalId(String id) {
+            if (id == null || id.isEmpty()) {
+                throw new IllegalArgumentException("ID must not be null or empty.");
+            }
+            this.id = id;
+        }
+
+        public String getId() {
+            return id;
+        }
+    }
+
+    public class ScriptLocalValue {
+        private final Object value;
+
+        public ScriptLocalValue(Object value) {
+            this.value = value;
+        }
+
+        public Object getValue() {
+            return value;
+        }
+    }
+
+    public class ScriptPreloadScript {
+        private final String id;
+        private final String functionDeclaration;
+
+        public ScriptPreloadScript(String id, String functionDeclaration) {
+            if (id == null || id.isEmpty()) {
+                throw new IllegalArgumentException("ID must not be null or empty.");
+            }
+            if (functionDeclaration == null || functionDeclaration.isEmpty()) {
+                throw new IllegalArgumentException("Function declaration must not be null or empty.");
+            }
+            this.id = id;
+            this.functionDeclaration = functionDeclaration;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public String getFunctionDeclaration() {
+            return functionDeclaration;
+        }
+    }
+
+    public class ScriptRealm {
+        private final String realm;
+
+        public ScriptRealm(String realm) {
+            if (realm == null || realm.isEmpty()) {
+                throw new IllegalArgumentException("Realm must not be null or empty.");
+            }
+            this.realm = realm;
+        }
+
+        public String getRealm() {
+            return realm;
+        }
+    }
+
+    public class ScriptPrimitiveProtocolValue {
+        private final Object value;
+
+        public ScriptPrimitiveProtocolValue(Object value) {
+            this.value = value;
+        }
+
+        public Object getValue() {
+            return value;
+        }
+    }
+
+    public class ScriptRealmInfo {
+        private final String realm;
+        private final String type;
+
+        public ScriptRealmInfo(String realm, String type) {
+            if (realm == null || realm.isEmpty()) {
+                throw new IllegalArgumentException("Realm must not be null or empty.");
+            }
+            if (type == null || type.isEmpty()) {
+                throw new IllegalArgumentException("Type must not be null or empty.");
+            }
+            this.realm = realm;
+            this.type = type;
+        }
+
+        public String getRealm() {
+            return realm;
+        }
+
+        public String getType() {
+            return type;
+        }
+    }
+
+    public class ScriptRemoteReference {
+        private final String reference;
+
+        public ScriptRemoteReference(String reference) {
+            if (reference == null || reference.isEmpty()) {
+                throw new IllegalArgumentException("Reference must not be null or empty.");
+            }
+            this.reference = reference;
+        }
+
+        public String getReference() {
+            return reference;
+        }
+    }
+
+    public class ScriptSerializationOptions {
+        private final boolean maxDepth;
+
+        public ScriptSerializationOptions(boolean maxDepth) {
+            this.maxDepth = maxDepth;
+        }
+
+        public boolean isMaxDepth() {
+            return maxDepth;
+        }
+    }
+
+    public class ScriptStackFrame {
+        private final String functionName;
+        private final String url;
+        private final int lineNumber;
+        private final int columnNumber;
+
+        public ScriptStackFrame(String functionName, String url, int lineNumber, int columnNumber) {
+            this.functionName = functionName;
+            this.url = url;
+            this.lineNumber = lineNumber;
+            this.columnNumber = columnNumber;
+        }
+
+        public String getFunctionName() {
+            return functionName;
+        }
+
+        public String getUrl() {
+            return url;
+        }
+
+        public int getLineNumber() {
+            return lineNumber;
+        }
+
+        public int getColumnNumber() {
+            return columnNumber;
+        }
+    }
+
+    public class ScriptStackTrace {
+        private final List<ScriptStackFrame> frames;
+
+        public ScriptStackTrace(List<ScriptStackFrame> frames) {
+            this.frames = frames;
+        }
+
+        public List<ScriptStackFrame> getFrames() {
+            return frames;
+        }
+    }
 
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

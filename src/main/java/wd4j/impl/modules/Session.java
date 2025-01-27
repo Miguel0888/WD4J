@@ -12,6 +12,7 @@ import wd4j.impl.generic.Type;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -200,34 +201,159 @@ public class Session implements Module {
 
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Types (Classes)
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class CapabilitesRequest implements Type {
-        // ToDo
+    public class SessionCapabilitiesRequest {
+        private final Map<String, Object> capabilities;
+
+        public SessionCapabilitiesRequest(Map<String, Object> capabilities) {
+            if (capabilities == null || capabilities.isEmpty()) {
+                throw new IllegalArgumentException("Capabilities must not be null or empty.");
+            }
+            this.capabilities = capabilities;
+        }
+
+        public Map<String, Object> getCapabilities() {
+            return capabilities;
+        }
     }
-    public static class CapabilityRequest implements Type {
-        // ToDo
+
+    public class SessionCapabilityRequest {
+        private final String name;
+
+        public SessionCapabilityRequest(String name) {
+            if (name == null || name.isEmpty()) {
+                throw new IllegalArgumentException("Name must not be null or empty.");
+            }
+            this.name = name;
+        }
+
+        public String getName() {
+            return name;
+        }
     }
-    public static class ProxyConfiguration implements Type {
-        // ToDo
+
+    public class SessionProxyConfiguration {
+        private final String proxyType;
+        private final String proxy;
+
+        public SessionProxyConfiguration(String proxyType, String proxy) {
+            if (proxyType == null || proxyType.isEmpty()) {
+                throw new IllegalArgumentException("Proxy type must not be null or empty.");
+            }
+            this.proxyType = proxyType;
+            this.proxy = proxy;
+        }
+
+        public String getProxyType() {
+            return proxyType;
+        }
+
+        public String getProxy() {
+            return proxy;
+        }
     }
-    public static class UserPromptHandler implements Type {
-        // ToDo
+
+    public class SessionUserPromptHandler {
+        private final String contextId;
+        private final String handlerType;
+
+        public SessionUserPromptHandler(String contextId, String handlerType) {
+            if (contextId == null || contextId.isEmpty()) {
+                throw new IllegalArgumentException("Context ID must not be null or empty.");
+            }
+            if (handlerType == null || handlerType.isEmpty()) {
+                throw new IllegalArgumentException("Handler type must not be null or empty.");
+            }
+            this.contextId = contextId;
+            this.handlerType = handlerType;
+        }
+
+        public String getContextId() {
+            return contextId;
+        }
+
+        public String getHandlerType() {
+            return handlerType;
+        }
     }
-    public static class UserPromptHandlerType implements Type {
-        // ToDo
+
+    public class SessionUserPromptHandlerType {
+        private final String type;
+
+        public SessionUserPromptHandlerType(String type) {
+            if (type == null || type.isEmpty()) {
+                throw new IllegalArgumentException("Type must not be null or empty.");
+            }
+            this.type = type;
+        }
+
+        public String getType() {
+            return type;
+        }
     }
-    public static class Subscription implements Type {
-        // ToDo
+
+    public class SessionSubscription {
+        private final String eventName;
+
+        public SessionSubscription(String eventName) {
+            if (eventName == null || eventName.isEmpty()) {
+                throw new IllegalArgumentException("Event name must not be null or empty.");
+            }
+            this.eventName = eventName;
+        }
+
+        public String getEventName() {
+            return eventName;
+        }
     }
-    public static class SubscriptionRequest implements Type {
-        // ToDo
+
+    public class SessionSubscriptionRequest {
+        private final List<SessionSubscription> subscriptions;
+
+        public SessionSubscriptionRequest(List<SessionSubscription> subscriptions) {
+            if (subscriptions == null || subscriptions.isEmpty()) {
+                throw new IllegalArgumentException("Subscriptions must not be null or empty.");
+            }
+            this.subscriptions = subscriptions;
+        }
+
+        public List<SessionSubscription> getSubscriptions() {
+            return subscriptions;
+        }
     }
-    public static class UnsubscribeByIdRequest implements Type {
-        // ToDo
+
+    public class SessionUnsubscribeByIDRequest {
+        private final String subscriptionId;
+
+        public SessionUnsubscribeByIDRequest(String subscriptionId) {
+            if (subscriptionId == null || subscriptionId.isEmpty()) {
+                throw new IllegalArgumentException("Subscription ID must not be null or empty.");
+            }
+            this.subscriptionId = subscriptionId;
+        }
+
+        public String getSubscriptionId() {
+            return subscriptionId;
+        }
     }
-    public static class UnsubscribeByAttributeRequest implements Type {
-        // ToDo
+
+    public class SessionUnsubscribeByAttributesRequest {
+        private final String eventName;
+
+        public SessionUnsubscribeByAttributesRequest(String eventName) {
+            if (eventName == null || eventName.isEmpty()) {
+                throw new IllegalArgumentException("Event name must not be null or empty.");
+            }
+            this.eventName = eventName;
+        }
+
+        public String getEventName() {
+            return eventName;
+        }
     }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

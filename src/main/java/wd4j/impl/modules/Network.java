@@ -5,6 +5,8 @@ import wd4j.core.WebSocketConnection;
 import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Module;
 
+import java.util.List;
+
 public class Network implements Module {
 
     private final WebSocketConnection webSocketConnection;
@@ -147,7 +149,249 @@ public class Network implements Module {
         }
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Types (Classes)
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public class NetworkAuthChallenge {
+        private final String source;
+        private final String origin;
+
+        public NetworkAuthChallenge(String source, String origin) {
+            this.source = source;
+            this.origin = origin;
+        }
+
+        public String getSource() {
+            return source;
+        }
+
+        public String getOrigin() {
+            return origin;
+        }
+    }
+
+    public class NetworkAuthCredentials {
+        private final String username;
+        private final String password;
+
+        public NetworkAuthCredentials(String username, String password) {
+            this.username = username;
+            this.password = password;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+    }
+
+    public class NetworkBaseParameters {
+        private final String contextId;
+
+        public NetworkBaseParameters(String contextId) {
+            this.contextId = contextId;
+        }
+
+        public String getContextId() {
+            return contextId;
+        }
+    }
+
+    public class NetworkBytesValue {
+        private final int size;
+
+        public NetworkBytesValue(int size) {
+            this.size = size;
+        }
+
+        public int getSize() {
+            return size;
+        }
+    }
+
+    public class NetworkCookie {
+        private final String name;
+        private final String value;
+
+        public NetworkCookie(String name, String value) {
+            this.name = name;
+            this.value = value;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getValue() {
+            return value;
+        }
+    }
+
+    public class NetworkCookieHeader {
+        private final List<NetworkCookie> cookies;
+
+        public NetworkCookieHeader(List<NetworkCookie> cookies) {
+            this.cookies = cookies;
+        }
+
+        public List<NetworkCookie> getCookies() {
+            return cookies;
+        }
+    }
+
+    public class NetworkFetchTimingInfo {
+        private final long startTime;
+        private final long endTime;
+
+        public NetworkFetchTimingInfo(long startTime, long endTime) {
+            this.startTime = startTime;
+            this.endTime = endTime;
+        }
+
+        public long getStartTime() {
+            return startTime;
+        }
+
+        public long getEndTime() {
+            return endTime;
+        }
+    }
+
+    public class NetworkHeader {
+        private final String name;
+        private final String value;
+
+        public NetworkHeader(String name, String value) {
+            this.name = name;
+            this.value = value;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getValue() {
+            return value;
+        }
+    }
+
+    public class NetworkInitiator {
+        private final String type;
+
+        public NetworkInitiator(String type) {
+            this.type = type;
+        }
+
+        public String getType() {
+            return type;
+        }
+    }
+
+    public class NetworkIntercept {
+        private final String id;
+
+        public NetworkIntercept(String id) {
+            this.id = id;
+        }
+
+        public String getId() {
+            return id;
+        }
+    }
+
+    public class NetworkRequest {
+        private final String url;
+        private final String method;
+
+        public NetworkRequest(String url, String method) {
+            this.url = url;
+            this.method = method;
+        }
+
+        public String getUrl() {
+            return url;
+        }
+
+        public String getMethod() {
+            return method;
+        }
+    }
+
+    public class NetworkRequestData {
+        private final String url;
+
+        public NetworkRequestData(String url) {
+            this.url = url;
+        }
+
+        public String getUrl() {
+            return url;
+        }
+    }
+
+    public class NetworkResponseContent {
+        private final String content;
+
+        public NetworkResponseContent(String content) {
+            this.content = content;
+        }
+
+        public String getContent() {
+            return content;
+        }
+    }
+
+    public class NetworkResponseData {
+        private final int status;
+        private final String statusText;
+
+        public NetworkResponseData(int status, String statusText) {
+            this.status = status;
+            this.statusText = statusText;
+        }
+
+        public int getStatus() {
+            return status;
+        }
+
+        public String getStatusText() {
+            return statusText;
+        }
+    }
+
+    public class NetworkSetCookieHeader {
+        private final String name;
+        private final String value;
+
+        public NetworkSetCookieHeader(String name, String value) {
+            this.name = name;
+            this.value = value;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getValue() {
+            return value;
+        }
+    }
+
+    public class NetworkUrlPattern {
+        private final String pattern;
+
+        public NetworkUrlPattern(String pattern) {
+            this.pattern = pattern;
+        }
+
+        public String getPattern() {
+            return pattern;
+        }
+    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Events (Classes)
