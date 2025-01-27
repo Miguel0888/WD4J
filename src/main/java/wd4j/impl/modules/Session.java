@@ -94,6 +94,12 @@ public class Session implements Module {
         }
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     // ToDo: Gehört das hierher? Soll das nicht in BrowserContext sein wg. getTree?
     // Fallback-Methode: Kontext über getTree suchen
     private String fetchDefaultContextFromTree() {
@@ -150,12 +156,50 @@ public class Session implements Module {
         CommandImpl endSessionCommand = new EndSessionCommand();
     
         return webSocketConnection.sendAsync(endSessionCommand);
-    }    
+    }
 
-    public void subscribe()
-    {}
-    public void unsubscribe()
-    {}
+    /**
+     * Subscribes to specific WebDriver BiDi events.
+     *
+     * @param events A list of event names to subscribe to.
+     * @throws RuntimeException if the subscription fails.
+     */
+    public void subscribe(List<String> events) {
+        if (events == null || events.isEmpty()) {
+            throw new IllegalArgumentException("Events list must not be null or empty.");
+        }
+
+        try {
+            webSocketConnection.send(new SubscribeCommand(events));
+            System.out.println("Subscribed to events: " + events);
+        } catch (RuntimeException e) {
+            System.out.println("Error subscribing to events: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Unsubscribes from specific WebDriver BiDi events.
+     *
+     * @param events A list of event names to unsubscribe from.
+     * @throws RuntimeException if the unsubscription fails.
+     */
+    public void unsubscribe(List<String> events) {
+        if (events == null || events.isEmpty()) {
+            throw new IllegalArgumentException("Events list must not be null or empty.");
+        }
+
+        try {
+            webSocketConnection.send(new UnsubscribeCommand(events));
+            System.out.println("Unsubscribed from events: " + events);
+        } catch (RuntimeException e) {
+            System.out.println("Error unsubscribing from events: " + e.getMessage());
+            throw e;
+        }
+    }
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class CapabilitesRequest implements Type {
         // ToDo

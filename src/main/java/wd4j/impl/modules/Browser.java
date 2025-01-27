@@ -1,34 +1,141 @@
 package wd4j.impl.modules;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import wd4j.core.CommandImpl;
+import wd4j.core.WebSocketConnection;
 import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Module;
 import wd4j.impl.generic.Type;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Browser implements Module {
 
+    private final WebSocketConnection webSocketConnection;
     public ClientWindow clientWindow;
     public ClientWindowInfo clientWindowInfo;
     public UserContext userContext;
     public UserContextInfo userContextInfo;
 
-    public void close() {
+    public Browser(WebSocketConnection webSocketConnection) {
+        this.webSocketConnection = webSocketConnection;
     }
 
-    public void createUserContext() {
+                   /**
+     * Closes the browser.
+     *
+     * @throws RuntimeException if the close operation fails.
+     */
+    public void closeBrowser() {
+        try {
+            webSocketConnection.send(new CloseCommand());
+            System.out.println("Browser closed successfully.");
+        } catch (RuntimeException e) {
+            System.out.println("Error closing browser: " + e.getMessage());
+            throw e;
+        }
     }
 
-    public void getClientWindows() {
+    /**
+     * Creates a new user context in the browser.
+     *
+     * @return The ID of the created user context.
+     * @throws RuntimeException if the creation fails.
+     */
+    public String createUserContext() {
+        try {
+            String response = webSocketConnection.send(new CreateUserContextCommand());
+            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
+            String contextId = jsonResponse.getAsJsonObject("result").get("context").getAsString();
+            System.out.println("User context created: " + contextId);
+            return contextId;
+        } catch (RuntimeException e) {
+            System.out.println("Error creating user context: " + e.getMessage());
+            throw e;
+        }
     }
 
-    public void getUserContexts() {
+
+    /**
+     * Retrieves the client windows of the browser.
+     *
+     * @return A list of client window IDs.
+     * @throws RuntimeException if the operation fails.
+     */
+    public List<String> getClientWindows() {
+        try {
+            String response = webSocketConnection.send(new GetClientWindowsCommand());
+            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
+            JsonArray windows = jsonResponse.getAsJsonObject("result").getAsJsonArray("windows");
+            List<String> windowIds = new ArrayList<>();
+            windows.forEach(window -> windowIds.add(window.getAsString()));
+            System.out.println("Client windows retrieved: " + windowIds);
+            return windowIds;
+        } catch (RuntimeException e) {
+            System.out.println("Error retrieving client windows: " + e.getMessage());
+            throw e;
+        }
     }
 
-    public void removeUserContext() {
+
+    /**
+     * Retrieves the user contexts available in the browser.
+     *
+     * @return A list of user context IDs.
+     * @throws RuntimeException if the operation fails.
+     */
+    public List<String> getUserContexts() {
+        try {
+            String response = webSocketConnection.send(new GetUserContextsCommand());
+            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
+            JsonArray contexts = jsonResponse.getAsJsonObject("result").getAsJsonArray("contexts");
+            List<String> contextIds = new ArrayList<>();
+            contexts.forEach(context -> contextIds.add(context.getAsString()));
+            System.out.println("User contexts retrieved: " + contextIds);
+            return contextIds;
+        } catch (RuntimeException e) {
+            System.out.println("Error retrieving user contexts: " + e.getMessage());
+            throw e;
+        }
     }
 
-    public void setClientWindowState() {
+
+    /**
+     * Removes a user context from the browser.
+     *
+     * @param contextId The ID of the user context to remove.
+     * @throws RuntimeException if the removal fails.
+     */
+    public void removeUserContext(String contextId) {
+        try {
+            webSocketConnection.send(new RemoveUserContextCommand(contextId));
+            System.out.println("User context removed: " + contextId);
+        } catch (RuntimeException e) {
+            System.out.println("Error removing user context: " + e.getMessage());
+            throw e;
+        }
     }
+
+    /**
+     * Sets the state of a client window.
+     *
+     * @param clientWindowId The ID of the client window.
+     * @param state          The state to set (e.g., "minimized", "maximized").
+     * @throws RuntimeException if setting the state fails.
+     */
+    public void setClientWindowState(String clientWindowId, String state) {
+        try {
+            webSocketConnection.send(new SetClientWindowStateCommand(clientWindowId, state));
+            System.out.println("Client window state set: " + clientWindowId + " -> " + state);
+        } catch (RuntimeException e) {
+            System.out.println("Error setting client window state: " + e.getMessage());
+            throw e;
+        }
+    }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Types (Classes)
@@ -86,6 +193,18 @@ public class Browser implements Module {
 
         public GetClientWindowsCommand() {
             super("browser.getClientWindows", new ParamsImpl());
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            // Keine Parameter erforderlich, daher bleibt die Klasse leer.
+        }
+    }
+
+
+    public static class GetUserContextsCommand extends CommandImpl<GetUserContextsCommand.ParamsImpl> {
+
+        public GetUserContextsCommand() {
+            super("browser.getUserContexts", new ParamsImpl());
         }
 
         public static class ParamsImpl implements Command.Params {

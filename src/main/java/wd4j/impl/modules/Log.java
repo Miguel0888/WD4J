@@ -1,9 +1,18 @@
 package wd4j.impl.modules;
 
 import wd4j.core.CommandImpl;
+import wd4j.core.WebSocketConnection;
 import wd4j.impl.generic.Module;
 
 public class Log implements Module {
+
+    private final WebSocketConnection webSocketConnection;
+
+    public Log(WebSocketConnection webSocketConnection) {
+        this.webSocketConnection = webSocketConnection;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Events (Classes)
