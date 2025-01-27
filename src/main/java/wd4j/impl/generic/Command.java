@@ -3,6 +3,11 @@ package wd4j.impl.generic;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+/**
+ * Interface for WebDriver BiDi commands.
+ *
+ *
+ */
 public interface Command {
 
     /** The WebDriver BiDi command name */

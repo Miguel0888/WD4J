@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.core.CommandImpl;
 import wd4j.helper.BrowserType;
-import wd4j.helper.JsonObjectBuilder;
 import wd4j.core.WebSocketConnection;
 import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Event;
@@ -95,9 +94,10 @@ public class Session implements Module {
         }
     }
 
+    // ToDo: Gehört das hierher? Soll das nicht in BrowserContext sein wg. getTree?
     // Fallback-Methode: Kontext über getTree suchen
     private String fetchDefaultContextFromTree() {
-        CommandImpl getTreeCommand = new GetTreeCommand();
+        CommandImpl getTreeCommand = new BrowsingContext.GetTreeCommand();
 
         try {
             String response = webSocketConnection.send(getTreeCommand);
@@ -207,6 +207,17 @@ public class Session implements Module {
     // Commands (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public static class StatusCommand extends CommandImpl<StatusCommand.ParamsImpl> {
+
+        public StatusCommand() {
+            super("session.status", new ParamsImpl());
+        }
+
+        public static class ParamsImpl implements Command.Params {
+            // Keine Parameter notwendig für diesen Command
+        }
+    }
+
     public static class NewSessionCommand extends CommandImpl<NewSessionCommand.ParamsImpl> {
 
         public NewSessionCommand(String browserName) {
@@ -231,28 +242,6 @@ public class Session implements Module {
         }
     }
 
-    public static class StatusCommand extends CommandImpl<StatusCommand.ParamsImpl> {
-
-        public StatusCommand() {
-            super("session.status", new ParamsImpl());
-        }
-
-        public static class ParamsImpl implements Command.Params {
-            // Keine Parameter notwendig für diesen Command
-        }
-    }
-
-    public static class GetTreeCommand extends CommandImpl<GetTreeCommand.ParamsImpl> {
-
-        public GetTreeCommand() {
-            super("browsingContext.getTree", new ParamsImpl());
-        }
-
-        public static class ParamsImpl implements Command.Params {
-            // Keine Parameter erforderlich, daher bleibt die Klasse leer.
-        }
-    }
-
     public static class EndSessionCommand extends CommandImpl<EndSessionCommand.ParamsImpl> {
 
         public EndSessionCommand() {
@@ -262,6 +251,14 @@ public class Session implements Module {
         public static class ParamsImpl implements Command.Params {
             // Keine Parameter erforderlich, daher bleibt die Klasse leer.
         }
+    }
+
+    public static class Subscribe  extends CommandImpl<Subscribe .ParamsImpl> {
+
+    }
+
+    public static class Unsubscribe  extends CommandImpl<Unsubscribe .ParamsImpl> {
+
     }
 
 

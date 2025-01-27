@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.core.CommandImpl;
 import wd4j.core.WebSocketConnection;
-import wd4j.helper.JsonObjectBuilder;
 import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Module;
 import wd4j.impl.generic.Event;
@@ -35,7 +34,7 @@ public class BrowsingContext implements Module {
      */
     // Hilfsmethode: Neuen Context erstellen
     private String createContext() {
-        CommandImpl createContextCommand = new CreateContextCommand("tab");
+        CommandImpl createContextCommand = new CreateCommand("tab");
 
         try {
             String response = webSocketConnection.send(createContextCommand);
@@ -126,9 +125,21 @@ public class BrowsingContext implements Module {
     // Commands (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class CreateContextCommand extends CommandImpl<CreateContextCommand.ParamsImpl> {
+    public static class Activate  extends CommandImpl<BrowsingContext.Activate.ParamsImpl> {
 
-        public CreateContextCommand(String type) {
+    }
+
+    public static class CaptureScreenshot extends CommandImpl<BrowsingContext.CaptureScreenshot .ParamsImpl> {
+
+    }
+
+    public static class Close extends CommandImpl<BrowsingContext.Close.ParamsImpl> {
+
+    }
+
+    public static class CreateCommand extends CommandImpl<CreateCommand.ParamsImpl> {
+
+        public CreateCommand(String type) {
             super("browsingContext.create", new ParamsImpl(type));
         }
 
@@ -142,6 +153,24 @@ public class BrowsingContext implements Module {
                 this.type = type;
             }
         }
+    }
+
+    public static class GetTreeCommand extends CommandImpl<GetTreeCommand.ParamsImpl> {
+
+        public GetTreeCommand() {
+            super("browsingContext.getTree", new ParamsImpl());
+        }
+
+        public static class ParamsImpl implements Params {
+            // Keine Parameter erforderlich, daher bleibt die Klasse leer.
+        }
+    }
+
+    public static class HandleUserPrompt extends CommandImpl<BrowsingContext.HandleUserPrompt.ParamsImpl> {
+
+    }
+    public static class LocateNodes extends CommandImpl<BrowsingContext.LocateNodes.ParamsImpl> {
+
     }
 
     public static class NavigateCommand extends CommandImpl<NavigateCommand.ParamsImpl> {
@@ -165,6 +194,22 @@ public class BrowsingContext implements Module {
                 this.context = contextId;
             }
         }
+    }
+
+    public static class Print  extends CommandImpl<BrowsingContext.Print .ParamsImpl> {
+
+    }
+
+    public static class Reload  extends CommandImpl<BrowsingContext.Reload .ParamsImpl> {
+
+    }
+
+    public static class SetViewport  extends CommandImpl<BrowsingContext.SetViewport .ParamsImpl> {
+
+    }
+
+    public static class TraverseHistory  extends CommandImpl<BrowsingContext.TraverseHistory .ParamsImpl> {
+
     }
 
 
