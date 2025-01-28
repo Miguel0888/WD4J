@@ -1,24 +1,22 @@
 package app.controller;
 
-import app.service.BrowserService;
+import com.microsoft.playwright.*;
 
 import javax.swing.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class MainController {
-    private final BrowserService browserService;
-
-    // Konstruktor
-    public MainController() {
-        this(new BrowserService());
-    }
-
-    public MainController(BrowserService browserService) {
-        this.browserService = browserService;
-    }
+    private Playwright playwright;
+    private Browser browser;
+    private BrowserContext browserContext;
+    private Page page;
 
     // Browser schließen
     public void onCloseBrowser() {
-        browserService.terminateWebDriver();
+        if (browser != null) {
+            browser.close();
+            playwright.close();
+        }
     }
 
     // Listener-Setup
@@ -37,42 +35,57 @@ public class MainController {
         // Browser starten
         launchButton.addActionListener(e -> {
             String selectedBrowser = (String) browserSelector.getSelectedItem();
-            String portText = portField.getText();
-            String profilePath = null;
-            if( profilePathField.isEnabled())
-            {
-                profilePath = profilePathField.getText();
-            }
             boolean headless = headlessCheckbox.isSelected();
-            boolean disableGpu = disableGpuCheckbox.isSelected();
-            boolean noRemote = noRemoteCheckbox.isSelected();
 
-            if (selectedBrowser != null && !portText.isEmpty()) {
+            if (selectedBrowser != null) {
                 try {
-                    int port = Integer.parseInt(portText); // Portnummer verarbeiten
-                    browserService.createWebDriver(
-                            selectedBrowser,   // Browser-Typ (z. B. "Chrome")
-                            port,              // Port
-                            profilePath,       // Profilpfad
-                            headless,          // Headless-Modus
-                            disableGpu,        // GPU deaktivieren
-                            noRemote           // No Remote
-                    );
-//                    JOptionPane.showMessageDialog(null, selectedBrowser + " erfolgreich gestartet.");
-                } catch (NumberFormatException ex) {
-                    JOptionPane.showMessageDialog(null, "Bitte eine gültige Portnummer eingeben.");
+                    playwright = Playwright.create();
+                    BrowserType.LaunchOptions options = new BrowserType.LaunchOptions().setHeadless(headless);
+
+                    switch (selectedBrowser.toLowerCase()) {
+                        case "chromium":
+                            browser = playwright.chromium().launch(options);
+                            break;
+                        case "firefox":
+                            browser = playwright.firefox().launch(options);
+                            break;
+                        case "webkit":
+                            browser = playwright.webkit().launch(options);
+                            break;
+                        default:
+                            throw new IllegalArgumentException("Unsupported browser: " + selectedBrowser);
+                    }
+
+                    browserContext = browser.newContext();
+                    page = browserContext.newPage();
+
+                    // Event: Console message
+                    page.onConsoleMessage(msg -> {
+                        JOptionPane.showMessageDialog(null, "Console message: " + msg.text());
+                    });
+
+                    // Event: Response received
+                    page.onResponse(response -> {
+                        JOptionPane.showMessageDialog(null, "Response received: " + response.url());
+                    });
+
+                    JOptionPane.showMessageDialog(null, selectedBrowser + " erfolgreich gestartet.");
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(null, "Fehler beim Starten des Browsers: " + ex.getMessage());
                 }
             } else {
-                JOptionPane.showMessageDialog(null, "Bitte einen Browser und einen gültigen Port auswählen.");
+                JOptionPane.showMessageDialog(null, "Bitte einen Browser auswählen.");
             }
         });
 
         // Browser beenden
         terminateButton.addActionListener(e -> {
-            browserService.terminateWebDriver();
-//            JOptionPane.showMessageDialog(null, "Browser wurde beendet.");
+            try {
+                onCloseBrowser();
+                JOptionPane.showMessageDialog(null, "Browser wurde beendet.");
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(null, "Fehler beim Beenden des Browsers: " + ex.getMessage());
+            }
         });
 
         // URL navigieren
@@ -80,7 +93,7 @@ public class MainController {
             String url = addressBar.getText();
             if (!url.isEmpty()) {
                 try {
-                    browserService.navigateTo(url);
+                    page.navigate(url);
                     JOptionPane.showMessageDialog(null, "Navigiere zu: " + url);
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(null, "Fehler beim Navigieren: " + ex.getMessage());
