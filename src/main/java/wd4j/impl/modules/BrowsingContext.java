@@ -516,7 +516,7 @@ public class BrowsingContext implements Module {
             super("browsingContext.getTree", new ParamsImpl());
         }
 
-        public static class ParamsImpl implements Params {
+        public static class ParamsImpl implements Command.Params {
             // Keine Parameter erforderlich, daher bleibt die Klasse leer.
         }
     }
