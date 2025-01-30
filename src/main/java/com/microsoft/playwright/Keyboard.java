@@ -16,8 +16,6 @@
 
 package com.microsoft.playwright;
 
-import com.microsoft.playwright.options.*;
-
 /**
  * Keyboard provides an api for managing a virtual keyboard. The high level api is {@link
  * com.microsoft.playwright.Keyboard#type Keyboard.type()}, which takes raw characters and generates proper {@code

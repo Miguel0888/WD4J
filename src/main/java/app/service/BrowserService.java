@@ -1,10 +1,10 @@
 package app.service;
 
-import wd4j.core.BiDiWebDriver;
+import wd4j.core.WebDriver;
 import wd4j.helper.BrowserType;
 
 public class BrowserService {
-    private BiDiWebDriver webDriver;
+    private WebDriver webDriver;
 
     public void createWebDriver(String browserName, int port, String profilePath, boolean headless, boolean disableGpu, boolean noRemote) {
         try {
@@ -15,7 +15,7 @@ public class BrowserService {
             browserType.setDisableGpu(disableGpu);
             browserType.setNoRemote(noRemote);
 
-            this.webDriver = new BiDiWebDriver(browserType);
+            this.webDriver = new WebDriver(browserType);
         } catch (Exception e) {
             throw new RuntimeException("Fehler beim Erstellen des WebDrivers", e);
         }
@@ -26,15 +26,6 @@ public class BrowserService {
             webDriver.get(url);
         } else {
             throw new IllegalStateException("WebDriver ist nicht gestartet.");
-        }
-    }
-
-    public void terminateWebDriver() {
-        if (webDriver != null) {
-            webDriver.close();
-            webDriver = null;
-        } else {
-            System.out.println("Kein WebDriver aktiv.");
         }
     }
 

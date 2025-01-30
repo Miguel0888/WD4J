@@ -98,7 +98,7 @@ WD4J bietet eine moderne, native Alternative:
 Hier ist ein einfacher Anwendungsfall mit WD4J:
 
 ```java
-import wd4j.core.BiDiWebDriver;
+import wd4j.core.WebDriver;
 import wd4j.helper.BrowserType;
 
 public class Example {
