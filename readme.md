@@ -99,7 +99,7 @@ Hier ist ein einfacher Anwendungsfall mit WD4J:
 
 ```java
 import wd4j.core.WebDriver;
-import wd4j.helper.BrowserType;
+import com.microsoft.playwright.impl.BrowserTypeImpl;
 
 public class Example {
     public static void main(String[] args) {

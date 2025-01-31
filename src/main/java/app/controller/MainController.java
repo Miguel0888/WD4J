@@ -56,18 +56,19 @@ public class MainController {
                             throw new IllegalArgumentException("Unsupported browser: " + selectedBrowser);
                     }
 
-                    browserContext = browser.newContext();
-                    page = browserContext.newPage();
-
-                    // Event: Console message
-                    page.onConsoleMessage(msg -> {
-                        JOptionPane.showMessageDialog(null, "Console message: " + msg.text());
-                    });
-
-                    // Event: Response received
-                    page.onResponse(response -> {
-                        JOptionPane.showMessageDialog(null, "Response received: " + response.url());
-                    });
+                    // ToDo: Implement with Playwright Fluent API !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//                    browserContext = browser.newContext();
+//                    page = browserContext.newPage();
+//
+//                    // Event: Console message
+//                    page.onConsoleMessage(msg -> {
+//                        JOptionPane.showMessageDialog(null, "Console message: " + msg.text());
+//                    });
+//
+//                    // Event: Response received
+//                    page.onResponse(response -> {
+//                        JOptionPane.showMessageDialog(null, "Response received: " + response.url());
+//                    });
 
                     JOptionPane.showMessageDialog(null, selectedBrowser + " erfolgreich gestartet.");
                 } catch (Exception ex) {

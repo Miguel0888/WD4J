@@ -1,5 +1,6 @@
 package wd4j.helper;
 
+import com.microsoft.playwright.impl.BrowserTypeImpl;
 import wd4j.core.WebSocketConnection;
 
 import java.io.BufferedReader;
@@ -8,6 +9,8 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Hilfsklasse für den Aufbau der WebSocket-Verbindung zum Browser, da der Verbindungsaufbau sich je nach Browser-Typ
@@ -24,6 +27,50 @@ import java.net.URL;
  */
 public class BrowserConnector {
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Fields
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Felder für die Konfigurationsoptionen
+    protected String browserPath; // Pfad ist Instanzvariable, da er sich je nach Browser-Typ unterscheidet
+    protected int port = 9222; // Standard-Port für die Debugging-Schnittstelle
+    protected String profilePath = null;
+    protected boolean headless = false;
+    protected boolean noRemote = false;
+    protected boolean disableGpu = false;
+    protected boolean startMaximized = false;
+    protected boolean useCdp = true; // For Chrome and Edge only - u may use CDP instead of BiDi, not implemented yet!
+    private String webSocketEndpoint;
+    // Thread-sicherer Speicher für die WebSocket-URL aus dem Terminal-Output:
+    final String[] devToolsUrl = {null};
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Constructors
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//    public static BrowserTypeImpl getBrowserType(String browserName, int port, String profilePath, boolean headless, boolean disableGpu, boolean noRemote) {
+//        BrowserTypeImpl browserTypeImpl = BrowserTypeImpl.valueOf(browserName.toUpperCase());
+//
+//        //ToDo: Fix this somehow (maybe via createOptions class)
+////        port = browserTypeImpl.getPort();
+////        browserTypeImpl.setPort(port);
+////        browserTypeImpl.setProfilePath(profilePath);
+////        browserTypeImpl.setHeadless(headless);
+////        browserTypeImpl.setDisableGpu(disableGpu);
+////        browserTypeImpl.setNoRemote(noRemote);
+//        return browserTypeImpl;
+//    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Initialization
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Browser Start & Connection
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     /**
      * Erstellt eine WebSocket-Verbindung zum Browser.
      * Je nach Browser-Typ wird die WebSocket-URL unterschiedlich aufgebaut.
@@ -31,39 +78,41 @@ public class BrowserConnector {
      * extrahiert wird. Alternativ kann die Url auch aus dem /json-Endpoint extrahiert werden, der mit HTTP aufgerufen
      * wird.
      *
-     * @param browserType
+     * @param browserTypeImpl
      * @param websocketUrl
      * @param port
      * @return
      * @throws Exception
      */
-    public static WebSocketConnection getConnection(BrowserType browserType, String websocketUrl, int port) throws Exception {
-        WebSocketConnection webSocketConnection;
-        if(browserType == BrowserType.FIREFOX)
-        {
-            String webSocketUrl = websocketUrl + browserType.getWebsocketEndpoint();
-            System.out.println("FIREFOX with WebSocket URL " + webSocketUrl);
-            webSocketConnection = new WebSocketConnection(new URI(webSocketUrl));
-        }
-        else { // Chrome & Edge
-            // BiDi URL may differ from CDP URL in the future:
-            if( !browserType.useCdp() ) { // BiDi
-                String webSocketUrl = getWebSocketUrl(port) + browserType.getWebsocketEndpoint();
-                System.out.println("Using BiDi with WebSocket URL " + webSocketUrl);
-                webSocketConnection = new WebSocketConnection(URI.create(webSocketUrl));
-            } else { // CDP
-                if( browserType.getDevToolsUrl() != null ) { // Use Terminal Output primarily
-                    System.out.println("Using CDP for with Terminal URL " + browserType.getDevToolsUrl());
-                    webSocketConnection = new WebSocketConnection(URI.create(browserType.getDevToolsUrl()));
-                } else {
-                    String webSocketUrl = getWebSocketUrl(port);
-                    System.out.println("Using CDP with /json URL " + webSocketUrl);
-                    webSocketConnection = new WebSocketConnection(URI.create(webSocketUrl));
-                }
-            }
-        }
-        return webSocketConnection;
-    }
+    // ToDo: Move to BrowserTypeImpl (connect Method) and support CDP (not only Firefox)
+//    public static WebSocketConnection getConnection(BrowserTypeImpl browserTypeImpl, String websocketUrl, int port) throws Exception {
+//        WebSocketConnection webSocketConnection;
+//        if(browserTypeImpl.name().toLowerCase() == "firefox")
+//        {
+//            String webSocketUrl = websocketUrl + browserTypeImpl.getWebsocketEndpoint();
+//            System.out.println("FIREFOX with WebSocket URL " + webSocketUrl);
+//            webSocketConnection = new WebSocketConnection(new URI(webSocketUrl));
+//        }
+//        else { // Chrome & Edge
+//            // ToDo: Move missing methodes vom BrowserType Git History (0efdad8f 30.01.25) to this class!
+//            // BiDi URL may differ from CDP URL in the future:
+//            if( !useCdp() ) { // BiDi
+//                String webSocketUrl = getWebSocketUrl(port) + browserTypeImpl.getWebsocketEndpoint();
+//                System.out.println("Using BiDi with WebSocket URL " + webSocketUrl);
+//                webSocketConnection = new WebSocketConnection(URI.create(webSocketUrl));
+//            } else { // CDP
+//                if( getDevToolsUrl() != null ) { // Use Terminal Output primarily
+//                    System.out.println("Using CDP for with Terminal URL " + getDevToolsUrl());
+//                    webSocketConnection = new WebSocketConnection(URI.create(getDevToolsUrl()));
+//                } else {
+//                    String webSocketUrl = getWebSocketUrl(port);
+//                    System.out.println("Using CDP with /json URL " + webSocketUrl);
+//                    webSocketConnection = new WebSocketConnection(URI.create(webSocketUrl));
+//                }
+//            }
+//        }
+//        return webSocketConnection;
+//    }
 
     /**
      * Get the WebSocket URL from the JSON response of the debugging endpoint (CDP only).
@@ -131,4 +180,15 @@ public class BrowserConnector {
         int endIndex = jsonResponse.indexOf("\"", wsIndex);
         return jsonResponse.substring(wsIndex, endIndex);
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Helper Methods
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public void terminateProcess(Process process) {
+        if (process != null && process.isAlive()) {
+            process.destroy();
+        }
+    }
+
 }

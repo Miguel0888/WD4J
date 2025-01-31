@@ -2,6 +2,7 @@ package wd4j.core;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.microsoft.playwright.BrowserType;
 import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Event;
 
@@ -16,7 +17,12 @@ import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
 public class WebSocketConnection {
-    private final WebSocketClient webSocketClient;
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Fields
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private WebSocketClient webSocketClient;
     private final BlockingQueue<String> messageQueue = new LinkedBlockingQueue<>(); // Für Events ohne ID
     private BiConsumer<Integer, String> onClose;
 
@@ -25,13 +31,23 @@ public class WebSocketConnection {
 
     private final List<Consumer<Event>> eventListeners = new ArrayList<>();
 
-    public WebSocketConnection(URI uri) {
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Constructors
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        webSocketClient = createAndConfigureWebSocketClient(uri);
+    public WebSocketConnection() {
+        // WebSocket-Verbindung kann später über createAndConfigureWebSocketClient() erstellt werden, wenn URI bekannt ist
     }
 
-    private WebSocketClient createAndConfigureWebSocketClient(URI uri) {
-        final WebSocketClient webSocketClient;
+    public WebSocketConnection(URI uri) {
+        createAndConfigureWebSocketClient(uri);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Constructors
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public void createAndConfigureWebSocketClient(URI uri) {
         webSocketClient = new WebSocketClient(uri) {
             @Override
             public void onOpen(ServerHandshake handshakedata) {
@@ -101,7 +117,6 @@ public class WebSocketConnection {
                 ex.printStackTrace();
             }
         };
-        return webSocketClient;
     }
 
     public synchronized int getNextCommandId() {
@@ -123,6 +138,9 @@ public class WebSocketConnection {
     }
 
     public void connect() throws InterruptedException {
+        if (webSocketClient == null) {
+            throw new IllegalStateException("WebSocketClient not initialized. Use createAndConfigureWebSocketClient() first.");
+        }
         webSocketClient.connectBlocking();
     }
 
@@ -205,5 +223,8 @@ public class WebSocketConnection {
             System.err.println("Error while closing WebSocket connection: " + e.getMessage());
         }
     }
-    
+
+    public boolean isConnected() {
+        return webSocketClient.isOpen();
+    }
 }

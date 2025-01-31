@@ -3,12 +3,11 @@ package wd4j.impl.modules;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.core.CommandImpl;
-import wd4j.helper.BrowserType;
+import com.microsoft.playwright.impl.BrowserTypeImpl;
 import wd4j.core.WebSocketConnection;
 import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Event;
 import wd4j.impl.generic.Module;
-import wd4j.impl.generic.Type;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +17,7 @@ import java.util.concurrent.ExecutionException;
 
 public class Session implements Module {
     private String sessionId; // if available
-    private final BrowserType browserType;
+    private final BrowserTypeImpl browserTypeImpl;
     private final WebSocketConnection webSocketConnection;
     private String defaultContextId; // Speichert die Standard-Kontext-ID
     private List<BrowsingContext> browsingContext = new ArrayList<>(); // ToDo: Maybe use a HashMap instead?
@@ -28,18 +27,18 @@ public class Session implements Module {
      * Da einige Browser einen Standard-Kontext erstellen, wird mit diesem direkt ein neuer Browsing-Kontext erstellt.
      * Damit das Verhalten konsistent ist, wird ein neuer Kontext erstellt, wenn kein Standard-Kontext gefunden wird.
      *
-     * @param browserType Der Browsertyp
+     * @param browserTypeImpl Der Browsertyp
      * @return Die erstellte Session
      */
-    public Session(BrowserType browserType, WebSocketConnection webSocketConnection) throws ExecutionException, InterruptedException {
-        this.browserType = browserType;
+    public Session(BrowserTypeImpl browserTypeImpl, WebSocketConnection webSocketConnection) throws ExecutionException, InterruptedException {
+        this.browserTypeImpl = browserTypeImpl;
         this.webSocketConnection = webSocketConnection;
 
         // Register for events
         webSocketConnection.addEventListener(event -> onEvent(event));
 
         // Create a new session
-        String sessionResponse = newSession(browserType.name()).get(); // ToDo: Does not work with Chrome!
+        String sessionResponse = newSession(browserTypeImpl.name()).get(); // ToDo: Does not work with Chrome!
 
         // Kontext-ID extrahieren oder neuen Kontext erstellen
         processInitResponse(sessionResponse);
@@ -64,8 +63,8 @@ public class Session implements Module {
     /**
      * Verwendet eine vorhandene Session-ID, um eine neue Session zu erstellen. Es wird kein new-Command ausgeführt.
      */
-    public Session(BrowserType browserType, WebSocketConnection webSocketConnection, String SessionId) throws ExecutionException, InterruptedException {
-        this.browserType = browserType;
+    public Session(BrowserTypeImpl browserTypeImpl, WebSocketConnection webSocketConnection, String SessionId) throws ExecutionException, InterruptedException {
+        this.browserTypeImpl = browserTypeImpl;
         this.webSocketConnection = webSocketConnection;
         this.sessionId = SessionId;
 
