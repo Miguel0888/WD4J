@@ -5,7 +5,6 @@ import com.google.gson.JsonObject;
 import wd4j.core.CommandImpl;
 import wd4j.core.WebSocketConnection;
 import wd4j.impl.generic.Module;
-import wd4j.impl.generic.Event;
 import wd4j.impl.module.command.BrowsingContext;
 
 import java.util.concurrent.ExecutionException;
@@ -22,13 +21,22 @@ public class BrowsingContextService implements Module {
         this.webSocketConnection = webSocketConnection;
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Event Handlers
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Commands
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     /**
      * Creates a new browsing context.
      *
      * @return The ID of the new context.
      */
     // Required for Firefox ESR ?
-    public String createContext() {
+    public String create() {
         CommandImpl<BrowsingContext.Create.ParamsImpl> createContextCommand = new BrowsingContext.Create("tab");
 
         try {
@@ -51,8 +59,6 @@ public class BrowsingContextService implements Module {
     }
 
 
-
-
     /**
      * Navigates to the given URL within this browsing context.
      *
@@ -70,8 +76,6 @@ public class BrowsingContextService implements Module {
         // Send the command, don't wait for the response
         webSocketConnection.sendAsync(new BrowsingContext.GetTree());
     }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
      * Activates the given browsing context.
@@ -218,62 +222,6 @@ public class BrowsingContextService implements Module {
         } catch (RuntimeException e) {
             System.out.println("Error traversing history: " + e.getMessage());
             throw e;
-        }
-    }
-
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /// ToDo: Commands (Methods)
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-    // ToDo: Move create context from BiDiWebDriver to here!
-
-    // public CompletableFuture<String> createContext() {
-    //     JsonObject command = new JsonObject();
-    //     command.addProperty("method", "browsingContext.create");
-    //     return connection.sendAsync(command);
-    // }
-
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /// Events (Classes)
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
-    public static class CreatedEvent implements Event {
-        private final JsonObject data;
-        private final String type;
-        private final String contextId;
-        private final String url;
-
-        public CreatedEvent(JsonObject json) {
-            this.data = json;
-            this.type = json.get("type").getAsString();
-            this.contextId = json.getAsJsonObject("context").get("contextId").getAsString();
-            this.url = json.getAsJsonObject("context").get("url").getAsString();
-        }
-
-        public String getContextId() {
-            return contextId;
-        }
-
-        public String getUrl() {
-            return url;
-        }
-
-        @Override
-        public String toString() {
-            return "BrowsingContext.CreatedEvent{contextId=" + contextId + ", url='" + url + "'}";
-        }
-
-        @Override
-        public String getType() {
-            return type;
-        }
-
-        @Override
-        public JsonObject getData() {
-            return data;
         }
     }
 }

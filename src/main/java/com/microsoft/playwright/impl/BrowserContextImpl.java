@@ -1,14 +1,10 @@
 package com.microsoft.playwright.impl;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.BindingCallback;
 import com.microsoft.playwright.options.Cookie;
 import com.microsoft.playwright.options.FunctionCallback;
 import com.microsoft.playwright.options.Geolocation;
-import wd4j.core.CommandImpl;
-import wd4j.core.WebSocketConnection;
 import wd4j.impl.module.BrowsingContextService;
 
 import java.nio.file.Path;
@@ -33,7 +29,7 @@ public class BrowserContextImpl implements BrowserContext {
         this.pages = new ArrayList<>();
         this.isClosed = false;
 
-        this.contextId = browsingContextService.createContext();
+        this.contextId = browsingContextService.create();
     }
 
     public BrowserContextImpl(BrowserImpl browser, String contextId) {
