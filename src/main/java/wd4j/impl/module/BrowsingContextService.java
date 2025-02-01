@@ -64,10 +64,8 @@ public class BrowsingContextService implements Module {
      *
      * @param url The target URL to navigate to.
      * @return The response of the navigation command.
-     * @throws ExecutionException   if an error occurs during execution.
-     * @throws InterruptedException if the operation is interrupted.
      */
-    public void navigate(String url, String contextId) throws ExecutionException, InterruptedException {
+    public void navigate(String url, String contextId) {
         // Send the command, don't wait for the response
         webSocketConnection.sendAsync(new BrowsingContext.Navigate(url, contextId));
     }

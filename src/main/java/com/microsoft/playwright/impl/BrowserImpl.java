@@ -1,6 +1,10 @@
 package com.microsoft.playwright.impl;
 
-import com.microsoft.playwright.*;
+import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.CDPSession;
+import com.microsoft.playwright.Page;
 import wd4j.core.WebSocketConnection;
 import wd4j.impl.module.BrowserService;
 import wd4j.impl.module.BrowsingContextService;
@@ -35,13 +39,13 @@ public class BrowserImpl implements Browser {
 
         defaultContextId = initSession();
         if(defaultContextId != null) {
-            // BrowsingContext erstellen und speichern
+            // Default BrowsingContext zugreifbar machen
             contexts.add(new BrowserContextImpl(this, defaultContextId));
             System.out.println("Default BrowsingContext ID: " + defaultContextId);
         }
         else { //Optional: Create new browser context!
             System.out.println("No default context found.");
-            newContext(new NewContextOptions());
+//            newContext(new NewContextOptions());
         }
     }
 

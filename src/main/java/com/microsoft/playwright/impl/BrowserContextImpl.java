@@ -367,4 +367,8 @@ public class BrowserContextImpl implements BrowserContext {
         return contextId;
     }
 
+    public BrowserImpl getBrowser() {
+        return browser;
+    }
+
 }

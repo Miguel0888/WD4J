@@ -2,6 +2,7 @@ package com.microsoft.playwright.impl;
 
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.*;
+import wd4j.impl.module.BrowsingContextService;
 
 import java.nio.file.Path;
 import java.util.Collections;
@@ -14,11 +15,15 @@ import java.util.regex.Pattern;
 
 class PageImpl implements Page {
     private final BrowserContextImpl context;
+    private final BrowsingContextService browsingContextService;
     private boolean isClosed;
+    private String url;
 
     public PageImpl(BrowserContextImpl context) {
         this.context = context;
+        this.browsingContextService = context.getBrowser().getBrowsingContextService(); // ToDo: improve this!
         this.isClosed = false;
+        this.url = "about:blank"; // Standard-Startseite
     }
 
     @Override
@@ -450,7 +455,15 @@ class PageImpl implements Page {
 
     @Override
     public Response navigate(String url, NavigateOptions options) {
-        return null;
+        if (isClosed) {
+            throw new PlaywrightException("Page is closed");
+        }
+        this.url = url;
+
+        // WebDriver BiDi Befehl senden
+        browsingContextService.navigate(url, context.getContextId());
+
+        return null; // ToDo: Echte Response zurückgeben
     }
 
     @Override
@@ -755,7 +768,7 @@ class PageImpl implements Page {
 
     @Override
     public String url() {
-        return "";
+        return url;
     }
 
     @Override

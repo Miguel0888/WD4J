@@ -56,9 +56,8 @@ public class MainController {
                             throw new IllegalArgumentException("Unsupported browser: " + selectedBrowser);
                     }
 
-                    // ToDo: Implement with Playwright Fluent API !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//                    browserContext = browser.newContext();
-//                    page = browserContext.newPage();
+                    browserContext = browser.newContext();
+                    page = browserContext.newPage();
 //
 //                    // Event: Console message
 //                    page.onConsoleMessage(msg -> {
