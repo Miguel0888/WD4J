@@ -66,7 +66,12 @@ public class BrowsingContextService implements Module {
      * @return The response of the navigation command.
      */
     public void navigate(String url, String contextId) {
-        // Send the command, don't wait for the response
+        if (contextId == null || contextId.isEmpty()) {
+            throw new IllegalStateException("Cannot navigate: contextId is null or empty!");
+        }
+        if (url == null || url.isEmpty()) {
+            throw new IllegalArgumentException("Cannot navigate: URL is null or empty!");
+        }
         webSocketConnection.sendAsync(new BrowsingContext.Navigate(url, contextId));
     }
 

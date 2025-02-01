@@ -69,7 +69,7 @@ public class MainController {
 //                        JOptionPane.showMessageDialog(null, "Response received: " + response.url());
 //                    });
 
-                    JOptionPane.showMessageDialog(null, selectedBrowser + " erfolgreich gestartet.");
+//                    JOptionPane.showMessageDialog(null, selectedBrowser + " erfolgreich gestartet.");
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(null, "Fehler beim Starten des Browsers: " + ex.getMessage());
                 }
@@ -94,7 +94,7 @@ public class MainController {
             if (!url.isEmpty()) {
                 try {
                     page.navigate(url);
-                    JOptionPane.showMessageDialog(null, "Navigiere zu: " + url);
+//                    JOptionPane.showMessageDialog(null, "Navigiere zu: " + url);
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(null, "Fehler beim Navigieren: " + ex.getMessage());
                 }

@@ -458,10 +458,14 @@ class PageImpl implements Page {
         if (isClosed) {
             throw new PlaywrightException("Page is closed");
         }
+        String contextId = context.getContextId();
+        if (contextId == null || contextId.isEmpty()) {
+            throw new PlaywrightException("Cannot navigate: contextId is null or empty!");
+        }
         this.url = url;
 
         // WebDriver BiDi Befehl senden
-        browsingContextService.navigate(url, context.getContextId());
+        browsingContextService.navigate(url, contextId);
 
         return null; // ToDo: Echte Response zurückgeben
     }
