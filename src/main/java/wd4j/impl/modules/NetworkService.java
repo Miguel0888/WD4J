@@ -7,11 +7,11 @@ import wd4j.impl.generic.Module;
 
 import java.util.List;
 
-public class Network implements Module {
+public class NetworkService implements Module {
 
     private final WebSocketConnection webSocketConnection;
 
-    public Network(WebSocketConnection webSocketConnection) {
+    public NetworkService(WebSocketConnection webSocketConnection) {
         this.webSocketConnection = webSocketConnection;
     }
 

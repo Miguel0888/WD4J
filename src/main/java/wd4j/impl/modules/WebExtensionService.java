@@ -6,13 +6,13 @@ import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Module;
 import wd4j.impl.generic.Type;
 
-public class WebExtension implements Module {
+public class WebExtensionService implements Module {
 
     public Extension extension;
 
     private final WebSocketConnection webSocketConnection;
 
-    public WebExtension(WebSocketConnection webSocketConnection) {
+    public WebExtensionService(WebSocketConnection webSocketConnection) {
         this.webSocketConnection = webSocketConnection;
     }
 

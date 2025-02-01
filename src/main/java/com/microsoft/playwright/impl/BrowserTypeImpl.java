@@ -11,7 +11,15 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
+/**
+ * This class has a lot of methods that are not part of the Playwright API. This is due to the fact that the W3C stamdard
+ * is not complete in all aspects. Therefore, some methods are added to this class to make the implementation more
+ * flexible and to be able to use the full functionality of the underlying browser.
+ *
+ * This class especially encapsulates the physical connection, it may better be moved to a service class in the future?
+ */
 public class BrowserTypeImpl implements BrowserType {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -119,7 +127,13 @@ public class BrowserTypeImpl implements BrowserType {
             throw new RuntimeException(e);
         }
 
-        return new BrowserImpl(this);
+        try {
+            return new BrowserImpl(this);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -199,6 +213,14 @@ public class BrowserTypeImpl implements BrowserType {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+    /**
+     * Required for the WebSocket connection
+     *
+     * ToDo: Should we pass WebSocketConnection to a service? (BrowserType offers connect() -> where to move it?)
+     *  e.g. the BrowserService?
+     *
+     * @return
+     */
     public WebSocketConnection getWebSocketConnection() {
         return webSocketConnection;
     }

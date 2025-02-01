@@ -8,11 +8,11 @@ import wd4j.impl.generic.Module;
 
 import java.util.List;
 
-public class Input implements Module {
+public class InputService implements Module {
 
     private final WebSocketConnection webSocketConnection;
 
-    public Input(WebSocketConnection webSocketConnection) {
+    public InputService(WebSocketConnection webSocketConnection) {
         this.webSocketConnection = webSocketConnection;
     }
 

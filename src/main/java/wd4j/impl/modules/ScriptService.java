@@ -11,11 +11,11 @@ import wd4j.impl.generic.Module;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Script implements Module {
+public class ScriptService implements Module {
 
     private final WebSocketConnection webSocketConnection;
 
-    public Script(WebSocketConnection webSocketConnection) {
+    public ScriptService(WebSocketConnection webSocketConnection) {
         this.webSocketConnection = webSocketConnection;
     }
 

@@ -8,51 +8,19 @@ import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Module;
 import wd4j.impl.generic.Event;
 
+import java.net.URI;
 import java.util.concurrent.ExecutionException;
 
-public class BrowsingContext implements Module {
+public class BrowsingContextService implements Module {
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// ToDo: Import the Specs: Commands (Methodes) and Types (Classes)
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private final WebSocketConnection webSocketConnection;
-    private final String contextId;
 
-    public BrowsingContext(WebSocketConnection webSocketConnection) {
+    public BrowsingContextService(WebSocketConnection webSocketConnection) {
         this.webSocketConnection = webSocketConnection;
-        this.contextId = createContext();
-    }
-
-    public BrowsingContext(WebSocketConnection webSocketConnection, String contextId) {
-        this.webSocketConnection = webSocketConnection;
-        this.contextId = contextId;
-    }
-
-    /*
-     * Required for Firefox ESR ?
-     */
-    // Hilfsmethode: Neuen Context erstellen
-    private String createContext() {
-        CommandImpl createContextCommand = new CreateCommand("tab");
-
-        try {
-            String response = webSocketConnection.send(createContextCommand);
-
-            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
-            JsonObject result = jsonResponse.getAsJsonObject("result");
-
-            if (result != null && result.has("context")) {
-                String contextId = result.get("context").getAsString();
-                System.out.println("--- Neuer Context erstellt: " + contextId);
-                return contextId;
-            }
-        } catch (RuntimeException e) {
-            System.out.println("Error creating context: " + e.getMessage());
-            throw e;
-        }
-
-        throw new IllegalStateException("Failed to create new context."); // ToDo: Maybe return null instead?
     }
 
     /**
@@ -63,9 +31,14 @@ public class BrowsingContext implements Module {
      * @throws ExecutionException   if an error occurs during execution.
      * @throws InterruptedException if the operation is interrupted.
      */
-    public void navigate(String url) throws ExecutionException, InterruptedException {
-        // Send the command and wait for the response
+    public void navigate(String url, String contextId) throws ExecutionException, InterruptedException {
+        // Send the command, don't wait for the response
         webSocketConnection.sendAsync(new NavigateCommand(url, contextId));
+    }
+
+    public void getTree() {
+        // Send the command, don't wait for the response
+        webSocketConnection.sendAsync(new GetTreeCommand());
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

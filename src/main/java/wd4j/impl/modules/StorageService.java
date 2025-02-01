@@ -8,11 +8,11 @@ import wd4j.core.WebSocketConnection;
 import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Module;
 
-public class Storage implements Module {
+public class StorageService implements Module {
 
     private final WebSocketConnection webSocketConnection;
 
-    public Storage(WebSocketConnection webSocketConnection) {
+    public StorageService(WebSocketConnection webSocketConnection) {
         this.webSocketConnection = webSocketConnection;
     }
 

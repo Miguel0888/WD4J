@@ -3,7 +3,6 @@ package wd4j.impl.modules;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.core.CommandImpl;
-import com.microsoft.playwright.impl.BrowserTypeImpl;
 import wd4j.core.WebSocketConnection;
 import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Event;
@@ -15,116 +14,28 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-public class Session implements Module {
-    private String sessionId; // if available
-    private final BrowserTypeImpl browserTypeImpl;
+public class SessionService implements Module {
     private final WebSocketConnection webSocketConnection;
-    private String defaultContextId; // Speichert die Standard-Kontext-ID
-    private List<BrowsingContext> browsingContext = new ArrayList<>(); // ToDo: Maybe use a HashMap instead?
 
     /**
      * Erstellt eine neue Session und gibt diese zurück.
      * Da einige Browser einen Standard-Kontext erstellen, wird mit diesem direkt ein neuer Browsing-Kontext erstellt.
      * Damit das Verhalten konsistent ist, wird ein neuer Kontext erstellt, wenn kein Standard-Kontext gefunden wird.
      *
-     * @param browserTypeImpl Der Browsertyp
+     * @param webSocketConnection Der Browsertyp
      * @return Die erstellte Session
      */
-    public Session(BrowserTypeImpl browserTypeImpl, WebSocketConnection webSocketConnection) throws ExecutionException, InterruptedException {
-        this.browserTypeImpl = browserTypeImpl;
+    public SessionService(WebSocketConnection webSocketConnection) throws ExecutionException, InterruptedException {
         this.webSocketConnection = webSocketConnection;
 
         // Register for events
-        webSocketConnection.addEventListener(event -> onEvent(event));
-
-        // Create a new session
-        String sessionResponse = newSession(browserTypeImpl.name()).get(); // ToDo: Does not work with Chrome!
-
-        // Kontext-ID extrahieren oder neuen Kontext erstellen
-        processInitResponse(sessionResponse);
-        if(defaultContextId == null) {
-            // Fallback zu browsingContext.getTree, wenn kein Kontext gefunden wurde
-            System.out.println("--- Keine default Context-ID gefunden. Führe browsingContext.getTree aus. ---");
-            defaultContextId = fetchDefaultContextFromTree();
-        }
-        System.out.println("Context ID: " + defaultContextId);
-
-        if(defaultContextId != null) {
-            // BrowsingContext erstellen und speichern
-            this.browsingContext.add(new BrowsingContext(webSocketConnection, defaultContextId));
-            System.out.println("BrowsingContext erstellt mit ID: " + defaultContextId);
-        }
-        else {
-            System.out.println("No default context found, creating a new one.");
-            this.browsingContext.add(new BrowsingContext(webSocketConnection)); // ToDo: This step is optional!
-        }
-    }
-
-    /**
-     * Verwendet eine vorhandene Session-ID, um eine neue Session zu erstellen. Es wird kein new-Command ausgeführt.
-     */
-    public Session(BrowserTypeImpl browserTypeImpl, WebSocketConnection webSocketConnection, String SessionId) throws ExecutionException, InterruptedException {
-        this.browserTypeImpl = browserTypeImpl;
-        this.webSocketConnection = webSocketConnection;
-        this.sessionId = SessionId;
-
-        // ToDo: Get the defaultContextId from the SessionId OR create a new one!
-    }
-
-    private void processInitResponse(String sessionResponse) {
-        Gson gson = new Gson();
-        JsonObject jsonResponse = gson.fromJson(sessionResponse, JsonObject.class);
-        JsonObject result = jsonResponse.getAsJsonObject("result");
-
-        // Prüfe, ob ein Default Browsing-Kontext in der Antwort enthalten ist
-        if (result != null && result.has("contexts")) {
-            JsonObject context = result.getAsJsonArray("contexts")
-                    .get(0)
-                    .getAsJsonObject();
-            if (context.has("context")) {
-                defaultContextId = context.get("context").getAsString();
-                System.out.println("--- Browsing Context-ID gefunden: " + defaultContextId);
-            }
-        }
-
-        // Prüfe, ob die Antwort eine Session-ID enthält
-        if (result != null && result.has("sessionId")) {
-            sessionId = result.get("sessionId").getAsString();
-            System.out.println("--- Session-ID gefunden: " + sessionId);
-        }
+        this.webSocketConnection.addEventListener(event -> onEvent(event));
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // ToDo: Gehört das hierher? Soll das nicht in BrowserContext sein wg. getTree?
-    // Fallback-Methode: Kontext über getTree suchen
-    private String fetchDefaultContextFromTree() {
-        CommandImpl getTreeCommand = new BrowsingContext.GetTreeCommand();
-
-        try {
-            String response = webSocketConnection.send(getTreeCommand);
-
-            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
-            JsonObject result = jsonResponse.getAsJsonObject("result");
-
-            if (result != null && result.has("contexts")) {
-                return result.getAsJsonArray("contexts")
-                        .get(0)
-                        .getAsJsonObject()
-                        .get("context")
-                        .getAsString();
-            }
-        } catch (RuntimeException e) {
-            System.out.println("Error fetching context tree: " + e.getMessage());
-            throw e;
-        }
-
-        return null;
-    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -147,7 +58,7 @@ public class Session implements Module {
 
     // new() - Since plain "new" is a reserved word in Java!
     public CompletableFuture<String> newSession(String browserName) {
-        return webSocketConnection.sendAsync(new Session.NewSessionCommand(browserName));
+        return webSocketConnection.sendAsync(new SessionService.NewSessionCommand(browserName));
     }
 
     // end() - In corespondance to new!
@@ -356,17 +267,7 @@ public class Session implements Module {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /**
-     * Returns the BrowsingContext at the given index.
-     * A BrowsingContext is a tab or window in the browser!
-     *
-     * @param index The index of the BrowsingContext.
-     * @return The BrowsingContext at the given index.
-     */
-    // ToDo: Not very good practice?!?
-    public BrowsingContext getBrowsingContext(int index) {
-        return browsingContext.get(index);
-    }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Events (Classes)

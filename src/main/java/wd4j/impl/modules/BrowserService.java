@@ -7,12 +7,11 @@ import wd4j.core.CommandImpl;
 import wd4j.core.WebSocketConnection;
 import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Module;
-import wd4j.impl.generic.Type;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class Browser implements Module {
+public class BrowserService implements Module {
 
     private final WebSocketConnection webSocketConnection;
 
@@ -21,7 +20,7 @@ public class Browser implements Module {
     public BrowserUserContext userContext;
     public BrowserUserContextInfo userContextInfo;
 
-    public Browser(WebSocketConnection webSocketConnection) {
+    public BrowserService(WebSocketConnection webSocketConnection) {
         this.webSocketConnection = webSocketConnection;
     }
 
