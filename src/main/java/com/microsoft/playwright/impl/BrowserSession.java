@@ -2,11 +2,9 @@ package com.microsoft.playwright.impl;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import wd4j.core.CommandImpl;
 import wd4j.core.WebSocketConnection;
-import wd4j.impl.modules.BrowserService;
-import wd4j.impl.modules.BrowsingContextService;
-import wd4j.impl.modules.SessionService;
+import wd4j.impl.module.BrowsingContextService;
+import wd4j.impl.module.SessionService;
 
 import java.util.concurrent.ExecutionException;
 

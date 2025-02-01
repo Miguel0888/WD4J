@@ -9,11 +9,10 @@ import com.microsoft.playwright.options.FunctionCallback;
 import com.microsoft.playwright.options.Geolocation;
 import wd4j.core.CommandImpl;
 import wd4j.core.WebSocketConnection;
-import wd4j.impl.modules.BrowsingContextService;
+import wd4j.impl.module.BrowsingContextService;
 
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -34,7 +33,7 @@ public class BrowserContextImpl implements BrowserContext {
         this.pages = new ArrayList<>();
         this.isClosed = false;
 
-        this.contextId = createContext();
+        this.contextId = browsingContextService.createContext();
     }
 
     public BrowserContextImpl(BrowserImpl browser, String contextId) {
@@ -368,38 +367,8 @@ public class BrowserContextImpl implements BrowserContext {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /**
-     * Creates a new browsing context.
-     *
-     * @return The ID of the new context.
-     */
-    // Required for Firefox ESR ?
-    String createContext() {
-        CommandImpl<BrowsingContextService.CreateCommand.ParamsImpl> createContextCommand = new BrowsingContextService.CreateCommand("tab");
-
-        WebSocketConnection webSocketConnection = ((BrowserTypeImpl) browser.browserType()).getWebSocketConnection();
-        try {
-            String response = webSocketConnection.send(createContextCommand);
-
-            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
-            JsonObject result = jsonResponse.getAsJsonObject("result");
-
-            if (result != null && result.has("context")) {
-                String contextId = result.get("context").getAsString();
-                System.out.println("--- Neuer Context erstellt: " + contextId);
-                return contextId;
-            }
-        } catch (RuntimeException e) {
-            System.out.println("Error creating context: " + e.getMessage());
-            throw e;
-        }
-
-        throw new IllegalStateException("Failed to create new context."); // ToDo: Maybe return null instead?
-    }
-
     public String getContextId() {
         return contextId;
     }
-
 
 }
