@@ -37,21 +37,21 @@ public class SessionService implements Module {
     // Commands
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public CompletableFuture<String> status() {
-        return webSocketImpl.send(new Session.Status());
+    public String status() {
+        return webSocketImpl.sendAndWaitForResponse(new Session.Status());
     }
 
     // new() - Since plain "new" is a reserved word in Java!
-    public CompletableFuture<String> newSession(String browserName) {
-        return webSocketImpl.send(new Session.New(browserName));
+    public String newSession(String browserName) {
+        return webSocketImpl.sendAndWaitForResponse(new Session.New(browserName));
     }
 
     // end() - In corespondance to new!
-    public CompletableFuture<String> endSession() {
+    public String endSession() {
         // ToDo: Maybe close all BrowsingContexts?
         CommandImpl endSessionCommand = new Session.End();
     
-        return webSocketImpl.send(endSessionCommand);
+        return webSocketImpl.sendAndWaitForResponse(endSessionCommand);
     }
 
     /**

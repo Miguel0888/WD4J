@@ -47,7 +47,7 @@ public class BrowserSession {
      */
     private void fetchDefaultSession(String browserName) throws InterruptedException, ExecutionException {
         // Create a new session
-        String sessionResponse = browser.getSessionService().newSession(browserName).get(); // ToDo: Does not work with Chrome!
+        String sessionResponse = browser.getSessionService().newSession(browserName); // ToDo: Does not work with Chrome!
 
         // Kontext-ID extrahieren oder neuen Kontext erstellen
         sessionId = processSessionResponse(sessionResponse);

@@ -21,7 +21,7 @@ public class WebSocketImpl implements WebSocket {
     private WebSocketClient webSocketClient;
 
     private int commandCounter = 0;
-    private final ConcurrentHashMap<Integer, CompletableFuture<String>> pendingCommands = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, CompletableFuture<WebSocketFrame>> pendingCommands = new ConcurrentHashMap<>();
     private final Gson gson = new Gson();
 
     private boolean isClosed = false;
@@ -39,6 +39,176 @@ public class WebSocketImpl implements WebSocket {
         this.dispatcher = new DispatcherImpl();
         createAndConfigureWebSocketClient(uri);
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// **WebSocket-Frames Implementierung**
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private static class WebSocketFrameImpl implements WebSocketFrame {
+        private final byte[] binaryData;
+        private final String textData;
+
+        WebSocketFrameImpl(String text) {
+            this.textData = text;
+            this.binaryData = null;
+        }
+
+        WebSocketFrameImpl(byte[] binary) {
+            this.binaryData = binary;
+            this.textData = null;
+        }
+
+        @Override
+        public byte[] binary() {
+            return binaryData != null ? binaryData : new byte[0];
+        }
+
+        @Override
+        public String text() {
+            return textData != null ? textData : "";
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// **Frame-basierte Kommunikation**
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public String sendAndWaitForResponse(Command command) {
+        CompletableFuture<WebSocketFrame> future = send(command);
+
+        try {
+            WebSocketFrame frame = future.get(20, TimeUnit.SECONDS);
+            return frame.text(); // Antwort als String zurückgeben
+        } catch (TimeoutException e) {
+            throw new RuntimeException("Timeout while waiting for response with ID: " + command.getId(), e);
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Error while waiting for response", e);
+        }
+    }
+
+    @Override
+    public WebSocketFrame waitForFrameReceived(WaitForFrameReceivedOptions options, Runnable callback) {
+        callback.run();
+        try {
+            int commandId = getNextCommandId();
+            CompletableFuture<WebSocketFrame> future = new CompletableFuture<>();
+            pendingCommands.put(commandId, future);
+
+            return future.get(20, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            throw new RuntimeException("Timeout waiting for frame received", e);
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Error while waiting for frame received", e);
+        }
+    }
+
+    @Override
+    public WebSocketFrame waitForFrameSent(WaitForFrameSentOptions options, Runnable callback) {
+        callback.run();
+        try {
+            int commandId = getNextCommandId();
+            CompletableFuture<WebSocketFrame> future = new CompletableFuture<>();
+            pendingCommands.put(commandId, future);
+
+            return future.get(20, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            throw new RuntimeException("Timeout waiting for frame sent", e);
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Error while waiting for frame sent", e);
+        }
+    }
+
+    public CompletableFuture<WebSocketFrame> send(Command command) {
+        command.setId(getNextCommandId());
+        JsonObject commandJson = command.toJson();
+        WebSocketFrameImpl frame = new WebSocketFrameImpl(commandJson.toString());
+
+        CompletableFuture<WebSocketFrame> future = new CompletableFuture<>();
+        pendingCommands.put(command.getId(), future);
+        webSocketClient.send(commandJson.toString());
+
+        if (onFrameSent != null) {
+            onFrameSent.accept(frame);
+        }
+
+        return future;
+    }
+
+    private synchronized int getNextCommandId() {
+        return ++commandCounter;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// **WebSocket-Verwaltung**
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+    void createAndConfigureWebSocketClient(URI uri) {
+        this.url = uri.toString();
+        webSocketClient = new WebSocketClient(uri) {
+            @Override
+            public void onOpen(ServerHandshake handshakedata) {
+                System.out.println("WebSocket connected: " + handshakedata.getHttpStatusMessage());
+            }
+
+            @Override
+            public void onMessage(String message) {
+                try {
+                    JsonObject jsonMessage = gson.fromJson(message, JsonObject.class);
+                    if (jsonMessage.has("id")) {
+                        int id = jsonMessage.get("id").getAsInt();
+                        CompletableFuture<WebSocketFrame> future = pendingCommands.remove(id);
+                        if (future != null) {
+                            future.complete(new WebSocketFrameImpl(message));
+                        }
+                    } else {
+                        dispatcher.processEvent(message);
+                    }
+                } catch (Exception e) {
+                    if (onSocketError != null) {
+                        onSocketError.accept("Error processing WebSocket message: " + e.getMessage());
+                    }
+                }
+            }
+
+            @Override
+            public void onClose(int code, String reason, boolean remote) {
+                isClosed = true;
+                System.out.println("WebSocket closed. Code: " + code + ", Reason: " + reason);
+                if (onClose != null) {
+                    onClose.accept(code, reason);
+                }
+            }
+
+            @Override
+            public void onError(Exception ex) {
+                if (onSocketError != null) {
+                    onSocketError.accept("WebSocket error occurred: " + ex.getMessage());
+                }
+            }
+        };
+    }
+
+    // ToDo: Kann in Configure Methode integriert werden
+    public void connect() throws InterruptedException {
+        webSocketClient.connectBlocking();
+    }
+
+    public void close() {
+        isClosed = true;
+        pendingCommands.forEach((id, future) -> future.completeExceptionally(new RuntimeException("Connection closed")));
+        pendingCommands.clear();
+        webSocketClient.close();
+        System.out.println("WebSocket connection closed.");
+    }
+
+    public boolean isConnected() {
+        return webSocketClient.isOpen();
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Overridden methods
@@ -92,154 +262,5 @@ public class WebSocketImpl implements WebSocket {
     @Override
     public String url() {
         return url;
-    }
-
-    @Override
-    public WebSocketFrame waitForFrameReceived(WaitForFrameReceivedOptions options, Runnable callback) {
-        // ToDo
-        return null;
-    }
-
-    @Override
-    public WebSocketFrame waitForFrameSent(WaitForFrameSentOptions options, Runnable callback) {
-        // ToDo
-        return null;
-    }
-
-
-    private static class WebSocketFrameImpl implements WebSocketFrame {
-        private final byte[] binaryData;
-        private final String textData;
-
-        // Konstruktor für Textframes
-        WebSocketFrameImpl(String text) {
-            this.textData = text;
-            this.binaryData = null;
-        }
-
-        // Konstruktor für Binärframes
-        WebSocketFrameImpl(byte[] binary) {
-            this.binaryData = binary;
-            this.textData = null;
-        }
-
-        @Override
-        public byte[] binary() {
-            return binaryData != null ? binaryData : new byte[0];
-        }
-
-        @Override
-        public String text() {
-            return textData != null ? textData : "";
-        }
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /// **WebSocket-Client-Ereignisse**
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    void createAndConfigureWebSocketClient(URI uri) {
-        this.url = uri.toString();
-        webSocketClient = new WebSocketClient(uri) {
-            @Override
-            public void onOpen(ServerHandshake handshakedata) {
-                System.out.println("WebSocket connected: " + handshakedata.getHttpStatusMessage());
-            }
-
-            @Override
-            public void onMessage(String message) {
-                JsonObject jsonMessage = gson.fromJson(message, JsonObject.class);
-                if (jsonMessage.has("id")) {
-                    int id = jsonMessage.get("id").getAsInt();
-                    CompletableFuture<String> future = pendingCommands.remove(id);
-                    if (future != null) {
-                        future.complete(message);
-                    }
-                } else {
-                    dispatcher.processEvent(message);
-                }
-            }
-
-            @Override
-            public void onClose(int code, String reason, boolean remote) {
-                isClosed = true;
-                System.out.println("WebSocket closed. Code: " + code + ", Reason: " + reason);
-            }
-
-            @Override
-            public void onError(Exception ex) {
-                System.err.println("WebSocket error occurred: " + ex.getMessage());
-            }
-        };
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    // ToDo: Kann in Configure Methode integriert werden
-    public void connect() throws InterruptedException {
-        webSocketClient.connectBlocking();
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    public String sendAndWaitForResponse(Command command) {
-        send(command);
-        try {
-            return receive(command.getId());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted while waiting for response", e);
-        }
-    }
-
-    public CompletableFuture<String> send(Command command) {
-        command.setId(getNextCommandId());
-        JsonObject commandJson = command.toJson();
-        CompletableFuture<String> future = new CompletableFuture<>();
-        pendingCommands.put(command.getId(), future);
-        webSocketClient.send(commandJson.toString());
-
-        // Event für gesendeten Frame auslösen
-        if (onFrameSent != null) {
-            onFrameSent.accept(new WebSocketFrameImpl(commandJson.toString()));
-        }
-
-        return future;
-    }
-
-    /**
-     * Blockiert, bis eine Antwort für das gegebene `commandId` empfangen wurde.
-     */
-    public String receive(int commandId) throws InterruptedException {
-        CompletableFuture<String> future = pendingCommands.get(commandId);
-        if (future == null) {
-            throw new IllegalStateException("No pending command found with ID: " + commandId);
-        }
-
-        try {
-            return future.get(20, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-            throw new RuntimeException("Timeout while waiting for response with ID: " + commandId, e);
-        } catch (ExecutionException e) {
-            throw new RuntimeException("Error while waiting for response", e);
-        } finally {
-            pendingCommands.remove(commandId);
-        }
-    }
-
-    private synchronized int getNextCommandId() {
-        return ++commandCounter;
-    }
-
-    public void close() {
-        isClosed = true;
-        pendingCommands.forEach((id, future) -> future.completeExceptionally(new RuntimeException("Connection closed")));
-        pendingCommands.clear();
-        webSocketClient.close();
-        System.out.println("WebSocket connection closed.");
-    }
-
-    public boolean isConnected() {
-        return webSocketClient.isOpen();
     }
 }
