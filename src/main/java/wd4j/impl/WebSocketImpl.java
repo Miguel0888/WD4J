@@ -7,8 +7,8 @@ import org.java_websocket.handshake.ServerHandshake;
 import wd4j.api.*;
 import wd4j.core.Dispatcher;
 import wd4j.core.generic.Command;
+import wd4j.impl.module.SessionService;
 import wd4j.impl.support.DispatcherImpl;
-import wd4j.impl.support.JsonToPlaywrightMapper;
 
 import java.net.URI;
 import java.util.concurrent.*;
@@ -162,7 +162,7 @@ public class WebSocketImpl implements WebSocket {
                             future.complete(new WebSocketFrameImpl(message));
                         }
                     } else {
-                        dispatcher.processEvent(message);
+                        dispatcher.process(message);
                     }
                 } catch (Exception e) {
                     if (onSocketError != null) {
@@ -208,12 +208,12 @@ public class WebSocketImpl implements WebSocket {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public <T> void addEventListener(String eventName, Consumer<T> handler, Class<T> eventClass) {
-        dispatcher.addEventListener(eventName, handler, eventClass);
+    public <T> void addEventListener(String eventName, Consumer<T> handler, Class<T> eventClass, SessionService sessionService) {
+        dispatcher.addEventListener(eventName, handler, eventClass, sessionService);
     }
 
-    public <T> void removeEventListener(String eventType, Consumer<T> listener) {
-        dispatcher.removeEventListener(eventType, listener);
+    public <T> void removeEventListener(String eventType, Consumer<T> listener, SessionService sessionService) {
+        dispatcher.removeEventListener(eventType, listener, sessionService);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

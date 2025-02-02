@@ -7,43 +7,37 @@ public enum Method {
     // Event methods see: https://w3c.github.io/webdriver-bidi#modules
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // 🔹 SESSION (noch nicht relevant)
-    SESSION("session", null),
-
-    // 🔹 BROWSER (noch nicht relevant)
-    BROWSER("browser", null),
-
     // 🔹 Browsing Context Events
-    CONTEXT_CREATED("browsingContext.contextCreated", null),
-    CONTEXT_DESTROYED("browsingContext.contextDestroyed", null),
-    NAVIGATION_STARTED("browsingContext.navigationStarted", null),
-    FRAGMENT_NAVIGATED("browsingContext.fragmentNavigated", null),
-    HISTORY_UPDATED("browsingContext.historyUpdated", null),
+    CONTEXT_CREATED("browsingContext.contextCreated", Page.class),
+    CONTEXT_DESTROYED("browsingContext.contextDestroyed", Page.class),
+    NAVIGATION_STARTED("browsingContext.navigationStarted", Frame.class),
+    FRAGMENT_NAVIGATED("browsingContext.fragmentNavigated", Frame.class),
+    HISTORY_UPDATED("browsingContext.historyUpdated", Frame.class),
     DOM_CONTENT_LOADED("browsingContext.domContentLoaded", Page.class),
     LOAD("browsingContext.load", Page.class),
-    DOWNLOAD_WILL_BEGIN("browsingContext.downloadWillBegin", null),
-    NAVIGATION_ABORTED("browsingContext.navigationAborted", null),
-    NAVIGATION_COMMITTED("browsingContext.navigationCommitted", null),
-    NAVIGATION_FAILED("browsingContext.navigationFailed", null),
-    USER_PROMPT_CLOSED("browsingContext.userPromptClosed", null),
-    USER_PROMPT_OPENED("browsingContext.userPromptOpened", null),
+    DOWNLOAD_WILL_BEGIN("browsingContext.downloadWillBegin", Download.class),
+    NAVIGATION_ABORTED("browsingContext.navigationAborted", Frame.class),
+    NAVIGATION_COMMITTED("browsingContext.navigationCommitted", Frame.class),
+    NAVIGATION_FAILED("browsingContext.navigationFailed", Frame.class),
+    USER_PROMPT_CLOSED("browsingContext.userPromptClosed", Dialog.class),
+    USER_PROMPT_OPENED("browsingContext.userPromptOpened", Dialog.class),
 
     // 🔹 Network Events
-    AUTH_REQUIRED("network.authRequired", null),
+    AUTH_REQUIRED("network.authRequired", Request.class),
     BEFORE_REQUEST_SENT("network.beforeRequestSent", Request.class),
-    FETCH_ERROR("network.fetchError", null),
+    FETCH_ERROR("network.fetchError", Response.class),
     RESPONSE_COMPLETED("network.responseCompleted", Response.class),
     RESPONSE_STARTED("network.responseStarted", Response.class),
 
     // 🔹 Script Events
-    MESSAGE("script.message", null),
-    REALM_CREATED("script.realmCreated", null),
-    REALM_DESTROYED("script.realmDestroyed", null),
+    MESSAGE("script.message", ConsoleMessage.class),
+    REALM_CREATED("script.realmCreated", Worker.class),
+    REALM_DESTROYED("script.realmDestroyed", Worker.class),
 
     // 🔹 Log Events
     ENTRY_ADDED("log.entryAdded", ConsoleMessage.class);
 
-    // 🔹 Weitere Module (Storage, Input, WebExtension) können später ergänzt werden
+    // 🔹 Weitere Module (Session, Browser Storage, Input, WebExtension) haben aktuell laut W3C-Spec keine Events
 
     private final String name;
     private final Class<?> associatedClass;

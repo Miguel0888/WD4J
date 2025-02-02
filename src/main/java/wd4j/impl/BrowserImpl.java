@@ -24,9 +24,10 @@ public class BrowserImpl implements Browser {
 
     private BrowserSession session;
     private String defaultContextId;
+    private WebSocketImpl webSocketImpl;
 
     public BrowserImpl(BrowserTypeImpl browserType) throws ExecutionException, InterruptedException {
-        WebSocketImpl webSocketImpl = browserType.getWebSocketConnection();
+        webSocketImpl = browserType.getWebSocketConnection();
         this.browserService = new BrowserService(webSocketImpl);
         this.sessionService = new SessionService(webSocketImpl);
         this.browsingContextService = new BrowsingContextService(webSocketImpl);
@@ -43,8 +44,6 @@ public class BrowserImpl implements Browser {
             System.out.println("No default context found.");
 //            newContext(new NewContextOptions());
         }
-
-        initEventSystem();
     }
 
     public BrowserImpl(BrowserTypeImpl browserType, BrowserType.LaunchOptions options) {
@@ -66,44 +65,9 @@ public class BrowserImpl implements Browser {
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    private void initEventSystem() {
-
-    }
 
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// Obviously requires a contextId, so it's not possible to fetch the default context from the tree
-//    // Fallback-Methode: Kontext über getTree suchen
-//    private String fetchDefaultContextFromTree() {
-//        WebSocketConnection webSocketConnection = browserType.getWebSocketConnection();
-//
-//        // ToDo: Use browsingContextService.getTree() and receive() (for blocking) instead!
-//        CommandImpl<BrowsingContextService.GetTreeCommand.ParamsImpl> getTreeCommand = new BrowsingContextService.GetTreeCommand();
-//
-//        try {
-//            browsingContextService.getTree();
-//            String response = webSocketConnection.send(getTreeCommand);
-//
-//            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
-//            JsonObject result = jsonResponse.getAsJsonObject("result");
-//
-//            if (result != null && result.has("contexts")) {
-//                return result.getAsJsonArray("contexts")
-//                        .get(0)
-//                        .getAsJsonObject()
-//                        .get("context")
-//                        .getAsString();
-//            }
-//        } catch (RuntimeException e) {
-//            System.out.println("Error fetching context tree: " + e.getMessage());
-//            throw e;
-//        }
-//
-//        return null;
-//    }
-
-    ///////////////////////////////////////////////////////////////////////////
 
     @Override
     public void onDisconnected(Consumer<Browser> handler) {

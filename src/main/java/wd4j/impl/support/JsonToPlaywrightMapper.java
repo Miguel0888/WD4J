@@ -93,23 +93,70 @@ public class JsonToPlaywrightMapper {
 
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) {
-            String fieldName = method.getName();
+            String methodName = method.getName();
+            String fieldName = deriveFieldName(methodName);
 
-            if (json.has(fieldName)) {
-                // Special handling for List<JSHandle>
+            System.out.println("[DEBUG] Method call: " + methodName + " → JSON field: " + fieldName);
+
+            if (json.has(fieldName) && !json.get(fieldName).isJsonNull()) {
+                // Falls der Rückgabewert eine Liste von JSHandle ist
                 if (method.getReturnType().equals(List.class)) {
                     Type listType = method.getGenericReturnType();
                     if (listType.getTypeName().contains("JSHandle")) {
                         return mapToJsHandleList(json.getAsJsonArray(fieldName));
                     }
                 }
-
                 return gson.fromJson(json.get(fieldName), method.getReturnType());
+            }
+
+            // 🛠 Spezialfall für Response-Objekte (Tiefere JSON-Struktur durchsuchen)
+            if (json.has("response") && json.get("response").isJsonObject()) {
+                JsonObject responseJson = json.getAsJsonObject("response");
+                if (responseJson.has(fieldName) && !responseJson.get(fieldName).isJsonNull()) {
+                    return gson.fromJson(responseJson.get(fieldName), method.getReturnType());
+                }
             }
 
             return getDefaultReturnValue(method.getReturnType());
         }
+
+
+        /**
+         * Leitet den Feldnamen aus dem Methodennamen ab:
+         * - "getXyz" → "xyz"
+         * - "isXyz" → "xyz"
+         * - "xyz" bleibt unverändert
+         */
+        private String deriveFieldName(String methodName) {
+            if (methodName.startsWith("get") && methodName.length() > 3) {
+                return Character.toLowerCase(methodName.charAt(3)) + methodName.substring(4);
+            } else if (methodName.startsWith("is") && methodName.length() > 2) {
+                return Character.toLowerCase(methodName.charAt(2)) + methodName.substring(3);
+            }
+            return methodName;
+        }
+
+        /**
+         * Gibt einen sinnvollen Standardwert für primitive Typen zurück.
+         */
+        private Object getDefaultReturnValue(Class<?> returnType) {
+            if (returnType == String.class) {
+                return "";  // 🔹 Sicherstellen, dass String nicht null, sondern "" zurückgibt!
+            } else if (returnType == int.class || returnType == Integer.class) {
+                return 0;
+            } else if (returnType == boolean.class || returnType == Boolean.class) {
+                return false;
+            } else if (returnType == Map.class) {
+                return Collections.emptyMap();
+            } else if (returnType == List.class) {
+                return Collections.emptyList();
+            } else if (returnType.isInterface()) {
+                return null;
+            }
+            return null;
+        }
     }
+
 
     /**
      * Maps a JSON array to a list of dynamically generated {@code JSHandle} objects.

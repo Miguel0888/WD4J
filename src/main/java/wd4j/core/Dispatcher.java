@@ -1,14 +1,14 @@
 package wd4j.core;
 
+import wd4j.impl.module.SessionService;
+
 import java.util.function.Consumer;
 
 public interface Dispatcher {
 
-    void processEvent(String eventMessage);
+    void process(String eventMessage);
 
-    void processResponse(String message);
+    <T> void addEventListener(String eventType, Consumer<T> listener, Class<T> eventTypeClass, SessionService sessionService);
 
-    <T> void addEventListener(String eventType, Consumer<T> listener, Class<T> eventTypeClass);
-
-    <T> void removeEventListener(String eventType, Consumer<T> listener);
+    <T> void removeEventListener(String eventType, Consumer<T> listener, SessionService sessionService);
 }

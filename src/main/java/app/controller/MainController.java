@@ -58,11 +58,11 @@ public class MainController {
                     browserContext = browser.newContext();
                     page = browserContext.newPage();
 
-                    // Event: Console message
-                    page.onConsoleMessage(msg -> {
-                        JOptionPane.showMessageDialog(null, "Console message: " + msg.text());
-                    });
-
+//                    // Event: Console message
+//                    page.onConsoleMessage(msg -> {
+//                        JOptionPane.showMessageDialog(null, "Console message: " + msg.text());
+//                    });
+//
                     // Event: Response received
                     page.onResponse(response -> {
                         JOptionPane.showMessageDialog(null, "Response received: " + response.url());
