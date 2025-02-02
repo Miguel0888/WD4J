@@ -84,27 +84,28 @@ public class Script {
     }
 
     public static class Evaluate extends CommandImpl<Evaluate.ParamsImpl> {
-
-        public Evaluate(String expression, String target) {
-            super("script.evaluate", new ParamsImpl(expression, target));
+        public Evaluate(String script, String contextId) {
+            super("script.evaluate", new ParamsImpl(script, contextId));
         }
 
         public static class ParamsImpl implements Command.Params {
             private final String expression;
-            private final String target;
+            private final String context;
+            private final String resultOwnership = "root"; // Playwright erwartet root Ownership
 
-            public ParamsImpl(String expression, String target) {
-                if (expression == null || expression.isEmpty()) {
-                    throw new IllegalArgumentException("Expression must not be null or empty.");
+            public ParamsImpl(String script, String contextId) {
+                if (script == null || script.isEmpty()) {
+                    throw new IllegalArgumentException("Script must not be null or empty.");
                 }
-                if (target == null || target.isEmpty()) {
-                    throw new IllegalArgumentException("Target must not be null or empty.");
+                if (contextId == null || contextId.isEmpty()) {
+                    throw new IllegalArgumentException("Context ID must not be null or empty.");
                 }
-                this.expression = expression;
-                this.target = target;
+                this.expression = script;
+                this.context = contextId;
             }
         }
     }
+
 
     public static class GetRealms extends CommandImpl<GetRealms.ParamsImpl> {
 

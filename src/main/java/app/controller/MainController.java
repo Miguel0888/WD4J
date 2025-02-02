@@ -58,15 +58,25 @@ public class MainController {
                     browserContext = browser.newContext();
                     page = browserContext.newPage();
 
-//                    // Event: Console message
+//                    // Event: Console message ✅
 //                    page.onConsoleMessage(msg -> {
 //                        JOptionPane.showMessageDialog(null, "Console message: " + msg.text());
 //                    });
 //
-                    // Event: Response received
-                    page.onResponse(response -> {
-                        JOptionPane.showMessageDialog(null, "Response received: " + response.url());
+                    // Event: Response received ✅
+//                    page.onResponse(response -> {
+//                        JOptionPane.showMessageDialog(null, "Response received: " + response.url());
+//                    });
+
+                    // Event: Page loaded ✅
+                    page.onLoad(p -> {
+                        JOptionPane.showMessageDialog(null, "Page loaded!\n");
                     });
+
+//                    String pageContent = page.content();
+
+
+                    ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //                    JOptionPane.showMessageDialog(null, selectedBrowser + " erfolgreich gestartet.");
                 } catch (Exception ex) {

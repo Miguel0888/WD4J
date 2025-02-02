@@ -5,11 +5,13 @@ import jdk.nashorn.api.scripting.JSObject;
 import wd4j.impl.module.BrowsingContextService;
 import wd4j.api.*;
 import wd4j.api.options.*;
+import wd4j.impl.module.ScriptService;
 import wd4j.impl.module.SessionService;
 import wd4j.impl.module.event.Method;
 import wd4j.impl.support.JsonToPlaywrightMapper;
 
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,7 @@ class PageImpl implements Page {
     private final BrowserContextImpl context;
     private final SessionService sessionService;
     private final BrowsingContextService browsingContextService;
+    private final ScriptService scriptService;
     private boolean isClosed;
     private String url;
     private WebSocketImpl webSocketImpl;
@@ -30,6 +33,7 @@ class PageImpl implements Page {
         this.context = context;
         this.sessionService = context.getBrowser().getSessionService(); // ToDo: improve this!
         this.browsingContextService = context.getBrowser().getBrowsingContextService(); // ToDo: improve this!
+        this.scriptService = context.getBrowser().getScriptService(); // ToDo: improve this!
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
@@ -339,6 +343,7 @@ class PageImpl implements Page {
     public void close() {
         if (!isClosed) {
             isClosed = true;
+            browsingContextService.close(context.getContextId());
         }
     }
 
@@ -349,8 +354,12 @@ class PageImpl implements Page {
 
     @Override
     public String content() {
-        return "";
+        if (isClosed) {
+            throw new PlaywrightException("Page is closed");
+        }
+        return scriptService.evaluate("return document.documentElement.outerHTML;", context.getContextId());
     }
+
 
     @Override
     public BrowserContext context() {
@@ -519,12 +528,16 @@ class PageImpl implements Page {
 
     @Override
     public Response goBack(GoBackOptions options) {
-        return null;
+        browsingContextService.traverseHistory(context.getContextId(), -1);
+
+        return null; // ToDo: Echte Response zurückgeben
     }
 
     @Override
     public Response goForward(GoForwardOptions options) {
-        return null;
+        browsingContextService.traverseHistory(context.getContextId(), 1);
+
+        return null; // ToDo: Echte Response zurückgeben
     }
 
     @Override
@@ -671,7 +684,9 @@ class PageImpl implements Page {
 
     @Override
     public Response reload(ReloadOptions options) {
-        return null;
+        browsingContextService.reload(context.getContextId());
+
+        return null; // ToDo: Echte Response zurückgeben
     }
 
     @Override
@@ -716,7 +731,8 @@ class PageImpl implements Page {
 
     @Override
     public byte[] screenshot(ScreenshotOptions options) {
-        return new byte[0];
+        String base64Image = browsingContextService.captureScreenshot(context.getContextId());
+        return Base64.getDecoder().decode(base64Image);
     }
 
     @Override

@@ -1,9 +1,7 @@
 package wd4j.impl;
 
+import wd4j.impl.module.*;
 import wd4j.impl.support.BrowserSession;
-import wd4j.impl.module.BrowserService;
-import wd4j.impl.module.BrowsingContextService;
-import wd4j.impl.module.SessionService;
 import wd4j.api.*;
 
 import java.util.ArrayList;
@@ -25,12 +23,20 @@ public class BrowserImpl implements Browser {
     private BrowserSession session;
     private String defaultContextId;
     private WebSocketImpl webSocketImpl;
+    private ScriptService scriptService;
+    private NetworkService networkService;
+    private StorageService storageService;
+    private WebExtensionService webExtensionService;
 
     public BrowserImpl(BrowserTypeImpl browserType) throws ExecutionException, InterruptedException {
         webSocketImpl = browserType.getWebSocketConnection();
         this.browserService = new BrowserService(webSocketImpl);
         this.sessionService = new SessionService(webSocketImpl);
         this.browsingContextService = new BrowsingContextService(webSocketImpl);
+        this.scriptService = new ScriptService(webSocketImpl);
+        this.networkService = new NetworkService(webSocketImpl);
+        this.storageService = new StorageService(webSocketImpl);
+        this.webExtensionService = new WebExtensionService(webSocketImpl);
         this.browserType = browserType;
         this.options = null;
 
@@ -187,5 +193,21 @@ public class BrowserImpl implements Browser {
 
     public BrowsingContextService getBrowsingContextService() {
         return browsingContextService;
+    }
+
+    public ScriptService getScriptService() {
+        return scriptService;
+    }
+
+    public NetworkService getNetworkService() {
+        return networkService;
+    }
+
+    public StorageService getStorageService() {
+        return storageService;
+    }
+
+    public WebExtensionService getWebExtensionService() {
+        return webExtensionService;
     }
 }

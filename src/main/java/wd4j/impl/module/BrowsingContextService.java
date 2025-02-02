@@ -2,6 +2,7 @@ package wd4j.impl.module;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import wd4j.api.Response;
 import wd4j.core.CommandImpl;
 import wd4j.impl.WebSocketImpl;
 import wd4j.core.generic.Module;
@@ -222,4 +223,10 @@ public class BrowsingContextService implements Module {
             throw e;
         }
     }
+
+//    public Response traverseHistory(String contextId, int delta) {
+//        // ToDo: Hier fehlt wohl doch eine JSON-Objekt-Mapper!
+//        return webSocketImpl.sendAndWaitForResponse(new BrowsingContext.TraverseHistory(contextId, delta));
+//    }
+
 }

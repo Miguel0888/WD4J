@@ -86,19 +86,14 @@ public class ScriptService implements Module {
     /**
      * Evaluates the given expression in the specified target.
      *
-     * @param expression The expression to evaluate.
-     * @param target     The target where the expression is evaluated.
+     * @param script    The script to evaluate.
+     * @param contextId The ID of the context.
      * @throws RuntimeException if the operation fails.
      */
-    public void evaluate(String expression, String target) {
-        try {
-            webSocketImpl.sendAndWaitForResponse(new Script.Evaluate(expression, target));
-            System.out.println("Expression evaluated: " + expression + " on target: " + target);
-        } catch (RuntimeException e) {
-            System.out.println("Error evaluating expression: " + e.getMessage());
-            throw e;
-        }
+    public String evaluate(String script, String contextId) {
+        return webSocketImpl.sendAndWaitForResponse(new Script.Evaluate(script, contextId));
     }
+
 
     /**
      * Retrieves the realms for the specified context.
