@@ -19,11 +19,9 @@ public class WebSocketDispatcher implements Dispatcher {
     @Override
     public void processEvent(String eventMessage) {
         JsonObject jsonMessage = gson.fromJson(eventMessage, JsonObject.class);
-        String eventType = jsonMessage.get("type").getAsString();
-        JsonObject eventData = jsonMessage.getAsJsonObject("data");
+        ConsoleMessage message = JsonToPlaywrightMapper.mapToInterface(jsonMessage, ConsoleMessage.class);
 
-        if ("consoleMessage".equals(eventType)) {
-            ConsoleMessage message = JsonToPlaywrightMapper.mapToConsoleMessage(eventData);
+        if (message != null) {
             for (Consumer<ConsoleMessage> listener : consoleMessageListeners) {
                 listener.accept(message);
             }
@@ -33,10 +31,13 @@ public class WebSocketDispatcher implements Dispatcher {
     @Override
     public void processResponse(String responseMessage) {
         JsonObject jsonMessage = gson.fromJson(responseMessage, JsonObject.class);
-        Response response = JsonToPlaywrightMapper.mapToResponse(jsonMessage);
+        Response response = JsonToPlaywrightMapper.mapToInterface(jsonMessage, Response.class);
 
-        for (Consumer<Response> listener : responseListeners) {
-            listener.accept(response);
+        if (response != null) {
+            for (Consumer<Response> listener : responseListeners) {
+                listener.accept(response);
+            }
         }
     }
+
 }

@@ -1,71 +1,163 @@
+
 package com.microsoft.playwright.impl.support;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import com.microsoft.playwright.ConsoleMessage;
-import com.microsoft.playwright.Response;
-import com.microsoft.playwright.impl.dto.ConsoleMessageImpl;
-import com.microsoft.playwright.impl.dto.ResponseImpl;
-import com.microsoft.playwright.options.HttpHeader;
-import com.microsoft.playwright.options.SecurityDetails;
-import com.microsoft.playwright.options.ServerAddr;
 import com.microsoft.playwright.JSHandle;
+import com.microsoft.playwright.Response;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+/**
+ * Utility class that dynamically maps JSON objects to Playwright interfaces.
+ * <p>
+ * This class eliminates the need for concrete implementations of Playwright interfaces like {@code ConsoleMessage}
+ * and {@code Response} by generating anonymous proxy classes at runtime using Java Reflection.
+ * </p>
+ * <p>
+ * The core mechanism is based on {@code Proxy.newProxyInstance()}, which creates a dynamic implementation
+ * of the requested interface and maps method calls to JSON fields. This allows Playwright events and responses
+ * to be processed without defining explicit implementation classes.
+ * </p>
+ *
+ * <h2>Usage</h2>
+ * Example: Mapping a JSON event to a {@code ConsoleMessage} interface:
+ * <pre>{@code
+ * JsonObject json = new JsonObject();
+ * json.addProperty("message", "Console log from page");
+ * json.addProperty("type", "log");
+ *
+ * ConsoleMessage consoleMessage = JsonToPlaywrightMapper.mapToInterface(json, ConsoleMessage.class);
+ * System.out.println(consoleMessage.text());  // Output: Console log from page
+ * }</pre>
+ *
+ * <h2>Supported Features</h2>
+ * <ul>
+ *     <li>Automatic mapping of JSON fields to Playwright interfaces.</li>
+ *     <li>Support for nested JSON structures inside "result" objects.</li>
+ *     <li>Handling of {@code List<JSHandle>} for Playwright console messages.</li>
+ *     <li>Fallback default values for missing JSON fields to prevent NullPointerExceptions.</li>
+ * </ul>
+ */
 public class JsonToPlaywrightMapper {
     private static final Gson gson = new Gson();
 
-    public static ConsoleMessage mapToConsoleMessage(JsonObject json) {
+    /**
+     * Maps a JSON object to a Playwright interface by dynamically creating a proxy implementation.
+     *
+     * @param <T> The Playwright interface type (e.g., {@code ConsoleMessage}, {@code Response}).
+     * @param json The JSON object containing the data.
+     * @param interfaceType The Playwright interface class.
+     * @return A dynamically generated implementation of the requested interface.
+     * @throws IllegalArgumentException if the JSON object is null.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T mapToInterface(JsonObject json, Class<T> interfaceType) {
         if (json == null) {
+            throw new IllegalArgumentException("Received null JSON for mapping");
+        }
+
+        // Check if the JSON data is inside a "result" object
+        JsonObject result = json.has("result") ? json.getAsJsonObject("result") : json;
+
+        // Dynamically create a proxy instance for the interface
+        return (T) Proxy.newProxyInstance(
+                interfaceType.getClassLoader(),
+                new Class<?>[]{interfaceType},
+                new JsonInvocationHandler(result, interfaceType)
+        );
+    }
+
+    /**
+     * Invocation handler that intercepts method calls on a dynamically generated Playwright interface.
+     * <p>
+     * When a method is called, the handler attempts to fetch the corresponding field from the JSON object.
+     * If the field is missing, a default value is returned.
+     * </p>
+     */
+    private static class JsonInvocationHandler implements InvocationHandler {
+        private final JsonObject json;
+        private final Class<?> interfaceType;
+
+        public JsonInvocationHandler(JsonObject json, Class<?> interfaceType) {
+            this.json = json;
+            this.interfaceType = interfaceType;
+        }
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) {
+            String fieldName = method.getName();
+
+            if (json.has(fieldName)) {
+                // Special handling for List<JSHandle>
+                if (method.getReturnType().equals(List.class)) {
+                    Type listType = method.getGenericReturnType();
+                    if (listType.getTypeName().contains("JSHandle")) {
+                        return mapToJsHandleList(json.getAsJsonArray(fieldName));
+                    }
+                }
+
+                return gson.fromJson(json.get(fieldName), method.getReturnType());
+            }
+
+            return getDefaultReturnValue(method.getReturnType());
+        }
+    }
+
+    /**
+     * Maps a JSON array to a list of dynamically generated {@code JSHandle} objects.
+     *
+     * @param jsonArray The JSON array representing a list of JavaScript handles.
+     * @return A list of proxy-generated {@code JSHandle} objects.
+     */
+    private static List<JSHandle> mapToJsHandleList(JsonArray jsonArray) {
+        if (jsonArray == null || jsonArray.size() == 0) {
+            return Collections.emptyList();
+        }
+
+        List<JSHandle> jsHandles = new ArrayList<>();
+        jsonArray.forEach(element -> {
+            JSHandle jsHandle = (JSHandle) Proxy.newProxyInstance(
+                    JSHandle.class.getClassLoader(),
+                    new Class<?>[]{JSHandle.class},
+                    new JsonInvocationHandler(element.getAsJsonObject(), JSHandle.class)
+            );
+            jsHandles.add(jsHandle);
+        });
+
+        return jsHandles;
+    }
+
+    /**
+     * Returns a default value based on the method's return type.
+     *
+     * @param returnType The return type of the method.
+     * @return A default value (e.g., empty string for {@code String}, {@code 0} for integers).
+     */
+    private static Object getDefaultReturnValue(Class<?> returnType) {
+        if (returnType == String.class) {
+            return "";
+        } else if (returnType == int.class || returnType == Integer.class) {
+            return 0;
+        } else if (returnType == boolean.class || returnType == Boolean.class) {
+            return false;
+        } else if (returnType == Map.class) {
+            return Collections.emptyMap();
+        } else if (returnType == List.class) {
+            return Collections.emptyList();
+        } else if (returnType.isInterface()) {
             return null;
         }
-
-        // Prüfe, ob die Daten innerhalb eines "result"-Objekts liegen
-        JsonObject result = json.has("result") ? json.getAsJsonObject("result") : json;
-
-        String text = result.has("message") ? result.get("message").getAsString() : "";
-        String type = result.has("type") ? result.get("type").getAsString() : "log";
-        String location = result.has("location") ? result.get("location").getAsString() : "";
-
-        Type listType = new TypeToken<List<JSHandle>>() {}.getType();
-        List<JSHandle> args = result.has("args") ? gson.fromJson(result.get("args"), listType) : Collections.emptyList();
-
-        return new ConsoleMessageImpl(text, type, location, args, null);
+        return null;
     }
-
-    public static Response mapToResponse(JsonObject json) {
-        if (json == null) {
-            throw new IllegalArgumentException("Received null JSON for response mapping");
-        }
-
-        // Prüfe, ob es sich um eine "success"-Antwort mit einem "result"-Objekt handelt
-        JsonObject result = json.has("result") ? json.getAsJsonObject("result") : json;
-
-        // Fallback für "result" oder Standardwerte für fehlende Felder
-        String url = result.has("url") ? result.get("url").getAsString() : "unknown";
-        int status = result.has("status") ? result.get("status").getAsInt() : 500;
-        String statusText = result.has("statusText") ? result.get("statusText").getAsString() : "Unknown Status";
-
-        Type headersType = new TypeToken<Map<String, String>>() {}.getType();
-        Map<String, String> headers = result.has("headers") ? gson.fromJson(result.get("headers"), headersType) : Collections.emptyMap();
-
-        Type headerArrayType = new TypeToken<List<HttpHeader>>() {}.getType();
-        List<HttpHeader> headersArray = result.has("headersArray") ? gson.fromJson(result.get("headersArray"), headerArrayType) : Collections.emptyList();
-
-        byte[] body = result.has("body") ? result.get("body").getAsString().getBytes() : new byte[0];
-
-        SecurityDetails securityDetails = result.has("securityDetails") ? gson.fromJson(result.get("securityDetails"), SecurityDetails.class) : null;
-        ServerAddr serverAddr = result.has("serverAddr") ? gson.fromJson(result.get("serverAddr"), ServerAddr.class) : null;
-
-        boolean fromServiceWorker = result.has("fromServiceWorker") && result.get("fromServiceWorker").getAsBoolean();
-        boolean ok = result.has("ok") && result.get("ok").getAsBoolean();
-
-        return new ResponseImpl(url, status, statusText, headers, body, null, null, securityDetails, serverAddr, fromServiceWorker, ok, headersArray);
-    }
-
 }
