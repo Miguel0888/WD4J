@@ -1,8 +1,11 @@
 package com.microsoft.playwright.impl;
 
+import com.google.gson.JsonObject;
 import com.microsoft.playwright.*;
+import com.microsoft.playwright.impl.support.WebSocketDispatcher;
 import com.microsoft.playwright.options.*;
 import wd4j.impl.module.BrowsingContextService;
+import wd4j.impl.module.SessionService;
 
 import java.nio.file.Path;
 import java.util.Collections;
@@ -16,15 +19,58 @@ import java.util.regex.Pattern;
 class PageImpl implements Page {
     private final BrowserContextImpl context;
     private final BrowsingContextService browsingContextService;
+    private final SessionService sessionService;
     private boolean isClosed;
     private String url;
+
+    private final WebSocketDispatcher dispatcher;
 
     public PageImpl(BrowserContextImpl context) {
         this.context = context;
         this.browsingContextService = context.getBrowser().getBrowsingContextService(); // ToDo: improve this!
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
+
+        // Registriere alle relevanten WebDriver BiDi Events
+        this.dispatcher = ((WebSocketDispatcher) ((BrowserTypeImpl) context.getBrowser().browserType()).getWebSocketConnection().getDispatcher());
+        this.sessionService = context.getBrowser().getSessionService();
+//        registerWebDriverBiDiEvents();
     }
+
+//    private void registerWebDriverBiDiEvents() {
+//        dispatcher.addEventListener("browsingContext.domContentLoaded", this::handleDOMContentLoaded, JsonObject.class);
+//        dispatcher.addEventListener("browsingContext.load", this::handleLoad, JsonObject.class);
+//        dispatcher.addEventListener("browsingContext.download", this::handleDownload, JsonObject.class);
+//        dispatcher.addEventListener("network.request", this::handleRequest, JsonObject.class);
+//        dispatcher.addEventListener("network.response", this::handleResponse, JsonObject.class);
+//        dispatcher.addEventListener("log.entryAdded", this::handleConsoleMessage, JsonObject.class);
+//    }
+//
+//    private void handleDOMContentLoaded(JsonObject event) {
+//        System.out.println("DOMContentLoaded event received: " + event);
+//    }
+//
+//    private void handleLoad(JsonObject event) {
+//        System.out.println("Load event received: " + event);
+//    }
+//
+//    private void handleDownload(JsonObject event) {
+//        System.out.println("Download event received: " + event);
+//    }
+//
+//    private void handleRequest(JsonObject event) {
+//        System.out.println("Request event received: " + event);
+//    }
+//
+//    private void handleResponse(JsonObject event) {
+//        System.out.println("Response event received: " + event);
+//    }
+//
+//    private void handleConsoleMessage(JsonObject event) {
+//        System.out.println("Console message event received: " + event);
+//    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
     public void onClose(Consumer<Page> handler) {
@@ -38,10 +84,8 @@ class PageImpl implements Page {
 
     @Override
     public void onConsoleMessage(Consumer<ConsoleMessage> handler) {
-        // Event-Listener für Konsolennachrichten hinzufügen
-        if (handler != null) {
-            context.getBrowser().addConsoleMessageListener(handler);
-        }
+//        sessionService.subscribe(Collections.singletonList("log.entryAdded"));
+//        dispatcher.addEventListener("log.entryAdded", handler, ConsoleMessage.class);
     }
 
     @Override
@@ -191,10 +235,7 @@ class PageImpl implements Page {
 
     @Override
     public void onResponse(Consumer<Response> handler) {
-        // Event-Listener für eingehende Antworten hinzufügen
-        if (handler != null) {
-            context.getBrowser().addResponseListener(handler);
-        }
+
     }
 
     @Override

@@ -63,7 +63,7 @@ public class WebSocketConnection {
                 try {
                     JsonObject jsonMessage = new Gson().fromJson(message, JsonObject.class);
                     if (jsonMessage.has("id")) {
-//                        System.out.println("Received response: " + message); // for debugging
+                        System.out.println("[DEBUG] Received response: " + message); // for debugging
                         // Antwort auf ein Kommando
                         int id = jsonMessage.get("id").getAsInt();
                         CompletableFuture<String> future = pendingCommands.remove(id);
@@ -72,10 +72,19 @@ public class WebSocketConnection {
                         }
                         dispatcher.processResponse(message);
                     } else if (jsonMessage.has("type")) {
-                        System.out.println("Received event: " + message);
-                        dispatcher.processEvent(message);
+                        String eventType = jsonMessage.get("type").getAsString();
+                        if(eventType.equals("event"))
+                        {
+                            System.out.println("[DEBUG] Received event: " + message); // for debugging
+                            dispatcher.processEvent(message);
+                        }
+                        else
+                        {
+                            // ToDo
+                            System.out.println("[DEBUG] Received '" + eventType.toUpperCase() + "': " + message); // for debugging
+                        }
                     } else {
-                        System.out.println("Received message: " + message);
+                        System.out.println("[DEBUG] Received message: " + message); // for debugging
                         // ToDo: Check this! Possible overflow in pendingCommands!
                         messageQueue.put(message); // Unerwartete Nachrichten
                     }

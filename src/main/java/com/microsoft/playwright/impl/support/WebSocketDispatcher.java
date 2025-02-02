@@ -1,29 +1,53 @@
 package com.microsoft.playwright.impl.support;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.microsoft.playwright.ConsoleMessage;
-import com.microsoft.playwright.Response;
 import wd4j.core.Dispatcher;
+import wd4j.impl.module.event.NetworkEvent;
 
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
 public class WebSocketDispatcher implements Dispatcher {
     private final Gson gson = new Gson();
 
-    // Listener-Queues für Events und Responses
-    public final ConcurrentLinkedQueue<Consumer<ConsoleMessage>> consoleMessageListeners = new ConcurrentLinkedQueue<>();
-    public final ConcurrentLinkedQueue<Consumer<Response>> responseListeners = new ConcurrentLinkedQueue<>();
+    // Event listeners for different WebDriver BiDi events
+    private final Map<String, ConcurrentLinkedQueue<Consumer<Object>>> eventListeners = new ConcurrentHashMap<>();
 
     @Override
     public void processEvent(String eventMessage) {
-        JsonObject jsonMessage = gson.fromJson(eventMessage, JsonObject.class);
-        ConsoleMessage message = JsonToPlaywrightMapper.mapToInterface(jsonMessage, ConsoleMessage.class);
+        JsonElement messageElement = gson.fromJson(eventMessage, JsonElement.class);
 
-        if (message != null) {
-            for (Consumer<ConsoleMessage> listener : consoleMessageListeners) {
-                listener.accept(message);
+        if (!messageElement.isJsonObject()) {
+            System.err.println("[WARN] Ignoring event: Expected JsonObject but got " + messageElement);
+            return;
+        }
+
+        JsonObject jsonMessage = messageElement.getAsJsonObject();
+
+        if (!jsonMessage.has("method")) {
+            System.err.println("[WARN] Event received without method: " + jsonMessage);
+            return;
+        }
+
+        String eventType = jsonMessage.get("method").getAsString();
+        JsonObject params = jsonMessage.has("params") ? jsonMessage.getAsJsonObject("params") : new JsonObject();
+
+        Object mappedEvent;
+        if ("network.responseStarted".equals(eventType)) {
+            mappedEvent = JsonToPlaywrightMapper.mapToInterface(params, NetworkEvent.ResponseStarted.class);
+        } else if ("network.responseCompleted".equals(eventType)) {
+            mappedEvent = JsonToPlaywrightMapper.mapToInterface(params, NetworkEvent.ResponseCompleted.class);
+        } else {
+            mappedEvent = params;  // Standardmäßig bleibt es ein JsonObject
+        }
+
+        if (eventListeners.containsKey(eventType)) {
+            for (Consumer<Object> listener : eventListeners.get(eventType)) {
+                listener.accept(mappedEvent);
             }
         }
     }
@@ -31,13 +55,11 @@ public class WebSocketDispatcher implements Dispatcher {
     @Override
     public void processResponse(String responseMessage) {
         JsonObject jsonMessage = gson.fromJson(responseMessage, JsonObject.class);
-        Response response = JsonToPlaywrightMapper.mapToInterface(jsonMessage, Response.class);
-
-        if (response != null) {
-            for (Consumer<Response> listener : responseListeners) {
-                listener.accept(response);
-            }
-        }
+        // Handle WebDriver BiDi responses if needed
     }
 
+    @Override
+    public <T> void addEventListener(String eventType, Consumer<T> listener, Class<T> eventTypeClass) {
+        eventListeners.computeIfAbsent(eventType, k -> new ConcurrentLinkedQueue<>()).add((Consumer<Object>) listener);
+    }
 }

@@ -7,8 +7,10 @@ import wd4j.core.WebSocketConnection;
 import wd4j.impl.module.BrowserService;
 import wd4j.impl.module.BrowsingContextService;
 import wd4j.impl.module.SessionService;
+import wd4j.impl.module.event.NetworkEvent;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -22,10 +24,11 @@ public class BrowserImpl implements Browser {
     private final SessionService sessionService;
     private final BrowsingContextService browsingContextService;
 
-    private final List<BrowserContext> contexts = new ArrayList<>();
+    private final List<BrowserContextImpl> contexts = new ArrayList<>();
 
     private BrowserSession session;
     private String defaultContextId;
+    private WebSocketDispatcher webSocketDispatcher; // Event System
 
     public BrowserImpl(BrowserTypeImpl browserType) throws ExecutionException, InterruptedException {
         WebSocketConnection webSocketConnection = browserType.getWebSocketConnection();
@@ -45,6 +48,8 @@ public class BrowserImpl implements Browser {
             System.out.println("No default context found.");
 //            newContext(new NewContextOptions());
         }
+
+        initEventSystem();
     }
 
     public BrowserImpl(BrowserTypeImpl browserType, BrowserType.LaunchOptions options) {
@@ -65,13 +70,31 @@ public class BrowserImpl implements Browser {
         return defaultContextId;
     }
 
-    public void addConsoleMessageListener(Consumer<ConsoleMessage> listener) {
-        ((WebSocketDispatcher) browserType.getWebSocketConnection().getDispatcher()).consoleMessageListeners.add(listener);
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    private void initEventSystem() {
+        webSocketDispatcher = (WebSocketDispatcher) ((BrowserTypeImpl) browserType()).getWebSocketConnection().getDispatcher();
+
+        SessionService sessionService = getSessionService();
+
+        sessionService.subscribe(Arrays.asList("network.responseStarted", "network.responseCompleted"));
+
+        webSocketDispatcher.addEventListener("network.responseStarted", new Consumer<NetworkEvent.ResponseStarted>() {
+            @Override
+            public void accept(NetworkEvent.ResponseStarted event) {
+                System.out.println("Response Started: " + event.requestId());
+            }
+        }, NetworkEvent.ResponseStarted.class);
+
+        webSocketDispatcher.addEventListener("network.responseCompleted", new Consumer<NetworkEvent.ResponseCompleted>() {
+            @Override
+            public void accept(NetworkEvent.ResponseCompleted event) {
+                System.out.println("Response Completed: " + event.requestId());
+            }
+        }, NetworkEvent.ResponseCompleted.class);
     }
 
-    public void addResponseListener(Consumer<Response> listener) {
-        ((WebSocketDispatcher) browserType.getWebSocketConnection().getDispatcher()).responseListeners.add(listener);
-    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Obviously requires a contextId, so it's not possible to fetch the default context from the tree
 //    // Fallback-Methode: Kontext über getTree suchen
@@ -176,19 +199,27 @@ public class BrowserImpl implements Browser {
         return "";
     }
 
-
-
-    ///////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Compatibility with WebDriver BiDi
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
-     * Returns the BrowsingContext at the given index.
-     * A BrowsingContext is a tab or window in the browser!
+     * Returns the BrowserSession. In WebDriver BiDi, every BrowserContext requires a BrowserSession first. This is a
+     * main difference to the Chromium DevTools Protocol, where BrowserContexts do not depend on a BrowserSession.
      *
-     * @param index The index of the BrowsingContext.
-     * @return The BrowsingContext at the given index.
+     * Maybe this difference between WebDriver BiDi and CDP is the reason, why PlayWright does not offer Sessions in the API.
+     * But in WebDriver BiDi, the Session is the main entry point to the BrowserContext and Event Processing. That is
+     * why have to use Session under the hood to provide the full PlayWright Feature Set.
+     *
+     * Nevertheless, the BrowserSession should not be widespread and encapsulated in  BrowserImpl (or BrowserContextImpl
+     * if this is more appropriate) for compatibility reasons.
+     *
+     * Gives Access to the Event System! (subscribe, unsubscribe are part of the Sesseion Module in W3C Spec)
+     *
+     * @return
      */
-    private BrowserContext getBrowsingContext(int index) {
-        return contexts.get(index);
+    public BrowserSession getSession() {
+        return session;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -216,5 +247,4 @@ public class BrowserImpl implements Browser {
     public BrowsingContextService getBrowsingContextService() {
         return browsingContextService;
     }
-
 }
