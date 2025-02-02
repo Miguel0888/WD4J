@@ -2,9 +2,8 @@ package wd4j.impl.module.event;
 
 public class Method {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Event methods
+    // Event methods see: https://w3c.github.io/webdriver-bidi#modules
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
     public static class session {}
 
@@ -12,42 +11,42 @@ public class Method {
 
     public static class browsingContext
     {
-        static String contextCreated = "browsingContext.contextCreated";
-        static String contextDestroyed = "browsingContext.contextDestroyed";
-        static String navigationStarted = "browsingContext.navigationStarted";
-        static String fragmentNavigated = "browsingContext.fragmentNavigated";
-        static String historyUpdated = "browsingContext.historyUpdated";
-        static String domContentLoaded = "browsingContext.domContentLoaded";
-        static String load = "browsingContext.load";
-        static String downloadWillBegin = "browsingContext.downloadWillBegin";
-        static String navigationAborted = "browsingContext.navigationAborted";
-        static String navigationCommitted = "browsingContext.navigationCommitted";
-        static String navigationFailed = "browsingContext.navigationFailed";
-        static String userPromptClosed = "browsingContext.userPromptClosed";
-        static String userPromptOpened = "browsingContext.userPromptOpened";
+        static final String contextCreated = "browsingContext.contextCreated";
+        static final String contextDestroyed = "browsingContext.contextDestroyed";
+        static final String navigationStarted = "browsingContext.navigationStarted";
+        static final String fragmentNavigated = "browsingContext.fragmentNavigated";
+        static final String historyUpdated = "browsingContext.historyUpdated";
+        static final String domContentLoaded = "browsingContext.domContentLoaded";
+        static final String load = "browsingContext.load";
+        static final String downloadWillBegin = "browsingContext.downloadWillBegin";
+        static final String navigationAborted = "browsingContext.navigationAborted";
+        static final String navigationCommitted = "browsingContext.navigationCommitted";
+        static final String navigationFailed = "browsingContext.navigationFailed";
+        static final String userPromptClosed = "browsingContext.userPromptClosed";
+        static final String userPromptOpened = "browsingContext.userPromptOpened";
     }
 
     public static class network
     {
-        static String authRequired = "network.authRequired";
-        static String beforeRequestSent = "network.beforeRequestSent";
-        static String fetchError = "network.fetchError";
-        static String responseCompleted = "network.responseCompleted";
-        static String responseStarted = "network.responseStarted";
+        static final String authRequired = "network.authRequired";
+        static final String beforeRequestSent = "network.beforeRequestSent";
+        static final String fetchError = "network.fetchError";
+        static final String responseCompleted = "network.responseCompleted";
+        static final String responseStarted = "network.responseStarted";
     }
 
     public static class script
     {
-        static String message = "script.message";
-        static String realmCreated = "script.realmCreated";
-        static String realmDestroyed = "script.realmDestroyed";
+        static final String message = "script.message";
+        static final String realmCreated = "script.realmCreated";
+        static final String realmDestroyed = "script.realmDestroyed";
     }
 
     public static class storage {}
 
     public static class log
     {
-        static String entryAdded = "log.entryAdded";
+        static final String entryAdded = "log.entryAdded";
     }
 
     public static class input {}
