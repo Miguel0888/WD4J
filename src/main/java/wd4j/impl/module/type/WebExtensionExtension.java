@@ -1,6 +1,6 @@
 package wd4j.impl.module.type;
 
-import wd4j.impl.generic.Type;
+import wd4j.core.generic.Type;
 
 public class WebExtensionExtension implements Type {
     private final String id;

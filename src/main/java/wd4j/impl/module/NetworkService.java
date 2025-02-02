@@ -1,7 +1,7 @@
 package wd4j.impl.module;
 
 import wd4j.impl.WebSocketImpl;
-import wd4j.impl.generic.Module;
+import wd4j.core.generic.Module;
 import wd4j.impl.module.command.Network;
 
 public class NetworkService implements Module {

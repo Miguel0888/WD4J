@@ -4,9 +4,11 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
-import wd4j.api.WebSocket;
-import wd4j.api.WebSocketFrame;
-import wd4j.impl.generic.Command;
+import wd4j.api.*;
+import wd4j.core.Dispatcher;
+import wd4j.core.generic.Command;
+import wd4j.impl.support.DispatcherImpl;
+import wd4j.impl.support.JsonToPlaywrightMapper;
 
 import java.net.URI;
 import java.util.concurrent.*;
@@ -15,24 +17,26 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class WebSocketImpl implements WebSocket {
-
+    private final Dispatcher dispatcher; // Dispatcher-Objekt, das die Events verarbeitet
     private WebSocketClient webSocketClient;
-    private final BlockingQueue<String> messageQueue = new LinkedBlockingQueue<>();
+
+    private int commandCounter = 0;
     private final ConcurrentHashMap<Integer, CompletableFuture<String>> pendingCommands = new ConcurrentHashMap<>();
     private final Gson gson = new Gson();
 
-    private int commandCounter = 0;
+    private boolean isClosed = false;
+    private String url;
     private BiConsumer<Integer, String> onClose;
     private Consumer<WebSocketFrame> onFrameReceived;
     private Consumer<WebSocketFrame> onFrameSent;
     private Consumer<String> onSocketError;
 
-    private boolean isClosed = false;
-    private String url;
-
-    public WebSocketImpl() {}
+    public WebSocketImpl() {
+        this.dispatcher = new DispatcherImpl();
+    }
 
     public WebSocketImpl(URI uri) {
+        this.dispatcher = new DispatcherImpl();
         createAndConfigureWebSocketClient(uri);
     }
 
@@ -92,27 +96,14 @@ public class WebSocketImpl implements WebSocket {
 
     @Override
     public WebSocketFrame waitForFrameReceived(WaitForFrameReceivedOptions options, Runnable callback) {
-        callback.run();
-        try {
-            return new WebSocketFrameImpl(messageQueue.take());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return null;
-        }
+        // ToDo
+        return null;
     }
 
     @Override
     public WebSocketFrame waitForFrameSent(WaitForFrameSentOptions options, Runnable callback) {
-        callback.run(); // Führt die Aktion aus, die den Frame senden soll.
-
-        try {
-            // Blockiert, bis eine Nachricht gesendet wurde.
-            String sentMessage = messageQueue.take();
-            return new WebSocketFrameImpl(sentMessage);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return null;
-        }
+        // ToDo
+        return null;
     }
 
 
@@ -144,6 +135,8 @@ public class WebSocketImpl implements WebSocket {
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// **WebSocket-Client-Ereignisse**
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     void createAndConfigureWebSocketClient(URI uri) {
         this.url = uri.toString();
@@ -155,30 +148,15 @@ public class WebSocketImpl implements WebSocket {
 
             @Override
             public void onMessage(String message) {
-                try {
-                    JsonObject jsonMessage = gson.fromJson(message, JsonObject.class);
-                    if (jsonMessage.has("id")) {
-                        int id = jsonMessage.get("id").getAsInt();
-                        CompletableFuture<String> future = pendingCommands.remove(id);
-                        if (future != null) {
-                            future.complete(message);
-                        }
-                    } else if (jsonMessage.has("type") && "event".equals(jsonMessage.get("type").getAsString())) {
-                        messageQueue.put(message);
-                    } else {
-                        messageQueue.put(message);
+                JsonObject jsonMessage = gson.fromJson(message, JsonObject.class);
+                if (jsonMessage.has("id")) {
+                    int id = jsonMessage.get("id").getAsInt();
+                    CompletableFuture<String> future = pendingCommands.remove(id);
+                    if (future != null) {
+                        future.complete(message);
                     }
-
-                    // Verarbeite WebSocket-Frames
-                    if (onFrameReceived != null) {
-                        onFrameReceived.accept(new WebSocketFrameImpl(message));
-                    }
-
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    if (onSocketError != null) {
-                        onSocketError.accept("Error processing message: " + e.getMessage());
-                    }
+                } else {
+                    dispatcher.processEvent(message);
                 }
             }
 
@@ -186,35 +164,31 @@ public class WebSocketImpl implements WebSocket {
             public void onClose(int code, String reason, boolean remote) {
                 isClosed = true;
                 System.out.println("WebSocket closed. Code: " + code + ", Reason: " + reason);
-                if (onClose != null) {
-                    onClose.accept(code, reason);
-                }
             }
 
             @Override
             public void onError(Exception ex) {
-                if (onSocketError != null) {
-                    onSocketError.accept("WebSocket error occurred: " + ex.getMessage());
-                }
+                System.err.println("WebSocket error occurred: " + ex.getMessage());
             }
         };
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // ToDo: Kann in Configure Methode integriert werden
     public void connect() throws InterruptedException {
         webSocketClient.connectBlocking();
     }
 
-    public String sendAndWaitForResponse(Command command) {
-        // Kommando in eine asynchrone Anfrage umwandeln
-        CompletableFuture<String> future = send(command);
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public String sendAndWaitForResponse(Command command) {
+        send(command);
         try {
-            // Blockierend auf die Antwort warten
-            return future.get(20, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-            throw new RuntimeException("Timeout while waiting for response with ID: " + command.getId(), e);
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException("Error while waiting for response", e);
+            return receive(command.getId());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while waiting for response", e);
         }
     }
 
@@ -231,6 +205,26 @@ public class WebSocketImpl implements WebSocket {
         }
 
         return future;
+    }
+
+    /**
+     * Blockiert, bis eine Antwort für das gegebene `commandId` empfangen wurde.
+     */
+    public String receive(int commandId) throws InterruptedException {
+        CompletableFuture<String> future = pendingCommands.get(commandId);
+        if (future == null) {
+            throw new IllegalStateException("No pending command found with ID: " + commandId);
+        }
+
+        try {
+            return future.get(20, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            throw new RuntimeException("Timeout while waiting for response with ID: " + commandId, e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException("Error while waiting for response", e);
+        } finally {
+            pendingCommands.remove(commandId);
+        }
     }
 
     private synchronized int getNextCommandId() {

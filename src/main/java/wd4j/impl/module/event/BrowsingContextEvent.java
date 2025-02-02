@@ -1,7 +1,7 @@
 package wd4j.impl.module.event;
 
 import com.google.gson.JsonObject;
-import wd4j.impl.generic.Event;
+import wd4j.core.generic.Event;
 
 public class BrowsingContextEvent {
     public static class CreatedEvent implements Event {

@@ -1,4 +1,4 @@
-package wd4j.impl.generic;
+package wd4j.core.generic;
 
 public interface Module {
 }

@@ -3,7 +3,7 @@ package wd4j.impl.module;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.impl.WebSocketImpl;
-import wd4j.impl.generic.Module;
+import wd4j.core.generic.Module;
 import wd4j.impl.module.command.Storage;
 
 public class StorageService implements Module {

@@ -1,7 +1,7 @@
 package wd4j.impl.module.command;
 
 import wd4j.core.CommandImpl;
-import wd4j.impl.generic.Command;
+import wd4j.core.generic.Command;
 
 public class WebExtension {
 

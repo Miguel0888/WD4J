@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import wd4j.impl.WebSocketImpl;
-import wd4j.impl.generic.Module;
+import wd4j.core.generic.Module;
 import wd4j.impl.module.command.Browser;
 import wd4j.impl.module.type.BrowserClientWindow;
 import wd4j.impl.module.type.BrowserClientWindowInfo;

@@ -2,7 +2,7 @@ package wd4j.impl.module;
 
 import wd4j.core.CommandImpl;
 import wd4j.impl.WebSocketImpl;
-import wd4j.impl.generic.Module;
+import wd4j.core.generic.Module;
 import wd4j.impl.module.command.Session;
 
 import java.util.ArrayList;
