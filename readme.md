@@ -140,5 +140,5 @@ Beiträge sind willkommen! Wenn du helfen möchtest:
 
 ## Lizenz
 
-Dieses Projekt steht unter der **MIT-Lizenz**. Bitte beachten Sie, dass die verwendete PlayWright API ggf. unter einer anderen Lizenz steht. Dies bezieht sich lediglich auf die Interfaces, die Implementierungs-Klassen wurden vollkommen neu geschrieben!
+Dieses Projekt steht unter der **MIT-Lizenz**. Bitte beachten Sie, dass die verwendete PlayWright API ggf. unter einer anderen Lizenz steht. Dies bezieht sich lediglich auf die Interfaces (api package), die Implementierungs-Klassen (impl package) wurden hingegen vollkommen neu geschrieben!
 

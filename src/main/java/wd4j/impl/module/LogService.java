@@ -1,14 +1,14 @@
 package wd4j.impl.module;
 
-import wd4j.core.WebSocketConnection;
+import wd4j.impl.WebSocketImpl;
 import wd4j.impl.generic.Module;
 
 public class LogService implements Module {
 
-    private final WebSocketConnection webSocketConnection;
+    private final WebSocketImpl webSocketImpl;
 
-    public LogService(WebSocketConnection webSocketConnection) {
-        this.webSocketConnection = webSocketConnection;
+    public LogService(WebSocketImpl webSocketImpl) {
+        this.webSocketImpl = webSocketImpl;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

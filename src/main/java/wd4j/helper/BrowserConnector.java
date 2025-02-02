@@ -1,16 +1,10 @@
 package wd4j.helper;
 
-import com.microsoft.playwright.impl.BrowserTypeImpl;
-import wd4j.core.WebSocketConnection;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.URI;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Hilfsklasse für den Aufbau der WebSocket-Verbindung zum Browser, da der Verbindungsaufbau sich je nach Browser-Typ

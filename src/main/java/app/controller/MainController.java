@@ -1,9 +1,8 @@
 package app.controller;
 
-import com.microsoft.playwright.*;
+import wd4j.api.*;
 
 import javax.swing.*;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class MainController {
     private Playwright playwright;

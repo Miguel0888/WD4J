@@ -1,15 +1,15 @@
 package wd4j.impl.module;
 
-import wd4j.core.WebSocketConnection;
+import wd4j.impl.WebSocketImpl;
 import wd4j.impl.generic.Module;
 import wd4j.impl.module.command.Network;
 
 public class NetworkService implements Module {
 
-    private final WebSocketConnection webSocketConnection;
+    private final WebSocketImpl webSocketImpl;
 
-    public NetworkService(WebSocketConnection webSocketConnection) {
-        this.webSocketConnection = webSocketConnection;
+    public NetworkService(WebSocketImpl webSocketImpl) {
+        this.webSocketImpl = webSocketImpl;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -29,7 +29,7 @@ public class NetworkService implements Module {
      */
     public void addIntercept(String urlPattern) {
         try {
-            webSocketConnection.send(new Network.AddIntercept(urlPattern));
+            webSocketImpl.sendAndWaitForResponse(new Network.AddIntercept(urlPattern));
             System.out.println("Intercept added for URL pattern: " + urlPattern);
         } catch (RuntimeException e) {
             System.out.println("Error adding intercept: " + e.getMessage());
@@ -45,7 +45,7 @@ public class NetworkService implements Module {
      */
     public void continueRequest(String requestId) {
         try {
-            webSocketConnection.send(new Network.ContinueRequest(requestId));
+            webSocketImpl.sendAndWaitForResponse(new Network.ContinueRequest(requestId));
             System.out.println("Request continued: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error continuing request: " + e.getMessage());
@@ -61,7 +61,7 @@ public class NetworkService implements Module {
      */
     public void continueResponse(String requestId) {
         try {
-            webSocketConnection.send(new Network.ContinueResponse(requestId));
+            webSocketImpl.sendAndWaitForResponse(new Network.ContinueResponse(requestId));
             System.out.println("Response continued: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error continuing response: " + e.getMessage());
@@ -78,7 +78,7 @@ public class NetworkService implements Module {
      */
     public void continueWithAuth(String requestId, String authChallengeResponse) {
         try {
-            webSocketConnection.send(new Network.ContinueWithAuth(requestId, authChallengeResponse));
+            webSocketImpl.sendAndWaitForResponse(new Network.ContinueWithAuth(requestId, authChallengeResponse));
             System.out.println("Request continued with authentication: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error continuing with authentication: " + e.getMessage());
@@ -94,7 +94,7 @@ public class NetworkService implements Module {
      */
     public void failRequest(String requestId) {
         try {
-            webSocketConnection.send(new Network.FailRequest(requestId));
+            webSocketImpl.sendAndWaitForResponse(new Network.FailRequest(requestId));
             System.out.println("Request failed: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error failing request: " + e.getMessage());
@@ -112,7 +112,7 @@ public class NetworkService implements Module {
      */
     public void provideResponse(String requestId, String responseBody) {
         try {
-            webSocketConnection.send(new Network.ProvideResponse(requestId, responseBody));
+            webSocketImpl.sendAndWaitForResponse(new Network.ProvideResponse(requestId, responseBody));
             System.out.println("Response provided for request: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error providing response: " + e.getMessage());
@@ -128,7 +128,7 @@ public class NetworkService implements Module {
      */
     public void removeIntercept(String interceptId) {
         try {
-            webSocketConnection.send(new Network.RemoveIntercept(interceptId));
+            webSocketImpl.sendAndWaitForResponse(new Network.RemoveIntercept(interceptId));
             System.out.println("Intercept removed: " + interceptId);
         } catch (RuntimeException e) {
             System.out.println("Error removing intercept: " + e.getMessage());
@@ -145,7 +145,7 @@ public class NetworkService implements Module {
      */
     public void setCacheBehavior(String contextId, String cacheMode) {
         try {
-            webSocketConnection.send(new Network.SetCacheBehavior(contextId, cacheMode));
+            webSocketImpl.sendAndWaitForResponse(new Network.SetCacheBehavior(contextId, cacheMode));
             System.out.println("Cache behavior set for context: " + contextId + " -> " + cacheMode);
         } catch (RuntimeException e) {
             System.out.println("Error setting cache behavior: " + e.getMessage());

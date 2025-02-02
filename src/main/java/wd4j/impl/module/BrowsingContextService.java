@@ -2,23 +2,17 @@ package wd4j.impl.module;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.microsoft.playwright.ConsoleMessage;
-import com.microsoft.playwright.Response;
 import wd4j.core.CommandImpl;
-import wd4j.core.WebSocketConnection;
+import wd4j.impl.WebSocketImpl;
 import wd4j.impl.generic.Module;
 import wd4j.impl.module.command.BrowsingContext;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.function.Consumer;
-
 public class BrowsingContextService implements Module {
 
-    private final WebSocketConnection webSocketConnection;
+    private final WebSocketImpl webSocketImpl;
 
-    public BrowsingContextService(WebSocketConnection webSocketConnection) {
-        this.webSocketConnection = webSocketConnection;
+    public BrowsingContextService(WebSocketImpl webSocketImpl) {
+        this.webSocketImpl = webSocketImpl;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,7 +35,7 @@ public class BrowsingContextService implements Module {
         CommandImpl<BrowsingContext.Create.ParamsImpl> createContextCommand = new BrowsingContext.Create("tab");
 
         try {
-            String response = webSocketConnection.send(createContextCommand);
+            String response = webSocketImpl.sendAndWaitForResponse(createContextCommand);
 
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonObject result = jsonResponse.getAsJsonObject("result");
@@ -73,12 +67,12 @@ public class BrowsingContextService implements Module {
         if (url == null || url.isEmpty()) {
             throw new IllegalArgumentException("Cannot navigate: URL is null or empty!");
         }
-        webSocketConnection.sendAsync(new BrowsingContext.Navigate(url, contextId));
+        webSocketImpl.send(new BrowsingContext.Navigate(url, contextId));
     }
 
     public void getTree() {
         // Send the command, don't wait for the response
-        webSocketConnection.sendAsync(new BrowsingContext.GetTree());
+        webSocketImpl.send(new BrowsingContext.GetTree());
     }
 
     /**
@@ -89,7 +83,7 @@ public class BrowsingContextService implements Module {
      */
     public void activate(String contextId) {
         try {
-            webSocketConnection.send(new BrowsingContext.Activate(contextId));
+            webSocketImpl.sendAndWaitForResponse(new BrowsingContext.Activate(contextId));
         } catch (RuntimeException e) {
             System.out.println("Error activating context: " + e.getMessage());
             throw e;
@@ -104,7 +98,7 @@ public class BrowsingContextService implements Module {
      */
     public String captureScreenshot(String contextId) {
         try {
-            String response = webSocketConnection.send(new BrowsingContext.CaptureScreenshot(contextId));
+            String response = webSocketImpl.sendAndWaitForResponse(new BrowsingContext.CaptureScreenshot(contextId));
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             return jsonResponse.getAsJsonObject("result").get("data").getAsString();
         } catch (RuntimeException e) {
@@ -121,7 +115,7 @@ public class BrowsingContextService implements Module {
      */
     public void close(String contextId) {
         try {
-            webSocketConnection.send(new BrowsingContext.Close(contextId));
+            webSocketImpl.sendAndWaitForResponse(new BrowsingContext.Close(contextId));
         } catch (RuntimeException e) {
             System.out.println("Error closing context: " + e.getMessage());
             throw e;
@@ -137,7 +131,7 @@ public class BrowsingContextService implements Module {
      */
     public void handleUserPrompt(String contextId, String userText) {
         try {
-            webSocketConnection.send(new BrowsingContext.HandleUserPrompt(contextId, userText));
+            webSocketImpl.sendAndWaitForResponse(new BrowsingContext.HandleUserPrompt(contextId, userText));
         } catch (RuntimeException e) {
             System.out.println("Error handling user prompt: " + e.getMessage());
             throw e;
@@ -153,7 +147,7 @@ public class BrowsingContextService implements Module {
      */
     public String locateNodes(String contextId, String selector) {
         try {
-            String response = webSocketConnection.send(new BrowsingContext.LocateNodes(contextId, selector));
+            String response = webSocketImpl.sendAndWaitForResponse(new BrowsingContext.LocateNodes(contextId, selector));
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             return jsonResponse.getAsJsonObject("result").toString();
         } catch (RuntimeException e) {
@@ -171,7 +165,7 @@ public class BrowsingContextService implements Module {
      */
     public String print(String contextId) {
         try {
-            String response = webSocketConnection.send(new BrowsingContext.Print(contextId));
+            String response = webSocketImpl.sendAndWaitForResponse(new BrowsingContext.Print(contextId));
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             return jsonResponse.getAsJsonObject("result").get("data").getAsString();
         } catch (RuntimeException e) {
@@ -188,7 +182,7 @@ public class BrowsingContextService implements Module {
      */
     public void reload(String contextId) {
         try {
-            webSocketConnection.send(new BrowsingContext.Reload(contextId));
+            webSocketImpl.sendAndWaitForResponse(new BrowsingContext.Reload(contextId));
         } catch (RuntimeException e) {
             System.out.println("Error reloading context: " + e.getMessage());
             throw e;
@@ -206,7 +200,7 @@ public class BrowsingContextService implements Module {
      */
     public void setViewport(String contextId, int width, int height) {
         try {
-            webSocketConnection.send(new BrowsingContext.SetViewport(contextId, width, height));
+            webSocketImpl.sendAndWaitForResponse(new BrowsingContext.SetViewport(contextId, width, height));
         } catch (RuntimeException e) {
             System.out.println("Error setting viewport: " + e.getMessage());
             throw e;
@@ -222,7 +216,7 @@ public class BrowsingContextService implements Module {
      */
     public void traverseHistory(String contextId, int delta) {
         try {
-            webSocketConnection.send(new BrowsingContext.TraverseHistory(contextId, delta));
+            webSocketImpl.sendAndWaitForResponse(new BrowsingContext.TraverseHistory(contextId, delta));
         } catch (RuntimeException e) {
             System.out.println("Error traversing history: " + e.getMessage());
             throw e;

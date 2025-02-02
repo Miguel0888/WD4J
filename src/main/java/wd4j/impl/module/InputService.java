@@ -1,6 +1,6 @@
 package wd4j.impl.module;
 
-import wd4j.core.WebSocketConnection;
+import wd4j.impl.WebSocketImpl;
 import wd4j.impl.generic.Module;
 import wd4j.impl.module.command.Input;
 
@@ -8,10 +8,10 @@ import java.util.List;
 
 public class InputService implements Module {
 
-    private final WebSocketConnection webSocketConnection;
+    private final WebSocketImpl webSocketImpl;
 
-    public InputService(WebSocketConnection webSocketConnection) {
-        this.webSocketConnection = webSocketConnection;
+    public InputService(WebSocketImpl webSocketImpl) {
+        this.webSocketImpl = webSocketImpl;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,7 +36,7 @@ public class InputService implements Module {
         }
 
         try {
-            webSocketConnection.send(new Input.PerformActions(contextId, actions));
+            webSocketImpl.sendAndWaitForResponse(new Input.PerformActions(contextId, actions));
             System.out.println("Performed actions in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error performing actions: " + e.getMessage());
@@ -52,7 +52,7 @@ public class InputService implements Module {
      */
     public void releaseActions(String contextId) {
         try {
-            webSocketConnection.send(new Input.ReleaseActions(contextId));
+            webSocketImpl.sendAndWaitForResponse(new Input.ReleaseActions(contextId));
             System.out.println("Released actions in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error releasing actions: " + e.getMessage());
@@ -73,7 +73,7 @@ public class InputService implements Module {
         }
 
         try {
-            webSocketConnection.send(new Input.SetFiles(elementId, filePaths));
+            webSocketImpl.sendAndWaitForResponse(new Input.SetFiles(elementId, filePaths));
             System.out.println("Files set for element: " + elementId);
         } catch (RuntimeException e) {
             System.out.println("Error setting files: " + e.getMessage());

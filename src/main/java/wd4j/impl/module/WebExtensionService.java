@@ -1,6 +1,6 @@
 package wd4j.impl.module;
 
-import wd4j.core.WebSocketConnection;
+import wd4j.impl.WebSocketImpl;
 import wd4j.impl.generic.Module;
 import wd4j.impl.module.command.WebExtension;
 import wd4j.impl.module.type.WebExtensionExtension;
@@ -9,10 +9,10 @@ public class WebExtensionService implements Module {
 
     public WebExtensionExtension webExtensionExtension;
 
-    private final WebSocketConnection webSocketConnection;
+    private final WebSocketImpl webSocketImpl;
 
-    public WebExtensionService(WebSocketConnection webSocketConnection) {
-        this.webSocketConnection = webSocketConnection;
+    public WebExtensionService(WebSocketImpl webSocketImpl) {
+        this.webSocketImpl = webSocketImpl;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -33,7 +33,7 @@ public class WebExtensionService implements Module {
      */
     public void install(String contextId, String extensionPath) {
         try {
-            webSocketConnection.send(new WebExtension.Install(contextId, extensionPath));
+            webSocketImpl.sendAndWaitForResponse(new WebExtension.Install(contextId, extensionPath));
             System.out.println("Web extension installed from path: " + extensionPath + " in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error installing web extension: " + e.getMessage());
@@ -50,7 +50,7 @@ public class WebExtensionService implements Module {
      */
     public void uninstall(String contextId, String extensionId) {
         try {
-            webSocketConnection.send(new WebExtension.Uninstall(contextId, extensionId));
+            webSocketImpl.sendAndWaitForResponse(new WebExtension.Uninstall(contextId, extensionId));
             System.out.println("Web extension uninstalled: " + extensionId + " from context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error uninstalling web extension: " + e.getMessage());

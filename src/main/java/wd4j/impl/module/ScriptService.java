@@ -3,7 +3,7 @@ package wd4j.impl.module;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import wd4j.core.WebSocketConnection;
+import wd4j.impl.WebSocketImpl;
 import wd4j.impl.generic.Module;
 import wd4j.impl.module.command.Script;
 
@@ -12,10 +12,10 @@ import java.util.List;
 
 public class ScriptService implements Module {
 
-    private final WebSocketConnection webSocketConnection;
+    private final WebSocketImpl webSocketImpl;
 
-    public ScriptService(WebSocketConnection webSocketConnection) {
-        this.webSocketConnection = webSocketConnection;
+    public ScriptService(WebSocketImpl webSocketImpl) {
+        this.webSocketImpl = webSocketImpl;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,7 +36,7 @@ public class ScriptService implements Module {
      */
     public void addPreloadScript(String script, String target) {
         try {
-            webSocketConnection.send(new Script.AddPreloadScrip(script, target));
+            webSocketImpl.sendAndWaitForResponse(new Script.AddPreloadScrip(script, target));
             System.out.println("Preload script added: " + script + " to target: " + target);
         } catch (RuntimeException e) {
             System.out.println("Error adding preload script: " + e.getMessage());
@@ -57,7 +57,7 @@ public class ScriptService implements Module {
         }
 
         try {
-            webSocketConnection.send(new Script.Disown(contextId, handles));
+            webSocketImpl.sendAndWaitForResponse(new Script.Disown(contextId, handles));
             System.out.println("Handles disowned in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error disowning handles: " + e.getMessage());
@@ -75,7 +75,7 @@ public class ScriptService implements Module {
      */
     public void callFunction(String functionDeclaration, String target, List<Object> arguments) {
         try {
-            webSocketConnection.send(new Script.CallFunction(functionDeclaration, target, arguments));
+            webSocketImpl.sendAndWaitForResponse(new Script.CallFunction(functionDeclaration, target, arguments));
             System.out.println("Function called: " + functionDeclaration + " on target: " + target);
         } catch (RuntimeException e) {
             System.out.println("Error calling function: " + e.getMessage());
@@ -92,7 +92,7 @@ public class ScriptService implements Module {
      */
     public void evaluate(String expression, String target) {
         try {
-            webSocketConnection.send(new Script.Evaluate(expression, target));
+            webSocketImpl.sendAndWaitForResponse(new Script.Evaluate(expression, target));
             System.out.println("Expression evaluated: " + expression + " on target: " + target);
         } catch (RuntimeException e) {
             System.out.println("Error evaluating expression: " + e.getMessage());
@@ -109,7 +109,7 @@ public class ScriptService implements Module {
      */
     public List<String> getRealms(String contextId) {
         try {
-            String response = webSocketConnection.send(new Script.GetRealms(contextId));
+            String response = webSocketImpl.sendAndWaitForResponse(new Script.GetRealms(contextId));
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonArray realms = jsonResponse.getAsJsonObject("result").getAsJsonArray("realms");
             List<String> realmIds = new ArrayList<>();
@@ -130,7 +130,7 @@ public class ScriptService implements Module {
      */
     public void removePreloadScript(String scriptId) {
         try {
-            webSocketConnection.send(new Script.RemovePreloadScript(scriptId));
+            webSocketImpl.sendAndWaitForResponse(new Script.RemovePreloadScript(scriptId));
             System.out.println("Preload script removed: " + scriptId);
         } catch (RuntimeException e) {
             System.out.println("Error removing preload script: " + e.getMessage());
