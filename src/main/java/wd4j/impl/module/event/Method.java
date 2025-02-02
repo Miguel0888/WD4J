@@ -1,56 +1,73 @@
 package wd4j.impl.module.event;
 
-public class Method {
+import wd4j.api.*;
+
+public enum Method {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event methods see: https://w3c.github.io/webdriver-bidi#modules
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class session {}
+    // 🔹 SESSION (noch nicht relevant)
+    SESSION("session", null),
 
-    public static class browser {}
+    // 🔹 BROWSER (noch nicht relevant)
+    BROWSER("browser", null),
 
-    public static class browsingContext
-    {
-        static final String contextCreated = "browsingContext.contextCreated";
-        static final String contextDestroyed = "browsingContext.contextDestroyed";
-        static final String navigationStarted = "browsingContext.navigationStarted";
-        static final String fragmentNavigated = "browsingContext.fragmentNavigated";
-        static final String historyUpdated = "browsingContext.historyUpdated";
-        static final String domContentLoaded = "browsingContext.domContentLoaded";
-        static final String load = "browsingContext.load";
-        static final String downloadWillBegin = "browsingContext.downloadWillBegin";
-        static final String navigationAborted = "browsingContext.navigationAborted";
-        static final String navigationCommitted = "browsingContext.navigationCommitted";
-        static final String navigationFailed = "browsingContext.navigationFailed";
-        static final String userPromptClosed = "browsingContext.userPromptClosed";
-        static final String userPromptOpened = "browsingContext.userPromptOpened";
+    // 🔹 Browsing Context Events
+    CONTEXT_CREATED("browsingContext.contextCreated", null),
+    CONTEXT_DESTROYED("browsingContext.contextDestroyed", null),
+    NAVIGATION_STARTED("browsingContext.navigationStarted", null),
+    FRAGMENT_NAVIGATED("browsingContext.fragmentNavigated", null),
+    HISTORY_UPDATED("browsingContext.historyUpdated", null),
+    DOM_CONTENT_LOADED("browsingContext.domContentLoaded", Page.class),
+    LOAD("browsingContext.load", Page.class),
+    DOWNLOAD_WILL_BEGIN("browsingContext.downloadWillBegin", null),
+    NAVIGATION_ABORTED("browsingContext.navigationAborted", null),
+    NAVIGATION_COMMITTED("browsingContext.navigationCommitted", null),
+    NAVIGATION_FAILED("browsingContext.navigationFailed", null),
+    USER_PROMPT_CLOSED("browsingContext.userPromptClosed", null),
+    USER_PROMPT_OPENED("browsingContext.userPromptOpened", null),
+
+    // 🔹 Network Events
+    AUTH_REQUIRED("network.authRequired", null),
+    BEFORE_REQUEST_SENT("network.beforeRequestSent", Request.class),
+    FETCH_ERROR("network.fetchError", null),
+    RESPONSE_COMPLETED("network.responseCompleted", Response.class),
+    RESPONSE_STARTED("network.responseStarted", Response.class),
+
+    // 🔹 Script Events
+    MESSAGE("script.message", null),
+    REALM_CREATED("script.realmCreated", null),
+    REALM_DESTROYED("script.realmDestroyed", null),
+
+    // 🔹 Log Events
+    ENTRY_ADDED("log.entryAdded", ConsoleMessage.class);
+
+    // 🔹 Weitere Module (Storage, Input, WebExtension) können später ergänzt werden
+
+    private final String name;
+    private final Class<?> associatedClass;
+
+    Method(String name, Class<?> associatedClass) {
+        this.name = name;
+        this.associatedClass = associatedClass;
     }
 
-    public static class network
-    {
-        static final String authRequired = "network.authRequired";
-        static final String beforeRequestSent = "network.beforeRequestSent";
-        static final String fetchError = "network.fetchError";
-        static final String responseCompleted = "network.responseCompleted";
-        static final String responseStarted = "network.responseStarted";
+    public String getName() {
+        return name;
     }
 
-    public static class script
-    {
-        static final String message = "script.message";
-        static final String realmCreated = "script.realmCreated";
-        static final String realmDestroyed = "script.realmDestroyed";
+    public Class<?> getAssociatedClass() {
+        return associatedClass;
     }
 
-    public static class storage {}
-
-    public static class log
-    {
-        static final String entryAdded = "log.entryAdded";
+    // 🔹 Methode zur Suche eines Events anhand des Namens (für Dispatcher)
+    public static Method fromName(String name) {
+        for (Method event : Method.values()) {
+            if (event.getName().equals(name)) {
+                return event;
+            }
+        }
+        return null; // Falls kein passendes Event gefunden wird
     }
-
-    public static class input {}
-
-    public static class webExtension {}
-
 }
