@@ -1,10 +1,8 @@
 package com.microsoft.playwright.impl;
 
-import com.microsoft.playwright.Browser;
-import com.microsoft.playwright.BrowserContext;
-import com.microsoft.playwright.BrowserType;
-import com.microsoft.playwright.CDPSession;
-import com.microsoft.playwright.Page;
+import com.microsoft.playwright.*;
+import com.microsoft.playwright.impl.support.BrowserSession;
+import com.microsoft.playwright.impl.support.WebSocketDispatcher;
 import wd4j.core.WebSocketConnection;
 import wd4j.impl.module.BrowserService;
 import wd4j.impl.module.BrowsingContextService;
@@ -65,6 +63,14 @@ public class BrowserImpl implements Browser {
 //            defaultContextId = fetchDefaultContextFromTree(); // not working
 //        }
         return defaultContextId;
+    }
+
+    public void addConsoleMessageListener(Consumer<ConsoleMessage> listener) {
+        ((WebSocketDispatcher) browserType.getWebSocketConnection().getDispatcher()).consoleMessageListeners.add(listener);
+    }
+
+    public void addResponseListener(Consumer<Response> listener) {
+        ((WebSocketDispatcher) browserType.getWebSocketConnection().getDispatcher()).responseListeners.add(listener);
     }
 
 // Obviously requires a contextId, so it's not possible to fetch the default context from the tree

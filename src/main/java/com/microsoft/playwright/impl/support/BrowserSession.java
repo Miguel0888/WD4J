@@ -1,7 +1,9 @@
-package com.microsoft.playwright.impl;
+package com.microsoft.playwright.impl.support;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.microsoft.playwright.impl.BrowserImpl;
+import com.microsoft.playwright.impl.BrowserTypeImpl;
 import wd4j.core.WebSocketConnection;
 import wd4j.impl.module.BrowsingContextService;
 import wd4j.impl.module.SessionService;

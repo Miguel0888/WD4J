@@ -3,6 +3,7 @@ package wd4j.core;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.impl.support.WebSocketDispatcher;
 import wd4j.impl.generic.Command;
 import wd4j.impl.generic.Event;
 
@@ -29,6 +30,8 @@ public class WebSocketConnection {
     private final ConcurrentHashMap<Integer, CompletableFuture<String>> pendingCommands = new ConcurrentHashMap<>();
     private int commandCounter = 0;
 
+    private Dispatcher dispatcher;
+
     private final List<Consumer<Event>> eventListeners = new ArrayList<>();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -39,15 +42,16 @@ public class WebSocketConnection {
         // WebSocket-Verbindung kann später über createAndConfigureWebSocketClient() erstellt werden, wenn URI bekannt ist
     }
 
-    public WebSocketConnection(URI uri) {
-        createAndConfigureWebSocketClient(uri);
+    public WebSocketConnection(URI uri, Dispatcher dispatcher) {
+        createAndConfigureWebSocketClient(uri, dispatcher);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /// Constructors
+    /// Initialization
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public void createAndConfigureWebSocketClient(URI uri) {
+    public void createAndConfigureWebSocketClient(URI uri, Dispatcher dispatcher) {
+        this.dispatcher = dispatcher;
         webSocketClient = new WebSocketClient(uri) {
             @Override
             public void onOpen(ServerHandshake handshakedata) {
@@ -59,39 +63,17 @@ public class WebSocketConnection {
                 try {
                     JsonObject jsonMessage = new Gson().fromJson(message, JsonObject.class);
                     if (jsonMessage.has("id")) {
-                        System.out.println("Received response: " + message);
+//                        System.out.println("Received response: " + message); // for debugging
                         // Antwort auf ein Kommando
                         int id = jsonMessage.get("id").getAsInt();
                         CompletableFuture<String> future = pendingCommands.remove(id);
                         if (future != null) {
                             future.complete(message);
                         }
+                        dispatcher.processResponse(message);
                     } else if (jsonMessage.has("type")) {
                         System.out.println("Received event: " + message);
-                        String eventType = jsonMessage.get("type").getAsString();
-                        JsonObject eventData = jsonMessage.getAsJsonObject("data");
-
-                        //ToDo: How to work with Events?
-//                        Event event;
-//                        switch (eventType) {
-//                            case "browsingContext.contextCreated":
-//                                event = new BrowsingContextEvents.ContextCreatedEvent(eventType, eventData);
-//                                break;
-//                            case "browsingContext.contextDestroyed":
-//                                event = new BrowsingContextEvents.ContextDestroyedEvent(eventType, eventData);
-//                                break;
-//                            case "browsingContext.contextLoaded":
-//                                event = new BrowsingContextEvents.ContextLoadedEvent(eventType, eventData);
-//                                break;
-//                            case "browsingContext.fragmentNavigated":
-//                                event = new BrowsingContextEvents.ContextFragmentNavigatedEvent(eventType, eventData);
-//                                break;
-//                            default:
-//                                event = new Event.WebDriverEvent(eventType, eventData);
-//                                break;
-//                        }
-//
-//                        notifyEventListeners(event);
+                        dispatcher.processEvent(message);
                     } else {
                         System.out.println("Received message: " + message);
                         // ToDo: Check this! Possible overflow in pendingCommands!
@@ -119,23 +101,18 @@ public class WebSocketConnection {
         };
     }
 
-    public synchronized int getNextCommandId() {
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Helper Methods
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private synchronized int getNextCommandId() {
         return ++commandCounter;
     }
 
-    public void addEventListener(Consumer<Event> listener) {
-        eventListeners.add(listener);
-    }
-    
-    private void notifyEventListeners(Event event) {
-        for (Consumer<Event> listener : eventListeners) {
-            try {
-                listener.accept(event);
-            } catch (Exception e) {
-                System.err.println("Error in event listener: " + e.getMessage());
-            }
-        }
-    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Methods
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public void connect() throws InterruptedException {
         if (webSocketClient == null) {
@@ -226,5 +203,9 @@ public class WebSocketConnection {
 
     public boolean isConnected() {
         return webSocketClient.isOpen();
+    }
+
+    public Dispatcher getDispatcher() {
+        return dispatcher;
     }
 }

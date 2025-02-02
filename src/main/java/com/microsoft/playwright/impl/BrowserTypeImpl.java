@@ -3,6 +3,7 @@ package com.microsoft.playwright.impl;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.impl.support.WebSocketDispatcher;
 import wd4j.core.WebSocketConnection;
 
 import java.io.BufferedReader;
@@ -120,7 +121,7 @@ public class BrowserTypeImpl implements BrowserType {
 
     @Override
     public Browser connect(String wsEndpoint, ConnectOptions options) {
-        webSocketConnection.createAndConfigureWebSocketClient(URI.create(wsEndpoint));
+        webSocketConnection.createAndConfigureWebSocketClient(URI.create(wsEndpoint), new WebSocketDispatcher());
         try {
             webSocketConnection.connect();
         } catch (InterruptedException e) {

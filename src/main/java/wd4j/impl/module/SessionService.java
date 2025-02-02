@@ -23,28 +23,12 @@ public class SessionService implements Module {
      */
     public SessionService(WebSocketConnection webSocketConnection) throws ExecutionException, InterruptedException {
         this.webSocketConnection = webSocketConnection;
-
-        // Register for events
-        this.webSocketConnection.addEventListener(event -> onEvent(event));
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event Handlers
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-    private void onEvent(Event event) {
-        switch (event.getType()) {
-            case "session.created":
-                System.out.println("Session created: " + event.getData());
-                break;
-            case "session.deleted":
-                System.out.println("Session deleted: " + event.getData());
-                break;
-            default:
-                System.out.println("Unhandled event: " + event.getType());
-        }
-    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Commands

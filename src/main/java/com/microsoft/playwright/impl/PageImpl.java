@@ -38,7 +38,10 @@ class PageImpl implements Page {
 
     @Override
     public void onConsoleMessage(Consumer<ConsoleMessage> handler) {
-
+        // Event-Listener für Konsolennachrichten hinzufügen
+        if (handler != null) {
+            context.getBrowser().addConsoleMessageListener(handler);
+        }
     }
 
     @Override
@@ -188,7 +191,10 @@ class PageImpl implements Page {
 
     @Override
     public void onResponse(Consumer<Response> handler) {
-
+        // Event-Listener für eingehende Antworten hinzufügen
+        if (handler != null) {
+            context.getBrowser().addResponseListener(handler);
+        }
     }
 
     @Override
