@@ -10,4 +10,5 @@ public interface Dispatcher {
 
     <T> void addEventListener(String eventType, Consumer<T> listener, Class<T> eventTypeClass);
 
+    <T> void removeEventListener(String eventType, Consumer<T> listener);
 }

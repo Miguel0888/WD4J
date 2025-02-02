@@ -1,15 +1,12 @@
 package wd4j.impl;
 
 import wd4j.impl.support.BrowserSession;
-import wd4j.impl.support.WebSocketDispatcher;
 import wd4j.impl.module.BrowserService;
 import wd4j.impl.module.BrowsingContextService;
 import wd4j.impl.module.SessionService;
-import wd4j.impl.module.event.NetworkEvent;
 import wd4j.api.*;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -27,7 +24,6 @@ public class BrowserImpl implements Browser {
 
     private BrowserSession session;
     private String defaultContextId;
-    private WebSocketDispatcher webSocketDispatcher; // Event System
 
     public BrowserImpl(BrowserTypeImpl browserType) throws ExecutionException, InterruptedException {
         WebSocketImpl webSocketImpl = browserType.getWebSocketConnection();

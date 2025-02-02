@@ -208,7 +208,13 @@ public class WebSocketImpl implements WebSocket {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public <T> void addEventListener(String eventName, Consumer<T> handler, Class<T> eventClass) {
+        dispatcher.addEventListener(eventName, handler, eventClass);
+    }
 
+    public <T> void removeEventListener(String eventType, Consumer<T> listener) {
+        dispatcher.removeEventListener(eventType, listener);
+    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Overridden methods

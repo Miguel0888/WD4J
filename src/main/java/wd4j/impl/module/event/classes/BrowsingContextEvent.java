@@ -1,4 +1,4 @@
-package wd4j.impl.module.event;
+package wd4j.impl.module.event.classes;
 
 import com.google.gson.JsonObject;
 import wd4j.core.generic.Event;

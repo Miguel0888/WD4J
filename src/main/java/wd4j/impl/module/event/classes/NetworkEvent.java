@@ -1,6 +1,6 @@
-package wd4j.impl.module.event;
+package wd4j.impl.module.event.classes;
 
-public class LogEvent {
+public class NetworkEvent {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Events (Classes)

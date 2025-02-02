@@ -1,6 +1,6 @@
-package wd4j.impl.module.event;
+package wd4j.impl.module.event.classes;
 
-public class BrowserEvents {
+public class ScriptEvent {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Events (Classes)
@@ -8,4 +8,3 @@ public class BrowserEvents {
 
 
 }
-

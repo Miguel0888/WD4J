@@ -3,7 +3,6 @@ package wd4j.impl;
 import wd4j.api.Browser;
 import wd4j.api.BrowserContext;
 import wd4j.api.BrowserType;
-import wd4j.impl.support.WebSocketDispatcher;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;

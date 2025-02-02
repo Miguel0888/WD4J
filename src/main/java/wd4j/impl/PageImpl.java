@@ -1,8 +1,6 @@
 package wd4j.impl;
 
-import wd4j.impl.support.WebSocketDispatcher;
 import wd4j.impl.module.BrowsingContextService;
-import wd4j.impl.module.SessionService;
 import wd4j.api.*;
 import wd4j.api.options.*;
 
@@ -18,9 +16,9 @@ import java.util.regex.Pattern;
 class PageImpl implements Page {
     private final BrowserContextImpl context;
     private final BrowsingContextService browsingContextService;
-    private final SessionService sessionService;
     private boolean isClosed;
     private String url;
+    private WebSocketImpl webSocketImpl;
 
     public PageImpl(BrowserContextImpl context) {
         this.context = context;
@@ -28,45 +26,8 @@ class PageImpl implements Page {
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        // Registriere alle relevanten WebDriver BiDi Events
-        this.sessionService = context.getBrowser().getSessionService();
-//        registerWebDriverBiDiEvents();
+        webSocketImpl = ((BrowserTypeImpl) context.getBrowser().browserType()).getWebSocketConnection();
     }
-
-//    private void registerWebDriverBiDiEvents() {
-//        dispatcher.addEventListener("browsingContext.domContentLoaded", this::handleDOMContentLoaded, JsonObject.class);
-//        dispatcher.addEventListener("browsingContext.load", this::handleLoad, JsonObject.class);
-//        dispatcher.addEventListener("browsingContext.download", this::handleDownload, JsonObject.class);
-//        dispatcher.addEventListener("network.request", this::handleRequest, JsonObject.class);
-//        dispatcher.addEventListener("network.response", this::handleResponse, JsonObject.class);
-//        dispatcher.addEventListener("log.entryAdded", this::handleConsoleMessage, JsonObject.class);
-//    }
-//
-//    private void handleDOMContentLoaded(JsonObject event) {
-//        System.out.println("DOMContentLoaded event received: " + event);
-//    }
-//
-//    private void handleLoad(JsonObject event) {
-//        System.out.println("Load event received: " + event);
-//    }
-//
-//    private void handleDownload(JsonObject event) {
-//        System.out.println("Download event received: " + event);
-//    }
-//
-//    private void handleRequest(JsonObject event) {
-//        System.out.println("Request event received: " + event);
-//    }
-//
-//    private void handleResponse(JsonObject event) {
-//        System.out.println("Response event received: " + event);
-//    }
-//
-//    private void handleConsoleMessage(JsonObject event) {
-//        System.out.println("Console message event received: " + event);
-//    }
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
     public void onClose(Consumer<Page> handler) {
@@ -201,42 +162,58 @@ class PageImpl implements Page {
 
     @Override
     public void onRequest(Consumer<Request> handler) {
-
+        if (handler != null) {
+            webSocketImpl.addEventListener("network.beforeRequestSent", handler, Request.class);
+        }
     }
 
     @Override
     public void offRequest(Consumer<Request> handler) {
-
+        if (handler != null) {
+            webSocketImpl.removeEventListener("network.beforeRequestSent", handler);
+        }
     }
 
     @Override
     public void onRequestFailed(Consumer<Request> handler) {
-
+        if (handler != null) {
+            webSocketImpl.addEventListener("network.requestFailed", handler, Request.class);
+        }
     }
 
     @Override
     public void offRequestFailed(Consumer<Request> handler) {
-
+        if (handler != null) {
+            webSocketImpl.removeEventListener("network.requestFailed", handler);
+        }
     }
 
     @Override
     public void onRequestFinished(Consumer<Request> handler) {
-
+        if (handler != null) {
+            webSocketImpl.addEventListener("network.responseCompleted", handler, Request.class);
+        }
     }
 
     @Override
     public void offRequestFinished(Consumer<Request> handler) {
-
+        if (handler != null) {
+            webSocketImpl.removeEventListener("network.responseCompleted", handler);
+        }
     }
 
     @Override
     public void onResponse(Consumer<Response> handler) {
-
+        if (handler != null) {
+            webSocketImpl.addEventListener("network.responseStarted", handler, Response.class);
+        }
     }
 
     @Override
     public void offResponse(Consumer<Response> handler) {
-
+        if (handler != null) {
+            webSocketImpl.removeEventListener("network.responseStarted", handler);
+        }
     }
 
     @Override
