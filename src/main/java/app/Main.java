@@ -1,7 +1,5 @@
 package app;
 
-
-
 import app.controller.MainController;
 
 import javax.imageio.ImageIO;
@@ -14,6 +12,8 @@ import java.util.Base64;
 public class Main {
     private static String lastProfilePath;
     private static JLabel imageContainer; // Bildcontainer für Screenshots
+    private static JTextArea eventLog; // Textfeld für Events
+    private static JButton playButton, pauseButton; // Play/Pause Buttons
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Main::createAndShowGUI);
@@ -25,48 +25,35 @@ public class Main {
         JFrame frame = new JFrame("Web Testing Dashboard");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        // Toolbar für die erste Zeile
+        // Erste Toolbar (Browser-Steuerung)
         JToolBar browserToolBar = new JToolBar();
         browserToolBar.setFloatable(false);
 
-        // Port-Eingabe
-        JTextField portField = new JTextField("9222", 5); // Standardport: 9222
-
-        // Checkbox zur Steuerung der Profilverwendung
-        JCheckBox useProfileCheckbox = new JCheckBox("", true); // Standardmäßig aktiviert
-        // ProfilePath-Eingabe
+        JTextField portField = new JTextField("9222", 5);
+        JCheckBox useProfileCheckbox = new JCheckBox("", true);
         JTextField profilePathField = new JTextField("C:\\BrowserProfile", 15);
-        // Synchronisierung des Status der Checkbox und der Textbox
         useProfileCheckbox.addActionListener(e -> {
             boolean isSelected = useProfileCheckbox.isSelected();
-            profilePathField.setEnabled(isSelected); // Textbox aktivieren/deaktivieren
+            profilePathField.setEnabled(isSelected);
             if (!isSelected) {
-                lastProfilePath = profilePathField.getText(); // Letzten Profilpfad speichern
-                profilePathField.setText(null); // Textbox-Inhalt auf null setzen
+                lastProfilePath = profilePathField.getText();
+                profilePathField.setText(null);
             } else {
-                profilePathField.setText(lastProfilePath); // Letzten Profilpfad wiederherstellen
+                profilePathField.setText(lastProfilePath);
             }
         });
 
-        // Checkboxen für Optionen
         JCheckBox headlessCheckbox = new JCheckBox("Headless");
         JCheckBox disableGpuCheckbox = new JCheckBox("Disable GPU");
         JCheckBox noRemoteCheckbox = new JCheckBox("No Remote");
 
-        // Dropdown für Browserauswahl
-        JComboBox<String> browserSelector = new JComboBox<>(
-                new String[]{"Firefox", "Chrome", "Edge", "Safari"}
-        );
+        JComboBox<String> browserSelector = new JComboBox<>(new String[]{"Firefox", "Chrome", "Edge", "Safari"});
 
-        // Buttons für Browsersteuerung
         JButton launchButton = new JButton("Launch Browser");
         JButton terminateButton = new JButton("Terminate Browser");
-
-        // Kamera-Button (📷)
-        JButton screenshotButton = new JButton("\uD83D\uDCF8"); // Unicode Kamera-Symbol
+        JButton screenshotButton = new JButton("\uD83D\uDCF8"); // Kamera-Symbol
         screenshotButton.setToolTipText("Take Screenshot");
 
-        // Erste Zeile der Toolbar
         browserToolBar.add(new JLabel("Browser:"));
         browserToolBar.add(browserSelector);
         browserToolBar.add(new JLabel("Port:"));
@@ -79,38 +66,59 @@ public class Main {
         browserToolBar.add(noRemoteCheckbox);
         browserToolBar.add(launchButton);
         browserToolBar.add(terminateButton);
-        browserToolBar.add(screenshotButton); // Kamera-Button rechts hinzufügen
+        browserToolBar.add(screenshotButton);
 
-        // Toolbar für Navigation (zweite Zeile)
+        // Zweite Toolbar (Navigation)
         JToolBar navigationToolBar = new JToolBar();
         navigationToolBar.setFloatable(false);
 
-        // Adresszeile und Navigations-Button
         JTextField addressBar = new JTextField("https://www.google.com", 30);
         JButton navigateButton = new JButton("Navigate");
 
-        // Zweite Zeile zusammenstellen
         navigationToolBar.add(new JLabel("URL:"));
         navigationToolBar.add(addressBar);
         navigationToolBar.add(navigateButton);
 
-        // Layout
+        // Dritte Toolbar (Event-Steuerung)
+        JToolBar eventToolBar = new JToolBar();
+        eventToolBar.setFloatable(false);
+
+        playButton = new JButton("▶️"); // Play-Symbol
+        pauseButton = new JButton("⏸️"); // Pause-Symbol
+        playButton.setToolTipText("Start event logging");
+        pauseButton.setToolTipText("Pause event logging");
+
+        eventToolBar.add(playButton);
+        eventToolBar.add(pauseButton);
+
+        // Toolbar-Panel mit drei Zeilen
         JPanel toolBarPanel = new JPanel();
-        toolBarPanel.setLayout(new GridLayout(2, 1)); // Zwei Zeilen
+        toolBarPanel.setLayout(new GridLayout(3, 1));
         toolBarPanel.add(browserToolBar);
         toolBarPanel.add(navigationToolBar);
+        toolBarPanel.add(eventToolBar);
 
-        // Bildcontainer für Screenshot unten im Fenster
+        // Tabs für Events & Screenshots
+        JTabbedPane tabbedPane = new JTabbedPane();
+
+        // Panel für Events
+        eventLog = new JTextArea();
+        eventLog.setEditable(false);
+        JScrollPane eventScrollPane = new JScrollPane(eventLog);
+        tabbedPane.addTab("Events", eventScrollPane);
+
+        // Panel für Screenshots
         imageContainer = new JLabel();
         imageContainer.setHorizontalAlignment(SwingConstants.CENTER);
         imageContainer.setVerticalAlignment(SwingConstants.CENTER);
         JScrollPane imageScrollPane = new JScrollPane(imageContainer);
         imageScrollPane.setPreferredSize(new Dimension(1024, 400));
+        tabbedPane.addTab("Screenshots", imageScrollPane);
 
         // Hauptlayout
         frame.setLayout(new BorderLayout());
         frame.add(toolBarPanel, BorderLayout.NORTH);
-        frame.add(imageScrollPane, BorderLayout.CENTER); // Bildcontainer hinzufügen
+        frame.add(tabbedPane, BorderLayout.CENTER);
 
         frame.setSize(1024, 768);
         frame.setLocationRelativeTo(null);
@@ -127,31 +135,24 @@ public class Main {
                 launchButton,
                 terminateButton,
                 navigateButton,
-                addressBar
+                addressBar,
+                eventLog
         );
 
-        // Event für Screenshot-Button
         screenshotButton.addActionListener(e -> captureScreenshot(controller));
 
-        // Browser schließen beim Beenden
+        playButton.addActionListener(e -> controller.startLogging());
+        pauseButton.addActionListener(e -> controller.stopLogging());
+
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent windowEvent) {
                 controller.onCloseBrowser();
             }
         });
-
-
-        // ToDo: Implement this additional features (optional, not part of playwright, except of the headless mode)
-        // Disable als UI-Options
-        useProfileCheckbox.setEnabled(false);
-        profilePathField.setEnabled(false);
-        headlessCheckbox.setEnabled(false);
-        disableGpuCheckbox.setEnabled(false);
-        noRemoteCheckbox.setEnabled(false);
     }
 
     /**
-     * Nimmt einen Screenshot auf und zeigt ihn in der GUI an.
+     * Speichert einen Screenshot im "Screenshots"-Tab.
      */
     private static void captureScreenshot(MainController controller) {
         try {
@@ -161,10 +162,9 @@ public class Main {
                 return;
             }
 
-            // Base64 in Bild umwandeln
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageData));
             if (image != null) {
-                imageContainer.setIcon(new ImageIcon(image)); // Bild im Label setzen
+                imageContainer.setIcon(new ImageIcon(image));
                 imageContainer.revalidate();
                 imageContainer.repaint();
             } else {

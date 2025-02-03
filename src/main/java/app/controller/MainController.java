@@ -10,6 +10,9 @@ public class MainController {
     private BrowserContext browserContext;
     private Page page;
 
+    private JTextArea eventLog;
+    private boolean loggingActive = false; // Status für Play/Pause
+
     // Browser schließen
     public void onCloseBrowser() {
         if (browser != null) {
@@ -29,8 +32,11 @@ public class MainController {
             JButton launchButton,
             JButton terminateButton,
             JButton navigateButton,
-            JTextField addressBar
-    ) {
+            JTextField addressBar,
+            JTextArea eventLog) {
+
+        this.eventLog = eventLog; // Speichern des Event-Log-Felds
+
         // Browser starten
         launchButton.addActionListener(e -> {
             String selectedBrowser = (String) browserSelector.getSelectedItem();
@@ -116,4 +122,66 @@ public class MainController {
     public byte[] captureScreenshot() {
         return page.screenshot();
     }
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Aktiviert das Event-Logging
+     */
+    public void startLogging() {
+        if (page == null) {
+            JOptionPane.showMessageDialog(null, "Browser ist nicht gestartet.");
+            return;
+        }
+
+        if (!loggingActive) {
+            loggingActive = true;
+            logEvent("📢 Event-Logging gestartet...");
+
+            // Event: Console message ✅
+            page.onConsoleMessage(msg -> logEvent("Console: " + msg.text()));
+
+            // Event: Response received ✅
+            page.onResponse(response -> logEvent("Response: " + response.url()));
+
+            // Event: Page loaded ✅
+            page.onLoad(p -> logEvent("Page loaded!"));
+
+//            // Event: Klick auf ein Element ✅
+//            page.onClick(event -> logEvent("Click on: " + event.target()));
+//
+//            // Event: Tastatureingabe ✅
+//            page.onKeyPress(event -> logEvent("Key Pressed: " + event.key()));
+        }
+    }
+
+    /**
+     * Deaktiviert das Event-Logging
+     */
+    public void stopLogging() {
+        if (page == null) {
+            JOptionPane.showMessageDialog(null, "Browser ist nicht gestartet.");
+            return;
+        }
+
+        if (loggingActive) {
+            loggingActive = false;
+            logEvent("⏹️ Event-Logging gestoppt.");
+
+            // Event-Listener entfernen
+//            page.offConsoleMessage();
+//            page.offResponse();
+//            page.offLoad();
+//            page.offClick();
+//            page.offKeyPress();
+        }
+    }
+
+    /**
+     * Fügt eine Nachricht zum Event-Log hinzu.
+     */
+    private void logEvent(String message) {
+        SwingUtilities.invokeLater(() -> eventLog.append(message + "\n"));
+    }
+
 }
