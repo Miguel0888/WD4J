@@ -18,6 +18,9 @@ import java.util.regex.Pattern;
  *  Differs from the W3C BrowsingContext Module in that it includes the Session Module. (The reason for this may be that
  *  the Chromium DevTools Protocol has a different understanding of what a Context and what a Session is.)
  *  See: https://playwright.dev/java/docs/api/class-browsercontext
+ *
+ *  Probably, the BrowserContext (PlayWright term) is the Session (corresponding W3C term)
+ *  and the Page (PlayWright term) is the Context (corresponding W3C term).
  */
 public class BrowserContextImpl implements BrowserContext {
     private final BrowsingContextService browsingContextService;
