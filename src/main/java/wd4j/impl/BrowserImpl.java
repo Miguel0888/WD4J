@@ -28,8 +28,8 @@ public class BrowserImpl implements Browser {
     private StorageService storageService;
     private WebExtensionService webExtensionService;
 
-    public BrowserImpl(BrowserTypeImpl browserType) throws ExecutionException, InterruptedException {
-        webSocketImpl = browserType.getWebSocketConnection();
+    public BrowserImpl(BrowserTypeImpl browserType, WebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
+        this.webSocketImpl = webSocketImpl;
         this.browserService = new BrowserService(webSocketImpl);
         this.sessionService = new SessionService(webSocketImpl);
         this.browsingContextService = new BrowsingContextService(webSocketImpl);
@@ -59,6 +59,18 @@ public class BrowserImpl implements Browser {
     }
 
     ///////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Required for the WebSocket connection
+     * <p>
+     * ToDo: Should we pass WebSocketConnection to a service? (BrowserType offers connect() -> where to move it?)
+     *  e.g. the BrowserService?
+     *
+     * @return
+     */
+    public WebSocketImpl getWebSocketConnection() {
+        return webSocketImpl;
+    }
 
     private String initSession() throws ExecutionException, InterruptedException {
         String defaultContextId = null;
@@ -104,7 +116,7 @@ public class BrowserImpl implements Browser {
 
     @Override
     public boolean isConnected() {
-        return browserType.getWebSocketConnection().isConnected();
+        return webSocketImpl.isConnected();
     }
 
     @Override

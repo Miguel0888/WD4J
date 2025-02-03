@@ -25,7 +25,9 @@ public class BrowserTypeImpl implements BrowserType {
     /// Fields
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    // ToDo: The WebSocketImpl Field should move to BrowserImpl via Constructor, save it locally only
     private final WebSocketImpl webSocketImpl;
+
     final String[] devToolsUrl = {null};
     private Process process;
 
@@ -47,7 +49,7 @@ public class BrowserTypeImpl implements BrowserType {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public BrowserTypeImpl(WebSocketImpl webSocketImpl, String name, String browserPath, String profilePath, String webSocketEndpoint, boolean headless, boolean noRemote, boolean disableGpu, boolean startMaximized) {
-        this.webSocketImpl = webSocketImpl;
+        this.webSocketImpl = webSocketImpl; // ToDo: Remove this field somehow, it should be part of the BrowserImpl only!
         this.name = name;
         this.browserPath = browserPath;
         this.profilePath = profilePath;
@@ -127,7 +129,7 @@ public class BrowserTypeImpl implements BrowserType {
         }
 
         try {
-            return new BrowserImpl(this);
+            return new BrowserImpl(this, webSocketImpl);
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         } catch (InterruptedException e) {
@@ -211,18 +213,6 @@ public class BrowserTypeImpl implements BrowserType {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-    /**
-     * Required for the WebSocket connection
-     *
-     * ToDo: Should we pass WebSocketConnection to a service? (BrowserType offers connect() -> where to move it?)
-     *  e.g. the BrowserService?
-     *
-     * @return
-     */
-    public WebSocketImpl getWebSocketConnection() {
-        return webSocketImpl;
-    }
 
     /////
 

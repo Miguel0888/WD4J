@@ -36,7 +36,7 @@ class PageImpl implements Page {
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        webSocketImpl = ((BrowserTypeImpl) context.getBrowser().browserType()).getWebSocketConnection();
+        webSocketImpl = ((BrowserImpl) context.getBrowser()).getWebSocketConnection();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

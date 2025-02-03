@@ -29,7 +29,7 @@ public class BrowserSession {
         this.browsingContextService = browser.getBrowsingContextService();
 
         // Create a new session
-        WebSocketImpl webSocketImpl = ((BrowserTypeImpl) browser.browserType()).getWebSocketConnection();
+        WebSocketImpl webSocketImpl = browser.getWebSocketConnection();
         sessionService = new SessionService(webSocketImpl);
 
         try {
