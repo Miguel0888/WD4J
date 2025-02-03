@@ -21,8 +21,11 @@ import java.util.regex.Pattern;
  *
  *  Probably, the BrowserContext (PlayWright term) is the Session (corresponding W3C term)
  *  and the Page (PlayWright term) is the Context (corresponding W3C term).
+ *
+ *  => Better use the terms Session and Page to avoid confusion.
  */
-public class BrowserContextImpl implements BrowserContext {
+public class BrowserSessionImpl implements BrowserContext /* !!! WebDriverBiDi vs. CDP Terminology !!! */ {
+    //ToDo: Move support.BrowserSession Class in here..
     private final BrowsingContextService browsingContextService;
     private final BrowserImpl browser;
     private final List<PageImpl> pages;
@@ -30,7 +33,7 @@ public class BrowserContextImpl implements BrowserContext {
 
     private String contextId; // Speichert die Standard-Kontext-ID, falls vorhanden
 
-    public BrowserContextImpl(BrowserImpl browser) {
+    public BrowserSessionImpl(BrowserImpl browser) {
         // ToDo: Should we pass WebSocketConnection to a service? (BrowserType offers connect() -> where to move it?)
         browsingContextService = browser.getBrowsingContextService();
         this.browser = browser;
@@ -40,7 +43,7 @@ public class BrowserContextImpl implements BrowserContext {
         this.contextId = browsingContextService.create();
     }
 
-    public BrowserContextImpl(BrowserImpl browser, String contextId) {
+    public BrowserSessionImpl(BrowserImpl browser, String contextId) {
         // ToDo: Should we pass WebSocketConnection to a service? (BrowserType offers connect() -> where to move it?)
         browsingContextService = browser.getBrowsingContextService();
         this.browser = browser;

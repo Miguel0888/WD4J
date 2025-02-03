@@ -1,7 +1,6 @@
 package wd4j.impl;
 
 import com.google.gson.JsonObject;
-import jdk.nashorn.api.scripting.JSObject;
 import wd4j.impl.module.BrowsingContextService;
 import wd4j.api.*;
 import wd4j.api.options.*;
@@ -21,7 +20,7 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 class PageImpl implements Page {
-    private final BrowserContextImpl context;
+    private final BrowserSessionImpl context;
     private final SessionService sessionService;
     private final BrowsingContextService browsingContextService;
     private final ScriptService scriptService;
@@ -29,7 +28,7 @@ class PageImpl implements Page {
     private String url;
     private WebSocketImpl webSocketImpl;
 
-    public PageImpl(BrowserContextImpl context) {
+    public PageImpl(BrowserSessionImpl context) {
         this.context = context;
         this.sessionService = context.getBrowser().getSessionService(); // ToDo: improve this!
         this.browsingContextService = context.getBrowser().getBrowsingContextService(); // ToDo: improve this!

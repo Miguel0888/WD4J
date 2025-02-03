@@ -18,7 +18,7 @@ public class BrowserImpl implements Browser {
     private final SessionService sessionService;
     private final BrowsingContextService browsingContextService;
 
-    private final List<BrowserContextImpl> contexts = new ArrayList<>();
+    private final List<BrowserSessionImpl> contexts = new ArrayList<>();
 
     private BrowserSession session;
     private String defaultContextId;
@@ -45,7 +45,7 @@ public class BrowserImpl implements Browser {
         defaultContextId = initSession();
         if(defaultContextId != null) {
             // Default BrowsingContext zugreifbar machen
-            contexts.add(new BrowserContextImpl(this, defaultContextId));
+            contexts.add(new BrowserSessionImpl(this, defaultContextId));
             System.out.println("Default BrowsingContext ID: " + defaultContextId);
         }
         else { //Optional: Create new browser context!
@@ -115,19 +115,19 @@ public class BrowserImpl implements Browser {
     @Override
     public BrowserContext newContext(NewContextOptions options) {
         // ToDo: Use options
-        BrowserContextImpl context = new BrowserContextImpl(this);
+        BrowserSessionImpl context = new BrowserSessionImpl(this);
         contexts.add(context);
         return context;
     }
 
     @Override
     public Page newPage(NewPageOptions options) {
-        BrowserContextImpl context;
+        BrowserSessionImpl context;
         if (contexts.isEmpty()) {
-            context = new BrowserContextImpl(this);
+            context = new BrowserSessionImpl(this);
             contexts.add(context);
         } else {
-            context = (BrowserContextImpl) contexts.get(0);
+            context = (BrowserSessionImpl) contexts.get(0);
         }
         return context.newPage();
     }
