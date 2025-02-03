@@ -6,6 +6,7 @@ import wd4j.api.options.FunctionCallback;
 import wd4j.api.options.Geolocation;
 import wd4j.impl.module.BrowsingContextService;
 import wd4j.api.*;
+import wd4j.override.BrowserSession;
 
 import java.nio.file.Path;
 import java.util.*;
@@ -24,7 +25,7 @@ import java.util.regex.Pattern;
  *
  *  => Better use the terms Session and Page to avoid confusion.
  */
-public class BrowserSessionImpl implements BrowserContext /* !!! WebDriverBiDi vs. CDP Terminology !!! */ {
+public class BrowserSessionImpl implements BrowserSession {
     //ToDo: Move support.BrowserSession Class in here..
     private final BrowsingContextService browsingContextService;
     private final BrowserImpl browser;
