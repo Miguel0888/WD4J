@@ -149,6 +149,15 @@ public class Main {
                 controller.onCloseBrowser();
             }
         });
+
+
+        // ToDo: Implement this additional features (optional, not part of playwright, except of the headless mode)
+        // Disable als UI-Options
+        useProfileCheckbox.setEnabled(false);
+        profilePathField.setEnabled(false);
+        headlessCheckbox.setEnabled(false);
+        disableGpuCheckbox.setEnabled(false);
+        noRemoteCheckbox.setEnabled(false);
     }
 
     /**
