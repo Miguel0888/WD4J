@@ -143,7 +143,7 @@ Beiträge sind willkommen! Wenn du helfen möchtest:
 Dieses Projekt steht unter der **MIT-Lizenz**. Bitte beachten Sie, dass die verwendete PlayWright API ggf. unter einer anderen Lizenz steht. Dies bezieht sich lediglich auf die Interfaces (api package), die Implementierungs-Klassen (impl package) wurden hingegen vollkommen neu geschrieben!
 
 # ToDos:
-## Aufzeichnung aller für automatisierter Tests relevaner Events ermöglichen
+## Aufzeichnung aller für automatisierter Tests relevaner Events ermöglichen (ist die Liste vollständig?)
 
 | Event-Kategorie        | WebDriver BiDi Event                          | Bedeutung                          |
 |------------------------|----------------------------------------------|------------------------------------|
@@ -161,6 +161,25 @@ Dieses Projekt steht unter der **MIT-Lizenz**. Bitte beachten Sie, dass die verw
 | Kontextmenü         | `input.userInteraction (type=contextMenu)`     | Rechtsklick erkannt               |
 | Element-Fokus       | `input.userInteraction (type=focus)`           | Element wurde fokussiert          |
 | Element-Blurring    | `input.userInteraction (type=blur)`            | Fokus wurde entfernt              |
+
+## Mapping der WebDriver BiDi Events auf die PlayWright-API
+| WebDriver BiDi Event                          | Playwright-Eventhandler                         | Playwright-Alternative                        |
+|----------------------------------------------|-----------------------------------------------|----------------------------------------------|
+| `browsingContext.navigate`                    | `page.on("framenavigated", event -> {})`      | `page.on("domcontentloaded", event -> {})`  |
+| `browsingContext.domContentLoaded`            | `page.on("domcontentloaded", event -> {})`    | Automatisch in `goto()` enthalten           |
+| `browsingContext.load`                         | `page.on("load", event -> {})`                | `page.waitForLoadState("load")`             |
+| `input.userInteraction (type=pointerDown)`     | `page.on("mousedown", event -> {})`           | `page.on("click", event -> {})`             |
+| `input.userInteraction (type=pointerUp)`       | `page.on("mouseup", event -> {})`             | `page.on("click", event -> {})`             |
+| `input.userInteraction (type=pointerMove)`     | ❌ (Kein direkter Eventhandler)               | `page.mouse().move(x, y)` nur für Simulation |
+| `input.userInteraction (type=keyDown)`         | `page.keyboard().on("keydown", event -> {})`  | `page.on("keydown", event -> {})`           |
+| `input.userInteraction (type=keyUp)`           | `page.keyboard().on("keyup", event -> {})`    | `page.on("keyup", event -> {})`             |
+| `input.userInteraction (type=input)`           | `page.on("input", event -> {})`               | `page.fill(selector, value)`                |
+| `input.userInteraction (type=change)`          | `page.on("change", event -> {})`              | `page.on("input", event -> {})`             |
+| `input.userInteraction (type=wheel)`           | ❌ (Kein direkter Eventhandler)               | `page.mouse().wheel(dx, dy)` für Simulation |
+| `input.userInteraction (type=contextMenu)`     | `page.on("contextmenu", event -> {})`         | `page.mouse().click(x, y, button="right")`  |
+| `input.userInteraction (type=focus)`           | `page.on("focus", event -> {})`               | `page.locator(selector).focus()`            |
+| `input.userInteraction (type=blur)`            | `page.on("blur", event -> {})`                | `page.locator(selector).blur()`             |
+
 
 ## Implementierung des Event-Recordings
 
