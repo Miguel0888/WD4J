@@ -142,3 +142,30 @@ Beiträge sind willkommen! Wenn du helfen möchtest:
 
 Dieses Projekt steht unter der **MIT-Lizenz**. Bitte beachten Sie, dass die verwendete PlayWright API ggf. unter einer anderen Lizenz steht. Dies bezieht sich lediglich auf die Interfaces (api package), die Implementierungs-Klassen (impl package) wurden hingegen vollkommen neu geschrieben!
 
+# ToDos:
+## Aufzeichnung aller für automatisierter Tests relevaner Events ermöglichen
+
+| Event-Kategorie        | WebDriver BiDi Event                          | Bedeutung                          |
+|------------------------|----------------------------------------------|------------------------------------|
+| Navigation            | `browsingContext.navigate`                    | Navigiert zu einer URL            |
+| Seitenwechsel        | `browsingContext.domContentLoaded`            | DOM der Seite wurde geladen       |
+| Seitenwechsel        | `browsingContext.load`                         | Seite vollständig geladen         |
+| Mausklicks           | `input.userInteraction (type=pointerDown)`     | Benutzer hat geklickt            |
+| Mausklicks           | `input.userInteraction (type=pointerUp)`       | Klick losgelassen                 |
+| Mausbewegung         | `input.userInteraction (type=pointerMove)`     | Mausbewegung über Element         |
+| Tastatureingaben     | `input.userInteraction (type=keyDown)`         | Taste wurde gedrückt              |
+| Tastatureingaben     | `input.userInteraction (type=keyUp)`           | Taste wurde losgelassen           |
+| Formularinteraktion  | `input.userInteraction (type=input)`           | Eingabe in ein Formularfeld       |
+| Formularinteraktion  | `input.userInteraction (type=change)`          | Wert einer Eingabe hat sich geändert |
+| Scrollen            | `input.userInteraction (type=wheel)`           | Scroll-Event                      |
+| Kontextmenü         | `input.userInteraction (type=contextMenu)`     | Rechtsklick erkannt               |
+| Element-Fokus       | `input.userInteraction (type=focus)`           | Element wurde fokussiert          |
+| Element-Blurring    | `input.userInteraction (type=blur)`            | Fokus wurde entfernt              |
+
+## Implementierung des Event-Recordings
+
+## Umwandlung in PlayWright-Befehle (Java Code) ??
+
+## Abspielen des Codes ermöglichen, indem alle notwendigen API-Funktionen implementiert sind
+
+## Laden des Test Codes aus einer externen Datei als Plugin (Java ServiceLoader)
