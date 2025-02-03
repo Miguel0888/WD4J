@@ -69,11 +69,11 @@ public class MainController {
 //                    });
 
                     // Event: Page loaded ✅
-                    page.onLoad(p -> {
-                        JOptionPane.showMessageDialog(null, "Page loaded!\n");
-                    });
+//                    page.onLoad(p -> {
+//                        JOptionPane.showMessageDialog(null, "Page loaded!\n");
+//                    });
 
-//                    String pageContent = page.content();
+
 
 
                     ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,5 +111,9 @@ public class MainController {
                 JOptionPane.showMessageDialog(null, "Bitte eine gültige URL eingeben.");
             }
         });
+    }
+
+    public byte[] captureScreenshot() {
+        return page.screenshot();
     }
 }

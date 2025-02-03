@@ -624,7 +624,12 @@ class PageImpl implements Page {
 
     @Override
     public Locator locator(String selector, LocatorOptions options) {
-        return null;
+        // ToDo: Implementierung verbessern
+        // XPath-Selektoren beginnen mit "xpath=", CSS-Selektoren mit "css="
+        if (selector.startsWith("xpath=")) {
+            return new LocatorImpl(selector);
+        }
+        return new LocatorImpl("css=" + selector);
     }
 
     @Override

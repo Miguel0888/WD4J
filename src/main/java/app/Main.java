@@ -4,11 +4,16 @@ package app;
 
 import app.controller.MainController;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.util.Base64;
 
 public class Main {
     private static String lastProfilePath;
+    private static JLabel imageContainer; // Bildcontainer für Screenshots
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Main::createAndShowGUI);
@@ -38,8 +43,7 @@ public class Main {
             if (!isSelected) {
                 lastProfilePath = profilePathField.getText(); // Letzten Profilpfad speichern
                 profilePathField.setText(null); // Textbox-Inhalt auf null setzen
-            }
-            else {
+            } else {
                 profilePathField.setText(lastProfilePath); // Letzten Profilpfad wiederherstellen
             }
         });
@@ -58,7 +62,11 @@ public class Main {
         JButton launchButton = new JButton("Launch Browser");
         JButton terminateButton = new JButton("Terminate Browser");
 
-        // Erste Zeile zusammenstellen
+        // Kamera-Button (📷)
+        JButton screenshotButton = new JButton("\uD83D\uDCF8"); // Unicode Kamera-Symbol
+        screenshotButton.setToolTipText("Take Screenshot");
+
+        // Erste Zeile der Toolbar
         browserToolBar.add(new JLabel("Browser:"));
         browserToolBar.add(browserSelector);
         browserToolBar.add(new JLabel("Port:"));
@@ -71,8 +79,9 @@ public class Main {
         browserToolBar.add(noRemoteCheckbox);
         browserToolBar.add(launchButton);
         browserToolBar.add(terminateButton);
+        browserToolBar.add(screenshotButton); // Kamera-Button rechts hinzufügen
 
-        // Toolbar für die zweite Zeile
+        // Toolbar für Navigation (zweite Zeile)
         JToolBar navigationToolBar = new JToolBar();
         navigationToolBar.setFloatable(false);
 
@@ -91,8 +100,17 @@ public class Main {
         toolBarPanel.add(browserToolBar);
         toolBarPanel.add(navigationToolBar);
 
+        // Bildcontainer für Screenshot unten im Fenster
+        imageContainer = new JLabel();
+        imageContainer.setHorizontalAlignment(SwingConstants.CENTER);
+        imageContainer.setVerticalAlignment(SwingConstants.CENTER);
+        JScrollPane imageScrollPane = new JScrollPane(imageContainer);
+        imageScrollPane.setPreferredSize(new Dimension(1024, 400));
+
+        // Hauptlayout
         frame.setLayout(new BorderLayout());
         frame.add(toolBarPanel, BorderLayout.NORTH);
+        frame.add(imageScrollPane, BorderLayout.CENTER); // Bildcontainer hinzufügen
 
         frame.setSize(1024, 768);
         frame.setLocationRelativeTo(null);
@@ -112,7 +130,10 @@ public class Main {
                 addressBar
         );
 
-        // Close Browser on Exit
+        // Event für Screenshot-Button
+        screenshotButton.addActionListener(e -> captureScreenshot(controller));
+
+        // Browser schließen beim Beenden
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent windowEvent) {
                 controller.onCloseBrowser();
@@ -127,8 +148,31 @@ public class Main {
         headlessCheckbox.setEnabled(false);
         disableGpuCheckbox.setEnabled(false);
         noRemoteCheckbox.setEnabled(false);
-
     }
 
+    /**
+     * Nimmt einen Screenshot auf und zeigt ihn in der GUI an.
+     */
+    private static void captureScreenshot(MainController controller) {
+        try {
+            byte[] imageData = controller.captureScreenshot();
+            if (imageData == null || imageData.length == 0) {
+                JOptionPane.showMessageDialog(null, "Screenshot failed!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
+            // Base64 in Bild umwandeln
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageData));
+            if (image != null) {
+                imageContainer.setIcon(new ImageIcon(image)); // Bild im Label setzen
+                imageContainer.revalidate();
+                imageContainer.repaint();
+            } else {
+                JOptionPane.showMessageDialog(null, "Screenshot data invalid!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Error taking screenshot: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
 }
