@@ -134,6 +134,8 @@ public class MainController {
             return;
         }
 
+
+
         if (!loggingActive) {
             loggingActive = true;
             logEvent("📢 Event-Logging gestartet...");

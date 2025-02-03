@@ -40,6 +40,8 @@ public class BrowserImpl implements Browser {
         this.browserType = browserType;
         this.options = null;
 
+        // ToDo: Move the Session (initSession) to the BrowserContextImpl,
+        //  see: https://playwright.dev/java/docs/api/class-browsercontext
         defaultContextId = initSession();
         if(defaultContextId != null) {
             // Default BrowsingContext zugreifbar machen
