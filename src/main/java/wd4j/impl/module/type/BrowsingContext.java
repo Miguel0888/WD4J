@@ -1,16 +1,16 @@
 package wd4j.impl.module.type;
 
 public class BrowsingContext {
-    private final String id;
+    private final String contextId;
 
-    public BrowsingContext(String id) {
-        if (id == null || id.isEmpty()) {
-            throw new IllegalArgumentException("ID must not be null or empty.");
+    public BrowsingContext(String contextId) {
+        if (contextId == null || contextId.isEmpty()) {
+            throw new IllegalArgumentException("Context ID must not be null or empty.");
         }
-        this.id = id;
+        this.contextId = contextId;
     }
 
-    public String getId() {
-        return id;
+    public String getContextId() {
+        return contextId;
     }
 }

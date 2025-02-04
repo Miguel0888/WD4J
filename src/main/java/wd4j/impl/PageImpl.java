@@ -1,11 +1,14 @@
 package wd4j.impl;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import wd4j.impl.module.BrowsingContextService;
 import wd4j.api.*;
 import wd4j.api.options.*;
 import wd4j.impl.module.ScriptService;
 import wd4j.impl.module.SessionService;
+import wd4j.impl.module.command.Script;
 import wd4j.impl.module.event.Method;
 import wd4j.impl.support.JsonToPlaywrightMapper;
 
@@ -14,6 +17,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -472,6 +476,27 @@ class PageImpl implements Page {
 
     @Override
     public Locator getByLabel(String text, GetByLabelOptions options) {
+//        // Nutze WebDriver BiDi "script.evaluate" um das Element mit aria-label oder label zu finden
+//        String script = """
+//            (parent, labelText) => {
+//                let elements = parent.querySelectorAll("input, textarea, select");
+//                return Array.from(elements).find(el =>
+//                    el.getAttribute("aria-label") === labelText ||
+//                    document.querySelector(`label[for="${el.id}"]`)?.textContent === labelText
+//                );
+//            }
+//        """;
+//
+//        CompletableFuture<WebSocketFrame> futureResponse = webSocketImpl.send(
+//                new Script.Evaluate(context.getContextId(), script, List.of(this.selector, labelText))
+//        );
+//
+//        // Den neuen Locator basierend auf dem gefundenen Element zurückgeben
+//        return futureResponse.thenApply(frame -> {
+//            JsonObject jsonResponse = new Gson().fromJson(frame.text(), JsonObject.class);
+//            JsonElement elementId = jsonResponse.get("result");
+//            return new LocatorImpl(elementId.getAsString(), context.getContextId(), webSocketImpl);
+//        }).join();
         return null;
     }
 
@@ -623,12 +648,17 @@ class PageImpl implements Page {
 
     @Override
     public Locator locator(String selector, LocatorOptions options) {
+        if (selector == null || selector.isEmpty()) {
+            throw new IllegalArgumentException("Selector must not be null or empty.");
+        }
+        return new LocatorImpl(selector, context.getContextId(), webSocketImpl);
+
         // ToDo: Implementierung verbessern
         // XPath-Selektoren beginnen mit "xpath=", CSS-Selektoren mit "css="
-        if (selector.startsWith("xpath=")) {
-            return new LocatorImpl(selector);
-        }
-        return new LocatorImpl("css=" + selector);
+//        if (selector.startsWith("xpath=")) {
+//            return new LocatorImpl(selector);
+//        }
+//        return new LocatorImpl("css=" + selector);
     }
 
     @Override

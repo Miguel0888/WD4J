@@ -10,6 +10,7 @@ import wd4j.api.options.BoundingBox;
 import wd4j.api.options.FilePayload;
 import wd4j.api.options.SelectOption;
 import wd4j.impl.module.command.BrowsingContext;
+import wd4j.impl.module.command.Script;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -21,39 +22,63 @@ import java.util.regex.Pattern;
 
 public class LocatorImpl implements Locator {
     private final String selector;
+    private final String contextId;
     private final WebSocketImpl webSocket;
 
-    public LocatorImpl(String selector) {
-        // TODO: Implement
-        this.selector = selector;
-        this.webSocket = null; // ToDo
-    }
+//    public LocatorImpl(String selector) {
+//        // TODO: Implement
+//        this.selector = selector;
+//        this.webSocket = null; // ToDo
+//    }
+//
+//    public LocatorImpl(String selector, WebSocketImpl webSocket) {
+//        this.selector = selector;
+//        this.webSocket = webSocket;
+//    }
 
-    public LocatorImpl(String selector, WebSocketImpl webSocket) {
+    public LocatorImpl(String selector, String contextId, WebSocketImpl webSocket) {
+        if (selector == null || selector.isEmpty()) {
+            throw new IllegalArgumentException("Selector must not be null or empty.");
+        }
+        if (contextId == null || contextId.isEmpty()) {
+            throw new IllegalArgumentException("Context ID must not be null or empty.");
+        }
         this.selector = selector;
+        this.contextId = contextId;
         this.webSocket = webSocket;
     }
 
     @Override
     public List<Locator> all() {
-        String contextId = "default"; // Sollte aus Page kommen
-        // ToDo: Use BrowsingContextService..
-        CompletableFuture<WebSocketFrame> futureResponse = webSocket.send(new BrowsingContext.LocateNodes(contextId, selector));
-
         try {
-            String jsonResponse = futureResponse.get(5, TimeUnit.SECONDS).toString();
+            // 1. Hole den DOM-Baum für den Kontext
+            CompletableFuture<WebSocketFrame> futureResponse = webSocket.send(new BrowsingContext.GetTree());
+            String jsonResponse = futureResponse.get(5, TimeUnit.SECONDS).text();
+            System.out.println("===>" + jsonResponse);
+
             JsonObject json = new Gson().fromJson(jsonResponse, JsonObject.class);
             JsonArray nodes = json.getAsJsonArray("nodes");
 
+            // 2. Finde Elemente mit `script.evaluate`
             List<Locator> locators = new ArrayList<>();
             for (JsonElement node : nodes) {
-                locators.add(new LocatorImpl(selector, webSocket));
+                CompletableFuture<WebSocketFrame> evalResponse = webSocket.send(new Script.Evaluate(contextId, selector));
+                String evalJsonResponse = evalResponse.get(5, TimeUnit.SECONDS).text();
+                JsonObject evalJson = new Gson().fromJson(evalJsonResponse, JsonObject.class);
+
+                if (evalJson.has("result") && !evalJson.get("result").isJsonNull()) {
+                    locators.add(new LocatorImpl(selector, contextId, webSocket));
+                }
+
+                System.out.println(" - " + node.toString());
             }
             return locators;
+
         } catch (Exception e) {
-            throw new RuntimeException("Failed to find elements: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to locate elements: " + e.getMessage(), e);
         }
     }
+
 
 
     @Override
