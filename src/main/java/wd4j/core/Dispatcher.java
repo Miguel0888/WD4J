@@ -1,6 +1,6 @@
 package wd4j.core;
 
-import wd4j.impl.module.SessionService;
+import wd4j.impl.service.SessionService;
 
 import java.util.function.Consumer;
 

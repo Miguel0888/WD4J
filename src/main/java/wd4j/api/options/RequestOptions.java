@@ -64,7 +64,7 @@ public interface RequestOptions {
       try {
         // Vollqualifizierten Klassennamen der Implementierung angeben
 //        String implementationClassName = "com.microsoft.playwright.impl.RequestOptionsImpl";
-        String implementationClassName = "wd4j.impl.RequestOptionsImpl";
+        String implementationClassName = "wd4j.impl.playwright.RequestOptionsImpl";
 
         // Klasse laden
         Class<?> clazz = Class.forName(implementationClassName);

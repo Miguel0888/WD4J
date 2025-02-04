@@ -1,8 +1,8 @@
-package wd4j.impl.module;
+package wd4j.impl.service;
 
-import wd4j.impl.WebSocketImpl;
 import wd4j.core.generic.Module;
 import wd4j.impl.module.command.Input;
+import wd4j.impl.playwright.WebSocketImpl;
 
 import java.util.List;
 

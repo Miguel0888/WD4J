@@ -1,10 +1,10 @@
-package wd4j.impl;
+package wd4j.impl.playwright;
 
 import wd4j.api.options.BindingCallback;
 import wd4j.api.options.Cookie;
 import wd4j.api.options.FunctionCallback;
 import wd4j.api.options.Geolocation;
-import wd4j.impl.module.BrowsingContextService;
+import wd4j.impl.service.BrowsingContextService;
 import wd4j.api.*;
 import wd4j.override.BrowserSession;
 

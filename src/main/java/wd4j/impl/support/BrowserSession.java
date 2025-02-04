@@ -2,11 +2,10 @@ package wd4j.impl.support;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import wd4j.impl.BrowserImpl;
-import wd4j.impl.BrowserTypeImpl;
-import wd4j.impl.WebSocketImpl;
-import wd4j.impl.module.BrowsingContextService;
-import wd4j.impl.module.SessionService;
+import wd4j.impl.playwright.BrowserImpl;
+import wd4j.impl.playwright.WebSocketImpl;
+import wd4j.impl.service.BrowsingContextService;
+import wd4j.impl.service.SessionService;
 
 import java.util.concurrent.ExecutionException;
 

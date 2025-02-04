@@ -1,6 +1,6 @@
-package wd4j.impl;
+package wd4j.impl.playwright;
 
-import wd4j.impl.module.*;
+import wd4j.impl.service.*;
 import wd4j.impl.support.BrowserSession;
 import wd4j.api.*;
 

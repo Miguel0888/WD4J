@@ -1,14 +1,11 @@
-package wd4j.impl;
+package wd4j.impl.playwright;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import wd4j.impl.module.BrowsingContextService;
+import wd4j.impl.service.BrowsingContextService;
 import wd4j.api.*;
 import wd4j.api.options.*;
-import wd4j.impl.module.ScriptService;
-import wd4j.impl.module.SessionService;
-import wd4j.impl.module.command.Script;
+import wd4j.impl.service.ScriptService;
+import wd4j.impl.service.SessionService;
 import wd4j.impl.module.event.Method;
 import wd4j.impl.support.JsonToPlaywrightMapper;
 
@@ -17,7 +14,6 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Predicate;

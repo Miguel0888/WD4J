@@ -109,7 +109,7 @@ public interface Playwright extends AutoCloseable {
     try {
         // Vollqualifizierten Klassennamen der Implementierung angeben
 //        String implementationClassName = "com.microsoft.playwright.impl.PlaywrightImpl";
-        String implementationClassName = "wd4j.impl.PlaywrightImpl";
+        String implementationClassName = "wd4j.impl.playwright.PlaywrightImpl";
 
         // Klasse laden
         Class<?> clazz = Class.forName(implementationClassName);

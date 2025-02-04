@@ -1,4 +1,4 @@
-package wd4j.impl.dto;
+package wd4j.trash.dto;
 
 import wd4j.api.ConsoleMessage;
 import wd4j.api.JSHandle;

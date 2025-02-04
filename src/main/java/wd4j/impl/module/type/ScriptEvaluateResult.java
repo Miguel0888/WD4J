@@ -1,7 +1,5 @@
 package wd4j.impl.module.type;
 
-import wd4j.impl.module.ScriptService;
-
 public class ScriptEvaluateResult {
     private final Object result;
     private final ScriptExceptionDetails exceptionDetails;

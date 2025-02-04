@@ -6,7 +6,7 @@ import wd4j.api.ConsoleMessage;
 import wd4j.api.Request;
 import wd4j.api.Response;
 import wd4j.core.Dispatcher;
-import wd4j.impl.module.SessionService;
+import wd4j.impl.service.SessionService;
 import wd4j.impl.module.event.Method;
 
 import java.util.Collections;

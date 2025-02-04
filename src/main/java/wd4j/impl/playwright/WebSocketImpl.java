@@ -1,4 +1,4 @@
-package wd4j.impl;
+package wd4j.impl.playwright;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -7,7 +7,7 @@ import org.java_websocket.handshake.ServerHandshake;
 import wd4j.api.*;
 import wd4j.core.Dispatcher;
 import wd4j.core.generic.Command;
-import wd4j.impl.module.SessionService;
+import wd4j.impl.service.SessionService;
 import wd4j.impl.support.DispatcherImpl;
 
 import java.net.URI;

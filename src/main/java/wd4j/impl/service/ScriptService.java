@@ -1,11 +1,11 @@
-package wd4j.impl.module;
+package wd4j.impl.service;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import wd4j.impl.WebSocketImpl;
 import wd4j.core.generic.Module;
 import wd4j.impl.module.command.Script;
+import wd4j.impl.playwright.WebSocketImpl;
 
 import java.util.ArrayList;
 import java.util.List;

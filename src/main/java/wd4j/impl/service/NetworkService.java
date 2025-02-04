@@ -1,8 +1,8 @@
-package wd4j.impl.module;
+package wd4j.impl.service;
 
-import wd4j.impl.WebSocketImpl;
 import wd4j.core.generic.Module;
 import wd4j.impl.module.command.Network;
+import wd4j.impl.playwright.WebSocketImpl;
 
 public class NetworkService implements Module {
 

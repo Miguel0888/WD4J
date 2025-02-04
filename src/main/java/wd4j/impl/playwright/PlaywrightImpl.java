@@ -1,4 +1,4 @@
-package wd4j.impl;
+package wd4j.impl.playwright;
 
 import wd4j.api.APIRequest;
 import wd4j.api.BrowserType;

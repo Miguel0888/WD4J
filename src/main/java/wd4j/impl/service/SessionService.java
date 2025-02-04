@@ -1,15 +1,14 @@
-package wd4j.impl.module;
+package wd4j.impl.service;
 
 import wd4j.core.CommandImpl;
-import wd4j.impl.WebSocketImpl;
 import wd4j.core.generic.Module;
 import wd4j.impl.module.command.Session;
+import wd4j.impl.playwright.WebSocketImpl;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 public class SessionService implements Module {

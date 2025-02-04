@@ -175,7 +175,7 @@ public interface FormData {
     try {
       // Vollqualifizierten Klassennamen der Implementierung angeben
 //      String implementationClassName = "com.microsoft.playwright.impl.FormDataImpl";
-      String implementationClassName = "wd4j.impl.FormDataImpl";
+      String implementationClassName = "wd4j.impl.playwright.FormDataImpl";
 
       // Klasse laden
       Class<?> clazz = Class.forName(implementationClassName);
