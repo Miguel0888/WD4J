@@ -1,10 +1,9 @@
-package wd4j.impl.module.event.classes;
+package wd4j.trash.classes;
 
 import com.google.gson.JsonObject;
-import wd4j.core.generic.Event;
 
 public class BrowsingContextEvent {
-    public static class CreatedEvent implements Event {
+    public static class CreatedEvent {
         private final JsonObject data;
         private final String type;
         private final String contextId;
@@ -30,12 +29,12 @@ public class BrowsingContextEvent {
             return "BrowsingContext.CreatedEvent{contextId=" + contextId + ", url='" + url + "'}";
         }
 
-        @Override
+//        @Override
         public String getType() {
             return type;
         }
 
-        @Override
+//        @Override
         public JsonObject getData() {
             return data;
         }

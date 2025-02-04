@@ -1,4 +1,4 @@
-package wd4j.core;
+package wd4j.impl.support;
 
 import wd4j.impl.service.SessionService;
 

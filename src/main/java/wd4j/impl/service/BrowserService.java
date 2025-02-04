@@ -3,7 +3,7 @@ package wd4j.impl.service;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import wd4j.core.generic.Module;
+import wd4j.impl.module.generic.Module;
 import wd4j.impl.module.command.Browser;
 import wd4j.impl.module.type.BrowserClientWindow;
 import wd4j.impl.module.type.BrowserClientWindowInfo;

@@ -1,6 +1,6 @@
 package wd4j.impl.service;
 
-import wd4j.core.generic.Module;
+import wd4j.impl.module.generic.Module;
 import wd4j.impl.module.command.WebExtension;
 import wd4j.impl.module.type.WebExtensionExtension;
 import wd4j.impl.playwright.WebSocketImpl;

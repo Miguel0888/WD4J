@@ -2,7 +2,7 @@ package wd4j.impl.service;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import wd4j.core.generic.Module;
+import wd4j.impl.module.generic.Module;
 import wd4j.impl.module.command.Storage;
 import wd4j.impl.playwright.WebSocketImpl;
 

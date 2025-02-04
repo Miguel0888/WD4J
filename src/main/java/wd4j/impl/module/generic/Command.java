@@ -1,4 +1,4 @@
-package wd4j.core.generic;
+package wd4j.impl.module.generic;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -8,7 +8,7 @@ import com.google.gson.JsonObject;
  *
  *
  */
-public interface Command {
+public interface Command extends Type {
 
     /** The WebDriver BiDi command name */
     String getName();

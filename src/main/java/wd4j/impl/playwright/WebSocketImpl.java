@@ -5,8 +5,8 @@ import com.google.gson.JsonObject;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import wd4j.api.*;
-import wd4j.core.Dispatcher;
-import wd4j.core.generic.Command;
+import wd4j.impl.support.Dispatcher;
+import wd4j.impl.module.generic.Command;
 import wd4j.impl.service.SessionService;
 import wd4j.impl.support.DispatcherImpl;
 

@@ -1,6 +1,6 @@
 package wd4j.core;
 
-import wd4j.core.generic.Command;
+import wd4j.impl.module.generic.Command;
 
 public class CommandImpl<T extends Command.Params> implements Command {
     private Integer id;
