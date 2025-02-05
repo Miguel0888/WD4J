@@ -1,8 +1,8 @@
 package wd4j.impl.service;
 
-import wd4j.core.CommandImpl;
-import wd4j.impl.module.generic.Module;
-import wd4j.impl.module.command.Session;
+import wd4j.impl.webdriver.command.request.CommandImpl;
+import wd4j.impl.markerInterfaces.Module;
+import wd4j.impl.webdriver.command.request.Session;
 import wd4j.impl.playwright.WebSocketImpl;
 
 import java.util.ArrayList;

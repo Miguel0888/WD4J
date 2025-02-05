@@ -9,8 +9,8 @@ import wd4j.api.options.AriaRole;
 import wd4j.api.options.BoundingBox;
 import wd4j.api.options.FilePayload;
 import wd4j.api.options.SelectOption;
-import wd4j.impl.module.command.BrowsingContext;
-import wd4j.impl.module.command.Script;
+import wd4j.impl.webdriver.command.request.BrowsingContext;
+import wd4j.impl.webdriver.command.request.Script;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -59,7 +59,7 @@ public class LocatorImpl implements Locator {
             JsonObject json = new Gson().fromJson(jsonResponse, JsonObject.class);
             JsonArray nodes = json.getAsJsonArray("nodes");
 
-            // 2. Finde Elemente mit `script.evaluate`
+            // 2. Finde Elemente mit `script.evaluate`Result Type
             List<Locator> locators = new ArrayList<>();
             for (JsonElement node : nodes) {
                 CompletableFuture<WebSocketFrame> evalResponse = webSocket.send(new Script.Evaluate(contextId, selector));

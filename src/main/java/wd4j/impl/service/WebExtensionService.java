@@ -1,13 +1,13 @@
 package wd4j.impl.service;
 
-import wd4j.impl.module.generic.Module;
-import wd4j.impl.module.command.WebExtension;
-import wd4j.impl.module.type.WebExtensionExtension;
+import wd4j.impl.markerInterfaces.Module;
+import wd4j.impl.webdriver.command.request.WebExtension;
+import wd4j.impl.webdriver.type.webExtension.Extension;
 import wd4j.impl.playwright.WebSocketImpl;
 
 public class WebExtensionService implements Module {
 
-    public WebExtensionExtension webExtensionExtension;
+    public Extension extension;
 
     private final WebSocketImpl webSocketImpl;
 

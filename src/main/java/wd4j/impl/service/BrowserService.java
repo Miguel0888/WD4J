@@ -3,12 +3,12 @@ package wd4j.impl.service;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import wd4j.impl.module.generic.Module;
-import wd4j.impl.module.command.Browser;
-import wd4j.impl.module.type.BrowserClientWindow;
-import wd4j.impl.module.type.BrowserClientWindowInfo;
-import wd4j.impl.module.type.BrowserUserContext;
-import wd4j.impl.module.type.BrowserUserContextInfo;
+import wd4j.impl.markerInterfaces.Module;
+import wd4j.impl.webdriver.command.request.Browser;
+import wd4j.impl.webdriver.type.browser.ClientWindow;
+import wd4j.impl.webdriver.type.browser.ClientWindowInfo;
+import wd4j.impl.webdriver.type.browser.UserContext;
+import wd4j.impl.webdriver.type.browser.UserContextInfo;
 import wd4j.impl.playwright.WebSocketImpl;
 
 import java.util.ArrayList;
@@ -18,10 +18,10 @@ public class BrowserService implements Module {
 
     private final WebSocketImpl webSocketImpl;
 
-    public BrowserClientWindow clientWindow;
-    public BrowserClientWindowInfo clientWindowInfo;
-    public BrowserUserContext userContext;
-    public BrowserUserContextInfo userContextInfo;
+    public ClientWindow clientWindow;
+    public ClientWindowInfo clientWindowInfo;
+    public UserContext userContext;
+    public UserContextInfo userContextInfo;
 
     public BrowserService(WebSocketImpl webSocketImpl) {
         this.webSocketImpl = webSocketImpl;

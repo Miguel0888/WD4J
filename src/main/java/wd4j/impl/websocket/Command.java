@@ -1,0 +1,47 @@
+package wd4j.impl.websocket;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import wd4j.impl.markerInterfaces.Type;
+
+/**
+ * Interface for WebDriver BiDi commands.
+ *
+ *
+ */
+public interface Command extends Type {
+
+    /** The WebDriver BiDi command name */
+    String getName();
+
+    /** Lets the WebClientConnection set the WebDriver BiDi command ID */
+    void setId(Integer id);
+
+    /** Gets WebDriver BiDi command ID, which is used to identify the command response */
+    Integer getId();
+
+    /**
+     * Converts the command to a JsonObject.
+     *
+     * @return JsonObject representation of the command
+     */
+    default JsonObject toJson() {
+        Gson gson = new Gson();
+        return gson.toJsonTree(this).getAsJsonObject();
+    }
+
+    /**
+     * Interface for command parameters.
+     */
+    interface Params {
+        /**
+         * Converts the command to a JsonObject.
+         *
+         * @return JsonObject representation of the command
+         */
+        default JsonObject toJson() {
+            Gson gson = new Gson();
+            return gson.toJsonTree(this).getAsJsonObject();
+        }
+    }
+}

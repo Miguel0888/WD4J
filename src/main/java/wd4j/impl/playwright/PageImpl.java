@@ -6,7 +6,7 @@ import wd4j.api.*;
 import wd4j.api.options.*;
 import wd4j.impl.service.ScriptService;
 import wd4j.impl.service.SessionService;
-import wd4j.impl.module.event.Method;
+import wd4j.impl.webdriver.event.Method;
 import wd4j.impl.support.JsonToPlaywrightMapper;
 
 import java.nio.file.Path;
