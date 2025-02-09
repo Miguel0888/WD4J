@@ -1,6 +1,7 @@
 package wd4j.impl.webdriver.type.network;
 
 public class AuthCredentials {
+    private final String type = "password";
     private final String username;
     private final String password;
 

@@ -1,16 +1,17 @@
 package wd4j.impl.webdriver.type.browsingContext;
 
-public class ReadinessState {
-    private final String state;
+public enum ReadinessState {
+    NONE("none"),
+    INTERACTIVE("interactive"),
+    COMPLETE("complete");
 
-    public ReadinessState(String state) {
-        if (state == null || state.isEmpty()) {
-            throw new IllegalArgumentException("State must not be null or empty.");
-        }
-        this.state = state;
+    private final String value;
+
+    ReadinessState(String value) {
+        this.value = value;
     }
 
-    public String getState() {
-        return state;
+    public String getValue() {
+        return value;
     }
 }

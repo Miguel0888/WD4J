@@ -1,16 +1,16 @@
 package wd4j.impl.webdriver.type.script;
 
 public class Handle {
-    private final String handle;
+    private final String value;
 
-    public Handle(String handle) {
-        if (handle == null || handle.isEmpty()) {
+    public Handle(String value) {
+        if (value == null || value.isEmpty()) {
             throw new IllegalArgumentException("Handle must not be null or empty.");
         }
-        this.handle = handle;
+        this.value = value;
     }
 
-    public String getHandle() {
-        return handle;
+    public String getValue() {
+        return value;
     }
 }

@@ -1,13 +1,13 @@
 package wd4j.impl.webdriver.type.network;
 
 public class Intercept {
-    private final String id;
+    private final String value;
 
-    public Intercept(String id) {
-        this.id = id;
+    public Intercept(String value) {
+        this.value = value;
     }
 
-    public String getId() {
-        return id;
+    public String getValue() {
+        return value;
     }
 }

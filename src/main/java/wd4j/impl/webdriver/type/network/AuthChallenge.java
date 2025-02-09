@@ -1,19 +1,19 @@
 package wd4j.impl.webdriver.type.network;
 
 public class AuthChallenge {
-    private final String source;
-    private final String origin;
+    private final String scheme;
+    private final String realm;
 
-    public AuthChallenge(String source, String origin) {
-        this.source = source;
-        this.origin = origin;
+    public AuthChallenge(String scheme, String realm) {
+        this.scheme = scheme;
+        this.realm = realm;
     }
 
-    public String getSource() {
-        return source;
+    public String getScheme() {
+        return scheme;
     }
 
-    public String getOrigin() {
-        return origin;
+    public String getRealm() {
+        return realm;
     }
 }

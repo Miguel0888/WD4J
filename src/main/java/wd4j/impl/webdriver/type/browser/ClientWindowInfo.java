@@ -1,25 +1,49 @@
 package wd4j.impl.webdriver.type.browser;
 
 public class ClientWindowInfo {
-    private final String id;
-    private final String state;
+    private final boolean active;
+    private final ClientWindow clientWindow;
+    private final char height;
+    private final State state;
+    private final char width;
+    private final int x;
+    private final int y;
 
-    public ClientWindowInfo(String id, String state) {
-        if (id == null || id.isEmpty()) {
-            throw new IllegalArgumentException("ID must not be null or empty.");
-        }
-        if (state == null || state.isEmpty()) {
-            throw new IllegalArgumentException("State must not be null or empty.");
-        }
-        this.id = id;
+    public ClientWindowInfo(boolean active, ClientWindow clientWindow, char height, State state, char width, int x, int y) {
+        this.active = active;
+        this.clientWindow = clientWindow;
+        this.height = height;
         this.state = state;
+        this.width = width;
+        this.x = x;
+        this.y = y;
     }
 
-    public String getId() {
-        return id;
+    public boolean isActive() {
+        return active;
     }
 
-    public String getState() {
+    public ClientWindow getClientWindow() {
+        return clientWindow;
+    }
+
+    public char getHeight() {
+        return height;
+    }
+
+    public State getState() {
         return state;
+    }
+
+    public char getWidth() {
+        return width;
+    }
+
+    public int getX() {
+        return x;
+    }
+
+    public int getY() {
+        return y;
     }
 }

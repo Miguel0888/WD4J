@@ -1,5 +1,6 @@
 package wd4j.impl.webdriver.type.script;
 
+// ToDo: Not directly defined as Type, but used by events and parameters
 public class Realm {
     private final String realm;
 

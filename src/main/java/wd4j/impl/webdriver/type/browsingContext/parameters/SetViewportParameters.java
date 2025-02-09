@@ -1,7 +1,6 @@
 package wd4j.impl.webdriver.type.browsingContext.parameters;
 
 import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
-import wd4j.impl.webdriver.type.browsingContext.Viewport;
 import wd4j.impl.websocket.Command;
 
 public class SetViewportParameters implements Command.Params {

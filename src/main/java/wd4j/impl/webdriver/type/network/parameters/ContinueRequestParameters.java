@@ -1,7 +1,6 @@
 package wd4j.impl.webdriver.type.network.parameters;
 
 import wd4j.impl.webdriver.type.network.BytesValue;
-import wd4j.impl.webdriver.type.network.CookieHeader;
 import wd4j.impl.webdriver.type.network.Header;
 import wd4j.impl.webdriver.type.network.Request;
 import wd4j.impl.websocket.Command;

@@ -1,16 +1,16 @@
 package wd4j.impl.webdriver.type.script;
 
 public class InternalId {
-    private final String id;
+    private final String value;
 
-    public InternalId(String id) {
-        if (id == null || id.isEmpty()) {
+    public InternalId(String value) {
+        if (value == null || value.isEmpty()) {
             throw new IllegalArgumentException("ID must not be null or empty.");
         }
-        this.id = id;
+        this.value = value;
     }
 
-    public String getId() {
-        return id;
+    public String getValue() {
+        return value;
     }
 }

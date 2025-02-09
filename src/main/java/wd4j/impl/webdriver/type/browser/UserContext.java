@@ -1,5 +1,6 @@
 package wd4j.impl.webdriver.type.browser;
 
+// ToDo: How to implement this class correctly?
 public class UserContext {
     private final String id;
 

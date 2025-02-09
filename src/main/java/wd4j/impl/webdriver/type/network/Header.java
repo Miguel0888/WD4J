@@ -2,9 +2,9 @@ package wd4j.impl.webdriver.type.network;
 
 public class Header {
     private final String name;
-    private final String value;
+    private final BytesValue value;
 
-    public Header(String name, String value) {
+    public Header(String name, BytesValue value) {
         this.name = name;
         this.value = value;
     }
@@ -13,7 +13,7 @@ public class Header {
         return name;
     }
 
-    public String getValue() {
+    public BytesValue getValue() {
         return value;
     }
 }

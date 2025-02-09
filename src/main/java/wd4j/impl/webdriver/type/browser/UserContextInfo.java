@@ -1,25 +1,17 @@
 package wd4j.impl.webdriver.type.browser;
 
+// ToDo: How to implement this class correctly?
 public class UserContextInfo {
-    private final String id;
-    private final String type;
+    private final UserContext userContext;
 
-    public UserContextInfo(String id, String type) {
-        if (id == null || id.isEmpty()) {
-            throw new IllegalArgumentException("ID must not be null or empty.");
+    public UserContextInfo(UserContext userContext) {
+        if (userContext == null) {
+            throw new IllegalArgumentException("UserContext must not be null.");
         }
-        if (type == null || type.isEmpty()) {
-            throw new IllegalArgumentException("Type must not be null or empty.");
-        }
-        this.id = id;
-        this.type = type;
+        this.userContext = userContext;
     }
 
-    public String getId() {
-        return id;
-    }
-
-    public String getType() {
-        return type;
+    public UserContext getUserContext() {
+        return userContext;
     }
 }

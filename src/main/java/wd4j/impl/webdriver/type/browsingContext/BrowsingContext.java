@@ -1,16 +1,16 @@
 package wd4j.impl.webdriver.type.browsingContext;
 
 public class BrowsingContext {
-    private final String contextId;
+    private final String value;
 
-    public BrowsingContext(String contextId) {
-        if (contextId == null || contextId.isEmpty()) {
+    public BrowsingContext(String value) {
+        if (value == null || value.isEmpty()) {
             throw new IllegalArgumentException("Context ID must not be null or empty.");
         }
-        this.contextId = contextId;
+        this.value = value;
     }
 
-    public String getContextId() {
-        return contextId;
+    public String getValue() {
+        return value;
     }
 }

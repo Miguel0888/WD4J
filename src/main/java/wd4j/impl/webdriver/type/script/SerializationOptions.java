@@ -1,13 +1,25 @@
 package wd4j.impl.webdriver.type.script;
 
 public class SerializationOptions {
-    private final boolean maxDepth;
+    private final Integer maxDomDepth; // Optional, default 0
+    private final Integer maxObjectDepth; // Optional, default null
+    private final String includeShadowTree; // Optional, default "none"
 
-    public SerializationOptions(boolean maxDepth) {
-        this.maxDepth = maxDepth;
+    public SerializationOptions(Integer maxDomDepth, Integer maxObjectDepth, String includeShadowTree) {
+        this.maxDomDepth = (maxDomDepth != null) ? maxDomDepth : 0;
+        this.maxObjectDepth = maxObjectDepth;
+        this.includeShadowTree = (includeShadowTree != null) ? includeShadowTree : "none";
     }
 
-    public boolean isMaxDepth() {
-        return maxDepth;
+    public Integer getMaxDomDepth() {
+        return maxDomDepth;
+    }
+
+    public Integer getMaxObjectDepth() {
+        return maxObjectDepth;
+    }
+
+    public String getIncludeShadowTree() {
+        return includeShadowTree;
     }
 }

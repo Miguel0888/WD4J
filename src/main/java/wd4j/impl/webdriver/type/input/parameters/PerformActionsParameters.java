@@ -1,7 +1,6 @@
 package wd4j.impl.webdriver.type.input.parameters;
 
 import wd4j.impl.webdriver.command.request.BrowsingContext;
-import wd4j.impl.webdriver.type.input.SourceActions;
 
 import java.util.List;
 

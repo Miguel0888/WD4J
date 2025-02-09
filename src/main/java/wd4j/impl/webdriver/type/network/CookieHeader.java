@@ -1,15 +1,16 @@
 package wd4j.impl.webdriver.type.network;
 
-import java.util.List;
-
+// ToDo: There  might be a better implementation in params ??
 public class CookieHeader {
-    private final List<Cookie> cookies;
+    private final String name;
+    private final BytesValue value;
 
-    public CookieHeader(List<Cookie> cookies) {
-        this.cookies = cookies;
+    public CookieHeader(String name, BytesValue value) {
+        this.name = name;
+        this.value = value;
     }
 
-    public List<Cookie> getCookies() {
-        return cookies;
+    public String getName() {
+        return name;
     }
 }

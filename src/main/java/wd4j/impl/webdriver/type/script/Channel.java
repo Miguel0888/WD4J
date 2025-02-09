@@ -1,16 +1,16 @@
 package wd4j.impl.webdriver.type.script;
 
 public class Channel {
-    private final String channel;
+    private final String value;
 
-    public Channel(String channel) {
-        if (channel == null || channel.isEmpty()) {
+    public Channel(String value) {
+        if (value == null || value.isEmpty()) {
             throw new IllegalArgumentException("Channel must not be null or empty.");
         }
-        this.channel = channel;
+        this.value = value;
     }
 
-    public String getChannel() {
-        return channel;
+    public String getValue() {
+        return value;
     }
 }

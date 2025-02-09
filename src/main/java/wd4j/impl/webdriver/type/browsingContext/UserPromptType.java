@@ -1,16 +1,18 @@
 package wd4j.impl.webdriver.type.browsingContext;
 
-public class UserPromptType {
-    private final String type;
+public enum UserPromptType {
+    ALERT("alert"),
+    BEFOREUNLOAD("beforeunload"),
+    CONFIRM("confirm"),
+    PROMPT("prompt");
 
-    public UserPromptType(String type) {
-        if (type == null || type.isEmpty()) {
-            throw new IllegalArgumentException("Type must not be null or empty.");
-        }
-        this.type = type;
+    private final String value;
+
+    UserPromptType(String value) {
+        this.value = value;
     }
 
-    public String getType() {
-        return type;
+    public String getValue() {
+        return value;
     }
 }

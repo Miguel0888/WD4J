@@ -1,13 +1,13 @@
 package wd4j.impl.webdriver.type.network;
 
 public class ResponseContent {
-    private final String content;
+    private final char size;
 
-    public ResponseContent(String content) {
-        this.content = content;
+    public ResponseContent(char size) {
+        this.size = size;
     }
 
-    public String getContent() {
-        return content;
+    public char getSize() {
+        return size;
     }
 }
