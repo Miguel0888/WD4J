@@ -3,7 +3,7 @@ package wd4j.impl.service;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.Module;
-import wd4j.impl.webdriver.command.request.storage.Storage;
+import wd4j.impl.webdriver.command.request.StorageRequest;
 import wd4j.impl.playwright.WebSocketImpl;
 
 public class StorageService implements Module {
@@ -32,7 +32,7 @@ public class StorageService implements Module {
      */
     public String getCookies(String contextId) {
         try {
-            String response = webSocketImpl.sendAndWaitForResponse(new Storage.GetCookies(contextId));
+            String response = webSocketImpl.sendAndWaitForResponse(new StorageRequest.GetCookies(contextId));
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             return jsonResponse.getAsJsonObject("result").toString();
         } catch (RuntimeException e) {
@@ -51,7 +51,7 @@ public class StorageService implements Module {
      */
     public void setCookie(String contextId, String name, String value) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new Storage.SetCookie(contextId, name, value));
+            webSocketImpl.sendAndWaitForResponse(new StorageRequest.SetCookie(contextId, name, value));
             System.out.println("Cookie set: " + name + " = " + value + " in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error setting cookie: " + e.getMessage());
@@ -68,7 +68,7 @@ public class StorageService implements Module {
      */
     public void deleteCookie(String contextId, String name) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new Storage.DeleteCookies(contextId, name));
+            webSocketImpl.sendAndWaitForResponse(new StorageRequest.DeleteCookies(contextId, name));
             System.out.println("Cookie deleted: " + name + " from context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error deleting cookie: " + e.getMessage());

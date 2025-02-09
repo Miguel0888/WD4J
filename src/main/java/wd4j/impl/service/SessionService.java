@@ -2,7 +2,7 @@ package wd4j.impl.service;
 
 import wd4j.impl.webdriver.command.request.CommandImpl;
 import wd4j.impl.markerInterfaces.Module;
-import wd4j.impl.webdriver.command.request.session.Session;
+import wd4j.impl.webdriver.command.request.SessionRequest;
 import wd4j.impl.playwright.WebSocketImpl;
 
 import java.util.ArrayList;
@@ -37,18 +37,18 @@ public class SessionService implements Module {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public String status() {
-        return webSocketImpl.sendAndWaitForResponse(new Session.Status());
+        return webSocketImpl.sendAndWaitForResponse(new SessionRequest.Status());
     }
 
     // new() - Since plain "new" is a reserved word in Java!
     public String newSession(String browserName) {
-        return webSocketImpl.sendAndWaitForResponse(new Session.New(browserName));
+        return webSocketImpl.sendAndWaitForResponse(new SessionRequest.New(browserName));
     }
 
     // end() - In corespondance to new!
     public String endSession() {
         // ToDo: Maybe close all BrowsingContexts?
-        CommandImpl endSessionCommand = new Session.End();
+        CommandImpl endSessionCommand = new SessionRequest.End();
     
         return webSocketImpl.sendAndWaitForResponse(endSessionCommand);
     }
@@ -71,7 +71,7 @@ public class SessionService implements Module {
         }
 
         if (!newEvents.isEmpty()) {
-            webSocketImpl.sendAndWaitForResponse(new Session.Subscribe(newEvents));
+            webSocketImpl.sendAndWaitForResponse(new SessionRequest.Subscribe(newEvents));
             subscribedEvents.addAll(newEvents);
             System.out.println("Subscribed to new events: " + newEvents);
         }
@@ -93,7 +93,7 @@ public class SessionService implements Module {
         }
 
         if (!eventsToRemove.isEmpty()) {
-            webSocketImpl.sendAndWaitForResponse(new Session.Unsubscribe(eventsToRemove));
+            webSocketImpl.sendAndWaitForResponse(new SessionRequest.Unsubscribe(eventsToRemove));
             subscribedEvents.removeAll(eventsToRemove);
             System.out.println("Unsubscribed from events: " + eventsToRemove);
         }

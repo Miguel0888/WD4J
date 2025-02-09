@@ -1,12 +1,12 @@
 package wd4j.impl.webdriver.type.script;
 
-import wd4j.impl.webdriver.command.request.browsingContext.BrowsingContext;
+import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
 
 public class Source {
     private final String realm;  // script.Realm
-    private final BrowsingContext context; // Optional: browsingContext.BrowsingContext
+    private final BrowsingContextRequest context; // Optional: browsingContext.BrowsingContext
 
-    public Source(String realm, BrowsingContext context) {
+    public Source(String realm, BrowsingContextRequest context) {
         if (realm == null || realm.isEmpty()) {
             throw new IllegalArgumentException("Realm must not be null or empty.");
         }
@@ -18,7 +18,7 @@ public class Source {
         return realm;
     }
 
-    public BrowsingContext getContext() {
+    public BrowsingContextRequest getContext() {
         return context;
     }
 }

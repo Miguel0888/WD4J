@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.Module;
-import wd4j.impl.webdriver.command.request.script.Script;
+import wd4j.impl.webdriver.command.request.ScriptRequest;
 import wd4j.impl.playwright.WebSocketImpl;
 
 import java.util.ArrayList;
@@ -36,7 +36,7 @@ public class ScriptService implements Module {
      */
     public void addPreloadScript(String script, String target) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new Script.AddPreloadScrip(script, target));
+            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.AddPreloadScrip(script, target));
             System.out.println("Preload script added: " + script + " to target: " + target);
         } catch (RuntimeException e) {
             System.out.println("Error adding preload script: " + e.getMessage());
@@ -57,7 +57,7 @@ public class ScriptService implements Module {
         }
 
         try {
-            webSocketImpl.sendAndWaitForResponse(new Script.Disown(contextId, handles));
+            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.Disown(contextId, handles));
             System.out.println("Handles disowned in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error disowning handles: " + e.getMessage());
@@ -75,7 +75,7 @@ public class ScriptService implements Module {
      */
     public void callFunction(String functionDeclaration, String target, List<Object> arguments) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new Script.CallFunction(functionDeclaration, target, arguments));
+            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.CallFunction(functionDeclaration, target, arguments));
             System.out.println("Function called: " + functionDeclaration + " on target: " + target);
         } catch (RuntimeException e) {
             System.out.println("Error calling function: " + e.getMessage());
@@ -91,7 +91,7 @@ public class ScriptService implements Module {
      * @throws RuntimeException if the operation fails.
      */
     public String evaluate(String script, String contextId) {
-        return webSocketImpl.sendAndWaitForResponse(new Script.Evaluate(script, contextId));
+        return webSocketImpl.sendAndWaitForResponse(new ScriptRequest.Evaluate(script, contextId));
     }
 
 
@@ -104,7 +104,7 @@ public class ScriptService implements Module {
      */
     public List<String> getRealms(String contextId) {
         try {
-            String response = webSocketImpl.sendAndWaitForResponse(new Script.GetRealms(contextId));
+            String response = webSocketImpl.sendAndWaitForResponse(new ScriptRequest.GetRealms(contextId));
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonArray realms = jsonResponse.getAsJsonObject("result").getAsJsonArray("realms");
             List<String> realmIds = new ArrayList<>();
@@ -125,7 +125,7 @@ public class ScriptService implements Module {
      */
     public void removePreloadScript(String scriptId) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new Script.RemovePreloadScript(scriptId));
+            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.RemovePreloadScript(scriptId));
             System.out.println("Preload script removed: " + scriptId);
         } catch (RuntimeException e) {
             System.out.println("Error removing preload script: " + e.getMessage());

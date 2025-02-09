@@ -9,8 +9,8 @@ import wd4j.api.options.AriaRole;
 import wd4j.api.options.BoundingBox;
 import wd4j.api.options.FilePayload;
 import wd4j.api.options.SelectOption;
-import wd4j.impl.webdriver.command.request.browsingContext.BrowsingContext;
-import wd4j.impl.webdriver.command.request.script.Script;
+import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
+import wd4j.impl.webdriver.command.request.ScriptRequest;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -52,7 +52,7 @@ public class LocatorImpl implements Locator {
     public List<Locator> all() {
         try {
             // 1. Hole den DOM-Baum für den Kontext
-            CompletableFuture<WebSocketFrame> futureResponse = webSocket.send(new BrowsingContext.GetTree());
+            CompletableFuture<WebSocketFrame> futureResponse = webSocket.send(new BrowsingContextRequest.GetTree());
             String jsonResponse = futureResponse.get(5, TimeUnit.SECONDS).text();
             System.out.println("===>" + jsonResponse);
 
@@ -62,7 +62,7 @@ public class LocatorImpl implements Locator {
             // 2. Finde Elemente mit `script.evaluate`Result Type
             List<Locator> locators = new ArrayList<>();
             for (JsonElement node : nodes) {
-                CompletableFuture<WebSocketFrame> evalResponse = webSocket.send(new Script.Evaluate(contextId, selector));
+                CompletableFuture<WebSocketFrame> evalResponse = webSocket.send(new ScriptRequest.Evaluate(contextId, selector));
                 String evalJsonResponse = evalResponse.get(5, TimeUnit.SECONDS).text();
                 JsonObject evalJson = new Gson().fromJson(evalJsonResponse, JsonObject.class);
 

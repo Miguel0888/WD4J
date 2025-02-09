@@ -1,7 +1,7 @@
 package wd4j.impl.service;
 
 import wd4j.impl.markerInterfaces.Module;
-import wd4j.impl.webdriver.command.request.input.Input;
+import wd4j.impl.webdriver.command.request.InputRequest;
 import wd4j.impl.playwright.WebSocketImpl;
 
 import java.util.List;
@@ -30,13 +30,13 @@ public class InputService implements Module {
      * @param actions   A list of actions to perform.
      * @throws RuntimeException if the action execution fails.
      */
-    public void performActions(String contextId, List<Input.PerformActions.Action> actions) {
+    public void performActions(String contextId, List<InputRequest.PerformActions.Action> actions) {
         if (actions == null || actions.isEmpty()) {
             throw new IllegalArgumentException("Actions list must not be null or empty.");
         }
 
         try {
-            webSocketImpl.sendAndWaitForResponse(new Input.PerformActions(contextId, actions));
+            webSocketImpl.sendAndWaitForResponse(new InputRequest.PerformActions(contextId, actions));
             System.out.println("Performed actions in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error performing actions: " + e.getMessage());
@@ -52,7 +52,7 @@ public class InputService implements Module {
      */
     public void releaseActions(String contextId) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new Input.ReleaseActions(contextId));
+            webSocketImpl.sendAndWaitForResponse(new InputRequest.ReleaseActions(contextId));
             System.out.println("Released actions in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error releasing actions: " + e.getMessage());
@@ -73,7 +73,7 @@ public class InputService implements Module {
         }
 
         try {
-            webSocketImpl.sendAndWaitForResponse(new Input.SetFiles(elementId, filePaths));
+            webSocketImpl.sendAndWaitForResponse(new InputRequest.SetFiles(elementId, filePaths));
             System.out.println("Files set for element: " + elementId);
         } catch (RuntimeException e) {
             System.out.println("Error setting files: " + e.getMessage());
