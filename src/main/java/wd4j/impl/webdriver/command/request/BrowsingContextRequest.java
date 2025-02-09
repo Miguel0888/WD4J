@@ -1,6 +1,9 @@
 package wd4j.impl.webdriver.command.request;
 
 import wd4j.impl.markerInterfaces.CommandData;
+import wd4j.impl.webdriver.command.request.parameters.browsingContext.NavigateParameters;
+import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
+import wd4j.impl.webdriver.type.browsingContext.ReadinessState;
 import wd4j.impl.websocket.Command;
 
 public class BrowsingContextRequest {
@@ -139,26 +142,10 @@ public class BrowsingContextRequest {
     }
 
 
-    public static class Navigate extends CommandImpl<Navigate.ParamsImpl> implements CommandData {
-
+    public static class Navigate extends CommandImpl<NavigateParameters> implements CommandData {
+        // ToDo: What to do with the `ReadinessState` parameter? -> currently set to null
         public Navigate(String url, String contextId) {
-            super("browsingContext.navigate", new ParamsImpl(url, contextId));
-        }
-
-        public static class ParamsImpl implements Command.Params {
-            private final String url;
-            private final String context;
-
-            public ParamsImpl(String url, String contextId) {
-                if (url == null || url.isEmpty()) {
-                    throw new IllegalArgumentException("URL must not be null or empty.");
-                }
-                if (contextId == null || contextId.isEmpty()) {
-                    throw new IllegalArgumentException("Context ID must not be null or empty.");
-                }
-                this.url = url;
-                this.context = contextId;
-            }
+            super("browsingContext.navigate", new NavigateParameters(new BrowsingContext(contextId), url, null));
         }
     }
 

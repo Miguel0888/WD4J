@@ -14,7 +14,7 @@ public class GsonMapperFactory {
         GsonBuilder builder = new GsonBuilder();
         registerStringWrappers(builder);
         registerEnumWrappers(builder);
-        return builder.serializeNulls().create();
+        return builder.create(); // IMPORTANT: Do not serialize null values, they mark optional parameters!
     }
 
     private static void registerStringWrappers(GsonBuilder builder) {
