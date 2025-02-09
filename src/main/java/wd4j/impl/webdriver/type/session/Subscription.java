@@ -1,16 +1,16 @@
 package wd4j.impl.webdriver.type.session;
 
 public class Subscription {
-    private final String eventName;
+    private final String value;
 
-    public Subscription(String eventName) {
-        if (eventName == null || eventName.isEmpty()) {
+    public Subscription(String value) {
+        if (value == null || value.isEmpty()) {
             throw new IllegalArgumentException("Event name must not be null or empty.");
         }
-        this.eventName = eventName;
+        this.value = value;
     }
 
-    public String getEventName() {
-        return eventName;
+    public String getValue() {
+        return value;
     }
 }

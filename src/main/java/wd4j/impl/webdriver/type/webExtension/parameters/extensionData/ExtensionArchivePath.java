@@ -1,6 +1,6 @@
-package wd4j.impl.webdriver.type.webExtension.extensionData;
+package wd4j.impl.webdriver.type.webExtension.parameters.extensionData;
 
-import wd4j.impl.webdriver.type.webExtension.ExtensionData;
+import wd4j.impl.webdriver.type.webExtension.parameters.ExtensionData;
 
 public class ExtensionArchivePath implements ExtensionData {
     private final String type = "archivePath";

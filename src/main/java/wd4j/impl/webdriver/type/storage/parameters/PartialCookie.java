@@ -1,4 +1,4 @@
-package wd4j.impl.webdriver.type.storage;
+package wd4j.impl.webdriver.type.storage.parameters;
 
 import wd4j.impl.webdriver.type.network.BytesValue;
 import wd4j.impl.webdriver.type.network.SameSite;

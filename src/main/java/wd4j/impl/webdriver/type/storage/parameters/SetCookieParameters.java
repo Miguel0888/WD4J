@@ -1,7 +1,5 @@
 package wd4j.impl.webdriver.type.storage.parameters;
 
-import wd4j.impl.webdriver.type.storage.PartialCookie;
-import wd4j.impl.webdriver.type.storage.PartitionDescriptor;
 import wd4j.impl.websocket.Command;
 
 public class SetCookieParameters implements Command.Params {

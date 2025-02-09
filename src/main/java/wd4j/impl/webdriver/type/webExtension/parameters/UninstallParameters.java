@@ -1,7 +1,6 @@
 package wd4j.impl.webdriver.type.webExtension.parameters;
 
 import wd4j.impl.webdriver.type.webExtension.Extension;
-import wd4j.impl.webdriver.type.webExtension.ExtensionData;
 import wd4j.impl.websocket.Command;
 
 public class UninstallParameters implements Command.Params {

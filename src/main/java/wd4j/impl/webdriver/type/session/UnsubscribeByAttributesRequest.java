@@ -1,16 +1,23 @@
 package wd4j.impl.webdriver.type.session;
 
-public class UnsubscribeByAttributesRequest {
-    private final String eventName;
+import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
 
-    public UnsubscribeByAttributesRequest(String eventName) {
-        if (eventName == null || eventName.isEmpty()) {
-            throw new IllegalArgumentException("Event name must not be null or empty.");
-        }
-        this.eventName = eventName;
+import java.util.List;
+
+public class UnsubscribeByAttributesRequest {
+    private final List<String> events;
+    private final List<BrowsingContext> contexts; // Optional
+
+    public UnsubscribeByAttributesRequest(List<String> events, List<BrowsingContext> contexts) {
+        this.events = events;
+        this.contexts = contexts;
     }
 
-    public String getEventName() {
-        return eventName;
+    public List<String> getEvents() {
+        return events;
+    }
+
+    public List<BrowsingContext> getContexts() {
+        return contexts;
     }
 }

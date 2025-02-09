@@ -1,16 +1,15 @@
 package wd4j.impl.webdriver.type.session;
 
-public class UnsubscribeByIDRequest {
-    private final String subscriptionId;
+import java.util.List;
 
-    public UnsubscribeByIDRequest(String subscriptionId) {
-        if (subscriptionId == null || subscriptionId.isEmpty()) {
-            throw new IllegalArgumentException("Subscription ID must not be null or empty.");
-        }
-        this.subscriptionId = subscriptionId;
+public class UnsubscribeByIDRequest {
+    private final List<Subscription> subscriptions;
+
+    public UnsubscribeByIDRequest(List<Subscription> subscriptions) {
+        this.subscriptions = subscriptions;
     }
 
-    public String getSubscriptionId() {
-        return subscriptionId;
+    public List<Subscription> getSubscriptions() {
+        return subscriptions;
     }
 }

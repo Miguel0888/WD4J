@@ -1,7 +1,7 @@
 package wd4j.impl.webdriver.command.response.storage;
 
 import wd4j.impl.markerInterfaces.resultData.StorageResult;
-import wd4j.impl.webdriver.type.storage.PartitionKey;
+import wd4j.impl.webdriver.type.storage.parameters.PartitionKey;
 
 public class DeleteCookiesResult implements StorageResult {
     private final PartitionKey partitionKey;

@@ -1,7 +1,7 @@
-package wd4j.impl.webdriver.type.storage.partitionDescriptor;
+package wd4j.impl.webdriver.type.storage.parameters.partitionDescriptor;
 
 import wd4j.impl.webdriver.command.request.BrowsingContext;
-import wd4j.impl.webdriver.type.storage.PartitionDescriptor;
+import wd4j.impl.webdriver.type.storage.parameters.PartitionDescriptor;
 
 public class BrowsingContextPartitionDescriptor extends PartitionDescriptor {
     private final BrowsingContext context;

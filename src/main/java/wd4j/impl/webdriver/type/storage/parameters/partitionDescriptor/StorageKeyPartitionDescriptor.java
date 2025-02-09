@@ -1,6 +1,6 @@
-package wd4j.impl.webdriver.type.storage.partitionDescriptor;
+package wd4j.impl.webdriver.type.storage.parameters.partitionDescriptor;
 
-import wd4j.impl.webdriver.type.storage.PartitionDescriptor;
+import wd4j.impl.webdriver.type.storage.parameters.PartitionDescriptor;
 
 public class StorageKeyPartitionDescriptor extends PartitionDescriptor {
     private final String userContext;
