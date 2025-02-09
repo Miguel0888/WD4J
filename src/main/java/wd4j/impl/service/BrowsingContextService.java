@@ -2,10 +2,12 @@ package wd4j.impl.service;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import wd4j.impl.webdriver.command.request.CommandImpl;
 import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
 import wd4j.impl.playwright.WebSocketImpl;
+import wd4j.impl.webdriver.command.request.parameters.browsingContext.CreateType;
+import wd4j.impl.webdriver.command.request.parameters.browsingContext.SetViewportParameters;
+import wd4j.impl.webdriver.type.browsingContext.Locator;
 
 public class BrowsingContextService implements Module {
 
@@ -32,7 +34,7 @@ public class BrowsingContextService implements Module {
      */
     // Required for Firefox ESR ?
     public String create() {
-        CommandImpl<BrowsingContextRequest.Create.ParamsImpl> createContextCommand = new BrowsingContextRequest.Create("tab");
+        BrowsingContextRequest.Create createContextCommand = new BrowsingContextRequest.Create(CreateType.TAB);
 
         try {
             String response = webSocketImpl.sendAndWaitForResponse(createContextCommand);
@@ -125,13 +127,15 @@ public class BrowsingContextService implements Module {
     /**
      * Handles a user prompt in the given browsing context.
      *
-     * @param contextId The ID of the context where the prompt should be handled.
+     * @param contextId The ID of the context where the prompt should be handled. (required)
+     * @param accept    Whether to accept or dismiss the prompt. (optional, may be null)
      * @param userText  The text to provide to the prompt, or null if no input is needed.
+     *
      * @throws RuntimeException if handling the prompt fails.
      */
-    public void handleUserPrompt(String contextId, String userText) {
+    public void handleUserPrompt(String contextId, Boolean accept, String userText) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new BrowsingContextRequest.HandleUserPrompt(contextId, userText));
+            webSocketImpl.sendAndWaitForResponse(new BrowsingContextRequest.HandleUserPrompt(contextId, accept, userText));
         } catch (RuntimeException e) {
             System.out.println("Error handling user prompt: " + e.getMessage());
             throw e;
@@ -142,12 +146,12 @@ public class BrowsingContextService implements Module {
      * Locates nodes in the given browsing context using the provided CSS selector.
      *
      * @param contextId The ID of the context to search in.
-     * @param selector  The CSS selector to locate nodes.
+     * @param locator  The CSS selector to locate nodes or the like.
      * @return The response containing the located nodes.
      */
-    public String locateNodes(String contextId, String selector) {
+    public String locateNodes(String contextId, Locator locator) {
         try {
-            String response = webSocketImpl.sendAndWaitForResponse(new BrowsingContextRequest.LocateNodes(contextId, selector));
+            String response = webSocketImpl.sendAndWaitForResponse(new BrowsingContextRequest.LocateNodes(contextId, locator));
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             return jsonResponse.getAsJsonObject("result").toString();
         } catch (RuntimeException e) {
@@ -198,9 +202,9 @@ public class BrowsingContextService implements Module {
      * @param height    The new height of the viewport in pixels.
      * @throws RuntimeException if setting the viewport size fails.
      */
-    public void setViewport(String contextId, int width, int height) {
+    public void setViewport(String contextId, char width, char height) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new BrowsingContextRequest.SetViewport(contextId, width, height));
+            webSocketImpl.sendAndWaitForResponse(new BrowsingContextRequest.SetViewport(contextId, new SetViewportParameters.Viewport(width, height), null));
         } catch (RuntimeException e) {
             System.out.println("Error setting viewport: " + e.getMessage());
             throw e;

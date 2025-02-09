@@ -4,15 +4,19 @@ import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
 import wd4j.impl.websocket.Command;
 
 public class GetTreeParameters implements Command.Params {
-    private final char maxDepth;
-    private final BrowsingContext root;
+    private final Character maxDepth; // optional
+    private final BrowsingContext root; // optional
 
-    public GetTreeParameters(char maxDepth, BrowsingContext root) {
+    public GetTreeParameters() {
+        this(null, null);
+    }
+
+    public GetTreeParameters(Character maxDepth, BrowsingContext root) {
         this.maxDepth = maxDepth;
         this.root = root;
     }
 
-    public char getMaxDepth() {
+    public Character getMaxDepth() {
         return maxDepth;
     }
 

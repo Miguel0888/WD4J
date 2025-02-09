@@ -10,6 +10,10 @@ public class NavigateParameters implements Command.Params {
     private final String url;
     private final ReadinessState wait; // Optional
 
+    public NavigateParameters(BrowsingContext context, String url) {
+        this(context, url, null);
+    }
+
     public NavigateParameters(BrowsingContext context, String url, ReadinessState wait) {
         this.context = context;
         this.url = url;

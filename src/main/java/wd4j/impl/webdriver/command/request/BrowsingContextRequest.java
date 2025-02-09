@@ -1,10 +1,16 @@
 package wd4j.impl.webdriver.command.request;
 
 import wd4j.impl.markerInterfaces.CommandData;
-import wd4j.impl.webdriver.command.request.parameters.browsingContext.NavigateParameters;
+import wd4j.impl.webdriver.command.request.parameters.browsingContext.*;
+import wd4j.impl.webdriver.type.browser.UserContext;
 import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
+import wd4j.impl.webdriver.type.browsingContext.Locator;
 import wd4j.impl.webdriver.type.browsingContext.ReadinessState;
+import wd4j.impl.webdriver.type.script.RemoteReference;
+import wd4j.impl.webdriver.type.script.SerializationOptions;
 import wd4j.impl.websocket.Command;
+
+import java.util.List;
 
 public class BrowsingContextRequest {
 
@@ -12,227 +18,129 @@ public class BrowsingContextRequest {
     // Commands (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class Activate extends CommandImpl<Activate.ParamsImpl> implements CommandData {
-
+    public static class Activate extends CommandImpl<ActivateParameters> implements CommandData {
         public Activate(String contextId) {
-            super("browsingContext.activate", new ParamsImpl(contextId));
-        }
-
-        public static class ParamsImpl implements Command.Params{
-            private final String context;
-
-            public ParamsImpl(String contextId) {
-                if (contextId == null || contextId.isEmpty()) {
-                    throw new IllegalArgumentException("Context ID must not be null or empty.");
-                }
-                this.context = contextId;
-            }
+            super("browsingContext.activate", new ActivateParameters(new BrowsingContext(contextId)));
         }
     }
 
 
-    public static class CaptureScreenshot extends CommandImpl<CaptureScreenshot.ParamsImpl> implements CommandData {
-
+    public static class CaptureScreenshot extends CommandImpl<CaptureScreenshotParameters> implements CommandData {
         public CaptureScreenshot(String contextId) {
-            super("browsingContext.captureScreenshot", new ParamsImpl(contextId));
+            super("browsingContext.captureScreenshot", new CaptureScreenshotParameters(new BrowsingContext(contextId)));
         }
-
-        public static class ParamsImpl implements Command.Params {
-            private final String context;
-
-            public ParamsImpl(String contextId) {
-                if (contextId == null || contextId.isEmpty()) {
-                    throw new IllegalArgumentException("Context ID must not be null or empty.");
-                }
-                this.context = contextId;
-            }
+        public CaptureScreenshot(String contextId, CaptureScreenshotParameters.Origin origin, CaptureScreenshotParameters.ImageFormat format, CaptureScreenshotParameters.ClipRectangle clip) {
+            super("browsingContext.captureScreenshot", new CaptureScreenshotParameters(new BrowsingContext(contextId), origin, format, clip));
         }
     }
 
 
-    public static class Close extends CommandImpl<Close.ParamsImpl> implements CommandData {
-
+    public static class Close extends CommandImpl<CloseParameters> implements CommandData {
         public Close(String contextId) {
-            super("browsingContext.close", new ParamsImpl(contextId));
+            super("browsingContext.close", new CloseParameters(new BrowsingContext(contextId)));
         }
 
-        public static class ParamsImpl implements Command.Params {
-            private final String context;
-
-            public ParamsImpl(String contextId) {
-                if (contextId == null || contextId.isEmpty()) {
-                    throw new IllegalArgumentException("Context ID must not be null or empty.");
-                }
-                this.context = contextId;
-            }
+        public Close(String contextId, boolean promptUnload) {
+            super("browsingContext.close", new CloseParameters(new BrowsingContext(contextId), promptUnload));
         }
     }
 
 
-    public static class Create extends CommandImpl<Create.ParamsImpl> implements CommandData {
-
-        public Create(String type) {
-            super("browsingContext.create", new ParamsImpl(type));
+    public static class Create extends CommandImpl<CreateParameters> implements CommandData {
+        public Create(CreateType type) {
+            super("browsingContext.create", new CreateParameters(type));
         }
 
-        public static class ParamsImpl implements Command.Params {
-            private final String type;
-
-            public ParamsImpl(String type) {
-                if (type == null || type.isEmpty()) {
-                    throw new IllegalArgumentException("Type must not be null or empty.");
-                }
-                this.type = type;
-            }
+        public Create(CreateType type, BrowsingContext referenceContext, Boolean background, UserContext userContext) {
+            super("browsingContext.create", new CreateParameters(type, referenceContext, background, userContext));
         }
     }
 
-    public static class GetTree extends CommandImpl<GetTree.ParamsImpl> implements CommandData {
-
+    public static class GetTree extends CommandImpl<GetTreeParameters> implements CommandData {
         public GetTree() {
-            super("browsingContext.getTree", new ParamsImpl());
+            super("browsingContext.getTree", new GetTreeParameters());
         }
 
-        public static class ParamsImpl implements Command.Params {
-            // Keine Parameter erforderlich, daher bleibt die Klasse leer.
-        }
-    }
-
-    public static class HandleUserPrompt extends CommandImpl<HandleUserPrompt.ParamsImpl> implements CommandData {
-
-        public HandleUserPrompt(String contextId, String userText) {
-            super("browsingContext.handleUserPrompt", new ParamsImpl(contextId, userText));
-        }
-
-        public static class ParamsImpl implements Command.Params {
-            private final String context;
-            private final String userText;
-
-            public ParamsImpl(String contextId, String userText) {
-                if (contextId == null || contextId.isEmpty()) {
-                    throw new IllegalArgumentException("Context ID must not be null or empty.");
-                }
-                this.context = contextId;
-                this.userText = userText; // `userText` kann null sein, falls der Nutzer keinen Text eingibt.
-            }
+        public GetTree(Character maxDepth, BrowsingContext root) {
+            super("browsingContext.getTree", new GetTreeParameters(maxDepth, root));
         }
     }
 
-    public static class LocateNodes extends CommandImpl<LocateNodes.ParamsImpl> implements CommandData {
 
-        public LocateNodes(String contextId, String selector) {
-            super("browsingContext.locateNodes", new ParamsImpl(contextId, selector));
+    public static class HandleUserPrompt extends CommandImpl<HandleUserPromptParameters> implements CommandData {
+        public HandleUserPrompt(String contextId) {
+            super("browsingContext.handleUserPrompt", new HandleUserPromptParameters(new BrowsingContext(contextId)));
         }
 
-        public static class ParamsImpl implements Command.Params {
-            private final String context;
-            private final String selector;
+        public HandleUserPrompt(String contextId, Boolean accept) {
+            super("browsingContext.handleUserPrompt", new HandleUserPromptParameters(new BrowsingContext(contextId), accept));
+        }
 
-            public ParamsImpl(String contextId, String selector) {
-                if (contextId == null || contextId.isEmpty()) {
-                    throw new IllegalArgumentException("Context ID must not be null or empty.");
-                }
-                if (selector == null || selector.isEmpty()) {
-                    throw new IllegalArgumentException("Selector must not be null or empty.");
-                }
-                this.context = contextId;
-                this.selector = selector;
-            }
+        public HandleUserPrompt(String contextId, Boolean accept, String userText) {
+            super("browsingContext.handleUserPrompt", new HandleUserPromptParameters(new BrowsingContext(contextId), accept, userText));
+        }
+    }
+
+    public static class LocateNodes extends CommandImpl<LocateNodesParameters> implements CommandData {
+        public LocateNodes(String contextId, Locator locator) {
+            super("browsingContext.locateNodes", new LocateNodesParameters(new BrowsingContext(contextId), locator));
+        }
+
+        // BrowsingContext context, Locator locator, Character maxNodeCount, SerializationOptions serializationOptions, List<RemoteReference.SharedReference> startNodes
+        public LocateNodes(String contextId, Locator locator, Character maxNodeCount, SerializationOptions serializationOptions, List<RemoteReference.SharedReference> startNodes) {
+            super("browsingContext.locateNodes", new LocateNodesParameters(new BrowsingContext(contextId), locator, maxNodeCount, serializationOptions, startNodes));
         }
     }
 
 
     public static class Navigate extends CommandImpl<NavigateParameters> implements CommandData {
-        // ToDo: What to do with the `ReadinessState` parameter? -> currently set to null
+
         public Navigate(String url, String contextId) {
-            super("browsingContext.navigate", new NavigateParameters(new BrowsingContext(contextId), url, null));
+            super("browsingContext.navigate", new NavigateParameters(new BrowsingContext(contextId), url));
+        }
+
+        public Navigate(String url, String contextId, ReadinessState readinessState) {
+            super("browsingContext.navigate", new NavigateParameters(new BrowsingContext(contextId), url, readinessState));
         }
     }
 
-    public static class Print extends CommandImpl<Print.ParamsImpl> implements CommandData {
-
+    public static class Print extends CommandImpl<PrintParameters> implements CommandData {
         public Print(String contextId) {
-            super("browsingContext.print", new ParamsImpl(contextId));
+            super("browsingContext.print", new PrintParameters(new BrowsingContext(contextId)));
         }
 
-        public static class ParamsImpl implements Command.Params {
-            private final String context;
-
-            public ParamsImpl(String contextId) {
-                if (contextId == null || contextId.isEmpty()) {
-                    throw new IllegalArgumentException("Context ID must not be null or empty.");
-                }
-                this.context = contextId;
-            }
+        public Print(String contextId, boolean background, PrintParameters.PrintMarginParameters margin, Orientation orientation, PrintParameters.PrintPageParameters page, char pageRanges, float scale, boolean shrinkToFit) {
+            super("browsingContext.print", new PrintParameters(new BrowsingContext(contextId), background, margin, orientation, page, pageRanges, scale, shrinkToFit));
         }
     }
 
 
-    public static class Reload extends CommandImpl<Reload.ParamsImpl> implements CommandData {
 
+    public static class Reload extends CommandImpl<ReloadParameters> implements CommandData {
         public Reload(String contextId) {
-            super("browsingContext.reload", new ParamsImpl(contextId));
+            super("browsingContext.reload", new ReloadParameters(new BrowsingContext(contextId)));
         }
 
-        public static class ParamsImpl implements Command.Params {
-            private final String context;
-
-            public ParamsImpl(String contextId) {
-                if (contextId == null || contextId.isEmpty()) {
-                    throw new IllegalArgumentException("Context ID must not be null or empty.");
-                }
-                this.context = contextId;
-            }
+        public Reload(String contextId, Boolean ignoreCache, ReadinessState wait) {
+            super("browsingContext.reload", new ReloadParameters(new BrowsingContext(contextId), ignoreCache, wait));
         }
     }
 
 
-    public static class SetViewport extends CommandImpl<SetViewport.ParamsImpl> implements CommandData {
-
-        public SetViewport(String contextId, int width, int height) {
-            super("browsingContext.setViewport", new ParamsImpl(contextId, width, height));
+    public static class SetViewport extends CommandImpl<SetViewportParameters> implements CommandData {
+        public SetViewport(String contextId) {
+            super("browsingContext.setViewport", new SetViewportParameters(new BrowsingContext(contextId)));
         }
 
-        public static class ParamsImpl implements Command.Params {
-            private final String context;
-            private final int width;
-            private final int height;
-
-            public ParamsImpl(String contextId, int width, int height) {
-                if (contextId == null || contextId.isEmpty()) {
-                    throw new IllegalArgumentException("Context ID must not be null or empty.");
-                }
-                if (width <= 0) {
-                    throw new IllegalArgumentException("Width must be greater than 0.");
-                }
-                if (height <= 0) {
-                    throw new IllegalArgumentException("Height must be greater than 0.");
-                }
-                this.context = contextId;
-                this.width = width;
-                this.height = height;
-            }
+        public SetViewport(String contextId, SetViewportParameters.Viewport viewport, Float devicePixelRatio) {
+            super("browsingContext.setViewport", new SetViewportParameters(new BrowsingContext(contextId), viewport, devicePixelRatio));
         }
     }
 
 
-    public static class TraverseHistory extends CommandImpl<TraverseHistory.ParamsImpl> implements CommandData {
-
+    public static class TraverseHistory extends CommandImpl<TraverseHistoryParameters> implements CommandData {
         public TraverseHistory(String contextId, int delta) {
-            super("browsingContext.traverseHistory", new ParamsImpl(contextId, delta));
-        }
-
-        public static class ParamsImpl implements Command.Params {
-            private final String context;
-            private final int delta;
-
-            public ParamsImpl(String contextId, int delta) {
-                if (contextId == null || contextId.isEmpty()) {
-                    throw new IllegalArgumentException("Context ID must not be null or empty.");
-                }
-                this.context = contextId;
-                this.delta = delta;
-            }
+            super("browsingContext.traverseHistory", new TraverseHistoryParameters(new BrowsingContext(contextId), delta));
         }
     }
 

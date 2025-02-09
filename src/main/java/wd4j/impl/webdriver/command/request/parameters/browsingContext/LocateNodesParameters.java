@@ -11,11 +11,15 @@ import java.util.List;
 public class LocateNodesParameters implements Command.Params {
     private final BrowsingContext context;
     private final Locator locator;
-    private final char maxNodeCount;
-    private final SerializationOptions serializationOptions;
-    private final List<RemoteReference.SharedReference> startNodes;
+    private final Character maxNodeCount; // optional
+    private final SerializationOptions serializationOptions; // optional
+    private final List<RemoteReference.SharedReference> startNodes; // optional
 
-    public LocateNodesParameters(BrowsingContext context, Locator locator, char maxNodeCount, SerializationOptions serializationOptions, List<RemoteReference.SharedReference> startNodes) {
+    public LocateNodesParameters(BrowsingContext context, Locator locator) {
+        this(context, locator, null, null, null);
+    }
+
+    public LocateNodesParameters(BrowsingContext context, Locator locator, Character maxNodeCount, SerializationOptions serializationOptions, List<RemoteReference.SharedReference> startNodes) {
         this.context = context;
         this.locator = locator;
         this.maxNodeCount = maxNodeCount;
@@ -31,7 +35,7 @@ public class LocateNodesParameters implements Command.Params {
         return locator;
     }
 
-    public char getMaxNodeCount() {
+    public Character getMaxNodeCount() {
         return maxNodeCount;
     }
 

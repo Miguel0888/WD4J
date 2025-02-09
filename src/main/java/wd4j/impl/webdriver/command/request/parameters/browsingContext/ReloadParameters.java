@@ -6,10 +6,14 @@ import wd4j.impl.websocket.Command;
 
 public class ReloadParameters implements Command.Params {
     private final BrowsingContext context;
-    private final boolean ignoreCache;
-    private final ReadinessState wait;
+    private final Boolean ignoreCache; // optional
+    private final ReadinessState wait; // optional
 
-    public ReloadParameters(BrowsingContext context, boolean ignoreCache, ReadinessState wait) {
+    public ReloadParameters(BrowsingContext context) {
+        this(context, null, null);
+    }
+
+    public ReloadParameters(BrowsingContext context, Boolean ignoreCache, ReadinessState wait) {
         this.context = context;
         this.ignoreCache = ignoreCache;
         this.wait = wait;
@@ -19,7 +23,7 @@ public class ReloadParameters implements Command.Params {
         return context;
     }
 
-    public boolean getIgnoreCache() {
+    public Boolean getIgnoreCache() {
         return ignoreCache;
     }
 

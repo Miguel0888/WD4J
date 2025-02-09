@@ -6,11 +6,15 @@ import wd4j.impl.websocket.Command;
 
 public class CreateParameters implements Command.Params {
     private final CreateType type;
-    private final BrowsingContext referenceContext;
-    private final boolean background;
-    private final UserContext userContext;
+    private final BrowsingContext referenceContext; // optional
+    private final Boolean background; // optional
+    private final UserContext userContext; // optional
 
-    public CreateParameters(CreateType type, BrowsingContext referenceContext, boolean background, UserContext userContext) {
+    public CreateParameters(CreateType type) {
+        this(type, null, null, null);
+    }
+
+    public CreateParameters(CreateType type, BrowsingContext referenceContext, Boolean background, UserContext userContext) {
         this.type = type;
         this.referenceContext = referenceContext;
         this.background = background;
@@ -25,7 +29,7 @@ public class CreateParameters implements Command.Params {
         return referenceContext;
     }
 
-    public boolean isBackground() {
+    public Boolean isBackground() {
         return background;
     }
 
