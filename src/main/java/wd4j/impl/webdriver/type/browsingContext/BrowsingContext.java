@@ -1,6 +1,8 @@
 package wd4j.impl.webdriver.type.browsingContext;
 
-public class BrowsingContext {
+import wd4j.impl.webdriver.mapping.StringWrapper;
+
+public class BrowsingContext implements StringWrapper {
     private final String value;
 
     public BrowsingContext(String value) {
@@ -10,7 +12,8 @@ public class BrowsingContext {
         this.value = value;
     }
 
-    public String getValue() {
+    @Override // confirmed
+    public String value() {
         return value;
     }
 }

@@ -1,6 +1,8 @@
 package wd4j.impl.webdriver.type.script;
 
-public class InternalId {
+import wd4j.impl.webdriver.mapping.StringWrapper;
+
+public class InternalId implements StringWrapper {
     private final String value;
 
     public InternalId(String value) {
@@ -10,7 +12,8 @@ public class InternalId {
         this.value = value;
     }
 
-    public String getValue() {
+    @Override // confirmed
+    public String value() {
         return value;
     }
 }

@@ -1,17 +1,19 @@
 package wd4j.impl.webdriver.type.script;
 
-// ToDo: Not directly defined as Type, but used by events and parameters
-public class Realm {
-    private final String realm;
+import wd4j.impl.webdriver.mapping.StringWrapper;
 
-    public Realm(String realm) {
-        if (realm == null || realm.isEmpty()) {
+public class Realm implements StringWrapper {
+    private final String value;
+
+    public Realm(String value) {
+        if (value == null || value.isEmpty()) {
             throw new IllegalArgumentException("Realm must not be null or empty.");
         }
-        this.realm = realm;
+        this.value = value;
     }
 
-    public String getRealm() {
-        return realm;
+    @Override // confirmed
+    public String value() {
+        return value;
     }
 }

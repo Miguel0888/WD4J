@@ -1,6 +1,8 @@
 package wd4j.impl.webdriver.type.script;
 
-public class Handle {
+import wd4j.impl.webdriver.mapping.StringWrapper;
+
+public class Handle implements StringWrapper {
     private final String value;
 
     public Handle(String value) {
@@ -10,7 +12,8 @@ public class Handle {
         this.value = value;
     }
 
-    public String getValue() {
+    @Override // confirmed
+    public String value() {
         return value;
     }
 }

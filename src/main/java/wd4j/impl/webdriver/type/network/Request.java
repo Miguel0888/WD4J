@@ -1,14 +1,17 @@
 package wd4j.impl.webdriver.type.network;
 
-public class Request {
-    private final String id;
+import wd4j.impl.webdriver.mapping.StringWrapper;
+
+public class Request implements StringWrapper {
+    private final String value;
 
     public Request(String id) {
-        this.id = id;
+        this.value = id;
     }
 
-    public String getId() {
-        return id;
+    @Override // confirmed
+    public String value() {
+        return value;
     }
 
 }

@@ -1,17 +1,19 @@
 package wd4j.impl.webdriver.type.browser;
 
-// ToDo: How to implement this class correctly?
-public class UserContext {
-    private final String id;
+import wd4j.impl.webdriver.mapping.StringWrapper;
 
-    public UserContext(String id) {
-        if (id == null || id.isEmpty()) {
+public class UserContext implements StringWrapper {
+    private final String value;
+
+    public UserContext(String value) {
+        if (value == null || value.isEmpty()) {
             throw new IllegalArgumentException("ID must not be null or empty.");
         }
-        this.id = id;
+        this.value = value;
     }
 
-    public String getId() {
-        return id;
+    @Override // confirmed
+    public String value() {
+        return value;
     }
 }

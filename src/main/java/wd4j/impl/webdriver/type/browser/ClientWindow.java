@@ -1,6 +1,8 @@
 package wd4j.impl.webdriver.type.browser;
 
-public class ClientWindow {
+import wd4j.impl.webdriver.mapping.StringWrapper;
+
+public class ClientWindow implements StringWrapper {
     private final String value;
 
     public ClientWindow(String value) {
@@ -10,7 +12,8 @@ public class ClientWindow {
         this.value = value;
     }
 
-    public String getValue() {
+    @Override // confirmed
+    public String value() {
         return value;
     }
 }

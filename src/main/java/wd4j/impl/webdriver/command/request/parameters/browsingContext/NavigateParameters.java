@@ -7,12 +7,12 @@ import wd4j.impl.websocket.Command;
 public class NavigateParameters implements Command.Params {
     private final BrowsingContextRequest context;
     private final String url;
-    private final ReadinessState weit;
+    private final ReadinessState wait; // Optional
 
-    public NavigateParameters(BrowsingContextRequest context, String url, ReadinessState weit) {
+    public NavigateParameters(BrowsingContextRequest context, String url, ReadinessState wait) {
         this.context = context;
         this.url = url;
-        this.weit = weit;
+        this.wait = wait;
     }
 
     public BrowsingContextRequest getContext() {
@@ -23,7 +23,7 @@ public class NavigateParameters implements Command.Params {
         return url;
     }
 
-    public ReadinessState getWeit() {
-        return weit;
+    public ReadinessState getWait() {
+        return wait;
     }
 }

@@ -1,6 +1,8 @@
 package wd4j.impl.webdriver.type.script;
 
-public class PreloadScript {
+import wd4j.impl.webdriver.mapping.StringWrapper;
+
+public class PreloadScript implements StringWrapper {
     private final String value;
 
     public PreloadScript(String value) {
@@ -10,7 +12,8 @@ public class PreloadScript {
         this.value = value;
     }
 
-    public String getValue() {
+    @Override // confirmed
+    public String value() {
         return value;
     }
 }

@@ -1,6 +1,8 @@
 package wd4j.impl.webdriver.type.script;
 
-public class Channel {
+import wd4j.impl.webdriver.mapping.StringWrapper;
+
+public class Channel implements StringWrapper {
     private final String value;
 
     public Channel(String value) {
@@ -10,7 +12,8 @@ public class Channel {
         this.value = value;
     }
 
-    public String getValue() {
+    @Override // confirmed
+    public String value() {
         return value;
     }
 }

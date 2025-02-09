@@ -1,6 +1,8 @@
 package wd4j.impl.webdriver.type.session;
 
-public class Subscription {
+import wd4j.impl.webdriver.mapping.StringWrapper;
+
+public class Subscription implements StringWrapper {
     private final String value;
 
     public Subscription(String value) {
@@ -10,7 +12,8 @@ public class Subscription {
         this.value = value;
     }
 
-    public String getValue() {
+    @Override // confirmed
+    public String value() {
         return value;
     }
 }
