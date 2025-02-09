@@ -8,14 +8,14 @@ import wd4j.impl.websocket.Event;
 
 import java.util.List;
 
-public class Network implements Module {
+public class NetworkEvent implements Module {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event Types (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class AuthRequired extends Event<AuthRequired.AuthRequiredParameters> {
-        private String method = Method.AUTH_REQUIRED.getName();
+        private String method = MethodEvent.AUTH_REQUIRED.getName();
 
         @Override
         public String getMethod() {
@@ -39,7 +39,7 @@ public class Network implements Module {
     }
 
     public static class BeforeRequestSent extends Event<BeforeRequestSent.BeforeRequestSentParameters> {
-        private String method = Method.BEFORE_REQUEST_SENT.getName();
+        private String method = MethodEvent.BEFORE_REQUEST_SENT.getName();
 
         @Override
         public String getMethod() {
@@ -74,7 +74,7 @@ public class Network implements Module {
     }
 
     public static class FetchError extends Event<FetchError.FetchErrorParameters> {
-        private String method = Method.FETCH_ERROR.getName();
+        private String method = MethodEvent.FETCH_ERROR.getName();
 
         @Override
         public String getMethod() {
@@ -109,7 +109,7 @@ public class Network implements Module {
     }
 
     public static class ResponseCompleted extends Event<ResponseCompleted.ResponseCompletedParameters> {
-        private String method = Method.RESPONSE_COMPLETED.getName();
+        private String method = MethodEvent.RESPONSE_COMPLETED.getName();
 
         @Override
         public String getMethod() {
@@ -144,7 +144,7 @@ public class Network implements Module {
     }
 
     public static class ResponseStarted extends Event<ResponseStarted.ResponseStartedParameters> {
-        private String method = Method.RESPONSE_STARTED.getName();
+        private String method = MethodEvent.RESPONSE_STARTED.getName();
 
         @Override
         public String getMethod() {

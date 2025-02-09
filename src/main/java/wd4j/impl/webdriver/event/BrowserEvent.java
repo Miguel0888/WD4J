@@ -1,6 +1,6 @@
 package wd4j.impl.webdriver.event;
 
-public class Session {
+public class BrowserEvent {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event Types (Classes)
@@ -8,3 +8,4 @@ public class Session {
 
     // No Events
 }
+

@@ -7,14 +7,14 @@ import wd4j.impl.webdriver.type.browsingContext.UserPromptType;
 import wd4j.impl.webdriver.type.session.UserPromptHandlerType;
 import wd4j.impl.websocket.Event;
 
-public class BrowsingContext implements Module {
+public class BrowsingContextEvent implements Module {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event Types (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class Created extends Event<Info> {
-        private String method = Method.CONTEXT_CREATED.name();
+        private String method = MethodEvent.CONTEXT_CREATED.name();
 
         @Override
         public String getMethod() {
@@ -24,7 +24,7 @@ public class BrowsingContext implements Module {
 
 
     public static class Destroyed extends Event<Info> {
-        private String method = Method.CONTEXT_DESTROYED.getName();
+        private String method = MethodEvent.CONTEXT_DESTROYED.getName();
 
         @Override
         public String getMethod() {
@@ -33,7 +33,7 @@ public class BrowsingContext implements Module {
     }
 
     public static class NavigationStarted extends Event<NavigationInfo> {
-        private String method = Method.NAVIGATION_STARTED.getName();
+        private String method = MethodEvent.NAVIGATION_STARTED.getName();
 
         @Override
         public String getMethod() {
@@ -42,7 +42,7 @@ public class BrowsingContext implements Module {
     }
 
     public static class FragmentNavigated extends Event<NavigationInfo> {
-        private String method = Method.FRAGMENT_NAVIGATED.getName();
+        private String method = MethodEvent.FRAGMENT_NAVIGATED.getName();
 
         @Override
         public String getMethod() {
@@ -51,7 +51,7 @@ public class BrowsingContext implements Module {
     }
 
     public static class DomContentLoaded extends Event<NavigationInfo> {
-        private String method = Method.DOM_CONTENT_LOADED.getName();
+        private String method = MethodEvent.DOM_CONTENT_LOADED.getName();
 
         @Override
         public String getMethod() {
@@ -60,7 +60,7 @@ public class BrowsingContext implements Module {
     }
 
     public static class Load extends Event<NavigationInfo> {
-        private String method = Method.LOAD.getName();
+        private String method = MethodEvent.LOAD.getName();
 
         @Override
         public String getMethod() {
@@ -69,7 +69,7 @@ public class BrowsingContext implements Module {
     }
 
     public static class DownloadWillBegin extends Event<NavigationInfo> {
-        private String method = Method.DOWNLOAD_WILL_BEGIN.getName();
+        private String method = MethodEvent.DOWNLOAD_WILL_BEGIN.getName();
 
         @Override
         public String getMethod() {
@@ -78,7 +78,7 @@ public class BrowsingContext implements Module {
     }
 
     public static class NavigationAborted extends Event<NavigationInfo> {
-        private String method = Method.NAVIGATION_ABORTED.getName();
+        private String method = MethodEvent.NAVIGATION_ABORTED.getName();
 
         @Override
         public String getMethod() {
@@ -87,7 +87,7 @@ public class BrowsingContext implements Module {
     }
 
     public static class NavigationFailed extends Event<NavigationInfo> {
-        private String method = Method.NAVIGATION_FAILED.getName();
+        private String method = MethodEvent.NAVIGATION_FAILED.getName();
 
         @Override
         public String getMethod() {
@@ -96,7 +96,7 @@ public class BrowsingContext implements Module {
     }
 
     public static class UserPromptClosed extends Event<UserPromptClosed.UserPromptClosedParameters> {
-        private String method = Method.USER_PROMPT_CLOSED.getName();
+        private String method = MethodEvent.USER_PROMPT_CLOSED.getName();
 
         @Override
         public String getMethod() {
@@ -161,7 +161,7 @@ public class BrowsingContext implements Module {
     }
 
     public static class UserPromptOpened extends Event<UserPromptOpened.UserPromptOpenedParameters> {
-        private String method = Method.USER_PROMPT_OPENED.getName();
+        private String method = MethodEvent.USER_PROMPT_OPENED.getName();
 
         @Override
         public String getMethod() {

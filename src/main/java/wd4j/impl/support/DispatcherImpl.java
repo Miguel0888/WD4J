@@ -6,7 +6,7 @@ import wd4j.api.ConsoleMessage;
 import wd4j.api.Request;
 import wd4j.api.Response;
 import wd4j.impl.service.SessionService;
-import wd4j.impl.webdriver.event.Method;
+import wd4j.impl.webdriver.event.MethodEvent;
 
 import java.util.Collections;
 import java.util.Map;
@@ -59,7 +59,7 @@ public class DispatcherImpl implements Dispatcher {
         String eventType = jsonMessage.get("method").getAsString();
         JsonObject params = jsonMessage.has("params") ? jsonMessage.getAsJsonObject("params") : new JsonObject();
 
-        Method event = Method.fromName(eventType);
+        MethodEvent event = MethodEvent.fromName(eventType);
         if (event != null) {
             System.out.println("[DEBUG] Dispatched event: " + eventType + " with params: " + params);
             dispatchEvent(eventType, params, event.getAssociatedClass());

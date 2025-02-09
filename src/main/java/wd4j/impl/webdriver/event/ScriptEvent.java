@@ -7,14 +7,14 @@ import wd4j.impl.webdriver.type.script.RemoteValue;
 import wd4j.impl.webdriver.type.script.Source;
 import wd4j.impl.websocket.Event;
 
-public class Script implements Module {
+public class ScriptEvent implements Module {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event Types (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class Message extends Event<Message.MessageParameters> {
-        private String method = Method.MESSAGE.getName();
+        private String method = MethodEvent.MESSAGE.getName();
 
         @Override
         public String getMethod() {
@@ -68,7 +68,7 @@ public class Script implements Module {
     }
 
     public static class RealmCreated extends Event<RealmCreated.RealmCreatedParameters> {
-        private String method = Method.REALM_CREATED.getName();
+        private String method = MethodEvent.REALM_CREATED.getName();
 
         @Override
         public String getMethod() {
@@ -100,7 +100,7 @@ public class Script implements Module {
     }
 
     public static class RealmDestroyed extends Event<RealmDestroyed.RealmDestroyedParameters> {
-        private String method = Method.REALM_DESTROYED.getName();
+        private String method = MethodEvent.REALM_DESTROYED.getName();
 
         @Override
         public String getMethod() {

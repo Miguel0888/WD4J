@@ -4,14 +4,14 @@ import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.websocket.Event;
 import wd4j.impl.webdriver.type.log.LogEntry;
 
-public class Log implements Module {
+public class LogEvent implements Module {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event Types (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class EntryAdded extends Event<EntryAdded.EntryAddedParameters> {
-        private String method = Method.ENTRY_ADDED.getName();
+        private String method = MethodEvent.ENTRY_ADDED.getName();
 
         @Override
         public String getMethod() {

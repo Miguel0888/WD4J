@@ -2,7 +2,7 @@ package wd4j.impl.webdriver.event;
 
 import wd4j.api.*;
 
-public enum Method {
+public enum MethodEvent {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event methods see: https://w3c.github.io/webdriver-bidi#modules
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -42,7 +42,7 @@ public enum Method {
     private final String name;
     private final Class<?> associatedClass;
 
-    Method(String name, Class<?> associatedClass) {
+    MethodEvent(String name, Class<?> associatedClass) {
         this.name = name;
         this.associatedClass = associatedClass;
     }
@@ -56,8 +56,8 @@ public enum Method {
     }
 
     // 🔹 Methode zur Suche eines Events anhand des Namens (für Dispatcher)
-    public static Method fromName(String name) {
-        for (Method event : Method.values()) {
+    public static MethodEvent fromName(String name) {
+        for (MethodEvent event : MethodEvent.values()) {
             if (event.getName().equals(name)) {
                 return event;
             }
