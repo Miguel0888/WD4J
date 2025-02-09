@@ -1,16 +1,19 @@
 package wd4j.impl.webdriver.command.request.parameters.browsingContext;
 
-public enum CreateType {
+import wd4j.impl.webdriver.mapping.EnumWrapper;
+
+public enum CreateType implements EnumWrapper {
     TAB("tab"),
     WINDOW("window");
 
-    private final String type;
+    private final String value;
 
-    CreateType(String type) {
-        this.type = type;
+    CreateType(String value) {
+        this.value = value;
     }
 
-    public String getType() {
-        return type;
+    @Override // confirmed
+    public String value() {
+        return value;
     }
 }

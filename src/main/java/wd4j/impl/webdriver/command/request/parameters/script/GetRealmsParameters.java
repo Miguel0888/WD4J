@@ -1,6 +1,7 @@
 package wd4j.impl.webdriver.command.request.parameters.script;
 
 import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
+import wd4j.impl.webdriver.type.script.RealmType;
 import wd4j.impl.websocket.Command;
 
 public class GetRealmsParameters implements Command.Params {

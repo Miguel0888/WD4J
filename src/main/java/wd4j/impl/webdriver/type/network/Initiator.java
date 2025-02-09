@@ -1,5 +1,6 @@
 package wd4j.impl.webdriver.type.network;
 
+import wd4j.impl.webdriver.mapping.EnumWrapper;
 import wd4j.impl.webdriver.type.script.StackTrace;
 
 public class Initiator {
@@ -46,7 +47,7 @@ public class Initiator {
         return type;
     }
 
-    public enum Type {
+    public enum Type implements EnumWrapper {
         PARSER("parser"),
         SCRIPT("script"),
         PREFLIGHT("preflight"),
@@ -56,6 +57,11 @@ public class Initiator {
 
         Type(String value) {
             this.value = value;
+        }
+
+        @Override // confirmed
+        public String value() {
+            return value;
         }
     }
 }

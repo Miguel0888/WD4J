@@ -1,6 +1,8 @@
 package wd4j.impl.webdriver.type.error;
 
-public enum ErrorCode {
+import wd4j.impl.webdriver.mapping.EnumWrapper;
+
+public enum ErrorCode implements EnumWrapper {
     INVALID_ARGUMENT("invalid argument"),
     INVALID_SELECTOR("invalid selector"),
     INVALID_SESSION_ID("invalid session id"),
@@ -34,13 +36,14 @@ public enum ErrorCode {
         this.value = value;
     }
 
-    public String getValue() {
+    @Override // confirmed
+    public String value() {
         return value;
     }
 
     public static ErrorCode fromValue(String value) {
         for (ErrorCode code : values()) {
-            if (code.getValue().equalsIgnoreCase(value)) {
+            if (code.value().equalsIgnoreCase(value)) {
                 return code;
             }
         }

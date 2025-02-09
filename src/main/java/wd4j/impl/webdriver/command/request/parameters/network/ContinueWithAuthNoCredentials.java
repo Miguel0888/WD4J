@@ -1,16 +1,33 @@
 package wd4j.impl.webdriver.command.request.parameters.network;
 
-public enum ContinueWithAuthNoCredentials implements Credentials {
-    DEFAULT( "default" ),
-    CANCEL( "cancel" );
+import wd4j.impl.webdriver.type.network.Request;
 
-    private final String value;
+public class ContinueWithAuthNoCredentials extends ContinueWithAuthParameters
+{
+    private final Action action;
 
-    private ContinueWithAuthNoCredentials( String value ) {
-        this.value = value;
+    public ContinueWithAuthNoCredentials(Request request, Action action) {
+        super(request);
+        this.action = action;
     }
 
-    public String getValue() {
-        return value;
+    public Action getAction() {
+        return action;
+    }
+
+    public enum Action implements ContinueWithAuthParameters.Action {
+        DEFAULT( "default" ),
+        CANCEL( "cancel" );
+
+        private final String value;
+
+        Action( String value ) {
+            this.value = value;
+        }
+
+        @Override // confirmed design
+        public String value() {
+            return value;
+        }
     }
 }

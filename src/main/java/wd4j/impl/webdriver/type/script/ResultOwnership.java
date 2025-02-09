@@ -1,6 +1,8 @@
 package wd4j.impl.webdriver.type.script;
 
-public enum ResultOwnership {
+import wd4j.impl.webdriver.mapping.EnumWrapper;
+
+public enum ResultOwnership implements EnumWrapper {
     ROOT("root"),
     NONE("none");
 
@@ -10,7 +12,8 @@ public enum ResultOwnership {
         this.value = value;
     }
 
-    public String getValue() {
+    @Override // confirmed
+    public String value() {
         return value;
     }
 }

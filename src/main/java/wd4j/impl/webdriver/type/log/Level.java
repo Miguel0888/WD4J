@@ -1,18 +1,21 @@
 package wd4j.impl.webdriver.type.log;
 
-public enum Level {
+import wd4j.impl.webdriver.mapping.EnumWrapper;
+
+public enum Level implements EnumWrapper {
     DEBUG("debug"),
     INFO("info"),
     WARN("warn"),
     ERROR("error");
 
-    private final String level;
+    private final String value;
 
-    Level(String level) {
-        this.level = level;
+    Level(String value) {
+        this.value = value;
     }
 
-    public String getLevel() {
-        return level;
+    @Override // confirmed
+    public String value() {
+        return value;
     }
 }

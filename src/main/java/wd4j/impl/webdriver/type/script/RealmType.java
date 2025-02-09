@@ -1,6 +1,8 @@
 package wd4j.impl.webdriver.type.script;
 
-public enum RealmType {
+import wd4j.impl.webdriver.mapping.EnumWrapper;
+
+public enum RealmType implements EnumWrapper {
     WINDOW("window"),
     DEDICATED_WORKER("dedicated-worker"),
     SHARED_WORKER("shared-worker"),
@@ -14,5 +16,10 @@ public enum RealmType {
 
     RealmType(String value) {
         this.value = value;
+    }
+
+    @Override // confirmed
+    public String value() {
+        return value;
     }
 }

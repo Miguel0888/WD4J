@@ -1,17 +1,20 @@
 package wd4j.impl.webdriver.command.request.parameters.network;
 
-public enum InterceptPhase {
+import wd4j.impl.webdriver.mapping.EnumWrapper;
+
+public enum InterceptPhase implements EnumWrapper {
     BEFORE_REQUEST_SENT("beforeRequestSent"),
     RESPONSE_STARTED("responseStarted"),
     AUTH_REQUIRED("authRequired");
 
-    private final String phase;
+    private final String value;
 
-    InterceptPhase(String phase) {
-        this.phase = phase;
+    InterceptPhase(String value) {
+        this.value = value;
     }
 
-    public String getPhase() {
-        return phase;
+    @Override // confirmed
+    public String value() {
+        return value;
     }
 }

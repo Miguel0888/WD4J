@@ -1,6 +1,8 @@
 package wd4j.impl.webdriver.type.browsingContext;
 
-public enum UserPromptType {
+import wd4j.impl.webdriver.mapping.EnumWrapper;
+
+public enum UserPromptType implements EnumWrapper {
     ALERT("alert"),
     BEFOREUNLOAD("beforeunload"),
     CONFIRM("confirm"),
@@ -12,7 +14,8 @@ public enum UserPromptType {
         this.value = value;
     }
 
-    public String getValue() {
+    @Override // confirmed
+    public String value() {
         return value;
     }
 }

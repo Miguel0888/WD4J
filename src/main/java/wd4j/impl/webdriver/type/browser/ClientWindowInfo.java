@@ -1,5 +1,7 @@
 package wd4j.impl.webdriver.type.browser;
 
+import wd4j.impl.webdriver.mapping.EnumWrapper;
+
 public class ClientWindowInfo {
     private final boolean active;
     private final ClientWindow clientWindow;
@@ -45,5 +47,24 @@ public class ClientWindowInfo {
 
     public int getY() {
         return y;
+    }
+
+    // ToDo: See similar implementation in ClientWindowNamedState.java & ClientWindowRectState.java
+    public enum State implements EnumWrapper {
+        FULLSCREEN ("fullscreen"),
+        MAXIMIZED ("maximized"),
+        MINIMIZED ("minimized"),
+        NORMAL ("normal");
+
+        private final String value;
+
+        State(String value) {
+            this.value = value;
+        }
+
+        @Override // confirmed
+        public String value() {
+            return value;
+        }
     }
 }

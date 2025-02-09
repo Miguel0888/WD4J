@@ -1,5 +1,6 @@
 package wd4j.impl.webdriver.type.browsingContext.locator;
 
+import wd4j.impl.webdriver.mapping.EnumWrapper;
 import wd4j.impl.webdriver.type.browsingContext.Locator;
 
 public class InnerTextLocator implements Locator<String> {
@@ -45,7 +46,7 @@ public class InnerTextLocator implements Locator<String> {
         return maxDepth;
     }
 
-    public static enum MatchType {
+    public enum MatchType implements EnumWrapper {
         FULL("full"),
         PARTIAL("partial");
 
@@ -53,6 +54,11 @@ public class InnerTextLocator implements Locator<String> {
 
         MatchType(String value) {
             this.value = value;
+        }
+
+        @Override // confirmed
+        public String value() {
+            return value;
         }
     }
 }

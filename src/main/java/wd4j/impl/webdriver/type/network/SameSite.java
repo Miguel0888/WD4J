@@ -1,6 +1,8 @@
 package wd4j.impl.webdriver.type.network;
 
-public enum SameSite {
+import wd4j.impl.webdriver.mapping.EnumWrapper;
+
+public enum SameSite implements EnumWrapper {
     STRICT("strict"),
     LAX("lax"),
     NONE("none");
@@ -11,7 +13,8 @@ public enum SameSite {
         this.value = value;
     }
 
-    public String getValue() {
+    @Override // confirmed
+    public String value() {
         return value;
     }
 }

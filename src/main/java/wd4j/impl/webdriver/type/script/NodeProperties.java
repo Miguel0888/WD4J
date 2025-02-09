@@ -1,5 +1,7 @@
 package wd4j.impl.webdriver.type.script;
 
+import wd4j.impl.webdriver.mapping.EnumWrapper;
+
 import java.util.List;
 import java.util.Map;
 
@@ -67,7 +69,7 @@ public class NodeProperties {
     }
 
 
-    public enum Mode {
+    public enum Mode implements EnumWrapper {
         OPEN("open"),
         CLOSED("closed");
 
@@ -77,7 +79,8 @@ public class NodeProperties {
             this.value = value;
         }
 
-        public String getValue() {
+        @Override // confirmed
+        public String value() {
             return value;
         }
     }

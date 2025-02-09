@@ -1,6 +1,8 @@
 package wd4j.impl.webdriver.type.session;
 
-public enum UserPromptHandlerType {
+import wd4j.impl.webdriver.mapping.EnumWrapper;
+
+public enum UserPromptHandlerType implements EnumWrapper {
     ACCEPT("accept"),
     DISMISS("dismiss"),
     IGNORE("ignore");
@@ -9,5 +11,10 @@ public enum UserPromptHandlerType {
 
     UserPromptHandlerType(String value) {
         this.value = value;
+    }
+
+    @Override // confirmed
+    public String value() {
+        return value;
     }
 }

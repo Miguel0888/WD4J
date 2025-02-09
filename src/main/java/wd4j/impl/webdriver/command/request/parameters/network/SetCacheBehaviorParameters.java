@@ -6,15 +6,15 @@ import wd4j.impl.websocket.Command;
 import java.util.List;
 
 public class SetCacheBehaviorParameters implements Command.Params {
-    private final String cacheBehavior;
+    private final CacheBehavior cacheBehavior;
     private final List<BrowsingContext> contexts;
 
-    public SetCacheBehaviorParameters(String cacheBehavior, List<BrowsingContext> contexts) {
+    public SetCacheBehaviorParameters(CacheBehavior cacheBehavior, List<BrowsingContext> contexts) {
         this.cacheBehavior = cacheBehavior;
         this.contexts = contexts;
     }
 
-    public String getCacheBehavior() {
+    public CacheBehavior getCacheBehavior() {
         return cacheBehavior;
     }
 

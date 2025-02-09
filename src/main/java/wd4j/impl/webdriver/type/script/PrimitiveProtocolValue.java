@@ -1,28 +1,30 @@
 package wd4j.impl.webdriver.type.script;
 
+import wd4j.impl.webdriver.mapping.EnumWrapper;
+
 public interface PrimitiveProtocolValue<T> {
-    String getType();
+    Type getType();
 
     class UndefinedValue implements PrimitiveProtocolValue<Void> {
-        private final String type = "undefined";
+        private final Type type = Type.UNDEFINED;
 
         @Override
-        public String getType() {
+        public Type getType() {
             return type;
         }
     }
 
     class NullValue implements PrimitiveProtocolValue<Void> {
-        private final String type = "null";
+        private final Type type = Type.NULL;
 
         @Override
-        public String getType() {
+        public Type getType() {
             return type;
         }
     }
 
     class StringValue implements PrimitiveProtocolValue<String> {
-        private final String type = "string";
+        private final Type type = Type.STRING;
         private final String value;
 
         public StringValue(String value) {
@@ -30,7 +32,7 @@ public interface PrimitiveProtocolValue<T> {
         }
 
         @Override
-        public String getType() {
+        public Type getType() {
             return type;
         }
 
@@ -40,7 +42,7 @@ public interface PrimitiveProtocolValue<T> {
     }
 
     class NumberValue implements PrimitiveProtocolValue<String> {
-        private final String type = "number";
+        private final Type type = Type.NUMBER;
         private final String value; // Cannot use Number (as defined) because of special values
 
         public NumberValue(String value) {
@@ -48,7 +50,7 @@ public interface PrimitiveProtocolValue<T> {
         }
 
         @Override
-        public String getType() {
+        public Type getType() {
             return type;
         }
 
@@ -58,7 +60,7 @@ public interface PrimitiveProtocolValue<T> {
     }
 
     class BooleanValue implements PrimitiveProtocolValue<Boolean> {
-        private final String type = "boolean";
+        private final Type type = Type.BOOLEAN;
         private final Boolean value;
 
         public BooleanValue(Boolean value) {
@@ -66,7 +68,7 @@ public interface PrimitiveProtocolValue<T> {
         }
 
         @Override
-        public String getType() {
+        public Type getType() {
             return type;
         }
 
@@ -76,7 +78,7 @@ public interface PrimitiveProtocolValue<T> {
     }
 
     class BigIntValue implements PrimitiveProtocolValue<String> {
-        private final String type = "bigint";
+        private final Type type = Type.BIGINT;
         private final String value;
 
         public BigIntValue(String value) {
@@ -84,7 +86,7 @@ public interface PrimitiveProtocolValue<T> {
         }
 
         @Override
-        public String getType() {
+        public Type getType() {
             return type;
         }
 
@@ -93,7 +95,27 @@ public interface PrimitiveProtocolValue<T> {
         }
     }
 
-    enum SpecialNumber {
+    enum Type implements EnumWrapper {
+        UNDEFINED("undefined"),
+        NULL("null"),
+        STRING("string"),
+        NUMBER("number"),
+        BOOLEAN("boolean"),
+        BIGINT("bigint");
+
+        private final String value;
+
+        Type(String value) {
+            this.value = value;
+        }
+
+        @Override // confirmed
+        public String value() {
+            return value;
+        }
+    }
+
+    enum SpecialNumber implements EnumWrapper {
         NAN("NaN"),
         NEGATIVE_ZERO("-0"),
         INFINITY("Infinity"),
@@ -103,6 +125,11 @@ public interface PrimitiveProtocolValue<T> {
 
         SpecialNumber(String value) {
             this.value = value;
+        }
+
+        @Override // confirmed
+        public String value() {
+            return value;
         }
     }
 }
