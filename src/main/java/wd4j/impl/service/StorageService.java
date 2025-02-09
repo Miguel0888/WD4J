@@ -3,7 +3,7 @@ package wd4j.impl.service;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.Module;
-import wd4j.impl.webdriver.command.request.Storage;
+import wd4j.impl.webdriver.command.request.storage.Storage;
 import wd4j.impl.playwright.WebSocketImpl;
 
 public class StorageService implements Module {

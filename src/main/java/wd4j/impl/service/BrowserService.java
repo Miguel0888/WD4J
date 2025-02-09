@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.Module;
-import wd4j.impl.webdriver.command.request.Browser;
+import wd4j.impl.webdriver.command.request.browser.Browser;
 import wd4j.impl.webdriver.type.browser.ClientWindow;
 import wd4j.impl.webdriver.type.browser.ClientWindowInfo;
 import wd4j.impl.webdriver.type.browser.UserContext;

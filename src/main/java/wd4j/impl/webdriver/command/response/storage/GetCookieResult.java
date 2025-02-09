@@ -2,7 +2,7 @@ package wd4j.impl.webdriver.command.response.storage;
 
 import wd4j.impl.markerInterfaces.resultData.StorageResult;
 import wd4j.impl.webdriver.type.network.Cookie;
-import wd4j.impl.webdriver.type.storage.parameters.PartitionKey;
+import wd4j.impl.webdriver.command.request.storage.parameters.PartitionKey;
 
 import java.util.List;
 

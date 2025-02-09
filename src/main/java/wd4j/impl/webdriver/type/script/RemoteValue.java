@@ -179,7 +179,7 @@ public abstract class RemoteValue {
         }
     }
 
-    class NodeRemoteValue extends RemoteValue {
+    public class NodeRemoteValue extends RemoteValue {
         private final SharedId sharedId;
         private final NodeProperties value;
 

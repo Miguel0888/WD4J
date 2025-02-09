@@ -1,6 +1,6 @@
 package wd4j.impl.webdriver.type.script;
 
-import wd4j.impl.webdriver.command.request.BrowsingContext;
+import wd4j.impl.webdriver.command.request.browsingContext.BrowsingContext;
 
 public class WindowProxyProperties {
     private final BrowsingContext browsingContext;

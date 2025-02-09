@@ -1,7 +1,7 @@
 package wd4j.impl.service;
 
 import wd4j.impl.markerInterfaces.Module;
-import wd4j.impl.webdriver.command.request.Network;
+import wd4j.impl.webdriver.command.request.network.Network;
 import wd4j.impl.playwright.WebSocketImpl;
 
 public class NetworkService implements Module {

@@ -1,22 +1,22 @@
 package wd4j.impl.webdriver.command.response.browsingContext;
 
 import wd4j.impl.markerInterfaces.resultData.BrowsingContextResult;
-import wd4j.impl.webdriver.type.script.remoteValue.NodeRemoteValue;
+import wd4j.impl.webdriver.type.script.RemoteValue;
 
 import java.util.List;
 
 public class LocateNodesResult implements BrowsingContextResult {
-    private List<NodeRemoteValue> nodes;
+    private List<RemoteValue.NodeRemoteValue> nodes;
 
-    public LocateNodesResult(List<NodeRemoteValue> nodes) {
+    public LocateNodesResult(List<RemoteValue.NodeRemoteValue> nodes) {
         this.nodes = nodes;
     }
 
-    public List<NodeRemoteValue> getNodes() {
+    public List<RemoteValue.NodeRemoteValue> getNodes() {
         return nodes;
     }
 
-    public void setNodes(List<NodeRemoteValue> nodes) {
+    public void setNodes(List<RemoteValue.NodeRemoteValue> nodes) {
         this.nodes = nodes;
     }
 

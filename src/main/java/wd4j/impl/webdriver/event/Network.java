@@ -1,6 +1,7 @@
 package wd4j.impl.webdriver.event;
 
 import wd4j.impl.markerInterfaces.Module;
+import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
 import wd4j.impl.webdriver.type.browsingContext.Navigation;
 import wd4j.impl.webdriver.type.network.*;
 import wd4j.impl.websocket.Event;
@@ -24,7 +25,7 @@ public class Network implements Module {
         public static class AuthRequiredParameters extends BaseParameters {
             private ResponseData response;
 
-            public AuthRequiredParameters(String context, boolean isBlocked, Navigation navigation, int redirectCount,
+            public AuthRequiredParameters(BrowsingContext context, boolean isBlocked, Navigation navigation, char redirectCount,
                                           RequestData request, long timestamp, List<Intercept> intercepts,
                                           ResponseData response) {
                 super(context, isBlocked, navigation, redirectCount, request, timestamp, intercepts);
@@ -33,17 +34,6 @@ public class Network implements Module {
 
             public ResponseData getResponse() {
                 return response;
-            }
-
-            public void setResponse(ResponseData response) {
-                this.response = response;
-            }
-
-            @Override
-            public String toString() {
-                return "AuthRequiredParameters{" +
-                        "response=" + response +
-                        "} " + super.toString();
             }
         }
     }
@@ -59,7 +49,7 @@ public class Network implements Module {
         public static class BeforeRequestSentParameters extends BaseParameters {
             private Initiator initiator;
 
-            public BeforeRequestSentParameters(String context, boolean isBlocked, Navigation navigation, int redirectCount,
+            public BeforeRequestSentParameters(BrowsingContext context, boolean isBlocked, Navigation navigation, char redirectCount,
                                                RequestData request, long timestamp, List<Intercept> intercepts,
                                                Initiator initiator) {
                 super(context, isBlocked, navigation, redirectCount, request, timestamp, intercepts);
@@ -94,7 +84,7 @@ public class Network implements Module {
         public static class FetchErrorParameters extends BaseParameters {
             private String errorText;
 
-            public FetchErrorParameters(String context, boolean isBlocked, Navigation navigation, int redirectCount,
+            public FetchErrorParameters(BrowsingContext context, boolean isBlocked, Navigation navigation, char redirectCount,
                                         RequestData request, long timestamp, List<Intercept> intercepts,
                                         String errorText) {
                 super(context, isBlocked, navigation, redirectCount, request, timestamp, intercepts);
@@ -129,7 +119,7 @@ public class Network implements Module {
         public static class ResponseCompletedParameters extends BaseParameters {
             private ResponseData response;
 
-            public ResponseCompletedParameters(String context, boolean isBlocked, Navigation navigation, int redirectCount,
+            public ResponseCompletedParameters(BrowsingContext context, boolean isBlocked, Navigation navigation, char redirectCount,
                                                RequestData request, long timestamp, List<Intercept> intercepts,
                                                ResponseData response) {
                 super(context, isBlocked, navigation, redirectCount, request, timestamp, intercepts);
@@ -164,7 +154,7 @@ public class Network implements Module {
         public static class ResponseStartedParameters extends BaseParameters {
             private ResponseData response;
 
-            public ResponseStartedParameters(String context, boolean isBlocked, Navigation navigation, int redirectCount,
+            public ResponseStartedParameters(BrowsingContext context, boolean isBlocked, Navigation navigation, char redirectCount,
                                              RequestData request, long timestamp, List<Intercept> intercepts,
                                              ResponseData response) {
                 super(context, isBlocked, navigation, redirectCount, request, timestamp, intercepts);

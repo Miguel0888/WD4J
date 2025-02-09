@@ -1,7 +1,7 @@
 package wd4j.impl.service;
 
 import wd4j.impl.markerInterfaces.Module;
-import wd4j.impl.webdriver.command.request.WebExtension;
+import wd4j.impl.webdriver.command.request.webExtension.WebExtension;
 import wd4j.impl.webdriver.type.webExtension.Extension;
 import wd4j.impl.playwright.WebSocketImpl;
 

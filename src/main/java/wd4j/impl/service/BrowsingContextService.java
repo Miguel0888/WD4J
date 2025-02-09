@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.impl.webdriver.command.request.CommandImpl;
 import wd4j.impl.markerInterfaces.Module;
-import wd4j.impl.webdriver.command.request.BrowsingContext;
+import wd4j.impl.webdriver.command.request.browsingContext.BrowsingContext;
 import wd4j.impl.playwright.WebSocketImpl;
 
 public class BrowsingContextService implements Module {

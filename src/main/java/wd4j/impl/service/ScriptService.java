@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.Module;
-import wd4j.impl.webdriver.command.request.Script;
+import wd4j.impl.webdriver.command.request.script.Script;
 import wd4j.impl.playwright.WebSocketImpl;
 
 import java.util.ArrayList;

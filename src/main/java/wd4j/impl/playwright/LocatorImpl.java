@@ -9,8 +9,8 @@ import wd4j.api.options.AriaRole;
 import wd4j.api.options.BoundingBox;
 import wd4j.api.options.FilePayload;
 import wd4j.api.options.SelectOption;
-import wd4j.impl.webdriver.command.request.BrowsingContext;
-import wd4j.impl.webdriver.command.request.Script;
+import wd4j.impl.webdriver.command.request.browsingContext.BrowsingContext;
+import wd4j.impl.webdriver.command.request.script.Script;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
