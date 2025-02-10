@@ -22,7 +22,6 @@ public class GsonMapperFactory {
         // Register new Wrapper Interfaces, here:
         registerStringWrappers(builder);
         registerEnumWrappers(builder);
-        registerGenericWrappers(builder);
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     }
 
@@ -41,15 +40,6 @@ public class GsonMapperFactory {
 
         for (Class<? extends EnumWrapper> clazz : enumWrapperClasses) {
             builder.registerTypeAdapter(clazz, new EnumWrapperAdapter<>(clazz));
-        }
-    }
-
-    private static void registerGenericWrappers(GsonBuilder builder) {
-        Reflections reflections = new Reflections(PACKAGE); // Paketnamen ggf. anpassen
-        Set<Class<? extends GenericWrapper>> genericWrapperClasses = reflections.getSubTypesOf(GenericWrapper.class);
-
-        for (Class<? extends GenericWrapper> clazz : genericWrapperClasses) {
-            builder.registerTypeAdapter(clazz, new GenericWrapperAdapter<>(clazz));
         }
     }
 

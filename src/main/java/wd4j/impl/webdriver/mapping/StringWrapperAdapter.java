@@ -4,6 +4,7 @@ import com.google.gson.*;
 
 import java.lang.reflect.Type;
 
+
 public class StringWrapperAdapter<T extends StringWrapper> implements JsonSerializer<T>, JsonDeserializer<T> {
     private final Class<T> clazz;
 

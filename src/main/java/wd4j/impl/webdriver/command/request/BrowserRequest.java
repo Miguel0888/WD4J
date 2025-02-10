@@ -47,15 +47,22 @@ public class BrowserRequest {
         }
     }
 
-    public static class SetClientWindowState extends CommandImpl<SetClientWindowStateParameters<SetClientWindowStateParameters.ClientWindowState>> implements CommandData {
+    public static class SetClientWindowState extends CommandImpl<SetClientWindowStateParameters> implements CommandData {
         public SetClientWindowState(String clientWindowId, String state) {
-            super("browser.setClientWindowState", new SetClientWindowStateParameters<>(
-                    new ClientWindow(clientWindowId),
-                    new SetClientWindowStateParameters.ClientWindowNamedState(
-                            SetClientWindowStateParameters.ClientWindowNamedState.State.valueOf(state))));
+            super("browser.setClientWindowState",
+                    new SetClientWindowStateParameters.ClientWindowNamedState( new ClientWindow(clientWindowId),
+                            SetClientWindowStateParameters.ClientWindowNamedState.State.valueOf(state)));
         }
-        public SetClientWindowState(ClientWindow clientWindow, SetClientWindowStateParameters.ClientWindowState state) {
-            super("browser.setClientWindowState", new SetClientWindowStateParameters<>(clientWindow, state));
+        public SetClientWindowState(ClientWindow clientWindow, SetClientWindowStateParameters.ClientWindowNamedState.State state) {
+            super("browser.setClientWindowState",
+                    new SetClientWindowStateParameters.ClientWindowNamedState( clientWindow, state));
+        }
+        // ToDo: These are not quite correct, since ClientWindow ought to be a separate parameter, not a part of the state:
+        public SetClientWindowState(SetClientWindowStateParameters.ClientWindowNamedState clientWindowNamedState) {
+            super("browser.setClientWindowState", clientWindowNamedState);
+        }
+        public SetClientWindowState(SetClientWindowStateParameters.ClientWindowRectState clientWindowRectState) {
+            super("browser.setClientWindowState", clientWindowRectState);
         }
     }
 
