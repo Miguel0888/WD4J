@@ -1,6 +1,10 @@
 package wd4j.impl.webdriver.command.request;
 
 import wd4j.impl.markerInterfaces.CommandData;
+import wd4j.impl.webdriver.command.request.parameters.browser.RemoveUserContextParameters;
+import wd4j.impl.webdriver.command.request.parameters.browser.SetClientWindowStateParameters;
+import wd4j.impl.webdriver.type.browser.ClientWindow;
+import wd4j.impl.webdriver.type.browser.UserContext;
 import wd4j.impl.websocket.Command;
 
 public class BrowserRequest {
@@ -9,94 +13,51 @@ public class BrowserRequest {
     // Commands (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class Close extends CommandImpl<Close.ParamsImpl> implements CommandData {
-
+    public static class Close extends CommandImpl<EmptyParameters> implements CommandData {
         public Close() {
-            super("browser.close", new ParamsImpl());
-        }
-
-        public static class ParamsImpl implements Command.Params {
-            // Keine Parameter erforderlich, daher bleibt die Klasse leer.
+            super("browser.close", new EmptyParameters());
         }
     }
 
-
-    public static class CreateUserContext extends CommandImpl<CreateUserContext.ParamsImpl> implements CommandData {
-
+    public static class CreateUserContext extends CommandImpl<EmptyParameters> implements CommandData {
         public CreateUserContext() {
-            super("browser.createUserContext", new ParamsImpl());
-        }
-
-        public static class ParamsImpl implements Command.Params {
-            // Keine Parameter erforderlich, daher bleibt die Klasse leer.
+            super("browser.createUserContext", new EmptyParameters());
         }
     }
 
-
-    public static class GetClientWindows extends CommandImpl<GetClientWindows.ParamsImpl> implements CommandData {
-
+    public static class GetClientWindows extends CommandImpl<EmptyParameters> implements CommandData {
         public GetClientWindows() {
-            super("browser.getClientWindows", new ParamsImpl());
-        }
-
-        public static class ParamsImpl implements Command.Params {
-            // Keine Parameter erforderlich, daher bleibt die Klasse leer.
+            super("browser.getClientWindows", new EmptyParameters());
         }
     }
 
-
-    public static class GetUserContexts extends CommandImpl<GetUserContexts.ParamsImpl> implements CommandData {
-
+    public static class GetUserContexts extends CommandImpl<EmptyParameters> implements CommandData {
         public GetUserContexts() {
-            super("browser.getUserContexts", new ParamsImpl());
-        }
-
-        public static class ParamsImpl implements Command.Params {
-            // Keine Parameter erforderlich, daher bleibt die Klasse leer.
+            super("browser.getUserContexts", new EmptyParameters());
         }
     }
 
-
-    public static class RemoveUserContext extends CommandImpl<RemoveUserContext.ParamsImpl> implements CommandData {
-
+    public static class RemoveUserContext extends CommandImpl<RemoveUserContextParameters> implements CommandData {
         public RemoveUserContext(String contextId) {
-            super("browser.removeUserContext", new ParamsImpl(contextId));
+            super("browser.removeUserContext", new RemoveUserContextParameters(new UserContext(contextId)));
         }
 
-        public static class ParamsImpl implements Command.Params {
-            private final String context;
-
-            public ParamsImpl(String contextId) {
-                if (contextId == null || contextId.isEmpty()) {
-                    throw new IllegalArgumentException("Context ID must not be null or empty.");
-                }
-                this.context = contextId;
-            }
+        public RemoveUserContext(UserContext context) {
+            super("browser.removeUserContext", new RemoveUserContextParameters(context));
         }
     }
 
-
-    public static class SetClientWindowState extends CommandImpl<SetClientWindowState.ParamsImpl> implements CommandData {
-
+    public static class SetClientWindowState extends CommandImpl<SetClientWindowStateParameters<SetClientWindowStateParameters.ClientWindowState>> implements CommandData {
         public SetClientWindowState(String clientWindowId, String state) {
-            super("browser.setClientWindowState", new ParamsImpl(clientWindowId, state));
+            super("browser.setClientWindowState", new SetClientWindowStateParameters<>(
+                    new ClientWindow(clientWindowId),
+                    new SetClientWindowStateParameters.ClientWindowNamedState(
+                            SetClientWindowStateParameters.ClientWindowNamedState.State.valueOf(state))));
         }
-
-        public static class ParamsImpl implements Command.Params {
-            private final String clientWindowId;
-            private final String state;
-
-            public ParamsImpl(String clientWindowId, String state) {
-                if (clientWindowId == null || clientWindowId.isEmpty()) {
-                    throw new IllegalArgumentException("Client Window ID must not be null or empty.");
-                }
-                if (state == null || state.isEmpty()) {
-                    throw new IllegalArgumentException("State must not be null or empty.");
-                }
-                this.clientWindowId = clientWindowId;
-                this.state = state;
-            }
+        public SetClientWindowState(ClientWindow clientWindow, SetClientWindowStateParameters.ClientWindowState state) {
+            super("browser.setClientWindowState", new SetClientWindowStateParameters<>(clientWindow, state));
         }
     }
+
 }
 

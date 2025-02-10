@@ -1,24 +1,33 @@
 package wd4j.impl.webdriver.command.request.parameters.browser;
 
+import com.google.gson.annotations.JsonAdapter;
 import wd4j.impl.webdriver.mapping.EnumWrapper;
+import wd4j.impl.webdriver.mapping.GenericWrapper;
+import wd4j.impl.webdriver.mapping.GenericWrapperAdapter;
 import wd4j.impl.webdriver.type.browser.ClientWindow;
 import wd4j.impl.websocket.Command;
 
-public class SetClientWindowStateParameters implements Command.Params {
+//@JsonAdapter(GenericWrapperAdapter.class) // Not required, since for the GenericWrapper is searched for in the factory
+public class SetClientWindowStateParameters<T extends SetClientWindowStateParameters.ClientWindowState> implements Command.Params, GenericWrapper {
     private final ClientWindow clientWindow;
-    private final ClientWindowState windowState;
+    private final T value;  // Intern wird das als "value" gespeichert, aber nicht so serialisiert!
 
-    public SetClientWindowStateParameters(ClientWindow clientWindow, ClientWindowState windowState) {
+    @Override // confirmed design
+    public T value() {
+        return value;
+    }
+
+    public SetClientWindowStateParameters(ClientWindow clientWindow, T value) {
         this.clientWindow = clientWindow;
-        this.windowState = windowState;
+        this.value = value;
     }
 
     public ClientWindow getClientWindow() {
         return clientWindow;
     }
 
-    public ClientWindowState getWindowState() {
-        return windowState;
+    public ClientWindowState getValue() {
+        return value;
     }
 
     public interface ClientWindowState {
@@ -59,12 +68,16 @@ public class SetClientWindowStateParameters implements Command.Params {
 
     public static class ClientWindowRectState implements ClientWindowState {
         private final State state = State.NORMAL;
-        private final char width;
-        private final char height;
-        private final int x;
-        private final int y;
+        private final Character width; // optional
+        private final Character height; // optional
+        private final Integer x; // optional
+        private final Integer y; // optional
 
-        public ClientWindowRectState(char width, char height, int x, int y) {
+        public ClientWindowRectState() {
+            this(null, null, null, null);
+        }
+
+        public ClientWindowRectState(Character width, Character height, Integer x, Integer y) {
             this.width = width;
             this.height = height;
             this.x = x;
@@ -76,19 +89,19 @@ public class SetClientWindowStateParameters implements Command.Params {
             return state;
         }
 
-        public char getWidth() {
+        public Character getWidth() {
             return width;
         }
 
-        public char getHeight() {
+        public Character getHeight() {
             return height;
         }
 
-        public int getX() {
+        public Integer getX() {
             return x;
         }
 
-        public int getY() {
+        public Integer getY() {
             return y;
         }
 

@@ -9,16 +9,25 @@ import java.util.Set;
 public class GsonMapperFactory {
 
     private static final Gson GSON_INSTANCE = createGson();
+    public static final String PACKAGE = "wd4j.impl.webdriver";
 
     private static Gson createGson() {
         GsonBuilder builder = new GsonBuilder();
-        registerStringWrappers(builder);
-        registerEnumWrappers(builder);
+        registerAllWrappers(builder);
         return builder.create(); // IMPORTANT: Do not serialize null values, they mark optional parameters!
     }
 
+    private static void registerAllWrappers(GsonBuilder builder) {
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Register new Wrapper Interfaces, here:
+        registerStringWrappers(builder);
+        registerEnumWrappers(builder);
+        registerGenericWrappers(builder);
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    }
+
     private static void registerStringWrappers(GsonBuilder builder) {
-        Reflections reflections = new Reflections("wd4j.impl.webdriver"); // Paketnamen ggf. anpassen
+        Reflections reflections = new Reflections(PACKAGE); // Paketnamen ggf. anpassen
         Set<Class<? extends StringWrapper>> stringWrapperClasses = reflections.getSubTypesOf(StringWrapper.class);
 
         for (Class<? extends StringWrapper> clazz : stringWrapperClasses) {
@@ -27,11 +36,20 @@ public class GsonMapperFactory {
     }
 
     private static void registerEnumWrappers(GsonBuilder builder) {
-        Reflections reflections = new Reflections("wd4j.impl.webdriver"); // Paketnamen ggf. anpassen
+        Reflections reflections = new Reflections(PACKAGE); // Paketnamen ggf. anpassen
         Set<Class<? extends EnumWrapper>> enumWrapperClasses = reflections.getSubTypesOf(EnumWrapper.class);
 
         for (Class<? extends EnumWrapper> clazz : enumWrapperClasses) {
             builder.registerTypeAdapter(clazz, new EnumWrapperAdapter<>(clazz));
+        }
+    }
+
+    private static void registerGenericWrappers(GsonBuilder builder) {
+        Reflections reflections = new Reflections(PACKAGE); // Paketnamen ggf. anpassen
+        Set<Class<? extends GenericWrapper>> genericWrapperClasses = reflections.getSubTypesOf(GenericWrapper.class);
+
+        for (Class<? extends GenericWrapper> clazz : genericWrapperClasses) {
+            builder.registerTypeAdapter(clazz, new GenericWrapperAdapter<>(clazz));
         }
     }
 
