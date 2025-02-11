@@ -1,10 +1,10 @@
 package wd4j.impl.webdriver.command.request.parameters.input.sourceActions;
 
-import wd4j.impl.webdriver.command.request.parameters.input.SourceActions;
+import wd4j.impl.webdriver.command.request.parameters.input.PerformActionsParameters;
 
 import java.util.List;
 
-public class WheelSourceActions extends SourceActions {
+public class WheelSourceActions extends PerformActionsParameters.SourceActions {
     private final String id;
     private final List<WheelSourceAction> actions;
 

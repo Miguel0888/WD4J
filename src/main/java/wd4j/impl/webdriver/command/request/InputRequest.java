@@ -1,7 +1,12 @@
 package wd4j.impl.webdriver.command.request;
 
 import wd4j.impl.markerInterfaces.CommandData;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.command.request.helper.CommandImpl;
+import wd4j.impl.webdriver.command.request.parameters.input.PerformActionsParameters;
+import wd4j.impl.webdriver.command.request.parameters.input.ReleaseActionsParameters;
+import wd4j.impl.webdriver.command.request.parameters.input.SetFilesParameters;
+import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
+import wd4j.impl.webdriver.type.script.RemoteReference;
 
 import java.util.List;
 
@@ -10,77 +15,30 @@ public class InputRequest {
     // Commands (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class PerformActions extends CommandImpl<PerformActions.ParamsImpl> implements CommandData {
-
-        public PerformActions(String contextId, List<Action> actions) {
-            super("input.performActions", new ParamsImpl(contextId, actions));
+    public static class PerformActions extends CommandImpl<PerformActionsParameters> implements CommandData {
+        public PerformActions(String contextId, List<PerformActionsParameters.SourceActions> actions) {
+            super("input.performActions", new PerformActionsParameters(new BrowsingContext(contextId), actions));
         }
-
-        public static class ParamsImpl implements Command.Params {
-            private final String context;
-            private final List<Action> actions;
-
-            public ParamsImpl(String contextId, List<Action> actions) {
-                if (contextId == null || contextId.isEmpty()) {
-                    throw new IllegalArgumentException("Context ID must not be null or empty.");
-                }
-                if (actions == null || actions.isEmpty()) {
-                    throw new IllegalArgumentException("Actions list must not be null or empty.");
-                }
-                this.context = contextId;
-                this.actions = actions;
-            }
-        }
-
-        public static class Action {
-            private final String type;
-            private final String id;
-
-            public Action(String type, String id) {
-                this.type = type;
-                this.id = id;
-            }
+        public PerformActions(BrowsingContext context, List<PerformActionsParameters.SourceActions> actions) {
+            super("input.performActions", new PerformActionsParameters(context, actions));
         }
     }
 
-    public static class ReleaseActions extends CommandImpl<ReleaseActions.ParamsImpl> implements CommandData {
-
+    public static class ReleaseActions extends CommandImpl<ReleaseActionsParameters> implements CommandData {
         public ReleaseActions(String contextId) {
-            super("input.releaseActions", new ParamsImpl(contextId));
+            super("input.releaseActions", new ReleaseActionsParameters(new BrowsingContext(contextId)));
         }
-
-        public static class ParamsImpl implements Command.Params {
-            private final String context;
-
-            public ParamsImpl(String contextId) {
-                if (contextId == null || contextId.isEmpty()) {
-                    throw new IllegalArgumentException("Context ID must not be null or empty.");
-                }
-                this.context = contextId;
-            }
+        public ReleaseActions(BrowsingContext context) {
+            super("input.releaseActions", new ReleaseActionsParameters(context));
         }
     }
 
-    public static class SetFiles extends CommandImpl<SetFiles.ParamsImpl> implements CommandData {
-
-        public SetFiles(String elementId, List<String> filePaths) {
-            super("input.setFiles", new ParamsImpl(elementId, filePaths));
+    public static class SetFiles extends CommandImpl<SetFilesParameters> implements CommandData {
+        public SetFiles(String contextId, RemoteReference.SharedReference sharedReference, List<String> files) {
+            super("input.setFiles", new SetFilesParameters(new BrowsingContext(contextId), sharedReference, files));
         }
-
-        public static class ParamsImpl implements Command.Params {
-            private final String element;
-            private final List<String> files;
-
-            public ParamsImpl(String elementId, List<String> filePaths) {
-                if (elementId == null || elementId.isEmpty()) {
-                    throw new IllegalArgumentException("Element ID must not be null or empty.");
-                }
-                if (filePaths == null || filePaths.isEmpty()) {
-                    throw new IllegalArgumentException("File paths list must not be null or empty.");
-                }
-                this.element = elementId;
-                this.files = filePaths;
-            }
+        public SetFiles(BrowsingContext context, RemoteReference.SharedReference sharedReference, List<String> files) {
+            super("input.setFiles", new SetFilesParameters(context, sharedReference, files));
         }
     }
 

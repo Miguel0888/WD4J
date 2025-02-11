@@ -1,6 +1,6 @@
 package wd4j.impl.service;
 
-import wd4j.impl.webdriver.command.request.CommandImpl;
+import wd4j.impl.webdriver.command.request.helper.CommandImpl;
 import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.webdriver.command.request.SessionRequest;
 import wd4j.impl.playwright.WebSocketImpl;

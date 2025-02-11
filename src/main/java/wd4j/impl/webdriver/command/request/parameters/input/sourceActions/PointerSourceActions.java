@@ -1,11 +1,11 @@
 package wd4j.impl.webdriver.command.request.parameters.input.sourceActions;
 
 
-import wd4j.impl.webdriver.command.request.parameters.input.SourceActions;
+import wd4j.impl.webdriver.command.request.parameters.input.PerformActionsParameters;
 
 import java.util.List;
 
-public class PointerSourceActions extends SourceActions {
+public class PointerSourceActions extends PerformActionsParameters.SourceActions {
     public final String id;
     public final PointerParameters parameters;
     public final List<PointerSourceAction> actions;

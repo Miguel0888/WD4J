@@ -1,11 +1,11 @@
 package wd4j.impl.webdriver.command.request.parameters.input.sourceActions;
 
 
-import wd4j.impl.webdriver.command.request.parameters.input.SourceActions;
+import wd4j.impl.webdriver.command.request.parameters.input.PerformActionsParameters;
 
 import java.util.List;
 
-public class NoneSourceActions extends SourceActions {
+public class NoneSourceActions extends PerformActionsParameters.SourceActions {
     private final List<NoneSourceAction> actions;
 
     public NoneSourceActions(List<NoneSourceAction> actions) {

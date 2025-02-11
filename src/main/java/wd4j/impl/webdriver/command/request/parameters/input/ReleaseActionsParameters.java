@@ -1,15 +1,16 @@
 package wd4j.impl.webdriver.command.request.parameters.input;
 
-import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
+import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
+import wd4j.impl.websocket.Command;
 
-public class ReleaseActionsParameters {
-    private final BrowsingContextRequest browsingContextRequest;
+public class ReleaseActionsParameters implements Command.Params {
+    private final BrowsingContext browsingContext;
 
-    public ReleaseActionsParameters(BrowsingContextRequest browsingContextRequest) {
-        this.browsingContextRequest = browsingContextRequest;
+    public ReleaseActionsParameters(BrowsingContext browsingContext) {
+        this.browsingContext = browsingContext;
     }
 
-    public BrowsingContextRequest getBrowsingContext() {
-        return browsingContextRequest;
+    public BrowsingContext getBrowsingContext() {
+        return browsingContext;
     }
 }

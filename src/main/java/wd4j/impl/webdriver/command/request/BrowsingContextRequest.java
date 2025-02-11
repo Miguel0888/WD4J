@@ -1,6 +1,7 @@
 package wd4j.impl.webdriver.command.request;
 
 import wd4j.impl.markerInterfaces.CommandData;
+import wd4j.impl.webdriver.command.request.helper.CommandImpl;
 import wd4j.impl.webdriver.command.request.parameters.browsingContext.*;
 import wd4j.impl.webdriver.type.browser.UserContext;
 import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
@@ -8,7 +9,6 @@ import wd4j.impl.webdriver.type.browsingContext.Locator;
 import wd4j.impl.webdriver.type.browsingContext.ReadinessState;
 import wd4j.impl.webdriver.type.script.RemoteReference;
 import wd4j.impl.webdriver.type.script.SerializationOptions;
-import wd4j.impl.websocket.Command;
 
 import java.util.List;
 

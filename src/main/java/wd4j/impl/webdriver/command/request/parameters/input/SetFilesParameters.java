@@ -1,24 +1,24 @@
 package wd4j.impl.webdriver.command.request.parameters.input;
 
-import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
+import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
 import wd4j.impl.webdriver.type.script.RemoteReference;
 import wd4j.impl.websocket.Command;
 
 import java.util.List;
 
-public class SetFileParameters implements Command.Params {
-    public final BrowsingContextRequest browsingContextRequest;
+public class SetFilesParameters implements Command.Params {
+    public final BrowsingContext browsingContext;
     public final RemoteReference.SharedReference sharedReference;
     List<String> files;
 
-    public SetFileParameters(BrowsingContextRequest browsingContextRequest, RemoteReference.SharedReference sharedReference, List<String> files) {
-        this.browsingContextRequest = browsingContextRequest;
+    public SetFilesParameters(BrowsingContext browsingContext, RemoteReference.SharedReference sharedReference, List<String> files) {
+        this.browsingContext = browsingContext;
         this.sharedReference = sharedReference;
         this.files = files;
     }
 
-    public BrowsingContextRequest getBrowsingContext() {
-        return browsingContextRequest;
+    public BrowsingContext getBrowsingContext() {
+        return browsingContext;
     }
 
     public RemoteReference.SharedReference getSharedReference() {

@@ -1,4 +1,4 @@
-package wd4j.impl.webdriver.command.request;
+package wd4j.impl.webdriver.command.request.helper;
 
 import wd4j.impl.websocket.Command;
 

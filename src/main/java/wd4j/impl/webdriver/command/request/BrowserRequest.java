@@ -1,11 +1,12 @@
 package wd4j.impl.webdriver.command.request;
 
 import wd4j.impl.markerInterfaces.CommandData;
+import wd4j.impl.webdriver.command.request.helper.CommandImpl;
+import wd4j.impl.webdriver.command.request.helper.EmptyParameters;
 import wd4j.impl.webdriver.command.request.parameters.browser.RemoveUserContextParameters;
 import wd4j.impl.webdriver.command.request.parameters.browser.SetClientWindowStateParameters;
 import wd4j.impl.webdriver.type.browser.ClientWindow;
 import wd4j.impl.webdriver.type.browser.UserContext;
-import wd4j.impl.websocket.Command;
 
 public class BrowserRequest {
 

@@ -1,8 +1,8 @@
 package wd4j.impl.webdriver.command.request.parameters.input.sourceActions;
 
-import wd4j.impl.webdriver.command.request.parameters.input.SourceActions;
+import wd4j.impl.webdriver.command.request.parameters.input.PerformActionsParameters;
 
-public class WheelScrollAction extends SourceActions implements WheelSourceAction {
+public class WheelScrollAction extends PerformActionsParameters.SourceActions implements WheelSourceAction {
     private final int x;
     private final int y;
     private final int deltaX;
