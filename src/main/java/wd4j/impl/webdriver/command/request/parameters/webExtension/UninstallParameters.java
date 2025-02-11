@@ -1,4 +1,4 @@
-package wd4j.impl.webdriver.type.webExtension.parameters;
+package wd4j.impl.webdriver.command.request.parameters.webExtension;
 
 import wd4j.impl.webdriver.type.webExtension.Extension;
 import wd4j.impl.websocket.Command;

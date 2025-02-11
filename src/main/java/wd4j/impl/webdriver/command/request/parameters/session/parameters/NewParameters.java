@@ -1,4 +1,4 @@
-package wd4j.impl.webdriver.command.request.parameters.session;
+package wd4j.impl.webdriver.command.request.parameters.session.parameters;
 
 import wd4j.impl.webdriver.type.session.CapabilitiesRequest;
 import wd4j.impl.websocket.Command;

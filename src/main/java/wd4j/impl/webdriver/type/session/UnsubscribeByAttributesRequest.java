@@ -8,6 +8,10 @@ public class UnsubscribeByAttributesRequest {
     private final List<String> events;
     private final List<BrowsingContext> contexts; // Optional
 
+    public UnsubscribeByAttributesRequest(List<String> events) {
+        this(events, null);
+    }
+
     public UnsubscribeByAttributesRequest(List<String> events, List<BrowsingContext> contexts) {
         this.events = events;
         this.contexts = contexts;

@@ -1,8 +1,8 @@
 package wd4j.impl.webdriver.command.request.parameters.storage.partitionDescriptor;
 
-import wd4j.impl.webdriver.command.request.parameters.storage.PartitionDescriptor;
+import wd4j.impl.webdriver.command.request.parameters.storage.SetCookieParameters;
 
-public class StorageKeyPartitionDescriptor extends PartitionDescriptor {
+public class StorageKeyPartitionDescriptor extends SetCookieParameters.PartitionDescriptor {
     private final String userContext;
     private final String sourceOrigin;
 

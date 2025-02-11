@@ -2,11 +2,11 @@ package wd4j.impl.webdriver.command.request.parameters.storage;
 
 import wd4j.impl.websocket.Command;
 
-public class DeleteCookieParameters implements Command.Params {
+public class DeleteCookiesParameters implements Command.Params {
     private final CookieFilter filter;
-    private final PartitionDescriptor partition;
+    private final SetCookieParameters.PartitionDescriptor partition;
 
-    public DeleteCookieParameters(CookieFilter filter, PartitionDescriptor partition) {
+    public DeleteCookiesParameters(CookieFilter filter, SetCookieParameters.PartitionDescriptor partition) {
         this.filter = filter;
         this.partition = partition;
     }
@@ -15,7 +15,7 @@ public class DeleteCookieParameters implements Command.Params {
         return filter;
     }
 
-    public PartitionDescriptor getPartition() {
+    public SetCookieParameters.PartitionDescriptor getPartition() {
         return partition;
     }
 }

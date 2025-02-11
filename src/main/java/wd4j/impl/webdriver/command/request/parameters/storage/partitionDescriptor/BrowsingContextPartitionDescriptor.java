@@ -1,9 +1,9 @@
 package wd4j.impl.webdriver.command.request.parameters.storage.partitionDescriptor;
 
 import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
-import wd4j.impl.webdriver.command.request.parameters.storage.PartitionDescriptor;
+import wd4j.impl.webdriver.command.request.parameters.storage.SetCookieParameters;
 
-public class BrowsingContextPartitionDescriptor extends PartitionDescriptor {
+public class BrowsingContextPartitionDescriptor extends SetCookieParameters.PartitionDescriptor {
     private final BrowsingContextRequest context;
 
     public BrowsingContextPartitionDescriptor(BrowsingContextRequest context) {
