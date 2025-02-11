@@ -8,18 +8,18 @@ import java.util.List;
 
 public interface UnsubscribeParameters extends Command.Params {
 
-    public class UnsubscribeByAttributesRequest extends wd4j.impl.webdriver.type.session.UnsubscribeByAttributesRequest implements UnsubscribeParameters {
-        public UnsubscribeByAttributesRequest(List<String> events) {
+    public class UnsubscribeByAttributesRequestParams extends wd4j.impl.webdriver.type.session.UnsubscribeByAttributesRequest implements UnsubscribeParameters {
+        public UnsubscribeByAttributesRequestParams(List<String> events) {
             super(events, null);
         }
 
-        public UnsubscribeByAttributesRequest(List<String> events, List<BrowsingContext> contexts) {
+        public UnsubscribeByAttributesRequestParams(List<String> events, List<BrowsingContext> contexts) {
             super(events, contexts);
         }
     }
 
-    public class UnsubscribeByIDRequest extends wd4j.impl.webdriver.type.session.UnsubscribeByIDRequest implements UnsubscribeParameters {
-        public UnsubscribeByIDRequest(List<Subscription> subscriptions) {
+    public class UnsubscribeByIDRequestParams extends wd4j.impl.webdriver.type.session.UnsubscribeByIDRequest implements UnsubscribeParameters {
+        public UnsubscribeByIDRequestParams(List<Subscription> subscriptions) {
             super(subscriptions);
         }
     }
