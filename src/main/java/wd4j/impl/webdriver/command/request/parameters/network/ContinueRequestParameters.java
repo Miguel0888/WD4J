@@ -9,11 +9,15 @@ import java.util.List;
 
 public class ContinueRequestParameters implements Command.Params {
     private final Request request;
-    private final BytesValue body;
-    private final List<CookieHeader> cookies;
-    private final List<Header> headers;
-    private final String method;
+    private final BytesValue body; // Optional
+    private final List<CookieHeader> cookies; // Optional
+    private final List<Header> headers; // Optional
+    private final String method; // Optional
     private final String url;
+
+    public ContinueRequestParameters(Request request) {
+        this(request, null, null, null, null, null);
+    }
 
     public ContinueRequestParameters(Request request, BytesValue body, List<CookieHeader> cookies, List<Header> headers, String method, String url) {
         this.request = request;

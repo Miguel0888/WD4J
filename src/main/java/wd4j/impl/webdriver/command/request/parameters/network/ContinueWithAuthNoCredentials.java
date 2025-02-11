@@ -1,5 +1,6 @@
 package wd4j.impl.webdriver.command.request.parameters.network;
 
+import wd4j.impl.webdriver.mapping.EnumWrapper;
 import wd4j.impl.webdriver.type.network.Request;
 
 public class ContinueWithAuthNoCredentials extends ContinueWithAuthParameters
@@ -15,7 +16,7 @@ public class ContinueWithAuthNoCredentials extends ContinueWithAuthParameters
         return action;
     }
 
-    public enum Action implements ContinueWithAuthParameters.Action {
+    public enum Action implements ContinueWithAuthParameters.Action, EnumWrapper {
         DEFAULT( "default" ),
         CANCEL( "cancel" );
 

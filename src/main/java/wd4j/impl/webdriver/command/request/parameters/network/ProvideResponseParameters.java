@@ -10,17 +10,21 @@ import java.util.List;
 
 public class ProvideResponseParameters implements Command.Params {
     private final Request requestId;
-    private final BytesValue response;
-    private final List<SetCookieHeader> mimeType;
-    private final List<Header> status;
-    private final String reasonPhrase;
-    private final char statusCode;
+    private final BytesValue body; // Optional
+    private final List<SetCookieHeader> cookies; // Optional
+    private final List<Header> headers; // Optional
+    private final String reasonPhrase; // Optional
+    private final Integer statusCode; // Optional
 
-    public ProvideResponseParameters(Request requestId, BytesValue response, List<SetCookieHeader> mimeType, List<Header> status, String reasonPhrase, char statusCode) {
+    public ProvideResponseParameters(Request requestId) {
+        this(requestId, null, null, null, null, null);
+    }
+
+    public ProvideResponseParameters(Request requestId, BytesValue body, List<SetCookieHeader> cookies, List<Header> headers, String reasonPhrase, Integer statusCode) {
         this.requestId = requestId;
-        this.response = response;
-        this.mimeType = mimeType;
-        this.status = status;
+        this.body = body;
+        this.cookies = cookies;
+        this.headers = headers;
         this.reasonPhrase = reasonPhrase;
         this.statusCode = statusCode;
     }
@@ -29,23 +33,23 @@ public class ProvideResponseParameters implements Command.Params {
         return requestId;
     }
 
-    public BytesValue getResponse() {
-        return response;
+    public BytesValue getBody() {
+        return body;
     }
 
-    public List<SetCookieHeader> getMimeType() {
-        return mimeType;
+    public List<SetCookieHeader> getCookies() {
+        return cookies;
     }
 
-    public List<Header> getStatus() {
-        return status;
+    public List<Header> getHeaders() {
+        return headers;
     }
 
     public String getReasonPhrase() {
         return reasonPhrase;
     }
 
-    public char getStatusCode() {
+    public Integer getStatusCode() {
         return statusCode;
     }
 }

@@ -10,13 +10,17 @@ import java.util.List;
 
 public class ContinueResponseParameters implements Command.Params {
     private final Request request;
-    private final List<SetCookieHeader> cookies;
-    private final AuthCredentials rawResponse;
-    private final List<Header> responseHeaders;
-    private final String text;
-    private final char statusCode;
+    private final List<SetCookieHeader> cookies; // Optional
+    private final AuthCredentials rawResponse; // Optional
+    private final List<Header> responseHeaders; // Optional
+    private final String text; // Optional
+    private final Integer statusCode; // Optional
 
-    public ContinueResponseParameters(Request request, List<SetCookieHeader> cookies, AuthCredentials rawResponse, List<Header> responseHeaders, String text, char statusCode) {
+    public ContinueResponseParameters(Request request) {
+        this(request, null, null, null, null, null);
+    }
+
+    public ContinueResponseParameters(Request request, List<SetCookieHeader> cookies, AuthCredentials rawResponse, List<Header> responseHeaders, String text, Integer statusCode) {
         this.request = request;
         this.cookies = cookies;
         this.rawResponse = rawResponse;

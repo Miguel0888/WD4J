@@ -3,6 +3,11 @@ package wd4j.impl.service;
 import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.webdriver.command.request.NetworkRequest;
 import wd4j.impl.playwright.WebSocketImpl;
+import wd4j.impl.webdriver.command.request.parameters.network.AddInterceptParameters;
+import wd4j.impl.webdriver.command.request.parameters.network.SetCacheBehaviorParameters;
+import wd4j.impl.webdriver.type.network.AuthCredentials;
+
+import java.util.List;
 
 public class NetworkService implements Module {
 
@@ -24,13 +29,14 @@ public class NetworkService implements Module {
     /**
      * Adds an intercept for network requests matching the given URL pattern.
      *
-     * @param urlPattern The URL pattern to intercept.
+     * @param phases The phases to intercept.
+     *
      * @throws RuntimeException if the operation fails.
      */
-    public void addIntercept(String urlPattern) {
+    public void addIntercept(List<AddInterceptParameters.InterceptPhase> phases) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new NetworkRequest.AddIntercept(urlPattern));
-            System.out.println("Intercept added for URL pattern: " + urlPattern);
+            webSocketImpl.sendAndWaitForResponse(new NetworkRequest.AddIntercept(phases));
+            System.out.println("Intercept added for intercept phases: " + phases);
         } catch (RuntimeException e) {
             System.out.println("Error adding intercept: " + e.getMessage());
             throw e;
@@ -76,7 +82,7 @@ public class NetworkService implements Module {
      * @param authChallengeResponse  The authentication challenge response.
      * @throws RuntimeException if the operation fails.
      */
-    public void continueWithAuth(String requestId, String authChallengeResponse) {
+    public void continueWithAuth(String requestId, AuthCredentials authChallengeResponse) {
         try {
             webSocketImpl.sendAndWaitForResponse(new NetworkRequest.ContinueWithAuth(requestId, authChallengeResponse));
             System.out.println("Request continued with authentication: " + requestId);
@@ -107,12 +113,11 @@ public class NetworkService implements Module {
      * Provides a custom response for a network request.
      *
      * @param requestId   The ID of the request to respond to.
-     * @param responseBody The custom response body.
      * @throws RuntimeException if the operation fails.
      */
-    public void provideResponse(String requestId, String responseBody) {
+    public void provideResponse(String requestId) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new NetworkRequest.ProvideResponse(requestId, responseBody));
+            webSocketImpl.sendAndWaitForResponse(new NetworkRequest.ProvideResponse(requestId));
             System.out.println("Response provided for request: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error providing response: " + e.getMessage());
@@ -139,14 +144,13 @@ public class NetworkService implements Module {
     /**
      * Sets the cache behavior for the given context.
      *
-     * @param contextId The ID of the context.
-     * @param cacheMode The cache mode to set (e.g., "no-store").
+     * @param cacheBehavior The cache behavior to set.
+     *
      * @throws RuntimeException if the operation fails.
      */
-    public void setCacheBehavior(String contextId, String cacheMode) {
+    public void setCacheBehavior(SetCacheBehaviorParameters.CacheBehavior cacheBehavior) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new NetworkRequest.SetCacheBehavior(contextId, cacheMode));
-            System.out.println("Cache behavior set for context: " + contextId + " -> " + cacheMode);
+            webSocketImpl.sendAndWaitForResponse(new NetworkRequest.SetCacheBehavior(cacheBehavior));
         } catch (RuntimeException e) {
             System.out.println("Error setting cache behavior: " + e.getMessage());
             throw e;
