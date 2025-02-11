@@ -1,5 +1,10 @@
 package wd4j.impl.webdriver.type.script;
 
+/**
+ * The script.RemoteReference type is either a script.RemoteObjectReference representing a remote reference to an
+ * existing ECMAScript object in handle object map in the given Realm, or is a script.SharedReference representing a
+ * reference to a node.
+ */
 public interface RemoteReference {
     String getType();
 

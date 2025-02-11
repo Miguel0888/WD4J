@@ -2,6 +2,9 @@ package wd4j.impl.webdriver.type.script;
 
 import java.util.List;
 
+/**
+ * The script.RealmInfo type represents the properties of a realm. See {@link Realm}
+ */
 public interface RealmInfo {
     String getType();
     String getRealm();

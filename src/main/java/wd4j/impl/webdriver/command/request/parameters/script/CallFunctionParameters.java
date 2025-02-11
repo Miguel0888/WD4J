@@ -7,16 +7,20 @@ import wd4j.impl.websocket.Command;
 
 import java.util.List;
 
-public class CallFunctionParameters implements Command.Params {
+public class CallFunctionParameters<T> implements Command.Params {
     private final String functionDeclaration;
     private final boolean awaitPromise;
     private final Target target;
-    private final List<LocalValue> arguments;
-    private final SerializationOptions serializationOptions;
-    private final LocalValue thisObject;
-    private final boolean userActivation;
+    private final List<LocalValue<T>> arguments; // Optional
+    private final SerializationOptions serializationOptions; // Optional
+    private final LocalValue<T> thisObject; // Optional
+    private final boolean userActivation;  // Optional, default false
 
-    public CallFunctionParameters(String functionDeclaration, boolean awaitPromise, Target target, List<LocalValue> arguments, SerializationOptions serializationOptions, LocalValue thisObject, boolean userActivation) {
+    public CallFunctionParameters(String functionDeclaration, boolean awaitPromise, Target target) {
+        this(functionDeclaration, awaitPromise, target, null, null, null, false);
+    }
+
+    public CallFunctionParameters(String functionDeclaration, boolean awaitPromise, Target target, List<LocalValue<T>> arguments, SerializationOptions serializationOptions, LocalValue<T> thisObject, boolean userActivation) {
         this.functionDeclaration = functionDeclaration;
         this.awaitPromise = awaitPromise;
         this.target = target;
@@ -38,7 +42,7 @@ public class CallFunctionParameters implements Command.Params {
         return target;
     }
 
-    public List<LocalValue> getArguments() {
+    public List<LocalValue<T>> getArguments() {
         return arguments;
     }
 
@@ -46,7 +50,7 @@ public class CallFunctionParameters implements Command.Params {
         return serializationOptions;
     }
 
-    public LocalValue getThisObject() {
+    public LocalValue<T> getThisObject() {
         return thisObject;
     }
 

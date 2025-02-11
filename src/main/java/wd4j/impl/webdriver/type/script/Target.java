@@ -2,6 +2,12 @@ package wd4j.impl.webdriver.type.script;
 
 import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
 
+/**
+ * The script.Target type represents a value that is either a script.Realm or a browsingContext.BrowsingContext.
+ *
+ * This is useful in cases where a navigable identifier can stand in for the realm associated with the navigable’s
+ * active document.
+ */
 public abstract class Target {
 }
 

@@ -1,19 +1,23 @@
 package wd4j.impl.webdriver.command.request.parameters.script;
 
-import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
+import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
 import wd4j.impl.webdriver.type.script.RealmType;
 import wd4j.impl.websocket.Command;
 
 public class GetRealmsParameters implements Command.Params {
-    public final BrowsingContextRequest browsingContextRequest;
-    public final RealmType type;
+    public final BrowsingContext browsingContextRequest; // Optional
+    public final RealmType type; // Optional
 
-    public GetRealmsParameters(BrowsingContextRequest browsingContextRequest, RealmType type) {
-        this.browsingContextRequest = browsingContextRequest;
+    public GetRealmsParameters() {
+        this(null, null);
+    }
+
+    public GetRealmsParameters(BrowsingContext browsingContext, RealmType type) {
+        this.browsingContextRequest = browsingContext;
         this.type = type;
     }
 
-    public BrowsingContextRequest getBrowsingContext() {
+    public BrowsingContext getBrowsingContext() {
         return browsingContextRequest;
     }
 

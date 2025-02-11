@@ -6,6 +6,10 @@ import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.webdriver.command.request.ScriptRequest;
 import wd4j.impl.playwright.WebSocketImpl;
+import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
+import wd4j.impl.webdriver.type.script.Handle;
+import wd4j.impl.webdriver.type.script.LocalValue;
+import wd4j.impl.webdriver.type.script.Target;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +40,7 @@ public class ScriptService implements Module {
      */
     public void addPreloadScript(String script, String target) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.AddPreloadScrip(script, target));
+            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.AddPreloadScript(script));
             System.out.println("Preload script added: " + script + " to target: " + target);
         } catch (RuntimeException e) {
             System.out.println("Error adding preload script: " + e.getMessage());
@@ -47,18 +51,18 @@ public class ScriptService implements Module {
     /**
      * Disowns the given handles in the specified context.
      *
-     * @param contextId The ID of the context.
+     * @param target The ID of the context.
      * @param handles   The list of handles to disown.
      * @throws RuntimeException if the operation fails.
      */
-    public void disown(String contextId, List<String> handles) {
+    public void disown(List<Handle> handles, Target target) {
         if (handles == null || handles.isEmpty()) {
             throw new IllegalArgumentException("Handles list must not be null or empty.");
         }
 
         try {
-            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.Disown(contextId, handles));
-            System.out.println("Handles disowned in context: " + contextId);
+            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.Disown(handles, target));
+            System.out.println("Handles disowned in target: " + target);
         } catch (RuntimeException e) {
             System.out.println("Error disowning handles: " + e.getMessage());
             throw e;
@@ -73,9 +77,9 @@ public class ScriptService implements Module {
      * @param arguments           The arguments to pass to the function.
      * @throws RuntimeException if the operation fails.
      */
-    public void callFunction(String functionDeclaration, String target, List<Object> arguments) {
+    public <T> void callFunction(String functionDeclaration, boolean awaitPromise, Target target, List<LocalValue<T>> arguments) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.CallFunction(functionDeclaration, target, arguments));
+            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.CallFunction<>(functionDeclaration, awaitPromise, target, arguments));
             System.out.println("Function called: " + functionDeclaration + " on target: " + target);
         } catch (RuntimeException e) {
             System.out.println("Error calling function: " + e.getMessage());
@@ -87,29 +91,29 @@ public class ScriptService implements Module {
      * Evaluates the given expression in the specified target.
      *
      * @param script    The script to evaluate.
-     * @param contextId The ID of the context.
+     * @param target    The target where the script is evaluated. See {@link Target}.
      * @throws RuntimeException if the operation fails.
      */
-    public String evaluate(String script, String contextId) {
-        return webSocketImpl.sendAndWaitForResponse(new ScriptRequest.Evaluate(script, contextId));
+    public String evaluate(String script, Target target, boolean awaitPromise) {
+        return webSocketImpl.sendAndWaitForResponse(new ScriptRequest.Evaluate(script, target, awaitPromise));
     }
 
 
     /**
      * Retrieves the realms for the specified context.
      *
-     * @param contextId The ID of the context.
+     * @param context The ID of the context.
      * @return A list of realm IDs.
      * @throws RuntimeException if the operation fails.
      */
-    public List<String> getRealms(String contextId) {
+    public List<String> getRealms(BrowsingContext context) {
         try {
-            String response = webSocketImpl.sendAndWaitForResponse(new ScriptRequest.GetRealms(contextId));
+            String response = webSocketImpl.sendAndWaitForResponse(new ScriptRequest.GetRealms(context));
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonArray realms = jsonResponse.getAsJsonObject("result").getAsJsonArray("realms");
             List<String> realmIds = new ArrayList<>();
             realms.forEach(realm -> realmIds.add(realm.getAsString()));
-            System.out.println("Realms retrieved for context: " + contextId);
+            System.out.println("Realms retrieved for context: " + context);
             return realmIds;
         } catch (RuntimeException e) {
             System.out.println("Error retrieving realms: " + e.getMessage());

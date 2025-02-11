@@ -62,13 +62,15 @@ public class LocatorImpl implements Locator {
             // 2. Finde Elemente mit `script.evaluate`Result Type
             List<Locator> locators = new ArrayList<>();
             for (JsonElement node : nodes) {
-                CompletableFuture<WebSocketFrame> evalResponse = webSocket.send(new ScriptRequest.Evaluate(contextId, selector));
-                String evalJsonResponse = evalResponse.get(5, TimeUnit.SECONDS).text();
-                JsonObject evalJson = new Gson().fromJson(evalJsonResponse, JsonObject.class);
+                // ToDo: Fix Evalutate Call
 
-                if (evalJson.has("result") && !evalJson.get("result").isJsonNull()) {
-                    locators.add(new LocatorImpl(selector, contextId, webSocket));
-                }
+//                CompletableFuture<WebSocketFrame> evalResponse = webSocket.send(new ScriptRequest.Evaluate(contextId, selector));
+//                String evalJsonResponse = evalResponse.get(5, TimeUnit.SECONDS).text();
+//                JsonObject evalJson = new Gson().fromJson(evalJsonResponse, JsonObject.class);
+
+//                if (evalJson.has("result") && !evalJson.get("result").isJsonNull()) {
+//                    locators.add(new LocatorImpl(selector, contextId, webSocket));
+//                }
 
                 System.out.println(" - " + node.toString());
             }

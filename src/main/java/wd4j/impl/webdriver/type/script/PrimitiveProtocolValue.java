@@ -2,6 +2,11 @@ package wd4j.impl.webdriver.type.script;
 
 import wd4j.impl.webdriver.mapping.EnumWrapper;
 
+/**
+ * The script.PrimitiveProtocolValue represents values which can only be represented by value, never by reference.
+ *
+ * @param <T>
+ */
 public interface PrimitiveProtocolValue<T> {
     Type getType();
 

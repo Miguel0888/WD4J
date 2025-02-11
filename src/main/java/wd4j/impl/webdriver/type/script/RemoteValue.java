@@ -1,5 +1,8 @@
 package wd4j.impl.webdriver.type.script;
 
+import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
+import wd4j.impl.webdriver.mapping.EnumWrapper;
+
 import java.util.List;
 import java.util.Map;
 
@@ -208,6 +211,99 @@ public abstract class RemoteValue {
 
         public WindowProxyProperties getValue() {
             return value;
+        }
+    }
+
+    public static class NodeProperties {
+        private final char nodeType;
+        private final char childNodeCount;
+        private final Map<String, String> attributes; // Optional
+        private final List<NodeRemoteValue> children; // Optional
+        private final String localName; // Optional
+        private final Mode mode; // "open" or "closed" (Optional)
+        private final String namespaceURI; // Optional
+        private final String nodeValue; // Optional
+        private final NodeRemoteValue shadowRoot; // Optional
+
+        public NodeProperties(
+                char nodeType, char childNodeCount,
+                Map<String, String> attributes, List<NodeRemoteValue> children,
+                String localName, Mode mode, String namespaceURI,
+                String nodeValue, NodeRemoteValue shadowRoot) {
+            this.nodeType = nodeType;
+            this.childNodeCount = childNodeCount;
+            this.attributes = attributes;
+            this.children = children;
+            this.localName = localName;
+            this.mode = mode;
+            this.namespaceURI = namespaceURI;
+            this.nodeValue = nodeValue;
+            this.shadowRoot = shadowRoot;
+        }
+
+        public char getNodeType() {
+            return nodeType;
+        }
+
+        public char getChildNodeCount() {
+            return childNodeCount;
+        }
+
+        public Map<String, String> getAttributes() {
+            return attributes;
+        }
+
+        public List<NodeRemoteValue> getChildren() {
+            return children;
+        }
+
+        public String getLocalName() {
+            return localName;
+        }
+
+        public Mode getMode() {
+            return mode;
+        }
+
+        public String getNamespaceURI() {
+            return namespaceURI;
+        }
+
+        public String getNodeValue() {
+            return nodeValue;
+        }
+
+        public NodeRemoteValue getShadowRoot() {
+            return shadowRoot;
+        }
+
+
+        public enum Mode implements EnumWrapper {
+            OPEN("open"),
+            CLOSED("closed");
+
+            private final String value;
+
+            Mode(String value) {
+                this.value = value;
+            }
+
+            @Override // confirmed
+            public String value() {
+                return value;
+            }
+        }
+    }
+
+    public static class WindowProxyProperties {
+        private final BrowsingContextRequest browsingContextRequest;
+
+        public WindowProxyProperties(BrowsingContextRequest browsingContextRequest) {
+            this.browsingContextRequest = browsingContextRequest;
+        }
+
+        public BrowsingContextRequest getBrowsingContext() {
+            return browsingContextRequest;
         }
     }
 }

@@ -2,6 +2,9 @@ package wd4j.impl.webdriver.type.script;
 
 import wd4j.impl.webdriver.mapping.EnumWrapper;
 
+/**
+ * The script.RealmType type represents the different types of Realm. See {@link Realm}
+ */
 public enum RealmType implements EnumWrapper {
     WINDOW("window"),
     DEDICATED_WORKER("dedicated-worker"),
