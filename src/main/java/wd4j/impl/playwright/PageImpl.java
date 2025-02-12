@@ -8,6 +8,8 @@ import wd4j.impl.service.ScriptService;
 import wd4j.impl.service.SessionService;
 import wd4j.impl.webdriver.event.MethodEvent;
 import wd4j.impl.support.JsonToPlaywrightMapper;
+import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
+import wd4j.impl.webdriver.type.script.Target;
 
 import java.nio.file.Path;
 import java.util.Base64;
@@ -356,7 +358,8 @@ class PageImpl implements Page {
         if (isClosed) {
             throw new PlaywrightException("Page is closed");
         }
-        return scriptService.evaluate("return document.documentElement.outerHTML;", context.getContextId());
+        Target.ContextTarget contextTarget = new Target.ContextTarget(new BrowsingContext(context.getContextId()));
+        return scriptService.evaluate("return document.documentElement.outerHTML;", contextTarget, true);
     }
 
 
