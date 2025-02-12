@@ -1,6 +1,9 @@
 package wd4j.impl.webdriver.command.request.parameters.webExtension;
 
 public interface ExtensionData {
+
+    String getType();
+
     class ExtensionArchivePath implements ExtensionData {
         private final String type = "archivePath";
         private final String path;

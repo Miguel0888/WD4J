@@ -2,6 +2,7 @@ package wd4j.impl.service;
 
 import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.webdriver.command.request.WebExtensionRequest;
+import wd4j.impl.webdriver.command.request.parameters.webExtension.ExtensionData;
 import wd4j.impl.webdriver.type.webExtension.Extension;
 import wd4j.impl.playwright.WebSocketImpl;
 
@@ -27,14 +28,14 @@ public class WebExtensionService implements Module {
     /**
      * Installs a web extension in the specified browsing context.
      *
-     * @param contextId     The ID of the browsing context.
-     * @param extensionPath The path to the extension to install.
+     * @param extensionData The extension of a specific type to install. See {@link ExtensionData} for more information.
+     *
      * @throws RuntimeException if the installation fails.
      */
-    public void install(String contextId, String extensionPath) {
+    public void install(ExtensionData extensionData) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new WebExtensionRequest.Install(contextId, extensionPath));
-            System.out.println("Web extension installed from path: " + extensionPath + " in context: " + contextId);
+            webSocketImpl.sendAndWaitForResponse(new WebExtensionRequest.Install(extensionData));
+            System.out.println("Web extension installed of Type " + extensionData.getType());
         } catch (RuntimeException e) {
             System.out.println("Error installing web extension: " + e.getMessage());
             throw e;
@@ -44,14 +45,13 @@ public class WebExtensionService implements Module {
     /**
      * Uninstalls a web extension from the specified browsing context.
      *
-     * @param contextId   The ID of the browsing context.
-     * @param extensionId The ID of the extension to uninstall.
+     * @param extension The ID of the extension to uninstall.
      * @throws RuntimeException if the uninstallation fails.
      */
-    public void uninstall(String contextId, String extensionId) {
+    public void uninstall(Extension extension) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new WebExtensionRequest.Uninstall(contextId, extensionId));
-            System.out.println("Web extension uninstalled: " + extensionId + " from context: " + contextId);
+            webSocketImpl.sendAndWaitForResponse(new WebExtensionRequest.Uninstall(extension));
+            System.out.println("Web extension uninstalled: " + extension.value());
         } catch (RuntimeException e) {
             System.out.println("Error uninstalling web extension: " + e.getMessage());
             throw e;
