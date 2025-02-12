@@ -3,10 +3,22 @@ package wd4j.impl.webdriver.command.request.parameters.storage;
 import wd4j.impl.websocket.Command;
 
 public class GetCookiesParameters implements Command.Params {
-    CookieFilter filter;
-    SetCookieParameters.PartitionDescriptor partition;
+    private final CookieFilter filter; // Optional
+    private final PartitionDescriptor partition; // Optional
 
-    public GetCookiesParameters(CookieFilter filter, SetCookieParameters.PartitionDescriptor partition) {
+    public GetCookiesParameters() {
+        this(null, null);
+    }
+
+    public GetCookiesParameters(CookieFilter filter) {
+        this(filter, null);
+    }
+
+    public GetCookiesParameters(PartitionDescriptor partition) {
+        this(null, partition);
+    }
+
+    public GetCookiesParameters(CookieFilter filter, PartitionDescriptor partition) {
         this.filter = filter;
         this.partition = partition;
     }
@@ -15,7 +27,7 @@ public class GetCookiesParameters implements Command.Params {
         return filter;
     }
 
-    public SetCookieParameters.PartitionDescriptor getPartition() {
+    public PartitionDescriptor getPartition() {
         return partition;
     }
 }

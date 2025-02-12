@@ -5,17 +5,21 @@ import wd4j.impl.webdriver.type.network.SameSite;
 import wd4j.impl.websocket.Command;
 
 public class CookieFilter implements Command.Params {
-    private final String name;
-    private final BytesValue value;
-    private final String domain;
-    private final String path;
-    private final int size;
-    private final boolean httpOnly;
-    private final boolean secure;
-    private final SameSite sameSite;
-    private final int expiry;
+    private final String name; // Optional
+    private final BytesValue value; // Optional
+    private final String domain; // Optional
+    private final String path; // Optional
+    private final Integer size; // Optional
+    private final Boolean httpOnly; // Optional
+    private final Boolean secure; // Optional
+    private final SameSite sameSite; // Optional
+    private final Integer expiry; // Optional
 
-    public CookieFilter(String name, BytesValue value, String domain, String path, int size, boolean httpOnly, boolean secure, SameSite sameSite, int expiry) {
+    public CookieFilter() {
+        this(null, null, null, null, null, null, null, null, null);
+    }
+
+    public CookieFilter(String name, BytesValue value, String domain, String path, Integer size, Boolean httpOnly, Boolean secure, SameSite sameSite, Integer expiry) {
         this.name = name;
         this.value = value;
         this.domain = domain;
@@ -43,15 +47,15 @@ public class CookieFilter implements Command.Params {
         return path;
     }
 
-    public int getSize() {
+    public Integer getSize() {
         return size;
     }
 
-    public boolean isHttpOnly() {
+    public Boolean isHttpOnly() {
         return httpOnly;
     }
 
-    public boolean isSecure() {
+    public Boolean isSecure() {
         return secure;
     }
 
@@ -59,7 +63,7 @@ public class CookieFilter implements Command.Params {
         return sameSite;
     }
 
-    public int getExpiry() {
+    public Integer getExpiry() {
         return expiry;
     }
 }
