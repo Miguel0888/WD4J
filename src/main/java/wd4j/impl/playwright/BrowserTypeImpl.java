@@ -25,10 +25,9 @@ public class BrowserTypeImpl implements BrowserType {
     /// Fields
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // ToDo: The WebSocketImpl Field should move to BrowserImpl via Constructor, save it locally only
-    private final WebSocketImpl webSocketImpl;
 
     final String[] devToolsUrl = {null};
+    private final PlaywrightImpl playwright; // Required for the Playwright interface to implement the close method
     private Process process;
 
     private final String name;
@@ -48,8 +47,8 @@ public class BrowserTypeImpl implements BrowserType {
     /// Constructors
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public BrowserTypeImpl(WebSocketImpl webSocketImpl, String name, String browserPath, String profilePath, String webSocketEndpoint, boolean headless, boolean noRemote, boolean disableGpu, boolean startMaximized) {
-        this.webSocketImpl = webSocketImpl; // ToDo: Remove this field somehow, it should be part of the BrowserImpl only!
+    private BrowserTypeImpl(PlaywrightImpl playwright, String name, String browserPath, String profilePath, String webSocketEndpoint, boolean headless, boolean noRemote, boolean disableGpu, boolean startMaximized) {
+        this.playwright = playwright;
         this.name = name;
         this.browserPath = browserPath;
         this.profilePath = profilePath;
@@ -64,41 +63,50 @@ public class BrowserTypeImpl implements BrowserType {
     /// Static Factory Methods
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static BrowserTypeImpl newFirefoxInstance(WebSocketImpl webSocketImpl) {
-        return new BrowserTypeImpl(webSocketImpl,"firefox","C:\\Program Files\\Mozilla Firefox\\firefox.exe", "C:\\FirefoxProfile", "/session", false, true, false, false);
+    public static BrowserTypeImpl newFirefoxInstance(PlaywrightImpl playwright) {
+        return new BrowserTypeImpl(playwright, "firefox","C:\\Program Files\\Mozilla Firefox\\firefox.exe", "C:\\FirefoxProfile", "/session", false, true, false, false);
     }
 
-    public static BrowserTypeImpl newChromiumInstance(WebSocketImpl webSocketImpl) {
-        return new BrowserTypeImpl(webSocketImpl,"chromium" ,"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\ChromeProfile", "", true, false, true, true);
+    public static BrowserTypeImpl newChromiumInstance(PlaywrightImpl playwright) {
+        return new BrowserTypeImpl(playwright,"chromium" ,"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\ChromeProfile", "", true, false, true, true);
     }
 
-    public static BrowserTypeImpl newEdgeInstance(WebSocketImpl webSocketImpl) {
-        return new BrowserTypeImpl(webSocketImpl,"edge","C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe", "C:\\EdgeProfile", "", true, false, true, false);
+    public static BrowserTypeImpl newEdgeInstance(PlaywrightImpl playwright) {
+        return new BrowserTypeImpl(playwright,"edge","C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe", "C:\\EdgeProfile", "", true, false, true, false);
     }
 
-    public static BrowserTypeImpl newWebkitInstance(WebSocketImpl webSocketImpl) {
-        return new BrowserTypeImpl(webSocketImpl,"webkit",null, null, "", false, false, false, false);
+    public static BrowserTypeImpl newWebkitInstance(PlaywrightImpl playwright) {
+        return new BrowserTypeImpl(playwright,"webkit",null, null, "", false, false, false, false);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// Methods
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+    /**
+     * Launches a browser instance and connects to it.
+     * @return The browser instance
+     */
     @Override
     public Browser launch() {
-        try {
-            startProcess();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        return connect(getDevToolsUrl(), null);
+        return launch(null);
     }
 
+    /**
+     * Launches a browser instance with the given options and connects to it.
+     *
+     * @param options
+     * @return The browser instance
+     */
     @Override
     public Browser launch(LaunchOptions options) {
 
         // ToDo: Use Options for Headless (OPTIONAL: NoRemote, DisableGpu, StartMaximized)
+        if(options != null) {
+            setParams(null, null, options.headless, null, null);
+        }
+
         try {
             startProcess();
         } catch (Exception e) {
@@ -119,8 +127,14 @@ public class BrowserTypeImpl implements BrowserType {
         return name;
     }
 
+    // ToDo: Obwohl diese Methode "connect" heißt, wird hier eigentlich nur ein Browser-Objekt erstellt und zurückgegeben
+    //  D.h. dass der Browser gestartet wird; die WebSocket-Verbindung muss im Prinzip hier nicht aufgebaut werden
+    //  (sondern erst bei der Verwendung des Browser-Objekts) Allerdings hat die Methode "connect" in der Playwright-API
+    //  die Parameter "wsEndpoint" und "options" die für die WebSocket-Verbindung benötigt werden. Diese Werte könnten
+    //
     @Override
     public Browser connect(String wsEndpoint, ConnectOptions options) {
+        WebSocketImpl webSocketImpl = new WebSocketImpl();
         webSocketImpl.createAndConfigureWebSocketClient(URI.create(wsEndpoint));
         try {
             webSocketImpl.connect();
@@ -129,7 +143,9 @@ public class BrowserTypeImpl implements BrowserType {
         }
 
         try {
-            return new BrowserImpl(this, webSocketImpl);
+            BrowserImpl browser = new BrowserImpl(this, webSocketImpl);
+            playwright.addBrowser(browser);
+            return browser;
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         } catch (InterruptedException e) {
@@ -205,7 +221,7 @@ public class BrowserTypeImpl implements BrowserType {
 
     /////////////////////////////////////////////////////////////////////////////
 
-    public String getDevToolsUrl() {
+    private String getDevToolsUrl() {
         synchronized (devToolsUrl) {
             return devToolsUrl[0];
         }
@@ -216,63 +232,63 @@ public class BrowserTypeImpl implements BrowserType {
 
     /////
 
-    public Integer getPort() {
+    private Integer getPort() {
         return port;
     }
 
-    public String getWebsocketEndpoint() {
+    private String getWebsocketEndpoint() {
         return webSocketEndpoint;
     }
 
-    public String getProfilePath() {
+    private String getProfilePath() {
         return profilePath;
     }
 
-    public boolean isNoRemote() {
+    private boolean isNoRemote() {
         return noRemote;
     }
 
-    public boolean isDisableGpu() {
+    private boolean isDisableGpu() {
         return disableGpu;
     }
 
-    public boolean isStartMaximized() {
+    private boolean isStartMaximized() {
         return startMaximized;
     }
 
-    public boolean isHeadless() {
+    private boolean isHeadless() {
         return headless;
     }
 
     ///////////////////////////////////////////////////////////////////////////
 
-    public void setPort(Integer port) {
+    private void setPort(Integer port) {
         this.port = port;
     }
 
-    public void setProfilePath(String profilePath) {
+    private void setProfilePath(String profilePath) {
         this.profilePath = profilePath;
     }
 
-    public void setNoRemote(boolean noRemote) {
+    private void setNoRemote(boolean noRemote) {
         this.noRemote = noRemote;
     }
 
-    public void setDisableGpu(boolean disableGpu) {
+    private void setDisableGpu(boolean disableGpu) {
         this.disableGpu = disableGpu;
     }
 
-    public void setStartMaximized(boolean startMaximized) {
+    private void setStartMaximized(boolean startMaximized) {
         this.startMaximized = startMaximized;
     }
 
-    public void setHeadless(boolean headless) {
+    private void setHeadless(boolean headless) {
         this.headless = headless;
     }
 
     ///////////////////////////////////////////////////////////////////////////
 
-    public void setParams(Integer port, String profilePath, Boolean headless, Boolean disableGpu, Boolean noRemote) {
+    private void setParams(Integer port, String profilePath, Boolean headless, Boolean disableGpu, Boolean noRemote) {
 
         if( port != null) {
             this.port = port;
@@ -297,6 +313,7 @@ public class BrowserTypeImpl implements BrowserType {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Argumente für den Start des Browsers dynamisch zusammenstellen
+    // ToDo: Needs to be updated to the Playwright API Options
     protected List<String> getCommandLineArgs() {
         List<String> args = new ArrayList<>();
         args.add(browserPath);

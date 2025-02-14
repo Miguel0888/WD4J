@@ -11,8 +11,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 public class BrowserImpl implements Browser {
-    private final BrowserTypeImpl browserType;  // contains the connection and the command line
-    private final BrowserType.LaunchOptions options; // not used yet
+    private final BrowserTypeImpl browserType;
 
     private final BrowserService browserService;
     private final SessionService sessionService;
@@ -38,7 +37,6 @@ public class BrowserImpl implements Browser {
         this.storageService = new StorageService(webSocketImpl);
         this.webExtensionService = new WebExtensionService(webSocketImpl);
         this.browserType = browserType;
-        this.options = null;
 
         // ToDo: Move the Session (initSession) to the BrowserContextImpl,
         //  see: https://playwright.dev/java/docs/api/class-browsercontext
@@ -54,19 +52,12 @@ public class BrowserImpl implements Browser {
         }
     }
 
-    public BrowserImpl(BrowserTypeImpl browserType, BrowserType.LaunchOptions options) {
-        throw new UnsupportedOperationException("Not implemented!");
-    }
-
     ///////////////////////////////////////////////////////////////////////////
 
     /**
      * Required for the WebSocket connection
-     * <p>
-     * ToDo: Should we pass WebSocketConnection to a service? (BrowserType offers connect() -> where to move it?)
-     *  e.g. the BrowserService?
      *
-     * @return
+     * @return The WebSocket connection.
      */
     public WebSocketImpl getWebSocketConnection() {
         return webSocketImpl;
