@@ -7,6 +7,7 @@ import wd4j.api.options.Geolocation;
 import wd4j.api.*;
 import wd4j.impl.manager.SessionManager;
 import wd4j.impl.support.EventDispatcher;
+import wd4j.impl.websocket.CommunicationManager;
 import wd4j.override.BrowserSession;
 
 import java.nio.file.Path;
@@ -29,17 +30,19 @@ import java.util.regex.Pattern;
  */
 public class BrowserSessionImpl implements BrowserSession {
     //ToDo: Move support.BrowserSession Class in here..
+    private final CommunicationManager communicationManager;
     private final SessionManager sessionManager;
     private final BrowserImpl browser;
     private final EventDispatcher dispatcher = new EventDispatcher();
     private final List<PageImpl> pages = new ArrayList<>(); // aka. contexts in WebDriver BiDi
     private boolean isClosed = false; // ToDo: Is this variable really necessary?
 
-    public BrowserSessionImpl(BrowserImpl browser) {
-        this(browser, null);
+    public BrowserSessionImpl(CommunicationManager communicationManager, BrowserImpl browser) {
+        this(communicationManager, browser, null);
     }
 
-    public BrowserSessionImpl(BrowserImpl browser, Browser.NewContextOptions options) {
+    public BrowserSessionImpl(CommunicationManager communicationManager, BrowserImpl browser, Browser.NewContextOptions options) {
+        this.communicationManager = communicationManager;
         this.browser = browser;
 
         if (options != null) {
@@ -47,7 +50,7 @@ public class BrowserSessionImpl implements BrowserSession {
         }
 
         try {
-            this.sessionManager = new SessionManager(browser.getWebSocketConnection());
+            this.sessionManager = new SessionManager(communicationManager);
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         } catch (InterruptedException e) {
@@ -60,7 +63,7 @@ public class BrowserSessionImpl implements BrowserSession {
         if (isClosed) {
             throw new PlaywrightException("BrowserContext is closed");
         }
-        PageImpl page = new PageImpl(this);
+        PageImpl page = new PageImpl(communicationManager, this);
         pages.add(page);
         return page;
     }
@@ -381,7 +384,7 @@ public class BrowserSessionImpl implements BrowserSession {
         return browser;
     }
 
-    public SessionManager getSessionService() {
+    public SessionManager getSessionManager() {
         return sessionManager;
     }
 

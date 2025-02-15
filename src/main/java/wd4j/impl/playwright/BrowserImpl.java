@@ -1,8 +1,8 @@
 package wd4j.impl.playwright;
 
 import wd4j.impl.manager.*;
-import wd4j.impl.support.BrowserSession;
 import wd4j.api.*;
+import wd4j.impl.websocket.CommunicationManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,56 +12,29 @@ import java.util.function.Consumer;
 
 public class BrowserImpl implements Browser {
     private final BrowserTypeImpl browserType;
-
+    private final CommunicationManager communicationManager;
     private final BrowserManager browserManager;
-
     private final List<BrowserSessionImpl> sessions = new ArrayList<>();
-
-    private BrowserSession session;
     private String defaultContextId;
-    private WebSocketImpl webSocketImpl;
+
     private ScriptManager scriptManager;
     private NetworkManager networkManager;
     private StorageManager storageManager;
     private WebExtensionManager webExtensionManager;
 
-    public BrowserImpl(BrowserTypeImpl browserType, WebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
-        this.webSocketImpl = webSocketImpl;
-        this.browserManager = new BrowserManager(webSocketImpl);
+    public BrowserImpl(CommunicationManager communicationManager, BrowserTypeImpl browserType) throws ExecutionException, InterruptedException {
+        this.communicationManager = communicationManager;
+        this.browserManager = new BrowserManager(communicationManager);
 
-        this.scriptManager = new ScriptManager(webSocketImpl);
-        this.networkManager = new NetworkManager(webSocketImpl);
-        this.storageManager = new StorageManager(webSocketImpl);
-        this.webExtensionManager = new WebExtensionManager(webSocketImpl);
+        this.scriptManager = new ScriptManager(communicationManager);
+        this.networkManager = new NetworkManager(communicationManager);
+        this.storageManager = new StorageManager(communicationManager);
+        this.webExtensionManager = new WebExtensionManager(communicationManager);
         this.browserType = browserType;
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-
-    /**
-     * Required for the WebSocket connection
-     *
-     * @return The WebSocket connection.
-     */
-    public WebSocketImpl getWebSocketConnection() {
-        return webSocketImpl;
-    }
-
-    private String initSession() throws ExecutionException, InterruptedException {
-        String defaultContextId = null;
-        session = new BrowserSession(this, browserType.name());
-
-//        if(session.getDefaultContextId() == null) {
-//            // Fallback zu browsingContext.getTree, wenn kein Kontext gefunden wurde
-//            System.out.println("--- Keine default Context-ID gefunden. Führe browsingContext.getTree aus. ---");
-//            defaultContextId = fetchDefaultContextFromTree(); // not working
-//        }
-        return defaultContextId;
-    }
-
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
+    /// Method Overrides
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
@@ -91,7 +64,7 @@ public class BrowserImpl implements Browser {
 
     @Override
     public boolean isConnected() {
-        return webSocketImpl.isConnected();
+        return communicationManager.isConnected();
     }
 
     @Override
@@ -101,7 +74,7 @@ public class BrowserImpl implements Browser {
 
     @Override
     public BrowserContext newContext(NewContextOptions options) {
-        BrowserSessionImpl session = new BrowserSessionImpl(this, options);
+        BrowserSessionImpl session = new BrowserSessionImpl(communicationManager, this, options);
         sessions.add(session);
         return session;
     }
@@ -114,7 +87,7 @@ public class BrowserImpl implements Browser {
     @Override
     public Page newPage(NewPageOptions options) {
         BrowserSessionImpl context;
-        context = new BrowserSessionImpl(this, null);
+        context = new BrowserSessionImpl(communicationManager, this, null);
         sessions.add(context);
 
         return context.newPage();
@@ -140,24 +113,7 @@ public class BrowserImpl implements Browser {
     /// Compatibility with WebDriver BiDi
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /**
-     * Returns the BrowserSession. In WebDriver BiDi, every BrowserContext requires a BrowserSession first. This is a
-     * main difference to the Chromium DevTools Protocol, where BrowserContexts do not depend on a BrowserSession.
-     *
-     * Maybe this difference between WebDriver BiDi and CDP is the reason, why PlayWright does not offer Sessions in the API.
-     * But in WebDriver BiDi, the Session is the main entry point to the BrowserContext and Event Processing. That is
-     * why have to use Session under the hood to provide the full PlayWright Feature Set.
-     *
-     * Nevertheless, the BrowserSession should not be widespread and encapsulated in  BrowserImpl (or BrowserContextImpl
-     * if this is more appropriate) for compatibility reasons.
-     *
-     * Gives Access to the Event System! (subscribe, unsubscribe are part of the Sesseion Module in W3C Spec)
-     *
-     * @return
-     */
-    public BrowserSession getSession() {
-        return session;
-    }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// ToDo: Think about where to put the service instances
@@ -168,23 +124,23 @@ public class BrowserImpl implements Browser {
      *
      * @return The BrowserService.
      */
-    public BrowserManager getBrowserService() {
+    public BrowserManager getBrowserManager() {
         return browserManager;
     }
 
-    public ScriptManager getScriptService() {
+    public ScriptManager getScriptManager() {
         return scriptManager;
     }
 
-    public NetworkManager getNetworkService() {
+    public NetworkManager getNetworkManager() {
         return networkManager;
     }
 
-    public StorageManager getStorageService() {
+    public StorageManager getStorageManager() {
         return storageManager;
     }
 
-    public WebExtensionManager getWebExtensionService() {
+    public WebExtensionManager getWebExtensionManager() {
         return webExtensionManager;
     }
 }

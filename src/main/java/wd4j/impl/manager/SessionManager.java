@@ -4,6 +4,7 @@ import wd4j.impl.webdriver.command.request.helper.CommandImpl;
 import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.webdriver.command.request.SessionRequest;
 import wd4j.impl.playwright.WebSocketImpl;
+import wd4j.impl.websocket.CommunicationManager;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -12,7 +13,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 public class SessionManager implements Module {
-    private final WebSocketImpl webSocketImpl;
+    private final CommunicationManager communicationManager;
     private final Set<String> subscribedEvents = new HashSet<>();
 
     /**
@@ -20,11 +21,11 @@ public class SessionManager implements Module {
      * Da einige Browser einen Standard-Kontext erstellen, wird mit diesem direkt ein neuer Browsing-Kontext erstellt.
      * Damit das Verhalten konsistent ist, wird ein neuer Kontext erstellt, wenn kein Standard-Kontext gefunden wird.
      *
-     * @param webSocketImpl Der Browsertyp
+     * @param communicationManager The high-level api
      * @return Die erstellte Session
      */
-    public SessionManager(WebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
-        this.webSocketImpl = webSocketImpl;
+    public SessionManager(CommunicationManager communicationManager) throws ExecutionException, InterruptedException {
+        this.communicationManager = communicationManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,13 +38,13 @@ public class SessionManager implements Module {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public String status() {
-        return webSocketImpl.sendAndWaitForResponse(new SessionRequest.Status());
+        return communicationManager.getWebSocket().sendAndWaitForResponse(new SessionRequest.Status());
     }
 
     // new() - Since plain "new" is a reserved word in Java!
     public String newSession(String browserName) {
         // ToDo. Should Response DTO
-        return webSocketImpl.sendAndWaitForResponse(new SessionRequest.New(browserName));
+        return communicationManager.getWebSocket().sendAndWaitForResponse(new SessionRequest.New(browserName));
     }
 
     // end() - In corespondance to new!
@@ -51,7 +52,7 @@ public class SessionManager implements Module {
         // ToDo: Maybe close all BrowsingContexts?
         CommandImpl endSessionCommand = new SessionRequest.End();
     
-        return webSocketImpl.sendAndWaitForResponse(endSessionCommand);
+        return communicationManager.getWebSocket().sendAndWaitForResponse(endSessionCommand);
     }
 
     /**
@@ -72,7 +73,7 @@ public class SessionManager implements Module {
         }
 
         if (!newEvents.isEmpty()) {
-            webSocketImpl.sendAndWaitForResponse(new SessionRequest.Subscribe(newEvents));
+            communicationManager.getWebSocket().sendAndWaitForResponse(new SessionRequest.Subscribe(newEvents));
             subscribedEvents.addAll(newEvents);
             System.out.println("Subscribed to new events: " + newEvents);
         }
@@ -94,7 +95,7 @@ public class SessionManager implements Module {
         }
 
         if (!eventsToRemove.isEmpty()) {
-            webSocketImpl.sendAndWaitForResponse(new SessionRequest.Unsubscribe(eventsToRemove));
+            communicationManager.getWebSocket().sendAndWaitForResponse(new SessionRequest.Unsubscribe(eventsToRemove));
             subscribedEvents.removeAll(eventsToRemove);
             System.out.println("Unsubscribed from events: " + eventsToRemove);
         }

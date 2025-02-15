@@ -4,12 +4,12 @@ import com.google.gson.JsonObject;
 import wd4j.impl.manager.BrowsingContextManager;
 import wd4j.api.*;
 import wd4j.api.options.*;
-import wd4j.impl.manager.ScriptManager;
 import wd4j.impl.manager.SessionManager;
 import wd4j.impl.webdriver.event.MethodEvent;
 import wd4j.impl.support.JsonToPlaywrightMapper;
 import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
 import wd4j.impl.webdriver.type.script.Target;
+import wd4j.impl.websocket.CommunicationManager;
 
 import java.nio.file.Path;
 import java.util.Base64;
@@ -22,22 +22,20 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 class PageImpl implements Page {
+    private final CommunicationManager communicationManager;
     private final String contextId; // aka. page in Chromium DevTools Protocol
 
     private final BrowserSessionImpl session;
     private final SessionManager sessionManager;
     private final BrowsingContextManager browsingContextManager;
-    private final ScriptManager scriptManager;
     private boolean isClosed;
     private String url;
 
-    public PageImpl(BrowserSessionImpl session) {
+    public PageImpl(CommunicationManager communicationManager, BrowserSessionImpl session) {
+        this.communicationManager = communicationManager;
         this.session = session;
-        this.sessionManager = session.getSessionService(); // ToDo: improve this!
-        this.browsingContextManager = new BrowsingContextManager(session.getBrowser().getWebSocketConnection()); // ToDo: improve this!
-
-        // ToDo: Wo gehört der ScriptManager hin?
-        this.scriptManager = session.getBrowser().getScriptService(); // ToDo: improve this!
+        this.sessionManager = session.getSessionManager(); // ToDo: improve this!
+        this.browsingContextManager = new BrowsingContextManager(communicationManager); // ToDo: improve this!
 
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
@@ -368,7 +366,7 @@ class PageImpl implements Page {
             throw new PlaywrightException("Page is closed");
         }
         Target.ContextTarget contextTarget = new Target.ContextTarget(new BrowsingContext(contextId));
-        return scriptManager.evaluate("return document.documentElement.outerHTML;", contextTarget, true);
+        return session.getBrowser().getScriptManager().evaluate("return document.documentElement.outerHTML;", contextTarget, true);
     }
 
 

@@ -9,22 +9,22 @@ import wd4j.impl.webdriver.type.browser.ClientWindow;
 import wd4j.impl.webdriver.type.browser.ClientWindowInfo;
 import wd4j.impl.webdriver.type.browser.UserContext;
 import wd4j.impl.webdriver.type.browser.UserContextInfo;
-import wd4j.impl.playwright.WebSocketImpl;
+import wd4j.impl.websocket.CommunicationManager;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class BrowserManager implements Module {
 
-    private final WebSocketImpl webSocketImpl;
+    private final CommunicationManager communicationManager;
 
     public ClientWindow clientWindow;
     public ClientWindowInfo clientWindowInfo;
     public UserContext userContext;
     public UserContextInfo userContextInfo;
 
-    public BrowserManager(WebSocketImpl webSocketImpl) {
-        this.webSocketImpl = webSocketImpl;
+    public BrowserManager(CommunicationManager communicationManager) {
+        this.communicationManager = communicationManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -43,7 +43,7 @@ public class BrowserManager implements Module {
      */
     public void closeBrowser() {
         try {
-            webSocketImpl.sendAndWaitForResponse(new BrowserRequest.Close());
+            communicationManager.getWebSocket().sendAndWaitForResponse(new BrowserRequest.Close());
             System.out.println("Browser closed successfully.");
         } catch (RuntimeException e) {
             System.out.println("Error closing browser: " + e.getMessage());
@@ -59,7 +59,7 @@ public class BrowserManager implements Module {
      */
     public String createUserContext() {
         try {
-            String response = webSocketImpl.sendAndWaitForResponse(new BrowserRequest.CreateUserContext());
+            String response = communicationManager.getWebSocket().sendAndWaitForResponse(new BrowserRequest.CreateUserContext());
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             String contextId = jsonResponse.getAsJsonObject("result").get("context").getAsString();
             System.out.println("User context created: " + contextId);
@@ -79,7 +79,7 @@ public class BrowserManager implements Module {
      */
     public List<String> getClientWindows() {
         try {
-            String response = webSocketImpl.sendAndWaitForResponse(new BrowserRequest.GetClientWindows());
+            String response = communicationManager.getWebSocket().sendAndWaitForResponse(new BrowserRequest.GetClientWindows());
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonArray windows = jsonResponse.getAsJsonObject("result").getAsJsonArray("windows");
             List<String> windowIds = new ArrayList<>();
@@ -101,7 +101,7 @@ public class BrowserManager implements Module {
      */
     public List<String> getUserContexts() {
         try {
-            String response = webSocketImpl.sendAndWaitForResponse(new BrowserRequest.GetUserContexts());
+            String response = communicationManager.getWebSocket().sendAndWaitForResponse(new BrowserRequest.GetUserContexts());
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonArray contexts = jsonResponse.getAsJsonObject("result").getAsJsonArray("contexts");
             List<String> contextIds = new ArrayList<>();
@@ -123,7 +123,7 @@ public class BrowserManager implements Module {
      */
     public void removeUserContext(String contextId) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new BrowserRequest.RemoveUserContext(contextId));
+            communicationManager.getWebSocket().sendAndWaitForResponse(new BrowserRequest.RemoveUserContext(contextId));
             System.out.println("User context removed: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error removing user context: " + e.getMessage());
@@ -140,7 +140,7 @@ public class BrowserManager implements Module {
      */
     public void setClientWindowState(String clientWindowId, String state) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new BrowserRequest.SetClientWindowState(clientWindowId, state));
+            communicationManager.getWebSocket().sendAndWaitForResponse(new BrowserRequest.SetClientWindowState(clientWindowId, state));
             System.out.println("Client window state set: " + clientWindowId + " -> " + state);
         } catch (RuntimeException e) {
             System.out.println("Error setting client window state: " + e.getMessage());

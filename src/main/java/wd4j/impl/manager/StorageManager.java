@@ -8,13 +8,14 @@ import wd4j.impl.playwright.WebSocketImpl;
 import wd4j.impl.webdriver.command.request.parameters.storage.CookieFilter;
 import wd4j.impl.webdriver.command.request.parameters.storage.SetCookieParameters;
 import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
+import wd4j.impl.websocket.CommunicationManager;
 
 public class StorageManager implements Module {
 
-    private final WebSocketImpl webSocketImpl;
+    private final CommunicationManager communicationManager;
 
-    public StorageManager(WebSocketImpl webSocketImpl) {
-        this.webSocketImpl = webSocketImpl;
+    public StorageManager(CommunicationManager communicationManager) {
+        this.communicationManager = communicationManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,7 +36,7 @@ public class StorageManager implements Module {
      */
     public String getCookies(BrowsingContext contextId) {
         try {
-            String response = webSocketImpl.sendAndWaitForResponse(new StorageRequest.GetCookies(contextId));
+            String response = communicationManager.getWebSocket().sendAndWaitForResponse(new StorageRequest.GetCookies(contextId));
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             return jsonResponse.getAsJsonObject("result").toString();
         } catch (RuntimeException e) {
@@ -53,7 +54,7 @@ public class StorageManager implements Module {
      */
     public void setCookie(String contextId, SetCookieParameters.PartialCookie cookie) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new StorageRequest.SetCookie(contextId, cookie));
+            communicationManager.getWebSocket().sendAndWaitForResponse(new StorageRequest.SetCookie(contextId, cookie));
             System.out.println("Cookie set: " + cookie.getName() + " = " + cookie.getValue() + " in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error setting cookie: " + e.getMessage());
@@ -71,7 +72,7 @@ public class StorageManager implements Module {
     public void deleteCookie(String contextId, String name) {
         try {
             CookieFilter cookieFilter = new CookieFilter(name, null, null, null, null, null, null, null, null);
-            webSocketImpl.sendAndWaitForResponse(new StorageRequest.DeleteCookies(contextId, cookieFilter));
+            communicationManager.getWebSocket().sendAndWaitForResponse(new StorageRequest.DeleteCookies(contextId, cookieFilter));
             System.out.println("Cookie deleted: " + name + " from context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error deleting cookie: " + e.getMessage());

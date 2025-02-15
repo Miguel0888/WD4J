@@ -5,15 +5,16 @@ import wd4j.impl.webdriver.command.request.WebExtensionRequest;
 import wd4j.impl.webdriver.command.request.parameters.webExtension.ExtensionData;
 import wd4j.impl.webdriver.type.webExtension.Extension;
 import wd4j.impl.playwright.WebSocketImpl;
+import wd4j.impl.websocket.CommunicationManager;
 
 public class WebExtensionManager implements Module {
 
     public Extension extension;
 
-    private final WebSocketImpl webSocketImpl;
+    private final CommunicationManager communicationManager;
 
-    public WebExtensionManager(WebSocketImpl webSocketImpl) {
-        this.webSocketImpl = webSocketImpl;
+    public WebExtensionManager(CommunicationManager communicationManager) {
+        this.communicationManager = communicationManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -34,7 +35,7 @@ public class WebExtensionManager implements Module {
      */
     public void install(ExtensionData extensionData) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new WebExtensionRequest.Install(extensionData));
+            communicationManager.getWebSocket().sendAndWaitForResponse(new WebExtensionRequest.Install(extensionData));
             System.out.println("Web extension installed of Type " + extensionData.getType());
         } catch (RuntimeException e) {
             System.out.println("Error installing web extension: " + e.getMessage());
@@ -50,7 +51,7 @@ public class WebExtensionManager implements Module {
      */
     public void uninstall(Extension extension) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new WebExtensionRequest.Uninstall(extension));
+            communicationManager.getWebSocket().sendAndWaitForResponse(new WebExtensionRequest.Uninstall(extension));
             System.out.println("Web extension uninstalled: " + extension.value());
         } catch (RuntimeException e) {
             System.out.println("Error uninstalling web extension: " + e.getMessage());

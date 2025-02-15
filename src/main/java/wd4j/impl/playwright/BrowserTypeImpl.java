@@ -3,6 +3,7 @@ package wd4j.impl.playwright;
 import wd4j.api.Browser;
 import wd4j.api.BrowserContext;
 import wd4j.api.BrowserType;
+import wd4j.impl.websocket.CommunicationManager;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -143,7 +144,7 @@ public class BrowserTypeImpl implements BrowserType {
         }
 
         try {
-            BrowserImpl browser = new BrowserImpl(this, webSocketImpl);
+            BrowserImpl browser = new BrowserImpl(new CommunicationManager(webSocketImpl), this);
             playwright.addBrowser(browser);
             return browser;
         } catch (ExecutionException e) {

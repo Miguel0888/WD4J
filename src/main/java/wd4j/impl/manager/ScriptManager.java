@@ -10,16 +10,17 @@ import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
 import wd4j.impl.webdriver.type.script.Handle;
 import wd4j.impl.webdriver.type.script.LocalValue;
 import wd4j.impl.webdriver.type.script.Target;
+import wd4j.impl.websocket.CommunicationManager;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class ScriptManager implements Module {
 
-    private final WebSocketImpl webSocketImpl;
+    private final CommunicationManager communicationManager;
 
-    public ScriptManager(WebSocketImpl webSocketImpl) {
-        this.webSocketImpl = webSocketImpl;
+    public ScriptManager(CommunicationManager communicationManager) {
+        this.communicationManager = communicationManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -40,7 +41,7 @@ public class ScriptManager implements Module {
      */
     public void addPreloadScript(String script, String target) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.AddPreloadScript(script));
+            communicationManager.getWebSocket().sendAndWaitForResponse(new ScriptRequest.AddPreloadScript(script));
             System.out.println("Preload script added: " + script + " to target: " + target);
         } catch (RuntimeException e) {
             System.out.println("Error adding preload script: " + e.getMessage());
@@ -61,7 +62,7 @@ public class ScriptManager implements Module {
         }
 
         try {
-            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.Disown(handles, target));
+            communicationManager.getWebSocket().sendAndWaitForResponse(new ScriptRequest.Disown(handles, target));
             System.out.println("Handles disowned in target: " + target);
         } catch (RuntimeException e) {
             System.out.println("Error disowning handles: " + e.getMessage());
@@ -79,7 +80,7 @@ public class ScriptManager implements Module {
      */
     public <T> void callFunction(String functionDeclaration, boolean awaitPromise, Target target, List<LocalValue<T>> arguments) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.CallFunction<>(functionDeclaration, awaitPromise, target, arguments));
+            communicationManager.getWebSocket().sendAndWaitForResponse(new ScriptRequest.CallFunction<>(functionDeclaration, awaitPromise, target, arguments));
             System.out.println("Function called: " + functionDeclaration + " on target: " + target);
         } catch (RuntimeException e) {
             System.out.println("Error calling function: " + e.getMessage());
@@ -95,7 +96,7 @@ public class ScriptManager implements Module {
      * @throws RuntimeException if the operation fails.
      */
     public String evaluate(String script, Target target, boolean awaitPromise) {
-        return webSocketImpl.sendAndWaitForResponse(new ScriptRequest.Evaluate(script, target, awaitPromise));
+        return communicationManager.getWebSocket().sendAndWaitForResponse(new ScriptRequest.Evaluate(script, target, awaitPromise));
     }
 
 
@@ -108,7 +109,7 @@ public class ScriptManager implements Module {
      */
     public List<String> getRealms(BrowsingContext context) {
         try {
-            String response = webSocketImpl.sendAndWaitForResponse(new ScriptRequest.GetRealms(context));
+            String response = communicationManager.getWebSocket().sendAndWaitForResponse(new ScriptRequest.GetRealms(context));
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonArray realms = jsonResponse.getAsJsonObject("result").getAsJsonArray("realms");
             List<String> realmIds = new ArrayList<>();
@@ -129,7 +130,7 @@ public class ScriptManager implements Module {
      */
     public void removePreloadScript(String scriptId) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new ScriptRequest.RemovePreloadScript(scriptId));
+            communicationManager.getWebSocket().sendAndWaitForResponse(new ScriptRequest.RemovePreloadScript(scriptId));
             System.out.println("Preload script removed: " + scriptId);
         } catch (RuntimeException e) {
             System.out.println("Error removing preload script: " + e.getMessage());
