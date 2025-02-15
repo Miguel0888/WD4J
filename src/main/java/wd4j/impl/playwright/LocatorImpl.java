@@ -52,9 +52,11 @@ public class LocatorImpl implements Locator {
     public List<Locator> all() {
         try {
             // 1. Hole den DOM-Baum für den Kontext
-            CompletableFuture<WebSocketFrame> futureResponse = webSocket.send(new BrowsingContextRequest.GetTree());
-            String jsonResponse = futureResponse.get(5, TimeUnit.SECONDS).text();
-            System.out.println("===>" + jsonResponse);
+//            CompletableFuture<WebSocketFrame> futureResponse = webSocket.send(new BrowsingContextRequest.GetTree());
+//            String jsonResponse = futureResponse.get(5, TimeUnit.SECONDS).text();
+//            System.out.println("===>" + jsonResponse);
+
+            String jsonResponse  = webSocket.sendAndWaitForResponse(new BrowsingContextRequest.GetTree());
 
             JsonObject json = new Gson().fromJson(jsonResponse, JsonObject.class);
             JsonArray nodes = json.getAsJsonArray("nodes");

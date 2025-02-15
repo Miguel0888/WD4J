@@ -70,12 +70,12 @@ public class BrowsingContextManager implements Module {
         if (url == null || url.isEmpty()) {
             throw new IllegalArgumentException("Cannot navigate: URL is null or empty!");
         }
-        communicationManager.getWebSocket().send(new BrowsingContextRequest.Navigate(url, contextId));
+        communicationManager.getWebSocket().sendAndWaitForResponse(new BrowsingContextRequest.Navigate(url, contextId));
     }
 
     public void getTree() {
         // Send the command, don't wait for the response
-        communicationManager.getWebSocket().send(new BrowsingContextRequest.GetTree());
+        communicationManager.getWebSocket().sendAndWaitForResponse(new BrowsingContextRequest.GetTree());
     }
 
     /**
