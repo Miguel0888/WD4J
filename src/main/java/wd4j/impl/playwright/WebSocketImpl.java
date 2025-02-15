@@ -19,9 +19,6 @@ public class WebSocketImpl implements WebSocket {
     private boolean isClosed = false;
     private String url;
 
-    private final BlockingQueue<WebSocketFrame> sentFrames = new LinkedBlockingQueue<>(MAX_QUEUE_SIZE);
-    private final BlockingQueue<WebSocketFrame> receivedFrames = new LinkedBlockingQueue<>(MAX_QUEUE_SIZE);
-
     private final List<Consumer<WebSocket>> onCloseListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<WebSocketFrame>> onFrameReceivedListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<WebSocketFrame>> onFrameSentListeners = new CopyOnWriteArrayList<>();
@@ -75,6 +72,14 @@ public class WebSocketImpl implements WebSocket {
         onSocketErrorListeners.remove(handler);
     }
 
+    public void send(String jsonCommand) {
+        if (isClosed) {
+            throw new RuntimeException("Cannot send message: WebSocket is closed.");
+        }
+
+        webSocketClient.send(jsonCommand); // Nachricht senden
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// **WebSocket-Frames Implementierung**
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -108,6 +113,18 @@ public class WebSocketImpl implements WebSocket {
     /// **Frame-basierte Kommunikation**
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    /**
+     * Nutzt ein CompletableFuture<WebSocketFrame> als eine Art "Versprechen", dass irgendwann in der Zukunft ein
+     * WebSocketFrame ankommt. Das passiert in 3 Schritten:
+     *
+     * 1️⃣ Listener registrieren: Wenn ein neues Frame kommt, prüfen wir, ob es passt.
+     * 2️⃣ Future abschließen: Falls es passt, wird das CompletableFuture abgeschlossen (future.complete(frame)).
+     * 3️⃣ Antwort abholen: future.get(timeout) wartet, bis das Frame ankommt oder das Timeout überschritten wird.
+     *
+     * @param options
+     * @param callback Callback that performs the action triggering the event.
+     * @return
+     */
     @Override
     public WebSocketFrame waitForFrameReceived(WaitForFrameReceivedOptions options, Runnable callback) {
         callback.run(); // Führt das übergebene Kommando aus.
@@ -115,50 +132,71 @@ public class WebSocketImpl implements WebSocket {
         Predicate<WebSocketFrame> predicate = options.predicate != null ? options.predicate : frame -> true;
         long timeout = options.timeout != null ? options.timeout.longValue() : 30_000;
 
-        long startTime = System.currentTimeMillis();
-        while (true) {
-            if (isClosed) {
-                throw new RuntimeException("WebSocket was closed before a frame was received.");
-            }
+        CompletableFuture<WebSocketFrame> future = new CompletableFuture<>();
 
-            long remainingTime = timeout - (System.currentTimeMillis() - startTime);
-            if (remainingTime <= 0) {
-                throw new RuntimeException("Timeout while waiting for frame received.");
+        // 1️⃣ Listener wird registriert und prüft, ob das Frame passt
+        Consumer<WebSocketFrame> listener = frame -> {
+            if (predicate.test(frame)) {
+                future.complete(frame); // 2️⃣ Schließt das Future ab → Antwort erhalten
             }
+        };
 
-            try {
-                WebSocketFrame frame = receivedFrames.poll(remainingTime, TimeUnit.MILLISECONDS);
-                if (frame == null) throw new RuntimeException("Timeout while waiting for frame received.");
-                if (predicate.test(frame)) return frame;
-            } catch (InterruptedException ignored) {}
+        onFrameReceived(listener); // Listener hinzufügen
+
+        try {
+            // 3️⃣ Wartet auf das passende Frame oder Timeout
+            return future.get(timeout, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            throw new RuntimeException("Timeout while waiting for frame received.");
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Error while waiting for frame received.", e);
+        } finally {
+            offFrameReceived(listener); // Listener wieder entfernen, um Speicherlecks zu verhindern
         }
     }
 
+    /**
+     * Nutzt ein CompletableFuture<WebSocketFrame> als eine Art "Versprechen", dass irgendwann in der Zukunft ein
+     * WebSocketFrame ankommt. Das passiert in 3 Schritten:
+     *
+     * 1️⃣ Listener registrieren: Wenn ein neues Frame kommt, prüfen wir, ob es passt.
+     * 2️⃣ Future abschließen: Falls es passt, wird das CompletableFuture abgeschlossen (future.complete(frame)).
+     * 3️⃣ Antwort abholen: future.get(timeout) wartet, bis das Frame ankommt oder das Timeout überschritten wird.
+     *
+     * @param options
+     * @param callback Callback that performs the action triggering the event.
+     * @return
+     */
     @Override
     public WebSocketFrame waitForFrameSent(WaitForFrameSentOptions options, Runnable callback) {
-        callback.run();
+        callback.run(); // Führt das übergebene Kommando aus.
 
         Predicate<WebSocketFrame> predicate = options.predicate != null ? options.predicate : frame -> true;
         long timeout = options.timeout != null ? options.timeout.longValue() : 30_000;
 
-        long startTime = System.currentTimeMillis();
-        while (true) {
-            if (isClosed) {
-                throw new RuntimeException("WebSocket was closed before the frame was sent.");
-            }
+        CompletableFuture<WebSocketFrame> future = new CompletableFuture<>();
 
-            long remainingTime = timeout - (System.currentTimeMillis() - startTime);
-            if (remainingTime <= 0) {
-                throw new RuntimeException("Timeout while waiting for frame sent.");
+        // 1️⃣ Listener registrieren
+        Consumer<WebSocketFrame> listener = frame -> {
+            if (predicate.test(frame)) {
+                future.complete(frame); // 2️⃣ Antwort erhalten!
             }
+        };
 
-            try {
-                WebSocketFrame frame = sentFrames.poll(remainingTime, TimeUnit.MILLISECONDS);
-                if (frame == null) throw new RuntimeException("Timeout while waiting for frame sent.");
-                if (predicate.test(frame)) return frame;
-            } catch (InterruptedException ignored) {}
+        onFrameSent(listener); // Listener hinzufügen
+
+        try {
+            // 3️⃣ Warten auf das passende Frame oder Timeout
+            return future.get(timeout, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            throw new RuntimeException("Timeout while waiting for frame sent.");
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Error while waiting for frame sent.", e);
+        } finally {
+            offFrameSent(listener); // Listener wieder entfernen
         }
     }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// **WebSocket-Verwaltung**
@@ -176,11 +214,6 @@ public class WebSocketImpl implements WebSocket {
             public void onMessage(String message) {
                 try {
                     WebSocketFrameImpl frame = new WebSocketFrameImpl(message);
-
-                    if (!receivedFrames.offer(frame)) {
-                        receivedFrames.poll();
-                        receivedFrames.offer(frame);
-                    }
 
                     onFrameReceivedListeners.forEach(listener -> listener.accept(frame));
                 } catch (Exception e) {
@@ -201,6 +234,16 @@ public class WebSocketImpl implements WebSocket {
             public void onError(Exception ex) {
                 onSocketErrorListeners.forEach(listener -> listener.accept("WebSocket error occurred: " + ex.getMessage()));
             }
+
+            // Hier fangen wir ALLE ausgehenden Nachrichten ab und benachrichtigen `onFrameSentListeners`
+            @Override
+            public void send(String message) {
+                super.send(message); // Die Nachricht wirklich senden
+
+                WebSocketFrameImpl frame = new WebSocketFrameImpl(message);
+
+                onFrameSentListeners.forEach(listener -> listener.accept(frame));
+            }
         };
     }
 
@@ -210,8 +253,6 @@ public class WebSocketImpl implements WebSocket {
 
     public void close() {
         isClosed = true;
-        receivedFrames.clear();
-        sentFrames.clear();
         webSocketClient.close();
         System.out.println("WebSocket connection closed.");
     }
