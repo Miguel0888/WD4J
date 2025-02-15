@@ -36,7 +36,7 @@ public class NetworkManager implements Module {
      */
     public void addIntercept(List<AddInterceptParameters.InterceptPhase> phases) {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new NetworkRequest.AddIntercept(phases));
+            communicationManager.sendAndWaitForResponse(new NetworkRequest.AddIntercept(phases), String.class);
             System.out.println("Intercept added for intercept phases: " + phases);
         } catch (RuntimeException e) {
             System.out.println("Error adding intercept: " + e.getMessage());
@@ -52,7 +52,7 @@ public class NetworkManager implements Module {
      */
     public void continueRequest(String requestId) {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new NetworkRequest.ContinueRequest(requestId));
+            communicationManager.sendAndWaitForResponse(new NetworkRequest.ContinueRequest(requestId), String.class);
             System.out.println("Request continued: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error continuing request: " + e.getMessage());
@@ -68,7 +68,7 @@ public class NetworkManager implements Module {
      */
     public void continueResponse(String requestId) {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new NetworkRequest.ContinueResponse(requestId));
+            communicationManager.sendAndWaitForResponse(new NetworkRequest.ContinueResponse(requestId), String.class);
             System.out.println("Response continued: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error continuing response: " + e.getMessage());
@@ -85,7 +85,7 @@ public class NetworkManager implements Module {
      */
     public void continueWithAuth(String requestId, AuthCredentials authChallengeResponse) {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new NetworkRequest.ContinueWithAuth(requestId, authChallengeResponse));
+            communicationManager.sendAndWaitForResponse(new NetworkRequest.ContinueWithAuth(requestId, authChallengeResponse), String.class);
             System.out.println("Request continued with authentication: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error continuing with authentication: " + e.getMessage());
@@ -101,7 +101,7 @@ public class NetworkManager implements Module {
      */
     public void failRequest(String requestId) {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new NetworkRequest.FailRequest(requestId));
+            communicationManager.sendAndWaitForResponse(new NetworkRequest.FailRequest(requestId), String.class);
             System.out.println("Request failed: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error failing request: " + e.getMessage());
@@ -118,7 +118,7 @@ public class NetworkManager implements Module {
      */
     public void provideResponse(String requestId) {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new NetworkRequest.ProvideResponse(requestId));
+            communicationManager.sendAndWaitForResponse(new NetworkRequest.ProvideResponse(requestId), String.class);
             System.out.println("Response provided for request: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error providing response: " + e.getMessage());
@@ -134,7 +134,7 @@ public class NetworkManager implements Module {
      */
     public void removeIntercept(String interceptId) {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new NetworkRequest.RemoveIntercept(interceptId));
+            communicationManager.sendAndWaitForResponse(new NetworkRequest.RemoveIntercept(interceptId), String.class);
             System.out.println("Intercept removed: " + interceptId);
         } catch (RuntimeException e) {
             System.out.println("Error removing intercept: " + e.getMessage());
@@ -151,7 +151,7 @@ public class NetworkManager implements Module {
      */
     public void setCacheBehavior(SetCacheBehaviorParameters.CacheBehavior cacheBehavior) {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new NetworkRequest.SetCacheBehavior(cacheBehavior));
+            communicationManager.sendAndWaitForResponse(new NetworkRequest.SetCacheBehavior(cacheBehavior), String.class);
         } catch (RuntimeException e) {
             System.out.println("Error setting cache behavior: " + e.getMessage());
             throw e;

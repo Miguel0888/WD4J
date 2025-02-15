@@ -1,5 +1,7 @@
 package wd4j.impl.playwright;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import wd4j.api.options.BindingCallback;
 import wd4j.api.options.Cookie;
 import wd4j.api.options.FunctionCallback;
@@ -37,6 +39,9 @@ public class BrowserSessionImpl implements BrowserSession {
     private final List<PageImpl> pages = new ArrayList<>(); // aka. contexts in WebDriver BiDi
     private boolean isClosed = false; // ToDo: Is this variable really necessary?
 
+    private String sessionId;
+    private String defaultContextId; // ToDo: If found, it should be used to create a new page with this id
+
     public BrowserSessionImpl(CommunicationManager communicationManager, BrowserImpl browser) {
         this(communicationManager, browser, null);
     }
@@ -45,12 +50,15 @@ public class BrowserSessionImpl implements BrowserSession {
         this.communicationManager = communicationManager;
         this.browser = browser;
 
+        String browserName = browser.browserType().name();
+
         if (options != null) {
             // ToDo: Use options to create a new session
         }
 
         try {
             this.sessionManager = new SessionManager(communicationManager);
+            fetchDefaultSession(browserName);
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         } catch (InterruptedException e) {
@@ -397,4 +405,56 @@ public class BrowserSessionImpl implements BrowserSession {
     public <T> void removeEventListener(String eventType, Consumer<T> listener, SessionManager sessionManager) {
         dispatcher.removeEventListener(eventType, listener, sessionManager);
     }
+
+    /**
+     * Creates a new session aka. browsing context.
+     * The default contextId is not provided by every browser.
+     * E.g. Firefox ESR does not provide a default contextId, whereas the normal Firefox does.
+     *
+     * To avoid this issue, you can also create a new context every time you launch a browser. Thus, this method is optional.
+     */
+    private void fetchDefaultSession(String browserName) throws InterruptedException, ExecutionException {
+        // Create a new session
+        String sessionResponse = sessionManager.newSession(browserName); // ToDo: Does not work with Chrome!
+
+        // Kontext-ID extrahieren oder neuen Kontext erstellen
+        sessionId = processSessionResponse(sessionResponse);
+
+        if(defaultContextId != null) {
+            // ToDo: Create Page
+            System.out.println("Context ID: " + defaultContextId);
+        }
+    }
+
+    private String processSessionResponse(String sessionResponse) {
+        String sessionId = null;
+
+        Gson gson = new Gson();
+        JsonObject jsonResponse = gson.fromJson(sessionResponse, JsonObject.class);
+        JsonObject result = jsonResponse.getAsJsonObject("result");
+
+        // Prüfe, ob die Antwort eine Session-ID enthält
+        if (result != null && result.has("sessionId")) {
+            sessionId = result.get("sessionId").getAsString();
+            System.out.println("--- Session-ID gefunden: " + sessionId);
+        }
+
+        // Prüfe, ob ein Default Browsing-Kontext in der Antwort enthalten ist
+        if (result != null && result.has("contexts")) {
+            JsonObject context = result.getAsJsonArray("contexts")
+                    .get(0)
+                    .getAsJsonObject();
+            if (context.has("context")) {
+                defaultContextId = context.get("context").getAsString();
+                System.out.println("--- Browsing Context-ID gefunden: " + defaultContextId);
+            }
+        }
+        return sessionId;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 }

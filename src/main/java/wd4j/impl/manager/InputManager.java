@@ -2,18 +2,18 @@ package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.webdriver.command.request.InputRequest;
-import wd4j.impl.playwright.WebSocketImpl;
 import wd4j.impl.webdriver.command.request.parameters.input.PerformActionsParameters;
 import wd4j.impl.webdriver.type.script.RemoteReference;
+import wd4j.impl.websocket.CommunicationManager;
 
 import java.util.List;
 
 public class InputManager implements Module {
 
-    private final WebSocketImpl webSocketImpl;
+    private final CommunicationManager communicationManager;
 
-    public InputManager(WebSocketImpl webSocketImpl) {
-        this.webSocketImpl = webSocketImpl;
+    public InputManager(CommunicationManager communicationManager) {
+        this.communicationManager = communicationManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -38,7 +38,7 @@ public class InputManager implements Module {
         }
 
         try {
-            webSocketImpl.sendAndWaitForResponse(new InputRequest.PerformActions(contextId, actions));
+            communicationManager.sendAndWaitForResponse(new InputRequest.PerformActions(contextId, actions), String.class);
             System.out.println("Performed actions in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error performing actions: " + e.getMessage());
@@ -54,7 +54,7 @@ public class InputManager implements Module {
      */
     public void releaseActions(String contextId) {
         try {
-            webSocketImpl.sendAndWaitForResponse(new InputRequest.ReleaseActions(contextId));
+            communicationManager.sendAndWaitForResponse(new InputRequest.ReleaseActions(contextId), String.class);
             System.out.println("Released actions in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error releasing actions: " + e.getMessage());
@@ -77,7 +77,7 @@ public class InputManager implements Module {
         }
 
         try {
-            webSocketImpl.sendAndWaitForResponse(new InputRequest.SetFiles(contextId, sharedReference, files));
+            communicationManager.sendAndWaitForResponse(new InputRequest.SetFiles(contextId, sharedReference, files), String.class);
             System.out.println("Files set for element: " + sharedReference);
         } catch (RuntimeException e) {
             System.out.println("Error setting files: " + e.getMessage());

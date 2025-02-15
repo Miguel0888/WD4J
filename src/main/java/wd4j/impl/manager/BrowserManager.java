@@ -43,7 +43,7 @@ public class BrowserManager implements Module {
      */
     public void closeBrowser() {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new BrowserRequest.Close());
+            communicationManager.sendAndWaitForResponse(new BrowserRequest.Close(), String.class);
             System.out.println("Browser closed successfully.");
         } catch (RuntimeException e) {
             System.out.println("Error closing browser: " + e.getMessage());
@@ -59,7 +59,7 @@ public class BrowserManager implements Module {
      */
     public String createUserContext() {
         try {
-            String response = communicationManager.getWebSocket().sendAndWaitForResponse(new BrowserRequest.CreateUserContext());
+            String response = communicationManager.sendAndWaitForResponse(new BrowserRequest.CreateUserContext(), String.class);
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             String contextId = jsonResponse.getAsJsonObject("result").get("context").getAsString();
             System.out.println("User context created: " + contextId);
@@ -79,7 +79,7 @@ public class BrowserManager implements Module {
      */
     public List<String> getClientWindows() {
         try {
-            String response = communicationManager.getWebSocket().sendAndWaitForResponse(new BrowserRequest.GetClientWindows());
+            String response = communicationManager.sendAndWaitForResponse(new BrowserRequest.GetClientWindows(), String.class);
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonArray windows = jsonResponse.getAsJsonObject("result").getAsJsonArray("windows");
             List<String> windowIds = new ArrayList<>();
@@ -101,7 +101,7 @@ public class BrowserManager implements Module {
      */
     public List<String> getUserContexts() {
         try {
-            String response = communicationManager.getWebSocket().sendAndWaitForResponse(new BrowserRequest.GetUserContexts());
+            String response = communicationManager.sendAndWaitForResponse(new BrowserRequest.GetUserContexts(), String.class);
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonArray contexts = jsonResponse.getAsJsonObject("result").getAsJsonArray("contexts");
             List<String> contextIds = new ArrayList<>();
@@ -123,7 +123,7 @@ public class BrowserManager implements Module {
      */
     public void removeUserContext(String contextId) {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new BrowserRequest.RemoveUserContext(contextId));
+            communicationManager.sendAndWaitForResponse(new BrowserRequest.RemoveUserContext(contextId), String.class);
             System.out.println("User context removed: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error removing user context: " + e.getMessage());
@@ -140,7 +140,7 @@ public class BrowserManager implements Module {
      */
     public void setClientWindowState(String clientWindowId, String state) {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new BrowserRequest.SetClientWindowState(clientWindowId, state));
+            communicationManager.sendAndWaitForResponse(new BrowserRequest.SetClientWindowState(clientWindowId, state), String.class);
             System.out.println("Client window state set: " + clientWindowId + " -> " + state);
         } catch (RuntimeException e) {
             System.out.println("Error setting client window state: " + e.getMessage());

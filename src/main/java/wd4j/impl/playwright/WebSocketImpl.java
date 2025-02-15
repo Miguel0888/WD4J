@@ -24,6 +24,8 @@ public class WebSocketImpl implements WebSocket {
     private final List<Consumer<WebSocketFrame>> onFrameSentListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<String>> onSocketErrorListeners = new CopyOnWriteArrayList<>();
 
+    public WebSocketImpl() { }
+
     public WebSocketImpl(URI uri) {
         createAndConfigureWebSocketClient(uri);
     }
@@ -212,6 +214,7 @@ public class WebSocketImpl implements WebSocket {
 
             @Override
             public void onMessage(String message) {
+                System.out.println("[WebSocket] Message received: " + message);
                 try {
                     WebSocketFrameImpl frame = new WebSocketFrameImpl(message);
 
@@ -238,6 +241,7 @@ public class WebSocketImpl implements WebSocket {
             // Hier fangen wir ALLE ausgehenden Nachrichten ab und benachrichtigen `onFrameSentListeners`
             @Override
             public void send(String message) {
+                System.out.println("[WebSocket] Message sent: " + message);
                 super.send(message); // Die Nachricht wirklich senden
 
                 WebSocketFrameImpl frame = new WebSocketFrameImpl(message);

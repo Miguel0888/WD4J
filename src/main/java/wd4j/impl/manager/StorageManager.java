@@ -36,7 +36,7 @@ public class StorageManager implements Module {
      */
     public String getCookies(BrowsingContext contextId) {
         try {
-            String response = communicationManager.getWebSocket().sendAndWaitForResponse(new StorageRequest.GetCookies(contextId));
+            String response = communicationManager.sendAndWaitForResponse(new StorageRequest.GetCookies(contextId), String.class);
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             return jsonResponse.getAsJsonObject("result").toString();
         } catch (RuntimeException e) {
@@ -54,7 +54,7 @@ public class StorageManager implements Module {
      */
     public void setCookie(String contextId, SetCookieParameters.PartialCookie cookie) {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new StorageRequest.SetCookie(contextId, cookie));
+            communicationManager.sendAndWaitForResponse(new StorageRequest.SetCookie(contextId, cookie), String.class);
             System.out.println("Cookie set: " + cookie.getName() + " = " + cookie.getValue() + " in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error setting cookie: " + e.getMessage());
@@ -72,7 +72,7 @@ public class StorageManager implements Module {
     public void deleteCookie(String contextId, String name) {
         try {
             CookieFilter cookieFilter = new CookieFilter(name, null, null, null, null, null, null, null, null);
-            communicationManager.getWebSocket().sendAndWaitForResponse(new StorageRequest.DeleteCookies(contextId, cookieFilter));
+            communicationManager.sendAndWaitForResponse(new StorageRequest.DeleteCookies(contextId, cookieFilter), String.class);
             System.out.println("Cookie deleted: " + name + " from context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error deleting cookie: " + e.getMessage());

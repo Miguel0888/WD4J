@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 
 class PageImpl implements Page {
     private final CommunicationManager communicationManager;
-    private final String contextId; // aka. page in Chromium DevTools Protocol
+    private final String pageId; // aka. page in Chromium DevTools Protocol
 
     private final BrowserSessionImpl session;
     private final SessionManager sessionManager;
@@ -40,10 +40,10 @@ class PageImpl implements Page {
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        this.contextId = initSession();
+        this.pageId = initPage();
     }
 
-    private String initSession() {
+    private String initPage() {
         // Create a new browsing context
         return browsingContextManager.create();
     }
@@ -351,7 +351,7 @@ class PageImpl implements Page {
     public void close() {
         if (!isClosed) {
             isClosed = true;
-            browsingContextManager.close(contextId);
+            browsingContextManager.close(pageId);
         }
     }
 
@@ -365,7 +365,7 @@ class PageImpl implements Page {
         if (isClosed) {
             throw new PlaywrightException("Page is closed");
         }
-        Target.ContextTarget contextTarget = new Target.ContextTarget(new BrowsingContext(contextId));
+        Target.ContextTarget contextTarget = new Target.ContextTarget(new BrowsingContext(pageId));
         return session.getBrowser().getScriptManager().evaluate("return document.documentElement.outerHTML;", contextTarget, true);
     }
 
@@ -558,14 +558,14 @@ class PageImpl implements Page {
 
     @Override
     public Response goBack(GoBackOptions options) {
-        browsingContextManager.traverseHistory(contextId, -1);
+        browsingContextManager.traverseHistory(pageId, -1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
 
     @Override
     public Response goForward(GoForwardOptions options) {
-        browsingContextManager.traverseHistory(contextId, 1);
+        browsingContextManager.traverseHistory(pageId, 1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -580,13 +580,13 @@ class PageImpl implements Page {
         if (isClosed) {
             throw new PlaywrightException("Page is closed");
         }
-        if (contextId == null || contextId.isEmpty()) {
+        if (pageId == null || pageId.isEmpty()) {
             throw new PlaywrightException("Cannot navigate: contextId is null or empty!");
         }
         this.url = url;
 
         // WebDriver BiDi Befehl senden
-        browsingContextManager.navigate(url, contextId);
+        browsingContextManager.navigate(url, pageId);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -656,7 +656,7 @@ class PageImpl implements Page {
         if (selector == null || selector.isEmpty()) {
             throw new IllegalArgumentException("Selector must not be null or empty.");
         }
-        return new LocatorImpl(selector, contextId, null); // ToDo: webSocketImpl übergeben
+        return new LocatorImpl(selector, pageId, null); // ToDo: webSocketImpl übergeben
 
         // ToDo: Implementierung verbessern
         // XPath-Selektoren beginnen mit "xpath=", CSS-Selektoren mit "css="
@@ -723,7 +723,7 @@ class PageImpl implements Page {
 
     @Override
     public Response reload(ReloadOptions options) {
-        browsingContextManager.reload(contextId);
+        browsingContextManager.reload(pageId);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -770,7 +770,7 @@ class PageImpl implements Page {
 
     @Override
     public byte[] screenshot(ScreenshotOptions options) {
-        String base64Image = browsingContextManager.captureScreenshot(contextId);
+        String base64Image = browsingContextManager.captureScreenshot(pageId);
         return Base64.getDecoder().decode(base64Image);
     }
 

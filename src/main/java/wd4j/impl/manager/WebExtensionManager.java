@@ -35,7 +35,7 @@ public class WebExtensionManager implements Module {
      */
     public void install(ExtensionData extensionData) {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new WebExtensionRequest.Install(extensionData));
+            communicationManager.sendAndWaitForResponse(new WebExtensionRequest.Install(extensionData), String.class);
             System.out.println("Web extension installed of Type " + extensionData.getType());
         } catch (RuntimeException e) {
             System.out.println("Error installing web extension: " + e.getMessage());
@@ -51,7 +51,7 @@ public class WebExtensionManager implements Module {
      */
     public void uninstall(Extension extension) {
         try {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new WebExtensionRequest.Uninstall(extension));
+            communicationManager.sendAndWaitForResponse(new WebExtensionRequest.Uninstall(extension), String.class);
             System.out.println("Web extension uninstalled: " + extension.value());
         } catch (RuntimeException e) {
             System.out.println("Error uninstalling web extension: " + e.getMessage());

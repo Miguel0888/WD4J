@@ -11,6 +11,7 @@ import wd4j.api.options.FilePayload;
 import wd4j.api.options.SelectOption;
 import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
 import wd4j.impl.webdriver.command.request.ScriptRequest;
+import wd4j.impl.websocket.CommunicationManager;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -23,7 +24,7 @@ import java.util.regex.Pattern;
 public class LocatorImpl implements Locator {
     private final String selector;
     private final String contextId;
-    private final WebSocketImpl webSocket;
+    private final CommunicationManager webSocket;
 
 //    public LocatorImpl(String selector) {
 //        // TODO: Implement
@@ -36,7 +37,7 @@ public class LocatorImpl implements Locator {
 //        this.webSocket = webSocket;
 //    }
 
-    public LocatorImpl(String selector, String contextId, WebSocketImpl webSocket) {
+    public LocatorImpl(String selector, String contextId, CommunicationManager communicationManager) {
         if (selector == null || selector.isEmpty()) {
             throw new IllegalArgumentException("Selector must not be null or empty.");
         }
@@ -45,7 +46,7 @@ public class LocatorImpl implements Locator {
         }
         this.selector = selector;
         this.contextId = contextId;
-        this.webSocket = webSocket;
+        this.webSocket = communicationManager;
     }
 
     @Override
@@ -56,7 +57,7 @@ public class LocatorImpl implements Locator {
 //            String jsonResponse = futureResponse.get(5, TimeUnit.SECONDS).text();
 //            System.out.println("===>" + jsonResponse);
 
-            String jsonResponse  = webSocket.sendAndWaitForResponse(new BrowsingContextRequest.GetTree());
+            String jsonResponse  = webSocket.sendAndWaitForResponse(new BrowsingContextRequest.GetTree(), String.class);
 
             JsonObject json = new Gson().fromJson(jsonResponse, JsonObject.class);
             JsonArray nodes = json.getAsJsonArray("nodes");

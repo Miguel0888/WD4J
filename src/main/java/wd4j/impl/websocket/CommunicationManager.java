@@ -1,6 +1,7 @@
 package wd4j.impl.websocket;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import wd4j.api.WebSocket;
 import wd4j.api.WebSocketFrame;
@@ -39,7 +40,7 @@ public class CommunicationManager {
      *
      * @param command   Der Befehl, der gesendet wird.
      * @param responseType Die Klasse des erwarteten DTOs.
-     * @param <T> Der Typ der Antwort.
+     * @param <T> Der Typ der Antwort. Falls String.class gewählt wird, wird die Antwort als JSON-String zurückgegeben.
      * @return Ein deserialisiertes DTO der Klasse `T`.
      */
     public <T> T sendAndWaitForResponse(Command command, Class<T> responseType) {
@@ -48,9 +49,17 @@ public class CommunicationManager {
         // 2️⃣ Predicate: Prüft, ob das empfangene Frame die richtige ID hat
         Predicate<WebSocketFrame> predicate = frame -> {
             try {
-                T response = gson.fromJson(frame.text(), responseType);
-                return response != null;
+                if (responseType == String.class) {
+                    // Falls `String.class`, müssen wir direkt das JSON analysieren
+                    JsonObject json = gson.fromJson(frame.text(), JsonObject.class);
+                    return json.has("id") && json.get("id").getAsInt() == command.getId();
+                } else {
+                    // Normales DTO-Mapping mit Gson
+                    T response = gson.fromJson(frame.text(), responseType);
+                    return response != null;
+                }
             } catch (JsonSyntaxException e) {
+                System.out.println("[ERROR] JSON Parsing-Fehler: " + e.getMessage());
                 return false;
             }
         };
@@ -75,27 +84,54 @@ public class CommunicationManager {
      */
     public <T> CompletableFuture<T> receive(Predicate<WebSocketFrame> predicate, Class<T> responseType) {
         CompletableFuture<T> future = new CompletableFuture<>();
-
-        // 🛠 `AtomicReference` für self-referenzierende Lambda
         AtomicReference<Consumer<WebSocketFrame>> listenerRef = new AtomicReference<>();
 
         Consumer<WebSocketFrame> listener = frame -> {
+//            System.out.println("[DEBUG] Frame empfangen: " + frame.text());
+
             try {
+                JsonObject json = gson.fromJson(frame.text(), JsonObject.class);
+
+                // 🛠 Falls der Frame ein Fehler ist, direkt in `ErrorResponse` mappen
+                if (json.has("type") && "error".equals(json.get("type").getAsString())) {
+                    ErrorResponse errorResponse = gson.fromJson(frame.text(), ErrorResponse.class);
+                    future.completeExceptionally(new WebSocketErrorException(errorResponse)); // ✅ Fehler als `ErrorResponse` zurückgeben
+                    webSocket.offFrameReceived(listenerRef.get()); // Listener entfernen
+                    return;
+                }
+
+                // Falls Predicate erfüllt → Antwort parsen
                 if (predicate.test(frame)) {
-                    T response = gson.fromJson(frame.text(), responseType);
+                    // ✅ Falls `responseType == String.class`, einfach JSON-String direkt zurückgeben
+                    T response;
+                    if (responseType == String.class) {
+                        response = responseType.cast(frame.text());
+                    }
+                    else
+                    {
+                        // ✅ Normales Mapping für DTOs
+                        response = gson.fromJson(frame.text(), responseType);
+                    }
                     if (response != null) {
                         future.complete(response);
-                        webSocket.offFrameReceived(listenerRef.get()); // ✅ Listener wird korrekt entfernt
+                        webSocket.offFrameReceived(listenerRef.get()); // Listener entfernen
                     }
+                } else {
+                    System.out.println("[DEBUG] Frame erfüllt Predicate NICHT! Ignoriert.");
                 }
-            } catch (JsonSyntaxException ignored) {}
+            } catch (JsonSyntaxException e) {
+                System.out.println("[ERROR] JSON Parsing-Fehler: " + e.getMessage());
+            }
         };
 
-        listenerRef.set(listener); // 🛠 Hier wird die Variable gesetzt!
-        webSocket.onFrameReceived(listenerRef.get()); // ✅ Sicherstellen, dass `listener` registriert ist
+        listenerRef.set(listener);
+        webSocket.onFrameReceived(listenerRef.get());
+//        System.out.println("[DEBUG] Listener erfolgreich registriert.");
 
         return future;
     }
+
+
 
 
     /**

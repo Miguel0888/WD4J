@@ -38,13 +38,13 @@ public class SessionManager implements Module {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public String status() {
-        return communicationManager.getWebSocket().sendAndWaitForResponse(new SessionRequest.Status());
+        return communicationManager.sendAndWaitForResponse(new SessionRequest.Status(), String.class);
     }
 
     // new() - Since plain "new" is a reserved word in Java!
     public String newSession(String browserName) {
         // ToDo. Should Response DTO
-        return communicationManager.getWebSocket().sendAndWaitForResponse(new SessionRequest.New(browserName));
+        return communicationManager.sendAndWaitForResponse(new SessionRequest.New(browserName), String.class);
     }
 
     // end() - In corespondance to new!
@@ -52,7 +52,7 @@ public class SessionManager implements Module {
         // ToDo: Maybe close all BrowsingContexts?
         CommandImpl endSessionCommand = new SessionRequest.End();
     
-        return communicationManager.getWebSocket().sendAndWaitForResponse(endSessionCommand);
+        return communicationManager.sendAndWaitForResponse(endSessionCommand, String.class);
     }
 
     /**
@@ -73,7 +73,7 @@ public class SessionManager implements Module {
         }
 
         if (!newEvents.isEmpty()) {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new SessionRequest.Subscribe(newEvents));
+            communicationManager.sendAndWaitForResponse(new SessionRequest.Subscribe(newEvents), String.class);
             subscribedEvents.addAll(newEvents);
             System.out.println("Subscribed to new events: " + newEvents);
         }
@@ -95,7 +95,7 @@ public class SessionManager implements Module {
         }
 
         if (!eventsToRemove.isEmpty()) {
-            communicationManager.getWebSocket().sendAndWaitForResponse(new SessionRequest.Unsubscribe(eventsToRemove));
+            communicationManager.sendAndWaitForResponse(new SessionRequest.Unsubscribe(eventsToRemove), String.class);
             subscribedEvents.removeAll(eventsToRemove);
             System.out.println("Unsubscribed from events: " + eventsToRemove);
         }
