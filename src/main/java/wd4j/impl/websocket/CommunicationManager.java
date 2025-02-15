@@ -6,6 +6,7 @@ import com.google.gson.JsonSyntaxException;
 import wd4j.api.WebSocket;
 import wd4j.api.WebSocketFrame;
 import wd4j.impl.playwright.WebSocketImpl;
+import wd4j.impl.webdriver.mapping.GsonMapperFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -17,7 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class CommunicationManager {
     private final WebSocketImpl webSocket;
-    private final Gson gson = new Gson();
+    private final Gson gson = GsonMapperFactory.getGson(); // ✅ Nutzt zentrale Fabrik
     private int commandCounter = 0; // Zählt Befehle für eindeutige IDs
 
     public CommunicationManager(WebSocketImpl webSocket) {
