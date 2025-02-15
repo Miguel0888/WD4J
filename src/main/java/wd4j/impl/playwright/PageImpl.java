@@ -1,11 +1,11 @@
 package wd4j.impl.playwright;
 
 import com.google.gson.JsonObject;
-import wd4j.impl.service.BrowsingContextService;
+import wd4j.impl.manager.BrowsingContextManager;
 import wd4j.api.*;
 import wd4j.api.options.*;
-import wd4j.impl.service.ScriptService;
-import wd4j.impl.service.SessionService;
+import wd4j.impl.manager.ScriptManager;
+import wd4j.impl.manager.SessionManager;
 import wd4j.impl.webdriver.event.MethodEvent;
 import wd4j.impl.support.JsonToPlaywrightMapper;
 import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
@@ -22,23 +22,32 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 class PageImpl implements Page {
-    private final BrowserSessionImpl context;
-    private final SessionService sessionService;
-    private final BrowsingContextService browsingContextService;
-    private final ScriptService scriptService;
+    private final String contextId; // aka. page in Chromium DevTools Protocol
+
+    private final BrowserSessionImpl session;
+    private final SessionManager sessionManager;
+    private final BrowsingContextManager browsingContextManager;
+    private final ScriptManager scriptManager;
     private boolean isClosed;
     private String url;
-    private WebSocketImpl webSocketImpl;
 
-    public PageImpl(BrowserSessionImpl context) {
-        this.context = context;
-        this.sessionService = context.getBrowser().getSessionService(); // ToDo: improve this!
-        this.browsingContextService = context.getBrowser().getBrowsingContextService(); // ToDo: improve this!
-        this.scriptService = context.getBrowser().getScriptService(); // ToDo: improve this!
+    public PageImpl(BrowserSessionImpl session) {
+        this.session = session;
+        this.sessionManager = session.getSessionService(); // ToDo: improve this!
+        this.browsingContextManager = new BrowsingContextManager(session.getBrowser().getWebSocketConnection()); // ToDo: improve this!
+
+        // ToDo: Wo gehört der ScriptManager hin?
+        this.scriptManager = session.getBrowser().getScriptService(); // ToDo: improve this!
+
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        webSocketImpl = ((BrowserImpl) context.getBrowser()).getWebSocketConnection();
+        this.contextId = initSession();
+    }
+
+    private String initSession() {
+        // Create a new browsing context
+        return browsingContextManager.create();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,168 +57,168 @@ class PageImpl implements Page {
     @Override
     public void onClose(Consumer<Page> handler) {
         if (handler != null) {
-            webSocketImpl.addEventListener(MethodEvent.CONTEXT_DESTROYED.getName(), handler, Page.class, sessionService);
+            session.addEventListener(MethodEvent.CONTEXT_DESTROYED.getName(), handler, Page.class, sessionManager);
         }
     }
 
     @Override
     public void offClose(Consumer<Page> handler) {
         if (handler != null) {
-            webSocketImpl.removeEventListener(MethodEvent.CONTEXT_DESTROYED.getName(), handler, sessionService);
+            session.removeEventListener(MethodEvent.CONTEXT_DESTROYED.getName(), handler, sessionManager);
         }
     }
 
     @Override
     public void onConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
-            webSocketImpl.addEventListener(MethodEvent.ENTRY_ADDED.getName(), handler, ConsoleMessage.class, sessionService);
+            session.addEventListener(MethodEvent.ENTRY_ADDED.getName(), handler, ConsoleMessage.class, sessionManager);
         }
     }
 
     @Override
     public void offConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
-            webSocketImpl.removeEventListener(MethodEvent.ENTRY_ADDED.getName(), handler, sessionService);
+            session.removeEventListener(MethodEvent.ENTRY_ADDED.getName(), handler, sessionManager);
         }
     }
 
     @Override
     public void onCrash(Consumer<Page> handler) {
         if (handler != null) {
-            webSocketImpl.addEventListener(MethodEvent.NAVIGATION_FAILED.getName(), handler, Page.class, sessionService);
+            session.addEventListener(MethodEvent.NAVIGATION_FAILED.getName(), handler, Page.class, sessionManager);
         }
     }
 
     @Override
     public void offCrash(Consumer<Page> handler) {
         if (handler != null) {
-            webSocketImpl.removeEventListener(MethodEvent.NAVIGATION_FAILED.getName(), handler, sessionService);
+            session.removeEventListener(MethodEvent.NAVIGATION_FAILED.getName(), handler, sessionManager);
         }
     }
 
     @Override
     public void onDialog(Consumer<Dialog> handler) {
         if (handler != null) {
-            webSocketImpl.addEventListener(MethodEvent.USER_PROMPT_OPENED.getName(), handler, Dialog.class, sessionService);
+            session.addEventListener(MethodEvent.USER_PROMPT_OPENED.getName(), handler, Dialog.class, sessionManager);
         }
     }
 
     @Override
     public void offDialog(Consumer<Dialog> handler) {
         if (handler != null) {
-            webSocketImpl.removeEventListener(MethodEvent.USER_PROMPT_OPENED.getName(), handler, sessionService);
+            session.removeEventListener(MethodEvent.USER_PROMPT_OPENED.getName(), handler, sessionManager);
         }
     }
 
     @Override
     public void onDOMContentLoaded(Consumer<Page> handler) {
         if (handler != null) {
-            webSocketImpl.addEventListener(MethodEvent.DOM_CONTENT_LOADED.getName(), handler, Page.class, sessionService);
+            session.addEventListener(MethodEvent.DOM_CONTENT_LOADED.getName(), handler, Page.class, sessionManager);
         }
     }
 
     @Override
     public void offDOMContentLoaded(Consumer<Page> handler) {
         if (handler != null) {
-            webSocketImpl.removeEventListener(MethodEvent.DOM_CONTENT_LOADED.getName(), handler, sessionService);
+            session.removeEventListener(MethodEvent.DOM_CONTENT_LOADED.getName(), handler, sessionManager);
         }
     }
 
     @Override
     public void onLoad(Consumer<Page> handler) {
         if (handler != null) {
-            webSocketImpl.addEventListener(MethodEvent.LOAD.getName(), handler, Page.class, sessionService);
+            session.addEventListener(MethodEvent.LOAD.getName(), handler, Page.class, sessionManager);
         }
     }
 
     @Override
     public void offLoad(Consumer<Page> handler) {
         if (handler != null) {
-            webSocketImpl.removeEventListener(MethodEvent.LOAD.getName(), handler, sessionService);
+            session.removeEventListener(MethodEvent.LOAD.getName(), handler, sessionManager);
         }
     }
 
     @Override
     public void onRequest(Consumer<Request> handler) {
         if (handler != null) {
-            webSocketImpl.addEventListener(MethodEvent.BEFORE_REQUEST_SENT.getName(), handler, Request.class, sessionService);
+            session.addEventListener(MethodEvent.BEFORE_REQUEST_SENT.getName(), handler, Request.class, sessionManager);
         }
     }
 
     @Override
     public void offRequest(Consumer<Request> handler) {
         if (handler != null) {
-            webSocketImpl.removeEventListener(MethodEvent.BEFORE_REQUEST_SENT.getName(), handler, sessionService);
+            session.removeEventListener(MethodEvent.BEFORE_REQUEST_SENT.getName(), handler, sessionManager);
         }
     }
 
     @Override
     public void onRequestFailed(Consumer<Request> handler) {
         if (handler != null) {
-            webSocketImpl.addEventListener(MethodEvent.FETCH_ERROR.getName(), handler, Request.class, sessionService);
+            session.addEventListener(MethodEvent.FETCH_ERROR.getName(), handler, Request.class, sessionManager);
         }
     }
 
     @Override
     public void offRequestFailed(Consumer<Request> handler) {
         if (handler != null) {
-            webSocketImpl.removeEventListener(MethodEvent.FETCH_ERROR.getName(), handler, sessionService);
+            session.removeEventListener(MethodEvent.FETCH_ERROR.getName(), handler, sessionManager);
         }
     }
 
     @Override
     public void onRequestFinished(Consumer<Request> handler) {
         if (handler != null) {
-            webSocketImpl.addEventListener(MethodEvent.RESPONSE_COMPLETED.getName(), handler, Request.class, sessionService);
+            session.addEventListener(MethodEvent.RESPONSE_COMPLETED.getName(), handler, Request.class, sessionManager);
         }
     }
 
     @Override
     public void offRequestFinished(Consumer<Request> handler) {
         if (handler != null) {
-            webSocketImpl.removeEventListener(MethodEvent.RESPONSE_COMPLETED.getName(), handler, sessionService);
+            session.removeEventListener(MethodEvent.RESPONSE_COMPLETED.getName(), handler, sessionManager);
         }
     }
 
     @Override
     public void onResponse(Consumer<Response> handler) {
         if (handler != null) {
-            webSocketImpl.addEventListener(MethodEvent.RESPONSE_STARTED.getName(), handler, Response.class, sessionService);
+            session.addEventListener(MethodEvent.RESPONSE_STARTED.getName(), handler, Response.class, sessionManager);
         }
     }
 
     @Override
     public void offResponse(Consumer<Response> handler) {
         if (handler != null) {
-            webSocketImpl.removeEventListener(MethodEvent.RESPONSE_STARTED.getName(), handler, sessionService);
+            session.removeEventListener(MethodEvent.RESPONSE_STARTED.getName(), handler, sessionManager);
         }
     }
 
     @Override
     public void onWebSocket(Consumer<WebSocket> handler) {
         if (handler != null) {
-            webSocketImpl.addEventListener(MethodEvent.CONTEXT_CREATED.getName(), handler, WebSocket.class, sessionService);
+            session.addEventListener(MethodEvent.CONTEXT_CREATED.getName(), handler, WebSocket.class, sessionManager);
         }
     }
 
     @Override
     public void offWebSocket(Consumer<WebSocket> handler) {
         if (handler != null) {
-            webSocketImpl.removeEventListener(MethodEvent.CONTEXT_CREATED.getName(), handler, sessionService);
+            session.removeEventListener(MethodEvent.CONTEXT_CREATED.getName(), handler, sessionManager);
         }
     }
 
     @Override
     public void onWorker(Consumer<Worker> handler) {
         if (handler != null) {
-            webSocketImpl.addEventListener(MethodEvent.REALM_CREATED.getName(), handler, Worker.class, sessionService);
+            session.addEventListener(MethodEvent.REALM_CREATED.getName(), handler, Worker.class, sessionManager);
         }
     }
 
     @Override
     public void offWorker(Consumer<Worker> handler) {
         if (handler != null) {
-            webSocketImpl.removeEventListener(MethodEvent.REALM_CREATED.getName(), handler, sessionService);
+            session.removeEventListener(MethodEvent.REALM_CREATED.getName(), handler, sessionManager);
         }
     }
 
@@ -281,18 +290,18 @@ class PageImpl implements Page {
     @Override
     public void onPopup(Consumer<Page> handler) {
         if (handler != null) {
-            webSocketImpl.addEventListener(MethodEvent.CONTEXT_CREATED.getName(), jsonObject -> {
+            session.addEventListener(MethodEvent.CONTEXT_CREATED.getName(), jsonObject -> {
                 // Stelle sicher, dass jsonObject tatsächlich ein JsonObject ist
                 Page popupPage = JsonToPlaywrightMapper.mapToInterface((JsonObject) jsonObject, Page.class);
                 handler.accept(popupPage);
-            }, JsonObject.class, sessionService);
+            }, JsonObject.class, sessionManager);
         }
     }
 
     @Override
     public void offPopup(Consumer<Page> handler) {
         if (handler != null) {
-            webSocketImpl.removeEventListener(MethodEvent.CONTEXT_CREATED.getName(), handler, sessionService);
+            session.removeEventListener(MethodEvent.CONTEXT_CREATED.getName(), handler, sessionManager);
         }
     }
 
@@ -344,7 +353,7 @@ class PageImpl implements Page {
     public void close() {
         if (!isClosed) {
             isClosed = true;
-            browsingContextService.close(context.getContextId());
+            browsingContextManager.close(contextId);
         }
     }
 
@@ -358,8 +367,8 @@ class PageImpl implements Page {
         if (isClosed) {
             throw new PlaywrightException("Page is closed");
         }
-        Target.ContextTarget contextTarget = new Target.ContextTarget(new BrowsingContext(context.getContextId()));
-        return scriptService.evaluate("return document.documentElement.outerHTML;", contextTarget, true);
+        Target.ContextTarget contextTarget = new Target.ContextTarget(new BrowsingContext(contextId));
+        return scriptManager.evaluate("return document.documentElement.outerHTML;", contextTarget, true);
     }
 
 
@@ -551,14 +560,14 @@ class PageImpl implements Page {
 
     @Override
     public Response goBack(GoBackOptions options) {
-        browsingContextService.traverseHistory(context.getContextId(), -1);
+        browsingContextManager.traverseHistory(contextId, -1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
 
     @Override
     public Response goForward(GoForwardOptions options) {
-        browsingContextService.traverseHistory(context.getContextId(), 1);
+        browsingContextManager.traverseHistory(contextId, 1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -573,14 +582,13 @@ class PageImpl implements Page {
         if (isClosed) {
             throw new PlaywrightException("Page is closed");
         }
-        String contextId = context.getContextId();
         if (contextId == null || contextId.isEmpty()) {
             throw new PlaywrightException("Cannot navigate: contextId is null or empty!");
         }
         this.url = url;
 
         // WebDriver BiDi Befehl senden
-        browsingContextService.navigate(url, contextId);
+        browsingContextManager.navigate(url, contextId);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -650,7 +658,7 @@ class PageImpl implements Page {
         if (selector == null || selector.isEmpty()) {
             throw new IllegalArgumentException("Selector must not be null or empty.");
         }
-        return new LocatorImpl(selector, context.getContextId(), webSocketImpl);
+        return new LocatorImpl(selector, contextId, null); // ToDo: webSocketImpl übergeben
 
         // ToDo: Implementierung verbessern
         // XPath-Selektoren beginnen mit "xpath=", CSS-Selektoren mit "css="
@@ -717,7 +725,7 @@ class PageImpl implements Page {
 
     @Override
     public Response reload(ReloadOptions options) {
-        browsingContextService.reload(context.getContextId());
+        browsingContextManager.reload(contextId);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -764,7 +772,7 @@ class PageImpl implements Page {
 
     @Override
     public byte[] screenshot(ScreenshotOptions options) {
-        String base64Image = browsingContextService.captureScreenshot(context.getContextId());
+        String base64Image = browsingContextManager.captureScreenshot(contextId);
         return Base64.getDecoder().decode(base64Image);
     }
 

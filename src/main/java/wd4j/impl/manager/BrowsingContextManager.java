@@ -1,4 +1,4 @@
-package wd4j.impl.service;
+package wd4j.impl.manager;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -9,11 +9,11 @@ import wd4j.impl.webdriver.command.request.parameters.browsingContext.CreateType
 import wd4j.impl.webdriver.command.request.parameters.browsingContext.SetViewportParameters;
 import wd4j.impl.webdriver.type.browsingContext.Locator;
 
-public class BrowsingContextService implements Module {
+public class BrowsingContextManager implements Module {
 
     private final WebSocketImpl webSocketImpl;
 
-    public BrowsingContextService(WebSocketImpl webSocketImpl) {
+    public BrowsingContextManager(WebSocketImpl webSocketImpl) {
         this.webSocketImpl = webSocketImpl;
     }
 

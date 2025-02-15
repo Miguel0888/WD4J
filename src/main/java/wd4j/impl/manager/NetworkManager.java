@@ -1,4 +1,4 @@
-package wd4j.impl.service;
+package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.webdriver.command.request.NetworkRequest;
@@ -9,11 +9,11 @@ import wd4j.impl.webdriver.type.network.AuthCredentials;
 
 import java.util.List;
 
-public class NetworkService implements Module {
+public class NetworkManager implements Module {
 
     private final WebSocketImpl webSocketImpl;
 
-    public NetworkService(WebSocketImpl webSocketImpl) {
+    public NetworkManager(WebSocketImpl webSocketImpl) {
         this.webSocketImpl = webSocketImpl;
     }
 

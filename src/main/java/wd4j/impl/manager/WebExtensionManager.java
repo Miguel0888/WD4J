@@ -1,4 +1,4 @@
-package wd4j.impl.service;
+package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.webdriver.command.request.WebExtensionRequest;
@@ -6,13 +6,13 @@ import wd4j.impl.webdriver.command.request.parameters.webExtension.ExtensionData
 import wd4j.impl.webdriver.type.webExtension.Extension;
 import wd4j.impl.playwright.WebSocketImpl;
 
-public class WebExtensionService implements Module {
+public class WebExtensionManager implements Module {
 
     public Extension extension;
 
     private final WebSocketImpl webSocketImpl;
 
-    public WebExtensionService(WebSocketImpl webSocketImpl) {
+    public WebExtensionManager(WebSocketImpl webSocketImpl) {
         this.webSocketImpl = webSocketImpl;
     }
 

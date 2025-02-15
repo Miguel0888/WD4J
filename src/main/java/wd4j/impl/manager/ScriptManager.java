@@ -1,4 +1,4 @@
-package wd4j.impl.service;
+package wd4j.impl.manager;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -14,11 +14,11 @@ import wd4j.impl.webdriver.type.script.Target;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ScriptService implements Module {
+public class ScriptManager implements Module {
 
     private final WebSocketImpl webSocketImpl;
 
-    public ScriptService(WebSocketImpl webSocketImpl) {
+    public ScriptManager(WebSocketImpl webSocketImpl) {
         this.webSocketImpl = webSocketImpl;
     }
 

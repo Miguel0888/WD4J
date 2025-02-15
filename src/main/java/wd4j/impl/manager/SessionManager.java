@@ -1,4 +1,4 @@
-package wd4j.impl.service;
+package wd4j.impl.manager;
 
 import wd4j.impl.webdriver.command.request.helper.CommandImpl;
 import wd4j.impl.markerInterfaces.Module;
@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
-public class SessionService implements Module {
+public class SessionManager implements Module {
     private final WebSocketImpl webSocketImpl;
     private final Set<String> subscribedEvents = new HashSet<>();
 
@@ -23,7 +23,7 @@ public class SessionService implements Module {
      * @param webSocketImpl Der Browsertyp
      * @return Die erstellte Session
      */
-    public SessionService(WebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
+    public SessionManager(WebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
         this.webSocketImpl = webSocketImpl;
     }
 
@@ -42,6 +42,7 @@ public class SessionService implements Module {
 
     // new() - Since plain "new" is a reserved word in Java!
     public String newSession(String browserName) {
+        // ToDo. Should Response DTO
         return webSocketImpl.sendAndWaitForResponse(new SessionRequest.New(browserName));
     }
 

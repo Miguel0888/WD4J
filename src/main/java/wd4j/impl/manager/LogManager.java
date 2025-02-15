@@ -1,13 +1,13 @@
-package wd4j.impl.service;
+package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.playwright.WebSocketImpl;
 
-public class LogService implements Module {
+public class LogManager implements Module {
 
     private final WebSocketImpl webSocketImpl;
 
-    public LogService(WebSocketImpl webSocketImpl) {
+    public LogManager(WebSocketImpl webSocketImpl) {
         this.webSocketImpl = webSocketImpl;
     }
 

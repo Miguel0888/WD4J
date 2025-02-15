@@ -5,22 +5,29 @@ import com.google.gson.JsonObject;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import wd4j.api.*;
-import wd4j.impl.support.Dispatcher;
 import wd4j.impl.websocket.Command;
-import wd4j.impl.service.SessionService;
-import wd4j.impl.support.DispatcherImpl;
+import wd4j.impl.manager.SessionManager;
+import wd4j.impl.support.EventDispatcher;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class WebSocketImpl implements WebSocket {
-    private final Dispatcher dispatcher; // Dispatcher-Objekt, das die Events verarbeitet
+    public final HashMap<String, EventDispatcher> dispatchers = new HashMap<>();
     private WebSocketClient webSocketClient;
 
+    private final List<ConcurrentLinkedQueue<Consumer<Object>>> errorListeners = new ArrayList<>();
+
     private int commandCounter = 0;
+    // ToDo: Should be removed to avoid memory leaks, every command should return a completable future. Thus
+    //  the caller can decide what to do with the future, when it is set to completed.
     private final ConcurrentHashMap<Integer, CompletableFuture<WebSocketFrame>> pendingCommands = new ConcurrentHashMap<>();
     private final Gson gson = new Gson();
 
@@ -31,16 +38,11 @@ public class WebSocketImpl implements WebSocket {
     private Consumer<WebSocketFrame> onFrameSent;
     private Consumer<String> onSocketError;
 
-    public WebSocketImpl() {
-        this.dispatcher = new DispatcherImpl();
-    }
+    public WebSocketImpl() { }
 
     public WebSocketImpl(URI uri) {
-        this.dispatcher = new DispatcherImpl();
         createAndConfigureWebSocketClient(uri);
     }
-
-
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// **WebSocket-Frames Implementierung**
@@ -75,6 +77,9 @@ public class WebSocketImpl implements WebSocket {
     /// **Frame-basierte Kommunikation**
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    // ToDo: Has to be genenric, to be able to handle different response types (no JSON Strings)
+    // ToDo: Might use waitForFrameReceived instead of future.get()
+    //  This method may be moved to SessionManager or BrowserContextManager
     public String sendAndWaitForResponse(Command command) {
         CompletableFuture<WebSocketFrame> future = send(command);
 
@@ -90,12 +95,9 @@ public class WebSocketImpl implements WebSocket {
 
     @Override
     public WebSocketFrame waitForFrameReceived(WaitForFrameReceivedOptions options, Runnable callback) {
-        callback.run();
+        callback.run(); // This is used to send a command to the server in the origin playwrigth implementation!
         try {
-            int commandId = getNextCommandId();
             CompletableFuture<WebSocketFrame> future = new CompletableFuture<>();
-            pendingCommands.put(commandId, future);
-
             return future.get(20, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             throw new RuntimeException("Timeout waiting for frame received", e);
@@ -105,28 +107,27 @@ public class WebSocketImpl implements WebSocket {
     }
 
     @Override
+    // ToDo: Diese Methode soll wohl einfach nur darauf warten, dass irgendein Frame eintrifft, ohne dass vorher
+    //  ein Command gesendet wurde (daher kein receive im Bezeichner?). Folglich ist das die Playwright-Methode, um mit
+    //  Events zu umzugehen.
     public WebSocketFrame waitForFrameSent(WaitForFrameSentOptions options, Runnable callback) {
-        callback.run();
-        try {
-            int commandId = getNextCommandId();
-            CompletableFuture<WebSocketFrame> future = new CompletableFuture<>();
-            pendingCommands.put(commandId, future);
-
-            return future.get(20, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-            throw new RuntimeException("Timeout waiting for frame sent", e);
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException("Error while waiting for frame sent", e);
-        }
+        // ToDo: Implementierung
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
+    /**
+     * Sends a command to the WebSocket server and returns a future that will be completed when the response is received.
+     *
+     * @param command The command to send.
+     * @return A future that will be completed when the response is received.
+     */
+    // ToDo: Diese Implementierung sollte auch eine ebene höher angesetzt sein?
     public CompletableFuture<WebSocketFrame> send(Command command) {
         command.setId(getNextCommandId());
         JsonObject commandJson = command.toJson();
         WebSocketFrameImpl frame = new WebSocketFrameImpl(commandJson.toString());
 
         CompletableFuture<WebSocketFrame> future = new CompletableFuture<>();
-        pendingCommands.put(command.getId(), future);
         webSocketClient.send(commandJson.toString());
 
         if (onFrameSent != null) {
@@ -143,7 +144,6 @@ public class WebSocketImpl implements WebSocket {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// **WebSocket-Verwaltung**
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
     void createAndConfigureWebSocketClient(URI uri) {
         this.url = uri.toString();
@@ -163,8 +163,23 @@ public class WebSocketImpl implements WebSocket {
                         if (future != null) {
                             future.complete(new WebSocketFrameImpl(message));
                         }
-                    } else {
-                        dispatcher.process(message);
+                    } else if("error".equals(jsonMessage.get("type").getAsString())) // Error
+                    {   // Notify all error listeners
+                        errorListeners.forEach(queue -> {
+                            queue.forEach(listener -> listener.accept(jsonMessage));
+                        });
+                    }
+                    else if("event".equals(jsonMessage.get("type").getAsString()))
+                    {
+                        // Notify every session about its events
+                        dispatchers.forEach((sessionId, dispatcher) -> {
+                            // ToDo: Filter events by session ID first
+                            dispatcher.processEvent(jsonMessage);
+                        });
+                    }
+                    else
+                    {
+                        System.err.println("[WEBSOCKET] Received unrecognized message: " + message);
                     }
                 } catch (Exception e) {
                     if (onSocketError != null) {
@@ -206,16 +221,6 @@ public class WebSocketImpl implements WebSocket {
 
     public boolean isConnected() {
         return webSocketClient.isOpen();
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    public <T> void addEventListener(String eventName, Consumer<T> handler, Class<T> eventClass, SessionService sessionService) {
-        dispatcher.addEventListener(eventName, handler, eventClass, sessionService);
-    }
-
-    public <T> void removeEventListener(String eventType, Consumer<T> listener, SessionService sessionService) {
-        dispatcher.removeEventListener(eventType, listener, sessionService);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

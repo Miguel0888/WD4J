@@ -1,6 +1,6 @@
 package wd4j.impl.playwright;
 
-import wd4j.impl.service.*;
+import wd4j.impl.manager.*;
 import wd4j.impl.support.BrowserSession;
 import wd4j.api.*;
 
@@ -13,43 +13,27 @@ import java.util.function.Consumer;
 public class BrowserImpl implements Browser {
     private final BrowserTypeImpl browserType;
 
-    private final BrowserService browserService;
-    private final SessionService sessionService;
-    private final BrowsingContextService browsingContextService;
+    private final BrowserManager browserManager;
 
-    private final List<BrowserSessionImpl> contexts = new ArrayList<>();
+    private final List<BrowserSessionImpl> sessions = new ArrayList<>();
 
     private BrowserSession session;
     private String defaultContextId;
     private WebSocketImpl webSocketImpl;
-    private ScriptService scriptService;
-    private NetworkService networkService;
-    private StorageService storageService;
-    private WebExtensionService webExtensionService;
+    private ScriptManager scriptManager;
+    private NetworkManager networkManager;
+    private StorageManager storageManager;
+    private WebExtensionManager webExtensionManager;
 
     public BrowserImpl(BrowserTypeImpl browserType, WebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
         this.webSocketImpl = webSocketImpl;
-        this.browserService = new BrowserService(webSocketImpl);
-        this.sessionService = new SessionService(webSocketImpl);
-        this.browsingContextService = new BrowsingContextService(webSocketImpl);
-        this.scriptService = new ScriptService(webSocketImpl);
-        this.networkService = new NetworkService(webSocketImpl);
-        this.storageService = new StorageService(webSocketImpl);
-        this.webExtensionService = new WebExtensionService(webSocketImpl);
-        this.browserType = browserType;
+        this.browserManager = new BrowserManager(webSocketImpl);
 
-        // ToDo: Move the Session (initSession) to the BrowserContextImpl,
-        //  see: https://playwright.dev/java/docs/api/class-browsercontext
-        defaultContextId = initSession();
-        if(defaultContextId != null) {
-            // Default BrowsingContext zugreifbar machen
-            contexts.add(new BrowserSessionImpl(this, defaultContextId));
-            System.out.println("Default BrowsingContext ID: " + defaultContextId);
-        }
-        else { //Optional: Create new browser context!
-            System.out.println("No default context found.");
-//            newContext(new NewContextOptions());
-        }
+        this.scriptManager = new ScriptManager(webSocketImpl);
+        this.networkManager = new NetworkManager(webSocketImpl);
+        this.storageManager = new StorageManager(webSocketImpl);
+        this.webExtensionManager = new WebExtensionManager(webSocketImpl);
+        this.browserType = browserType;
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -102,7 +86,7 @@ public class BrowserImpl implements Browser {
 
     @Override
     public List<BrowserContext> contexts() {
-        return Collections.unmodifiableList(contexts);
+        return Collections.unmodifiableList(sessions);
     }
 
     @Override
@@ -117,21 +101,22 @@ public class BrowserImpl implements Browser {
 
     @Override
     public BrowserContext newContext(NewContextOptions options) {
-        // ToDo: Use options
-        BrowserSessionImpl context = new BrowserSessionImpl(this);
-        contexts.add(context);
-        return context;
+        BrowserSessionImpl session = new BrowserSessionImpl(this, options);
+        sessions.add(session);
+        return session;
     }
 
+    /**
+     * Creates a new page in a new browser context. Closing this page will close the context as well.
+     *
+     * @param options The options for the new page.
+     */
     @Override
     public Page newPage(NewPageOptions options) {
         BrowserSessionImpl context;
-        if (contexts.isEmpty()) {
-            context = new BrowserSessionImpl(this);
-            contexts.add(context);
-        } else {
-            context = (BrowserSessionImpl) contexts.get(0);
-        }
+        context = new BrowserSessionImpl(this, null);
+        sessions.add(context);
+
         return context.newPage();
     }
 
@@ -183,36 +168,23 @@ public class BrowserImpl implements Browser {
      *
      * @return The BrowserService.
      */
-    public BrowserService getBrowserService() {
-        return browserService;
+    public BrowserManager getBrowserService() {
+        return browserManager;
     }
 
-    /**
-     * Returns the SessionService.
-     *
-     * @return The SessionService.
-     */
-    public SessionService getSessionService() {
-        return sessionService;
+    public ScriptManager getScriptService() {
+        return scriptManager;
     }
 
-    public BrowsingContextService getBrowsingContextService() {
-        return browsingContextService;
+    public NetworkManager getNetworkService() {
+        return networkManager;
     }
 
-    public ScriptService getScriptService() {
-        return scriptService;
+    public StorageManager getStorageService() {
+        return storageManager;
     }
 
-    public NetworkService getNetworkService() {
-        return networkService;
-    }
-
-    public StorageService getStorageService() {
-        return storageService;
-    }
-
-    public WebExtensionService getWebExtensionService() {
-        return webExtensionService;
+    public WebExtensionManager getWebExtensionService() {
+        return webExtensionManager;
     }
 }

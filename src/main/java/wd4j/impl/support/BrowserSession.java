@@ -2,11 +2,14 @@ package wd4j.impl.support;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import wd4j.api.Page;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.WebSocketImpl;
-import wd4j.impl.service.BrowsingContextService;
-import wd4j.impl.service.SessionService;
+import wd4j.impl.manager.BrowsingContextManager;
+import wd4j.impl.manager.SessionManager;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -18,18 +21,17 @@ import java.util.concurrent.ExecutionException;
  */
 public class BrowserSession {
     private final BrowserImpl browser;
-    private final SessionService sessionService;
-    private final BrowsingContextService browsingContextService;
-    private String defaultContextId;
+    private final SessionManager sessionManager;
     private String sessionId;
+    private final List<Page> pages = new ArrayList<>(); // aka. contexts in WebDriver BiDi
+    private String defaultContextId; // ToDo: If found, it should be used to create a new page with this id
 
     public BrowserSession(BrowserImpl browser, String browserName) throws ExecutionException, InterruptedException {
         this.browser = browser;
-        this.browsingContextService = browser.getBrowsingContextService();
 
         // Create a new session
         WebSocketImpl webSocketImpl = browser.getWebSocketConnection();
-        sessionService = new SessionService(webSocketImpl);
+        sessionManager = new SessionManager(webSocketImpl);
 
         try {
             fetchDefaultSession(browserName);
@@ -46,11 +48,15 @@ public class BrowserSession {
      */
     private void fetchDefaultSession(String browserName) throws InterruptedException, ExecutionException {
         // Create a new session
-        String sessionResponse = browser.getSessionService().newSession(browserName); // ToDo: Does not work with Chrome!
+        String sessionResponse = sessionManager.newSession(browserName); // ToDo: Does not work with Chrome!
 
         // Kontext-ID extrahieren oder neuen Kontext erstellen
         sessionId = processSessionResponse(sessionResponse);
-        System.out.println("Context ID: " + defaultContextId);
+
+        if(defaultContextId != null) {
+            // ToDo: Create Page
+            System.out.println("Context ID: " + defaultContextId);
+        }
     }
 
     private String processSessionResponse(String sessionResponse) {
@@ -93,7 +99,7 @@ public class BrowserSession {
         return defaultContextId;
     }
 
-    public SessionService getSessionService() {
-        return sessionService;
+    public SessionManager getSessionService() {
+        return sessionManager;
     }
 }

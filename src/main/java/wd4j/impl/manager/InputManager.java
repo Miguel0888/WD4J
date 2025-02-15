@@ -1,4 +1,4 @@
-package wd4j.impl.service;
+package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.webdriver.command.request.InputRequest;
@@ -8,11 +8,11 @@ import wd4j.impl.webdriver.type.script.RemoteReference;
 
 import java.util.List;
 
-public class InputService implements Module {
+public class InputManager implements Module {
 
     private final WebSocketImpl webSocketImpl;
 
-    public InputService(WebSocketImpl webSocketImpl) {
+    public InputManager(WebSocketImpl webSocketImpl) {
         this.webSocketImpl = webSocketImpl;
     }
 

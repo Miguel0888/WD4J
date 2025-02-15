@@ -5,7 +5,7 @@ import com.google.gson.JsonObject;
 import wd4j.api.ConsoleMessage;
 import wd4j.api.Request;
 import wd4j.api.Response;
-import wd4j.impl.service.SessionService;
+import wd4j.impl.manager.SessionManager;
 import wd4j.impl.webdriver.event.MethodEvent;
 
 import java.util.Collections;
@@ -14,14 +14,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
-public class DispatcherImpl implements Dispatcher {
+public class EventDispatcher {
     private final Gson gson = new Gson();
 
     // Event-Typen von WebDriver BiDi als Schlüssel verwenden
     private final Map<String, Consumer<JsonObject>> eventHandlers = new ConcurrentHashMap<>();
     private final Map<String, ConcurrentLinkedQueue<Consumer<Object>>> eventListeners = new ConcurrentHashMap<>();
 
-    public DispatcherImpl() {
+    public EventDispatcher() {
         // 🔹 WebDriver BiDi Event-Typen zu passenden Methoden mappen
         eventHandlers.put("log.entryAdded", json -> dispatchEvent("log.entryAdded", json, ConsoleMessage.class));
         eventHandlers.put("network.beforeRequestSent", json -> dispatchEvent("network.beforeRequestSent", json, Request.class));
@@ -30,27 +30,7 @@ public class DispatcherImpl implements Dispatcher {
         eventHandlers.put("network.requestFailed", json -> dispatchEvent("network.requestFailed", json, Request.class));
     }
 
-    @Override
-    public void process(String message) {
-        JsonObject jsonMessage = gson.fromJson(message, JsonObject.class);
-
-        if (!jsonMessage.has("type")) {
-            System.err.println("[WARN] Message received without type: " + jsonMessage);
-            return;
-        }
-
-        String messageType = jsonMessage.get("type").getAsString();
-
-        if ("event".equals(messageType)) {
-            processEvent(jsonMessage);
-        } else if ("error".equals(messageType)) {
-            processError(jsonMessage);
-        } else {
-            System.out.println("[INFO] Received unknown message type: " + jsonMessage);
-        }
-    }
-
-    private void processEvent(JsonObject jsonMessage) {
+    public void processEvent(JsonObject jsonMessage) {
         if (!jsonMessage.has("method")) {
             System.err.println("[WARN] Event received without method: " + jsonMessage);
             return;
@@ -65,17 +45,6 @@ public class DispatcherImpl implements Dispatcher {
             dispatchEvent(eventType, params, event.getAssociatedClass());
         } else {
             System.out.println("[INFO] Unrecognized event: " + eventType);
-        }
-    }
-
-    private void processError(JsonObject jsonMessage) {
-        System.err.println("[ERROR] WebSocket error received: " + jsonMessage);
-
-        if (eventListeners.containsKey("error")) {
-            for (Consumer<Object> listener : eventListeners.get("error")) {
-                // ToDo: Filter for specific error types before dispatching
-                listener.accept(jsonMessage);
-            }
         }
     }
 
@@ -96,7 +65,7 @@ public class DispatcherImpl implements Dispatcher {
         }
 
         // Konvertiere JSON in Playwright-Objekt
-        T event = JsonToPlaywrightMapper.mapToInterface(params, eventTypeClass);
+        T event = JsonToPlaywrightMapper.mapToInterface(params, eventTypeClass); // public fields may cause problems though
 
         if (event == null) {
             System.err.println("[ERROR] Mapping failed for event: " + eventType);
@@ -113,22 +82,20 @@ public class DispatcherImpl implements Dispatcher {
         }
     }
 
-    @Override
-    public <T> void addEventListener(String eventType, Consumer<T> listener, Class<T> eventTypeClass, SessionService sessionService) {
+    public <T> void addEventListener(String eventType, Consumer<T> listener, Class<T> eventTypeClass, SessionManager sessionManager) {
         eventListeners.computeIfAbsent(eventType, k -> {
             // 🚀 Erster Listener für dieses Event → WebDriver BiDi Subscribe senden
-            sessionService.subscribe(Collections.singletonList(eventType));
+            sessionManager.subscribe(Collections.singletonList(eventType));
             return new ConcurrentLinkedQueue<>();
         }).add((Consumer<Object>) listener);
     }
 
-    @Override
-    public <T> void removeEventListener(String eventType, Consumer<T> listener, SessionService sessionService) {
+    public <T> void removeEventListener(String eventType, Consumer<T> listener, SessionManager sessionManager) {
         if (eventListeners.containsKey(eventType)) {
             eventListeners.get(eventType).remove(listener);
             if (eventListeners.get(eventType).isEmpty()) {
                 // 🛑 Letzter Listener wurde entfernt → WebDriver BiDi Unsubscribe senden
-                sessionService.unsubscribe(Collections.singletonList(eventType));
+                sessionManager.unsubscribe(Collections.singletonList(eventType));
                 eventListeners.remove(eventType);
             }
         }

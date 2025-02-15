@@ -1,4 +1,4 @@
-package wd4j.impl.service;
+package wd4j.impl.manager;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -9,11 +9,11 @@ import wd4j.impl.webdriver.command.request.parameters.storage.CookieFilter;
 import wd4j.impl.webdriver.command.request.parameters.storage.SetCookieParameters;
 import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
 
-public class StorageService implements Module {
+public class StorageManager implements Module {
 
     private final WebSocketImpl webSocketImpl;
 
-    public StorageService(WebSocketImpl webSocketImpl) {
+    public StorageManager(WebSocketImpl webSocketImpl) {
         this.webSocketImpl = webSocketImpl;
     }
 

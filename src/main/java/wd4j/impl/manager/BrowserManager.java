@@ -1,4 +1,4 @@
-package wd4j.impl.service;
+package wd4j.impl.manager;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -14,7 +14,7 @@ import wd4j.impl.playwright.WebSocketImpl;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BrowserService implements Module {
+public class BrowserManager implements Module {
 
     private final WebSocketImpl webSocketImpl;
 
@@ -23,7 +23,7 @@ public class BrowserService implements Module {
     public UserContext userContext;
     public UserContextInfo userContextInfo;
 
-    public BrowserService(WebSocketImpl webSocketImpl) {
+    public BrowserManager(WebSocketImpl webSocketImpl) {
         this.webSocketImpl = webSocketImpl;
     }
 

@@ -4,12 +4,14 @@ import wd4j.api.options.BindingCallback;
 import wd4j.api.options.Cookie;
 import wd4j.api.options.FunctionCallback;
 import wd4j.api.options.Geolocation;
-import wd4j.impl.service.BrowsingContextService;
 import wd4j.api.*;
+import wd4j.impl.manager.SessionManager;
+import wd4j.impl.support.EventDispatcher;
 import wd4j.override.BrowserSession;
 
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -27,31 +29,30 @@ import java.util.regex.Pattern;
  */
 public class BrowserSessionImpl implements BrowserSession {
     //ToDo: Move support.BrowserSession Class in here..
-    private final BrowsingContextService browsingContextService;
+    private final SessionManager sessionManager;
     private final BrowserImpl browser;
-    private final List<PageImpl> pages;
-    private boolean isClosed;
-
-    private String contextId; // Speichert die Standard-Kontext-ID, falls vorhanden
+    private final EventDispatcher dispatcher = new EventDispatcher();
+    private final List<PageImpl> pages = new ArrayList<>(); // aka. contexts in WebDriver BiDi
+    private boolean isClosed = false; // ToDo: Is this variable really necessary?
 
     public BrowserSessionImpl(BrowserImpl browser) {
-        // ToDo: Should we pass WebSocketConnection to a service? (BrowserType offers connect() -> where to move it?)
-        browsingContextService = browser.getBrowsingContextService();
-        this.browser = browser;
-        this.pages = new ArrayList<>();
-        this.isClosed = false;
-
-        this.contextId = browsingContextService.create();
+        this(browser, null);
     }
 
-    public BrowserSessionImpl(BrowserImpl browser, String contextId) {
-        // ToDo: Should we pass WebSocketConnection to a service? (BrowserType offers connect() -> where to move it?)
-        browsingContextService = browser.getBrowsingContextService();
+    public BrowserSessionImpl(BrowserImpl browser, Browser.NewContextOptions options) {
         this.browser = browser;
-        this.pages = new ArrayList<>();
-        this.isClosed = false;
 
-        this.contextId = contextId;
+        if (options != null) {
+            // ToDo: Use options to create a new session
+        }
+
+        try {
+            this.sessionManager = new SessionManager(browser.getWebSocketConnection());
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -375,12 +376,22 @@ public class BrowserSessionImpl implements BrowserSession {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public String getContextId() {
-        return contextId;
-    }
 
     public BrowserImpl getBrowser() {
         return browser;
     }
 
+    public SessionManager getSessionService() {
+        return sessionManager;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public <T> void addEventListener(String eventName, Consumer<T> handler, Class<T> eventClass, SessionManager sessionManager) {
+        dispatcher.addEventListener(eventName, handler, eventClass, sessionManager);
+    }
+
+    public <T> void removeEventListener(String eventType, Consumer<T> listener, SessionManager sessionManager) {
+        dispatcher.removeEventListener(eventType, listener, sessionManager);
+    }
 }
