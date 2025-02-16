@@ -18,174 +18,174 @@ public class WDBrowsingContextRequest {
     // Commands (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class Activate extends WDCommandImpl<WDActivateParameters> implements WDCommandData {
+    public static class Activate extends WDCommandImpl<ActivateParameters> implements WDCommandData {
         public Activate(String contextId) {
-            super("browsingContext.activate", new WDActivateParameters(new WDBrowsingContext(contextId)));
+            super("browsingContext.activate", new ActivateParameters(new WDBrowsingContext(contextId)));
         }
         public Activate(WDBrowsingContext context) {
-            super("browsingContext.activate", new WDActivateParameters(context));
+            super("browsingContext.activate", new ActivateParameters(context));
         }
     }
 
 
-    public static class CaptureScreenshot extends WDCommandImpl<WDCaptureScreenshotParameters> implements WDCommandData {
+    public static class CaptureScreenshot extends WDCommandImpl<CaptureScreenshotParameters> implements WDCommandData {
         public CaptureScreenshot(String contextId) {
-            super("browsingContext.captureScreenshot", new WDCaptureScreenshotParameters(new WDBrowsingContext(contextId)));
+            super("browsingContext.captureScreenshot", new CaptureScreenshotParameters(new WDBrowsingContext(contextId)));
         }
-        public CaptureScreenshot(String contextId, WDCaptureScreenshotParameters.Origin origin, WDCaptureScreenshotParameters.ImageFormat format, WDCaptureScreenshotParameters.ClipRectangle clip) {
-            super("browsingContext.captureScreenshot", new WDCaptureScreenshotParameters(new WDBrowsingContext(contextId), origin, format, clip));
+        public CaptureScreenshot(String contextId, CaptureScreenshotParameters.Origin origin, CaptureScreenshotParameters.ImageFormat format, CaptureScreenshotParameters.ClipRectangle clip) {
+            super("browsingContext.captureScreenshot", new CaptureScreenshotParameters(new WDBrowsingContext(contextId), origin, format, clip));
         }
         public CaptureScreenshot(WDBrowsingContext context) {
-            super("browsingContext.captureScreenshot", new WDCaptureScreenshotParameters(context));
+            super("browsingContext.captureScreenshot", new CaptureScreenshotParameters(context));
         }
-        public CaptureScreenshot(WDBrowsingContext context, WDCaptureScreenshotParameters.Origin origin, WDCaptureScreenshotParameters.ImageFormat format, WDCaptureScreenshotParameters.ClipRectangle clip) {
-            super("browsingContext.captureScreenshot", new WDCaptureScreenshotParameters(context, origin, format, clip));
+        public CaptureScreenshot(WDBrowsingContext context, CaptureScreenshotParameters.Origin origin, CaptureScreenshotParameters.ImageFormat format, CaptureScreenshotParameters.ClipRectangle clip) {
+            super("browsingContext.captureScreenshot", new CaptureScreenshotParameters(context, origin, format, clip));
         }
     }
 
 
-    public static class Close extends WDCommandImpl<WDCloseParameters> implements WDCommandData {
+    public static class Close extends WDCommandImpl<CloseParameters> implements WDCommandData {
         public Close(String contextId) {
-            super("browsingContext.close", new WDCloseParameters(new WDBrowsingContext(contextId)));
+            super("browsingContext.close", new CloseParameters(new WDBrowsingContext(contextId)));
         }
         public Close(String contextId, boolean promptUnload) {
-            super("browsingContext.close", new WDCloseParameters(new WDBrowsingContext(contextId), promptUnload));
+            super("browsingContext.close", new CloseParameters(new WDBrowsingContext(contextId), promptUnload));
         }
         public Close(WDBrowsingContext context) {
-            super("browsingContext.close", new WDCloseParameters(context));
+            super("browsingContext.close", new CloseParameters(context));
         }
         public Close(WDBrowsingContext context, boolean promptUnload) {
-            super("browsingContext.close", new WDCloseParameters(context, promptUnload));
+            super("browsingContext.close", new CloseParameters(context, promptUnload));
         }
     }
 
 
-    public static class Create extends WDCommandImpl<WDCreateParameters> implements WDCommandData {
-        public Create(WDCreateType type) {
-            super("browsingContext.create", new WDCreateParameters(type));
+    public static class Create extends WDCommandImpl<CreateParameters> implements WDCommandData {
+        public Create(CreateType type) {
+            super("browsingContext.create", new CreateParameters(type));
         }
-        public Create(WDCreateType type, WDBrowsingContext referenceContext, Boolean background, WDUserContext WDUserContext) {
-            super("browsingContext.create", new WDCreateParameters(type, referenceContext, background, WDUserContext));
+        public Create(CreateType type, WDBrowsingContext referenceContext, Boolean background, WDUserContext WDUserContext) {
+            super("browsingContext.create", new CreateParameters(type, referenceContext, background, WDUserContext));
         }
     }
 
-    public static class GetTree extends WDCommandImpl<WDGetTreeParameters> implements WDCommandData {
+    public static class GetTree extends WDCommandImpl<GetTreeParameters> implements WDCommandData {
         public GetTree() {
-            super("browsingContext.getTree", new WDGetTreeParameters());
+            super("browsingContext.getTree", new GetTreeParameters());
         }
         public GetTree(Character maxDepth, WDBrowsingContext root) {
-            super("browsingContext.getTree", new WDGetTreeParameters(maxDepth, root));
+            super("browsingContext.getTree", new GetTreeParameters(maxDepth, root));
         }
     }
 
 
-    public static class HandleUserPrompt extends WDCommandImpl<WDHandleUserPromptParameters> implements WDCommandData {
+    public static class HandleUserPrompt extends WDCommandImpl<HandleUserPromptParameters> implements WDCommandData {
         public HandleUserPrompt(String contextId) {
-            super("browsingContext.handleUserPrompt", new WDHandleUserPromptParameters(new WDBrowsingContext(contextId)));
+            super("browsingContext.handleUserPrompt", new HandleUserPromptParameters(new WDBrowsingContext(contextId)));
         }
         public HandleUserPrompt(String contextId, Boolean accept) {
-            super("browsingContext.handleUserPrompt", new WDHandleUserPromptParameters(new WDBrowsingContext(contextId), accept));
+            super("browsingContext.handleUserPrompt", new HandleUserPromptParameters(new WDBrowsingContext(contextId), accept));
         }
         public HandleUserPrompt(String contextId, Boolean accept, String userText) {
-            super("browsingContext.handleUserPrompt", new WDHandleUserPromptParameters(new WDBrowsingContext(contextId), accept, userText));
+            super("browsingContext.handleUserPrompt", new HandleUserPromptParameters(new WDBrowsingContext(contextId), accept, userText));
         }
         public HandleUserPrompt(WDBrowsingContext context) {
-            super("browsingContext.handleUserPrompt", new WDHandleUserPromptParameters(context));
+            super("browsingContext.handleUserPrompt", new HandleUserPromptParameters(context));
         }
         public HandleUserPrompt(WDBrowsingContext context, Boolean accept) {
-            super("browsingContext.handleUserPrompt", new WDHandleUserPromptParameters(context, accept));
+            super("browsingContext.handleUserPrompt", new HandleUserPromptParameters(context, accept));
         }
         public HandleUserPrompt(WDBrowsingContext context, Boolean accept, String userText) {
-            super("browsingContext.handleUserPrompt", new WDHandleUserPromptParameters(context, accept, userText));
+            super("browsingContext.handleUserPrompt", new HandleUserPromptParameters(context, accept, userText));
         }
     }
 
-    public static class LocateNodes extends WDCommandImpl<WDLocateNodesParameters> implements WDCommandData {
+    public static class LocateNodes extends WDCommandImpl<LocateNodesParameters> implements WDCommandData {
         public LocateNodes(String contextId, WDLocator WDLocator) {
-            super("browsingContext.locateNodes", new WDLocateNodesParameters(new WDBrowsingContext(contextId), WDLocator));
+            super("browsingContext.locateNodes", new LocateNodesParameters(new WDBrowsingContext(contextId), WDLocator));
         }
         public LocateNodes(String contextId, WDLocator WDLocator, Character maxNodeCount, WDSerializationOptions WDSerializationOptions, List<WDRemoteReference.SharedReferenceWD> startNodes) {
-            super("browsingContext.locateNodes", new WDLocateNodesParameters(new WDBrowsingContext(contextId), WDLocator, maxNodeCount, WDSerializationOptions, startNodes));
+            super("browsingContext.locateNodes", new LocateNodesParameters(new WDBrowsingContext(contextId), WDLocator, maxNodeCount, WDSerializationOptions, startNodes));
         }
         public LocateNodes(WDBrowsingContext context, WDLocator WDLocator) {
-            super("browsingContext.locateNodes", new WDLocateNodesParameters(context, WDLocator));
+            super("browsingContext.locateNodes", new LocateNodesParameters(context, WDLocator));
         }
         public LocateNodes(WDBrowsingContext context, WDLocator WDLocator, Character maxNodeCount, WDSerializationOptions WDSerializationOptions, List<WDRemoteReference.SharedReferenceWD> startNodes) {
-            super("browsingContext.locateNodes", new WDLocateNodesParameters(context, WDLocator, maxNodeCount, WDSerializationOptions, startNodes));
+            super("browsingContext.locateNodes", new LocateNodesParameters(context, WDLocator, maxNodeCount, WDSerializationOptions, startNodes));
         }
     }
 
 
-    public static class Navigate extends WDCommandImpl<WDNavigateParameters> implements WDCommandData {
+    public static class Navigate extends WDCommandImpl<NavigateParameters> implements WDCommandData {
         public Navigate(String url, String contextId) {
-            super("browsingContext.navigate", new WDNavigateParameters(new WDBrowsingContext(contextId), url));
+            super("browsingContext.navigate", new NavigateParameters(new WDBrowsingContext(contextId), url));
         }
         public Navigate(String url, String contextId, WDReadinessState WDReadinessState) {
-            super("browsingContext.navigate", new WDNavigateParameters(new WDBrowsingContext(contextId), url, WDReadinessState));
+            super("browsingContext.navigate", new NavigateParameters(new WDBrowsingContext(contextId), url, WDReadinessState));
         }
         public Navigate(String url, WDBrowsingContext context) {
-            super("browsingContext.navigate", new WDNavigateParameters(context, url));
+            super("browsingContext.navigate", new NavigateParameters(context, url));
         }
         public Navigate(String url, WDBrowsingContext context, WDReadinessState WDReadinessState) {
-            super("browsingContext.navigate", new WDNavigateParameters(context, url, WDReadinessState));
+            super("browsingContext.navigate", new NavigateParameters(context, url, WDReadinessState));
         }
     }
 
-    public static class Print extends WDCommandImpl<WDPrintParameters> implements WDCommandData {
+    public static class Print extends WDCommandImpl<PrintParameters> implements WDCommandData {
         public Print(String contextId) {
-            super("browsingContext.print", new WDPrintParameters(new WDBrowsingContext(contextId)));
+            super("browsingContext.print", new PrintParameters(new WDBrowsingContext(contextId)));
         }
-        public Print(String contextId, boolean background, WDPrintParameters.PrintMarginParameters margin, WDOrientation WDOrientation, WDPrintParameters.PrintPageParameters page, char pageRanges, float scale, boolean shrinkToFit) {
-            super("browsingContext.print", new WDPrintParameters(new WDBrowsingContext(contextId), background, margin, WDOrientation, page, pageRanges, scale, shrinkToFit));
+        public Print(String contextId, boolean background, PrintParameters.PrintMarginParameters margin, Orientation WDOrientation, PrintParameters.PrintPageParameters page, char pageRanges, float scale, boolean shrinkToFit) {
+            super("browsingContext.print", new PrintParameters(new WDBrowsingContext(contextId), background, margin, WDOrientation, page, pageRanges, scale, shrinkToFit));
         }
         public Print(WDBrowsingContext context) {
-            super("browsingContext.print", new WDPrintParameters(context));
+            super("browsingContext.print", new PrintParameters(context));
         }
-        public Print(WDBrowsingContext context, boolean background, WDPrintParameters.PrintMarginParameters margin, WDOrientation WDOrientation, WDPrintParameters.PrintPageParameters page, char pageRanges, float scale, boolean shrinkToFit) {
-            super("browsingContext.print", new WDPrintParameters(context, background, margin, WDOrientation, page, pageRanges, scale, shrinkToFit));
+        public Print(WDBrowsingContext context, boolean background, PrintParameters.PrintMarginParameters margin, Orientation WDOrientation, PrintParameters.PrintPageParameters page, char pageRanges, float scale, boolean shrinkToFit) {
+            super("browsingContext.print", new PrintParameters(context, background, margin, WDOrientation, page, pageRanges, scale, shrinkToFit));
         }
     }
 
 
 
-    public static class Reload extends WDCommandImpl<WDReloadParameters> implements WDCommandData {
+    public static class Reload extends WDCommandImpl<ReloadParameters> implements WDCommandData {
         public Reload(String contextId) {
-            super("browsingContext.reload", new WDReloadParameters(new WDBrowsingContext(contextId)));
+            super("browsingContext.reload", new ReloadParameters(new WDBrowsingContext(contextId)));
         }
         public Reload(String contextId, Boolean ignoreCache, WDReadinessState wait) {
-            super("browsingContext.reload", new WDReloadParameters(new WDBrowsingContext(contextId), ignoreCache, wait));
+            super("browsingContext.reload", new ReloadParameters(new WDBrowsingContext(contextId), ignoreCache, wait));
         }
         public Reload(WDBrowsingContext context) {
-            super("browsingContext.reload", new WDReloadParameters(context));
+            super("browsingContext.reload", new ReloadParameters(context));
         }
         public Reload(WDBrowsingContext context, Boolean ignoreCache, WDReadinessState wait) {
-            super("browsingContext.reload", new WDReloadParameters(context, ignoreCache, wait));
+            super("browsingContext.reload", new ReloadParameters(context, ignoreCache, wait));
         }
     }
 
 
-    public static class SetViewport extends WDCommandImpl<WDSetViewportParameters> implements WDCommandData {
+    public static class SetViewport extends WDCommandImpl<SetViewportParameters> implements WDCommandData {
         public SetViewport(String contextId) {
-            super("browsingContext.setViewport", new WDSetViewportParameters(new WDBrowsingContext(contextId)));
+            super("browsingContext.setViewport", new SetViewportParameters(new WDBrowsingContext(contextId)));
         }
-        public SetViewport(String contextId, WDSetViewportParameters.Viewport viewport, Float devicePixelRatio) {
-            super("browsingContext.setViewport", new WDSetViewportParameters(new WDBrowsingContext(contextId), viewport, devicePixelRatio));
+        public SetViewport(String contextId, SetViewportParameters.Viewport viewport, Float devicePixelRatio) {
+            super("browsingContext.setViewport", new SetViewportParameters(new WDBrowsingContext(contextId), viewport, devicePixelRatio));
         }
         public SetViewport(WDBrowsingContext context) {
-            super("browsingContext.setViewport", new WDSetViewportParameters(context));
+            super("browsingContext.setViewport", new SetViewportParameters(context));
         }
-        public SetViewport(WDBrowsingContext context, WDSetViewportParameters.Viewport viewport, Float devicePixelRatio) {
-            super("browsingContext.setViewport", new WDSetViewportParameters(context, viewport, devicePixelRatio));
+        public SetViewport(WDBrowsingContext context, SetViewportParameters.Viewport viewport, Float devicePixelRatio) {
+            super("browsingContext.setViewport", new SetViewportParameters(context, viewport, devicePixelRatio));
         }
     }
 
 
-    public static class TraverseHistory extends WDCommandImpl<WDTraverseHistoryParameters> implements WDCommandData {
+    public static class TraverseHistory extends WDCommandImpl<TraverseHistoryParameters> implements WDCommandData {
         public TraverseHistory(String contextId, int delta) {
-            super("browsingContext.traverseHistory", new WDTraverseHistoryParameters(new WDBrowsingContext(contextId), delta));
+            super("browsingContext.traverseHistory", new TraverseHistoryParameters(new WDBrowsingContext(contextId), delta));
         }
         public TraverseHistory(WDBrowsingContext context, int delta) {
-            super("browsingContext.traverseHistory", new WDTraverseHistoryParameters(context, delta));
+            super("browsingContext.traverseHistory", new TraverseHistoryParameters(context, delta));
         }
     }
 

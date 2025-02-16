@@ -4,8 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
-import wd4j.impl.webdriver.command.request.parameters.browsingContext.WDCreateType;
-import wd4j.impl.webdriver.command.request.parameters.browsingContext.WDSetViewportParameters;
+import wd4j.impl.webdriver.command.request.parameters.browsingContext.CreateType;
+import wd4j.impl.webdriver.command.request.parameters.browsingContext.SetViewportParameters;
 import wd4j.impl.webdriver.type.browsingContext.WDLocator;
 import wd4j.impl.websocket.WebSocketManager;
 
@@ -34,7 +34,7 @@ public class WDBrowsingContextManager implements WDModule {
      */
     // Required for Firefox ESR ?
     public String create() {
-        WDBrowsingContextRequest.Create createContextCommand = new WDBrowsingContextRequest.Create(WDCreateType.TAB);
+        WDBrowsingContextRequest.Create createContextCommand = new WDBrowsingContextRequest.Create(CreateType.TAB);
 
         try {
             String response = webSocketManager.sendAndWaitForResponse(createContextCommand, String.class);
@@ -204,7 +204,7 @@ public class WDBrowsingContextManager implements WDModule {
      */
     public void setViewport(String contextId, char width, char height) {
         try {
-            webSocketManager.sendAndWaitForResponse(new WDBrowsingContextRequest.SetViewport(contextId, new WDSetViewportParameters.Viewport(width, height), null), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDBrowsingContextRequest.SetViewport(contextId, new SetViewportParameters.Viewport(width, height), null), String.class);
         } catch (RuntimeException e) {
             System.out.println("Error setting viewport: " + e.getMessage());
             throw e;
