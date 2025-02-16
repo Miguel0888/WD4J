@@ -10,14 +10,12 @@ import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.event.WDEventMapping;
 import wd4j.impl.support.JsonToPlaywrightMapper;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.script.WDEvaluateResult;
 import wd4j.impl.webdriver.type.script.WDTarget;
 import wd4j.impl.websocket.WebSocketManager;
 
 import java.nio.file.Path;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -271,16 +269,36 @@ class PageImpl implements Page {
 
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private final List<Consumer<String>> pageErrorListeners = new ArrayList<>();
+
     @Override
     public void onPageError(Consumer<String> handler) {
-        // ToDo: Maybe use "network.fetchError" event?
-        //  Or: "log.entryAdded"?
+        pageErrorListeners.add(handler);
     }
 
     @Override
     public void offPageError(Consumer<String> handler) {
-
+        pageErrorListeners.remove(handler);
     }
+
+    /**
+     * Kann immer benutzt werden, wenn eine exception auf der Seite auftritt, z.B. bei einem evaluate-Script-Befehl.
+     *
+     * Solche Fehler führen nicht zu einem Java Fehler, da sie als Type "exception" und nicht "error" vom Browser
+     * zurückgegeben werden. Außerdem sieht Playwright für den Page Content z.B. auch keine Java Exceptions vor und
+     * liefert bestenfalls NULL zurück.
+     *
+     * @param errorMessage
+     */
+    private void notifyPageErrorListeners(String errorMessage) {
+        for (Consumer<String> listener : pageErrorListeners) {
+            listener.accept(errorMessage);
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
     public void onPopup(Consumer<Page> handler) {
@@ -362,10 +380,26 @@ class PageImpl implements Page {
         if (isClosed) {
             throw new PlaywrightException("Page is closed");
         }
-        WDTarget.ContextWDTarget contextTarget = new WDTarget.ContextWDTarget(new WDBrowsingContext(pageId));
-        return session.getBrowser().getScriptManager().evaluate("return document.documentElement.outerHTML;", contextTarget, true);
-    }
 
+        // Ziel: BrowsingContext für das `evaluate()`-Command setzen
+        WDTarget.ContextTarget contextTarget = new WDTarget.ContextTarget(new WDBrowsingContext(pageId));
+
+        // WebDriver BiDi Evaluate-Command ausführen
+        WDEvaluateResult evaluate = session.getBrowser().getScriptManager().evaluate(
+                "return document.documentElement.outerHTML;", contextTarget, true);
+
+        try {
+            // ✅ Wenn erfolgreich, den String aus `PrimitiveProtocolValue.StringValue` extrahieren
+            return ((WDEvaluateResult.WDEvaluateResultSuccess) evaluate).getResult().asString();
+        } catch (ClassCastException e) {
+            // ❌ Fehler aufgetreten -> wahrscheinlich WDEvaluateResultError
+            WDEvaluateResult.WDEvaluateResultError error = (WDEvaluateResult.WDEvaluateResultError) evaluate;
+            notifyPageErrorListeners(error.getExceptionDetails().getText());
+
+            // 🔥 Fehlerbehandlung: Null zurückgeben, falls der HTML-Code nicht ausgelesen werden konnte
+            return null;
+        }
+    }
 
     @Override
     public BrowserContext context() {

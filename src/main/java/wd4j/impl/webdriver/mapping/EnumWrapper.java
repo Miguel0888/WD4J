@@ -9,4 +9,14 @@ package wd4j.impl.webdriver.mapping;
  */
 public interface EnumWrapper {
     String value();
+
+    // Java 8 kompatibel: Prüfen, ob ein Wert in einem bestimmten Enum existiert
+    static <E extends Enum<E> & EnumWrapper> boolean contains(Class<E> enumClass, String type) {
+        for (E e : enumClass.getEnumConstants()) {
+            if (e.value().equals(type)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

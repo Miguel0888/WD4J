@@ -65,13 +65,13 @@ public interface WDBrowsingContextResult extends WDResultData {
     }
 
     class LocateNodesResult implements WDBrowsingContextResult {
-        private List<WDRemoteValue.NodeWDRemoteValue> nodes;
+        private List<WDRemoteValue.NodeRemoteValue> nodes;
 
-        public LocateNodesResult(List<WDRemoteValue.NodeWDRemoteValue> nodes) {
+        public LocateNodesResult(List<WDRemoteValue.NodeRemoteValue> nodes) {
             this.nodes = nodes;
         }
 
-        public List<WDRemoteValue.NodeWDRemoteValue> getNodes() {
+        public List<WDRemoteValue.NodeRemoteValue> getNodes() {
             return nodes;
         }
 

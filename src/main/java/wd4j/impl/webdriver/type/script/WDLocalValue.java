@@ -26,28 +26,28 @@ public interface WDLocalValue<T> {
 
             switch (type) {
                 case "array":
-                    return context.deserialize(jsonObject, ArrayWDLocalValue.class);
+                    return context.deserialize(jsonObject, ArrayLocalValue.class);
                 case "date":
-                    return context.deserialize(jsonObject, DateWDLocalValue.class);
+                    return context.deserialize(jsonObject, DateLocalValue.class);
                 case "map":
-                    return context.deserialize(jsonObject, MapWDLocalValue.class);
+                    return context.deserialize(jsonObject, MapLocalValue.class);
                 case "object":
-                    return context.deserialize(jsonObject, ObjectWDLocalValue.class);
+                    return context.deserialize(jsonObject, ObjectLocalValue.class);
                 case "regexp":
-                    return context.deserialize(jsonObject, RegExpWDLocalValue.class);
+                    return context.deserialize(jsonObject, RegExpLocalValue.class);
                 case "set":
-                    return context.deserialize(jsonObject, SetWDLocalValue.class);
+                    return context.deserialize(jsonObject, SetLocalValue.class);
                 default:
                     throw new JsonParseException("Unknown LocalValue type: " + type);
             }
         }
     }
 
-    class ArrayWDLocalValue implements WDLocalValue<List<WDLocalValue<?>>> {
+    class ArrayLocalValue implements WDLocalValue<List<WDLocalValue<?>>> {
         private final String type = "array";
         private final List<WDLocalValue<?>> value;
 
-        public ArrayWDLocalValue(List<WDLocalValue<?>> value) {
+        public ArrayLocalValue(List<WDLocalValue<?>> value) {
             this.value = value;
         }
 
@@ -62,11 +62,11 @@ public interface WDLocalValue<T> {
         }
     }
 
-    class DateWDLocalValue implements WDLocalValue<String> {
+    class DateLocalValue implements WDLocalValue<String> {
         private final String type = "date";
         private final String value;
 
-        public DateWDLocalValue(String value) {
+        public DateLocalValue(String value) {
             this.value = value;
         }
 
@@ -81,11 +81,11 @@ public interface WDLocalValue<T> {
         }
     }
 
-    class MapWDLocalValue implements WDLocalValue<Map<WDLocalValue<?>, WDLocalValue<?>>> {
+    class MapLocalValue implements WDLocalValue<Map<WDLocalValue<?>, WDLocalValue<?>>> {
         private final String type = "map";
         private final Map<WDLocalValue<?>, WDLocalValue<?>> value;
 
-        public MapWDLocalValue(Map<WDLocalValue<?>, WDLocalValue<?>> value) {
+        public MapLocalValue(Map<WDLocalValue<?>, WDLocalValue<?>> value) {
             this.value = value;
         }
 
@@ -100,11 +100,11 @@ public interface WDLocalValue<T> {
         }
     }
 
-    class ObjectWDLocalValue implements WDLocalValue<Map<WDLocalValue<?>, WDLocalValue<?>>> {
+    class ObjectLocalValue implements WDLocalValue<Map<WDLocalValue<?>, WDLocalValue<?>>> {
         private final String type = "object";
         private final Map<WDLocalValue<?>, WDLocalValue<?>> value;
 
-        public ObjectWDLocalValue(Map<WDLocalValue<?>, WDLocalValue<?>> value) {
+        public ObjectLocalValue(Map<WDLocalValue<?>, WDLocalValue<?>> value) {
             this.value = value;
         }
 
@@ -119,33 +119,11 @@ public interface WDLocalValue<T> {
         }
     }
 
-    class RegExpValue {
-        private final String pattern;
-        private final String flags; // Optional
-
-        public RegExpValue(String pattern) {
-            this(pattern, null);
-        }
-
-        public RegExpValue(String pattern, String flags) {
-            this.pattern = pattern;
-            this.flags = flags;
-        }
-
-        public String getPattern() {
-            return pattern;
-        }
-
-        public String getFlags() {
-            return flags;
-        }
-    }
-
-    class RegExpWDLocalValue implements WDLocalValue<RegExpValue> {
+    class RegExpLocalValue implements WDLocalValue<RegExpLocalValue.RegExpValue> {
         private final String type = "regexp";
         private final RegExpValue value;
 
-        public RegExpWDLocalValue(RegExpValue value) {
+        public RegExpLocalValue(RegExpValue value) {
             this.value = value;
         }
 
@@ -158,13 +136,35 @@ public interface WDLocalValue<T> {
         public RegExpValue getValue() {
             return value;
         }
+
+        public static class RegExpValue {
+            private final String pattern;
+            private final String flags; // Optional
+
+            public RegExpValue(String pattern) {
+                this(pattern, null);
+            }
+
+            public RegExpValue(String pattern, String flags) {
+                this.pattern = pattern;
+                this.flags = flags;
+            }
+
+            public String getPattern() {
+                return pattern;
+            }
+
+            public String getFlags() {
+                return flags;
+            }
+        }
     }
 
-    class SetWDLocalValue implements WDLocalValue<List<WDLocalValue<?>>> {
+    class SetLocalValue implements WDLocalValue<List<WDLocalValue<?>>> {
         private final String type = "set";
         private final List<WDLocalValue<?>> value;
 
-        public SetWDLocalValue(List<WDLocalValue<?>> value) {
+        public SetLocalValue(List<WDLocalValue<?>> value) {
             this.value = value;
         }
 

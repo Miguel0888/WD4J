@@ -2,11 +2,27 @@ package wd4j.impl.webdriver.type.script;
 
 import com.google.gson.*;
 import com.google.gson.annotations.JsonAdapter;
+import wd4j.impl.webdriver.command.response.WDScriptResult;
 
 import java.lang.reflect.Type;
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// EvaluateResult:
+// Diese Klasse unterscheidet sich von den anderen, da sie scheinbar eine vollständige Command-Response darstellt.
+// Sie implementiert nämlich ein zusätzliches Feld type, nicht aber das Feld id. Laut Dokumentation ist es die Klasse
+// auch ein Abkömmling von (WD)ScriptResult, was wiederum ResultData ist. Damit sollte es in der CommandResponse im
+// Feld result übermittelt werden. Somit gäbe es hier zweimal das Feld type mit dem Inhalt "success" oder einmal
+// mit "success" und einmal mit "exception". Das ist ein wenig ungewöhnlich, aber durchaus möglich. In dem Fall wird
+// keine Java Exception geworfen, sondern ein spezieller State "exception" zurückgegeben, um zu signalisieren, dass
+// der Fehler nicht in der Anwendung, sondern im Skript aufgetreten ist.
+//
+// Außerdem gibt es einen Typ "exception", der sich vom üblichen "error"-State unterscheidet und wohl durchgereicht
+// werden soll, ohne eine Java Exception zu werfen. Es ist eher also normaler Programmablauf zu verstehen, da Exceptions
+// in Skripten durchaus vorkommen können.
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 @JsonAdapter(WDEvaluateResult.EvaluateResultAdapter.class) // 🔥 Direkt hier den Adapter registrieren
-public interface WDEvaluateResult {
+public interface WDEvaluateResult extends WDScriptResult {
     String getType();
 
     // 🔥 **INNERE KLASSE: Adapter für die automatische Deserialisierung**
