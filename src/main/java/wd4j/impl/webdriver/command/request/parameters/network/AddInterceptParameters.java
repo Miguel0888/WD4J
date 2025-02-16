@@ -1,37 +1,37 @@
 package wd4j.impl.webdriver.command.request.parameters.network;
 
 import wd4j.impl.webdriver.mapping.EnumWrapper;
-import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
-import wd4j.impl.webdriver.type.network.UrlPattern;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.network.WDUrlPattern;
+import wd4j.impl.websocket.WDCommand;
 
 import java.util.List;
 
-public class AddInterceptParameters implements Command.Params {
+public class AddInterceptParameters implements WDCommand.Params {
     private final List<InterceptPhase> phases;
-    private final List<BrowsingContext> contexts; //optional
-    private final List<UrlPattern> urlPatterns; //optional
+    private final List<WDBrowsingContext> contexts; //optional
+    private final List<WDUrlPattern> WDUrlPatterns; //optional
 
     public AddInterceptParameters(List<InterceptPhase> phases) {
         this(phases, null, null);
     }
 
-    public AddInterceptParameters(List<InterceptPhase> phases, List<BrowsingContext> contexts, List<UrlPattern> urlPatterns) {
+    public AddInterceptParameters(List<InterceptPhase> phases, List<WDBrowsingContext> contexts, List<WDUrlPattern> WDUrlPatterns) {
         this.phases = phases;
         this.contexts = contexts;
-        this.urlPatterns = urlPatterns;
+        this.WDUrlPatterns = WDUrlPatterns;
     }
 
     public List<InterceptPhase> getPhases() {
         return phases;
     }
 
-    public List<BrowsingContext> getContexts() {
+    public List<WDBrowsingContext> getContexts() {
         return contexts;
     }
 
-    public List<UrlPattern> getUrlPatterns() {
-        return urlPatterns;
+    public List<WDUrlPattern> getUrlPatterns() {
+        return WDUrlPatterns;
     }
 
     public enum InterceptPhase implements EnumWrapper {

@@ -10,21 +10,18 @@ import wd4j.api.options.BoundingBox;
 import wd4j.api.options.FilePayload;
 import wd4j.api.options.SelectOption;
 import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
-import wd4j.impl.webdriver.command.request.ScriptRequest;
-import wd4j.impl.websocket.CommunicationManager;
+import wd4j.impl.websocket.WebSocketManager;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 public class LocatorImpl implements Locator {
     private final String selector;
     private final String contextId;
-    private final CommunicationManager webSocket;
+    private final WebSocketManager webSocket;
 
 //    public LocatorImpl(String selector) {
 //        // TODO: Implement
@@ -37,7 +34,7 @@ public class LocatorImpl implements Locator {
 //        this.webSocket = webSocket;
 //    }
 
-    public LocatorImpl(String selector, String contextId, CommunicationManager communicationManager) {
+    public LocatorImpl(String selector, String contextId, WebSocketManager webSocketManager) {
         if (selector == null || selector.isEmpty()) {
             throw new IllegalArgumentException("Selector must not be null or empty.");
         }
@@ -46,7 +43,7 @@ public class LocatorImpl implements Locator {
         }
         this.selector = selector;
         this.contextId = contextId;
-        this.webSocket = communicationManager;
+        this.webSocket = webSocketManager;
     }
 
     @Override

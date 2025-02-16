@@ -1,18 +1,18 @@
 package wd4j.impl.webdriver.command.request.parameters.network;
 
 import wd4j.impl.webdriver.mapping.EnumWrapper;
-import wd4j.impl.webdriver.type.network.Request;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.network.WDRequest;
+import wd4j.impl.websocket.WDCommand;
 
-public abstract class ContinueWithAuthParameters implements Command.Params {
-    private final Request request;
+public abstract class ContinueWithAuthParameters implements WDCommand.Params {
+    private final WDRequest WDRequest;
 
-    public ContinueWithAuthParameters(Request request) {
-        this.request = request;
+    public ContinueWithAuthParameters(WDRequest WDRequest) {
+        this.WDRequest = WDRequest;
     }
 
-    public Request getRequest() {
-        return request;
+    public WDRequest getRequest() {
+        return WDRequest;
     }
 
     public interface Action extends EnumWrapper {

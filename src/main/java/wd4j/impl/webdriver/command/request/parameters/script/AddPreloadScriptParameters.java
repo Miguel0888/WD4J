@@ -1,28 +1,28 @@
 package wd4j.impl.webdriver.command.request.parameters.script;
 
-import wd4j.impl.webdriver.type.browser.UserContext;
-import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
-import wd4j.impl.webdriver.type.script.ChannelValue;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.browser.WDUserContext;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.script.WDChannelValue;
+import wd4j.impl.websocket.WDCommand;
 
 import java.util.List;
 
-public class AddPreloadScriptParameters implements Command.Params {
+public class AddPreloadScriptParameters implements WDCommand.Params {
     private final String functionDeclaration;
-    private final List<ChannelValue> arguments; // Optional
-    private final List<BrowsingContext> browsingContexts; // Optional
-    private final List<UserContext> userContexts; // Optional
+    private final List<WDChannelValue> arguments; // Optional
+    private final List<WDBrowsingContext> WDBrowsingContexts; // Optional
+    private final List<WDUserContext> WDUserContexts; // Optional
     private final String sandbox; // Optional
 
     public AddPreloadScriptParameters(String functionDeclaration) {
         this(functionDeclaration, null, null, null, null);
     }
 
-    public AddPreloadScriptParameters(String functionDeclaration, List<ChannelValue> arguments, List<BrowsingContext> browsingContexts, List<UserContext> userContexts, String sandbox) {
+    public AddPreloadScriptParameters(String functionDeclaration, List<WDChannelValue> arguments, List<WDBrowsingContext> WDBrowsingContexts, List<WDUserContext> WDUserContexts, String sandbox) {
         this.functionDeclaration = functionDeclaration;
         this.arguments = arguments;
-        this.browsingContexts = browsingContexts;
-        this.userContexts = userContexts;
+        this.WDBrowsingContexts = WDBrowsingContexts;
+        this.WDUserContexts = WDUserContexts;
         this.sandbox = sandbox;
     }
 
@@ -30,16 +30,16 @@ public class AddPreloadScriptParameters implements Command.Params {
         return functionDeclaration;
     }
 
-    public List<ChannelValue> getArguments() {
+    public List<WDChannelValue> getArguments() {
         return arguments;
     }
 
-    public List<BrowsingContext> getBrowsingContexts() {
-        return browsingContexts;
+    public List<WDBrowsingContext> getBrowsingContexts() {
+        return WDBrowsingContexts;
     }
 
-    public List<UserContext> getUserContexts() {
-        return userContexts;
+    public List<WDUserContext> getUserContexts() {
+        return WDUserContexts;
     }
 
     public String getSandbox() {

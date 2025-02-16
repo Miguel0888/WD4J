@@ -1,28 +1,28 @@
 package wd4j.impl.webdriver.command.request.parameters.script;
 
-import wd4j.impl.webdriver.type.script.ResultOwnership;
-import wd4j.impl.webdriver.type.script.SerializationOptions;
-import wd4j.impl.webdriver.type.script.Target;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.script.WDResultOwnership;
+import wd4j.impl.webdriver.type.script.WDSerializationOptions;
+import wd4j.impl.webdriver.type.script.WDTarget;
+import wd4j.impl.websocket.WDCommand;
 
-public class EvaluateParameters implements Command.Params {
+public class EvaluateParameters implements WDCommand.Params {
     private final String expression;
-    private final Target target;
+    private final WDTarget WDTarget;
     private final boolean awaitPromise;
-    private final ResultOwnership resultOwnership; // Optional
-    private final SerializationOptions serializationOptions; // Optional
+    private final WDResultOwnership WDResultOwnership; // Optional
+    private final WDSerializationOptions WDSerializationOptions; // Optional
     private final boolean userActivation; // Optional, default false
 
-    public EvaluateParameters(String expression, Target target, boolean awaitPromise) {
-        this(expression, target, awaitPromise, null, null, false);
+    public EvaluateParameters(String expression, WDTarget WDTarget, boolean awaitPromise) {
+        this(expression, WDTarget, awaitPromise, null, null, false);
     }
 
-    public EvaluateParameters(String expression, Target target, boolean awaitPromise, ResultOwnership resultOwnership, SerializationOptions serializationOptions, boolean userActivation) {
+    public EvaluateParameters(String expression, WDTarget WDTarget, boolean awaitPromise, WDResultOwnership WDResultOwnership, WDSerializationOptions WDSerializationOptions, boolean userActivation) {
         this.expression = expression;
-        this.target = target;
+        this.WDTarget = WDTarget;
         this.awaitPromise = awaitPromise;
-        this.resultOwnership = resultOwnership;
-        this.serializationOptions = serializationOptions;
+        this.WDResultOwnership = WDResultOwnership;
+        this.WDSerializationOptions = WDSerializationOptions;
         this.userActivation = userActivation;
     }
 
@@ -30,20 +30,20 @@ public class EvaluateParameters implements Command.Params {
         return expression;
     }
 
-    public Target getTarget() {
-        return target;
+    public WDTarget getTarget() {
+        return WDTarget;
     }
 
     public boolean getAwaitPromise() {
         return awaitPromise;
     }
 
-    public ResultOwnership getResultOwnership() {
-        return resultOwnership;
+    public WDResultOwnership getResultOwnership() {
+        return WDResultOwnership;
     }
 
-    public SerializationOptions getSerializationOptions() {
-        return serializationOptions;
+    public WDSerializationOptions getSerializationOptions() {
+        return WDSerializationOptions;
     }
 
     public boolean getUserActivation() {

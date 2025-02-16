@@ -1,20 +1,20 @@
 package wd4j.impl.webdriver.command.request.parameters.input.sourceActions;
 
-import wd4j.impl.webdriver.type.input.ElementOrigin;
+import wd4j.impl.webdriver.type.input.WDElementOrigin;
 
 // ToDo: Maybe this is ElementOrigin instead of Origin?
 public class Origin {
     private final String origin;
-    private final ElementOrigin elementOrigin;
+    private final WDElementOrigin WDElementOrigin;
 
     public Origin( String origin ) {
         this.origin = origin;
-        this.elementOrigin = null;
+        this.WDElementOrigin = null;
     }
 
-    public Origin( ElementOrigin elementOrigin)
+    public Origin( WDElementOrigin WDElementOrigin)
     {
-        this.elementOrigin = elementOrigin;
+        this.WDElementOrigin = WDElementOrigin;
         this.origin = null;
     }
 

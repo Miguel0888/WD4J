@@ -2,11 +2,11 @@ package wd4j.impl.webdriver.command.request.parameters.storage;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import wd4j.impl.webdriver.type.network.BytesValue;
-import wd4j.impl.webdriver.type.network.SameSite;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.network.WDBytesValue;
+import wd4j.impl.webdriver.type.network.WDSameSite;
+import wd4j.impl.websocket.WDCommand;
 
-public class SetCookieParameters implements Command.Params {
+public class SetCookieParameters implements WDCommand.Params {
     private final PartialCookie cookie;
     private final PartitionDescriptor partition; // Optional
 
@@ -85,22 +85,22 @@ public class SetCookieParameters implements Command.Params {
     public static class PartialCookie {
 
         private String name;
-        private BytesValue value;
+        private WDBytesValue value;
         private String domain;
         private String path;
         private boolean httpOnly;
         private boolean secure;
-        private SameSite sameSite;
+        private WDSameSite WDSameSite;
         private int expiry;
 
-        public PartialCookie(String name, BytesValue value, String domain, String path, boolean httpOnly, boolean secure, SameSite sameSite, int expiry) {
+        public PartialCookie(String name, WDBytesValue value, String domain, String path, boolean httpOnly, boolean secure, WDSameSite WDSameSite, int expiry) {
             this.name = name;
             this.value = value;
             this.domain = domain;
             this.path = path;
             this.httpOnly = httpOnly;
             this.secure = secure;
-            this.sameSite = sameSite;
+            this.WDSameSite = WDSameSite;
             this.expiry = expiry;
         }
 
@@ -108,7 +108,7 @@ public class SetCookieParameters implements Command.Params {
             return name;
         }
 
-        public BytesValue getValue() {
+        public WDBytesValue getValue() {
             return value;
         }
 
@@ -128,8 +128,8 @@ public class SetCookieParameters implements Command.Params {
             return secure;
         }
 
-        public SameSite getSameSite() {
-            return sameSite;
+        public WDSameSite getSameSite() {
+            return WDSameSite;
         }
 
         public int getExpiry() {

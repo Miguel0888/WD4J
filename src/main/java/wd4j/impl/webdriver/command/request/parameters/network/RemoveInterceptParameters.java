@@ -1,16 +1,16 @@
 package wd4j.impl.webdriver.command.request.parameters.network;
 
-import wd4j.impl.webdriver.type.network.Intercept;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.network.WDIntercept;
+import wd4j.impl.websocket.WDCommand;
 
-public class RemoveInterceptParameters implements Command.Params {
-    private final Intercept intercept;
+public class RemoveInterceptParameters implements WDCommand.Params {
+    private final WDIntercept WDIntercept;
 
-    public RemoveInterceptParameters(Intercept intercept) {
-        this.intercept = intercept;
+    public RemoveInterceptParameters(WDIntercept WDIntercept) {
+        this.WDIntercept = WDIntercept;
     }
 
-    public Intercept getIntercept() {
-        return intercept;
+    public WDIntercept getIntercept() {
+        return WDIntercept;
     }
 }

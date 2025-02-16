@@ -1,48 +1,48 @@
 package wd4j.impl.webdriver.command.request.parameters.network;
 
-import wd4j.impl.webdriver.type.network.AuthCredentials;
-import wd4j.impl.webdriver.type.network.Header;
-import wd4j.impl.webdriver.type.network.Request;
-import wd4j.impl.webdriver.type.network.SetCookieHeader;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.network.WDAuthCredentials;
+import wd4j.impl.webdriver.type.network.WDHeader;
+import wd4j.impl.webdriver.type.network.WDRequest;
+import wd4j.impl.webdriver.type.network.WDSetCookieHeader;
+import wd4j.impl.websocket.WDCommand;
 
 import java.util.List;
 
-public class ContinueResponseParameters implements Command.Params {
-    private final Request request;
-    private final List<SetCookieHeader> cookies; // Optional
-    private final AuthCredentials rawResponse; // Optional
-    private final List<Header> responseHeaders; // Optional
+public class ContinueResponseParameters implements WDCommand.Params {
+    private final WDRequest WDRequest;
+    private final List<WDSetCookieHeader> cookies; // Optional
+    private final WDAuthCredentials rawResponse; // Optional
+    private final List<WDHeader> responseWDHeaders; // Optional
     private final String text; // Optional
     private final Integer statusCode; // Optional
 
-    public ContinueResponseParameters(Request request) {
-        this(request, null, null, null, null, null);
+    public ContinueResponseParameters(WDRequest WDRequest) {
+        this(WDRequest, null, null, null, null, null);
     }
 
-    public ContinueResponseParameters(Request request, List<SetCookieHeader> cookies, AuthCredentials rawResponse, List<Header> responseHeaders, String text, Integer statusCode) {
-        this.request = request;
+    public ContinueResponseParameters(WDRequest WDRequest, List<WDSetCookieHeader> cookies, WDAuthCredentials rawResponse, List<WDHeader> responseWDHeaders, String text, Integer statusCode) {
+        this.WDRequest = WDRequest;
         this.cookies = cookies;
         this.rawResponse = rawResponse;
-        this.responseHeaders = responseHeaders;
+        this.responseWDHeaders = responseWDHeaders;
         this.text = text;
         this.statusCode = statusCode;
     }
 
-    public Request getRequest() {
-        return request;
+    public WDRequest getRequest() {
+        return WDRequest;
     }
 
-    public List<SetCookieHeader> getCookies() {
+    public List<WDSetCookieHeader> getCookies() {
         return cookies;
     }
 
-    public AuthCredentials getRawResponse() {
+    public WDAuthCredentials getRawResponse() {
         return rawResponse;
     }
 
-    public List<Header> getResponseHeaders() {
-        return responseHeaders;
+    public List<WDHeader> getResponseHeaders() {
+        return responseWDHeaders;
     }
 
     public String getText() {

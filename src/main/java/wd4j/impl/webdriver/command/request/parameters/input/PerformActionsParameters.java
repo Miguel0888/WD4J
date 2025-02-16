@@ -1,21 +1,21 @@
 package wd4j.impl.webdriver.command.request.parameters.input;
 
-import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.websocket.WDCommand;
 
 import java.util.List;
 
-public class PerformActionsParameters implements Command.Params {
-    private final BrowsingContext browsingContext;
+public class PerformActionsParameters implements WDCommand.Params {
+    private final WDBrowsingContext WDBrowsingContext;
     private final List<SourceActions> actions;
 
-    public PerformActionsParameters(BrowsingContext browsingContext, List<SourceActions> actions) {
-        this.browsingContext = browsingContext;
+    public PerformActionsParameters(WDBrowsingContext WDBrowsingContext, List<SourceActions> actions) {
+        this.WDBrowsingContext = WDBrowsingContext;
         this.actions = actions;
     }
 
-    public BrowsingContext getBrowsingContext() {
-        return browsingContext;
+    public WDBrowsingContext getBrowsingContext() {
+        return WDBrowsingContext;
     }
 
     public abstract static class SourceActions {

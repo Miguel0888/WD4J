@@ -1,8 +1,8 @@
 package wd4j.impl.webdriver.command.request.parameters.storage;
 
-import wd4j.impl.websocket.Command;
+import wd4j.impl.websocket.WDCommand;
 
-public class DeleteCookiesParameters implements Command.Params {
+public class DeleteCookiesParameters implements WDCommand.Params {
     private final CookieFilter filter; // Optional
     private final PartitionDescriptor partition; // Optional
 

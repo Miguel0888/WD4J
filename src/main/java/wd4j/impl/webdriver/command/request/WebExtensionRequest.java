@@ -1,12 +1,11 @@
 package wd4j.impl.webdriver.command.request;
 
-import wd4j.impl.markerInterfaces.CommandData;
-import wd4j.impl.webdriver.command.request.helper.CommandImpl;
+import wd4j.impl.markerInterfaces.WDCommandData;
+import wd4j.impl.webdriver.command.request.helper.WDCommandImpl;
 import wd4j.impl.webdriver.command.request.parameters.webExtension.ExtensionData;
 import wd4j.impl.webdriver.command.request.parameters.webExtension.InstallParameters;
 import wd4j.impl.webdriver.command.request.parameters.webExtension.UninstallParameters;
-import wd4j.impl.webdriver.type.webExtension.Extension;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.webExtension.WDExtension;
 
 public class WebExtensionRequest {
 
@@ -14,15 +13,15 @@ public class WebExtensionRequest {
     // Commands (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class Install extends CommandImpl<InstallParameters> implements CommandData {
+    public static class Install extends WDCommandImpl<InstallParameters> implements WDCommandData {
         public Install(ExtensionData extensionData) {
             super("webExtension.install", new InstallParameters(extensionData));
         }
     }
 
-    public static class Uninstall extends CommandImpl<UninstallParameters> implements CommandData {
-        public Uninstall(Extension extension) {
-            super("webExtension.uninstall", new UninstallParameters(extension));
+    public static class Uninstall extends WDCommandImpl<UninstallParameters> implements WDCommandData {
+        public Uninstall(WDExtension WDExtension) {
+            super("webExtension.uninstall", new UninstallParameters(WDExtension));
         }
     }
 

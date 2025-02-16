@@ -1,38 +1,38 @@
 package wd4j.impl.webdriver.command.request.parameters.network;
 
-import wd4j.impl.webdriver.type.network.BytesValue;
-import wd4j.impl.webdriver.type.network.Header;
-import wd4j.impl.webdriver.type.network.Request;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.network.WDBytesValue;
+import wd4j.impl.webdriver.type.network.WDHeader;
+import wd4j.impl.webdriver.type.network.WDRequest;
+import wd4j.impl.websocket.WDCommand;
 
 import java.util.List;
 
-public class ContinueRequestParameters implements Command.Params {
-    private final Request request;
-    private final BytesValue body; // Optional
+public class ContinueRequestParameters implements WDCommand.Params {
+    private final WDRequest WDRequest;
+    private final WDBytesValue body; // Optional
     private final List<CookieHeader> cookies; // Optional
-    private final List<Header> headers; // Optional
+    private final List<WDHeader> WDHeaders; // Optional
     private final String method; // Optional
     private final String url;
 
-    public ContinueRequestParameters(Request request) {
-        this(request, null, null, null, null, null);
+    public ContinueRequestParameters(WDRequest WDRequest) {
+        this(WDRequest, null, null, null, null, null);
     }
 
-    public ContinueRequestParameters(Request request, BytesValue body, List<CookieHeader> cookies, List<Header> headers, String method, String url) {
-        this.request = request;
+    public ContinueRequestParameters(WDRequest WDRequest, WDBytesValue body, List<CookieHeader> cookies, List<WDHeader> WDHeaders, String method, String url) {
+        this.WDRequest = WDRequest;
         this.body = body;
         this.cookies = cookies;
-        this.headers = headers;
+        this.WDHeaders = WDHeaders;
         this.method = method;
         this.url = url;
     }
 
-    public Request getRequest() {
-        return request;
+    public WDRequest getRequest() {
+        return WDRequest;
     }
 
-    public BytesValue getBody() {
+    public WDBytesValue getBody() {
         return body;
     }
 
@@ -40,8 +40,8 @@ public class ContinueRequestParameters implements Command.Params {
         return cookies;
     }
 
-    public List<Header> getHeaders() {
-        return headers;
+    public List<WDHeader> getHeaders() {
+        return WDHeaders;
     }
 
     public String getMethod() {

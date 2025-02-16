@@ -5,10 +5,10 @@ import wd4j.api.options.Cookie;
 import wd4j.api.options.FunctionCallback;
 import wd4j.api.options.Geolocation;
 import wd4j.api.*;
-import wd4j.impl.manager.SessionManager;
+import wd4j.impl.manager.WDSessionManager;
 import wd4j.impl.support.EventDispatcher;
-import wd4j.impl.webdriver.command.response.SessionResult;
-import wd4j.impl.websocket.CommunicationManager;
+import wd4j.impl.webdriver.command.response.WDSessionResult;
+import wd4j.impl.websocket.WebSocketManager;
 import wd4j.override.BrowserSession;
 
 import java.nio.file.Path;
@@ -31,8 +31,8 @@ import java.util.regex.Pattern;
  */
 public class BrowserSessionImpl implements BrowserSession {
     //ToDo: Move support.BrowserSession Class in here..
-    private final CommunicationManager communicationManager;
-    private final SessionManager sessionManager;
+    private final WebSocketManager webSocketManager;
+    private final WDSessionManager WDSessionManager;
     private final BrowserImpl browser;
     private final EventDispatcher dispatcher = new EventDispatcher();
     private final List<PageImpl> pages = new ArrayList<>(); // aka. contexts in WebDriver BiDi
@@ -41,12 +41,12 @@ public class BrowserSessionImpl implements BrowserSession {
     private String sessionId;
     private String defaultContextId; // ToDo: If found, it should be used to create a new page with this id
 
-    public BrowserSessionImpl(CommunicationManager communicationManager, BrowserImpl browser) {
-        this(communicationManager, browser, null);
+    public BrowserSessionImpl(WebSocketManager webSocketManager, BrowserImpl browser) {
+        this(webSocketManager, browser, null);
     }
 
-    public BrowserSessionImpl(CommunicationManager communicationManager, BrowserImpl browser, Browser.NewContextOptions options) {
-        this.communicationManager = communicationManager;
+    public BrowserSessionImpl(WebSocketManager webSocketManager, BrowserImpl browser, Browser.NewContextOptions options) {
+        this.webSocketManager = webSocketManager;
         this.browser = browser;
 
         String browserName = browser.browserType().name();
@@ -56,7 +56,7 @@ public class BrowserSessionImpl implements BrowserSession {
         }
 
         try {
-            this.sessionManager = new SessionManager(communicationManager);
+            this.WDSessionManager = new WDSessionManager(webSocketManager);
             fetchDefaultSession(browserName);
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
@@ -70,7 +70,7 @@ public class BrowserSessionImpl implements BrowserSession {
         if (isClosed) {
             throw new PlaywrightException("BrowserContext is closed");
         }
-        PageImpl page = new PageImpl(communicationManager, this);
+        PageImpl page = new PageImpl(webSocketManager, this);
         pages.add(page);
         return page;
     }
@@ -391,18 +391,18 @@ public class BrowserSessionImpl implements BrowserSession {
         return browser;
     }
 
-    public SessionManager getSessionManager() {
-        return sessionManager;
+    public WDSessionManager getSessionManager() {
+        return WDSessionManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public <T> void addEventListener(String eventName, Consumer<T> handler, Class<T> eventClass, SessionManager sessionManager) {
-        dispatcher.addEventListener(eventName, handler, eventClass, sessionManager);
+    public <T> void addEventListener(String eventName, Consumer<T> handler, Class<T> eventClass, WDSessionManager WDSessionManager) {
+        dispatcher.addEventListener(eventName, handler, eventClass, WDSessionManager);
     }
 
-    public <T> void removeEventListener(String eventType, Consumer<T> listener, SessionManager sessionManager) {
-        dispatcher.removeEventListener(eventType, listener, sessionManager);
+    public <T> void removeEventListener(String eventType, Consumer<T> listener, WDSessionManager WDSessionManager) {
+        dispatcher.removeEventListener(eventType, listener, WDSessionManager);
     }
 
     /**
@@ -414,7 +414,7 @@ public class BrowserSessionImpl implements BrowserSession {
      */
     private void fetchDefaultSession(String browserName) throws InterruptedException, ExecutionException {
         // Create a new session
-        SessionResult.NewResult sessionResponse = sessionManager.newSession(browserName); // ToDo: Does not work with Chrome!
+        WDSessionResult.NewWDSessionResult sessionResponse = WDSessionManager.newSession(browserName); // ToDo: Does not work with Chrome!
 
         // Kontext-ID extrahieren oder neuen Kontext erstellen
         sessionId = processSessionResponse(sessionResponse);
@@ -425,7 +425,7 @@ public class BrowserSessionImpl implements BrowserSession {
         }
     }
 
-    private String processSessionResponse(SessionResult.NewResult sessionResponse) {
+    private String processSessionResponse(WDSessionResult.NewWDSessionResult sessionResponse) {
         if (sessionResponse == null) {
             throw new IllegalArgumentException("SessionResponse darf nicht null sein!");
         }

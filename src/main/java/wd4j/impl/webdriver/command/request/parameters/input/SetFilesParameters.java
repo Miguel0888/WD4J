@@ -1,27 +1,27 @@
 package wd4j.impl.webdriver.command.request.parameters.input;
 
-import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
-import wd4j.impl.webdriver.type.script.RemoteReference;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.script.WDRemoteReference;
+import wd4j.impl.websocket.WDCommand;
 
 import java.util.List;
 
-public class SetFilesParameters implements Command.Params {
-    public final BrowsingContext browsingContext;
-    public final RemoteReference.SharedReference sharedReference;
+public class SetFilesParameters implements WDCommand.Params {
+    public final WDBrowsingContext WDBrowsingContext;
+    public final WDRemoteReference.SharedReferenceWD sharedReference;
     List<String> files;
 
-    public SetFilesParameters(BrowsingContext browsingContext, RemoteReference.SharedReference sharedReference, List<String> files) {
-        this.browsingContext = browsingContext;
+    public SetFilesParameters(WDBrowsingContext WDBrowsingContext, WDRemoteReference.SharedReferenceWD sharedReference, List<String> files) {
+        this.WDBrowsingContext = WDBrowsingContext;
         this.sharedReference = sharedReference;
         this.files = files;
     }
 
-    public BrowsingContext getBrowsingContext() {
-        return browsingContext;
+    public WDBrowsingContext getBrowsingContext() {
+        return WDBrowsingContext;
     }
 
-    public RemoteReference.SharedReference getSharedReference() {
+    public WDRemoteReference.SharedReferenceWD getSharedReference() {
         return sharedReference;
     }
 

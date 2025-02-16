@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import wd4j.api.*;
-import wd4j.impl.websocket.Command;
 
 import java.net.URI;
 import java.util.*;

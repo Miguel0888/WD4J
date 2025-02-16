@@ -1,28 +1,28 @@
 package wd4j.impl.webdriver.command.request.parameters.browsingContext;
 
 import wd4j.impl.webdriver.mapping.EnumWrapper;
-import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
-import wd4j.impl.webdriver.type.script.RemoteReference;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.script.WDRemoteReference;
+import wd4j.impl.websocket.WDCommand;
 
-public class CaptureScreenshotParameters implements Command.Params {
-    private final BrowsingContext context;
+public class CaptureScreenshotParameters implements WDCommand.Params {
+    private final WDBrowsingContext context;
     private final Origin origin; // optional
     private final ImageFormat format; // optional
     private final ClipRectangle clip; // optional
 
-    public CaptureScreenshotParameters(BrowsingContext context) {
+    public CaptureScreenshotParameters(WDBrowsingContext context) {
         this(context, null, null, null);
     }
 
-    public CaptureScreenshotParameters(BrowsingContext context, Origin origin, ImageFormat format, ClipRectangle clip) {
+    public CaptureScreenshotParameters(WDBrowsingContext context, Origin origin, ImageFormat format, ClipRectangle clip) {
         this.context = context;
         this.origin = origin;
         this.format = format;
         this.clip = clip;
     }
 
-    public BrowsingContext getContext() {
+    public WDBrowsingContext getContext() {
         return context;
     }
 
@@ -58,9 +58,9 @@ public class CaptureScreenshotParameters implements Command.Params {
 
         class ElementClipRectangle implements ClipRectangle {
             private final String type = "element";
-            private final RemoteReference.SharedReference element;
+            private final WDRemoteReference.SharedReferenceWD element;
 
-            public ElementClipRectangle(RemoteReference.SharedReference element) {
+            public ElementClipRectangle(WDRemoteReference.SharedReferenceWD element) {
                 this.element = element;
             }
 
@@ -68,7 +68,7 @@ public class CaptureScreenshotParameters implements Command.Params {
                 return type;
             }
 
-            public RemoteReference.SharedReference getElement() {
+            public WDRemoteReference.SharedReferenceWD getElement() {
                 return element;
             }
         }

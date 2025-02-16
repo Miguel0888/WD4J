@@ -1,14 +1,14 @@
 package wd4j.impl.webdriver.command.request.parameters.network;
 
 import wd4j.impl.webdriver.mapping.EnumWrapper;
-import wd4j.impl.webdriver.type.network.Request;
+import wd4j.impl.webdriver.type.network.WDRequest;
 
 public class ContinueWithAuthNoCredentials extends ContinueWithAuthParameters
 {
     private final Action action;
 
-    public ContinueWithAuthNoCredentials(Request request, Action action) {
-        super(request);
+    public ContinueWithAuthNoCredentials(WDRequest WDRequest, Action action) {
+        super(WDRequest);
         this.action = action;
     }
 

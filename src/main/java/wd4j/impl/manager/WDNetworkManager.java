@@ -1,0 +1,159 @@
+package wd4j.impl.manager;
+
+import wd4j.impl.markerInterfaces.WDModule;
+import wd4j.impl.webdriver.command.request.NetworkRequest;
+import wd4j.impl.webdriver.command.request.parameters.network.AddInterceptParameters;
+import wd4j.impl.webdriver.command.request.parameters.network.SetCacheBehaviorParameters;
+import wd4j.impl.webdriver.type.network.WDAuthCredentials;
+import wd4j.impl.websocket.WebSocketManager;
+
+import java.util.List;
+
+public class WDNetworkManager implements WDModule {
+
+    private final WebSocketManager webSocketManager;
+
+    public WDNetworkManager(WebSocketManager webSocketManager) {
+        this.webSocketManager = webSocketManager;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Event Handlers
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Commands
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Adds an intercept for network requests matching the given URL pattern.
+     *
+     * @param phases The phases to intercept.
+     *
+     * @throws RuntimeException if the operation fails.
+     */
+    public void addIntercept(List<AddInterceptParameters.InterceptPhase> phases) {
+        try {
+            webSocketManager.sendAndWaitForResponse(new NetworkRequest.AddIntercept(phases), String.class);
+            System.out.println("Intercept added for intercept phases: " + phases);
+        } catch (RuntimeException e) {
+            System.out.println("Error adding intercept: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Continues a network request with the given request ID.
+     *
+     * @param requestId The ID of the request to continue.
+     * @throws RuntimeException if the operation fails.
+     */
+    public void continueRequest(String requestId) {
+        try {
+            webSocketManager.sendAndWaitForResponse(new NetworkRequest.ContinueRequest(requestId), String.class);
+            System.out.println("Request continued: " + requestId);
+        } catch (RuntimeException e) {
+            System.out.println("Error continuing request: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Continues a network response with the given request ID.
+     *
+     * @param requestId The ID of the response to continue.
+     * @throws RuntimeException if the operation fails.
+     */
+    public void continueResponse(String requestId) {
+        try {
+            webSocketManager.sendAndWaitForResponse(new NetworkRequest.ContinueResponse(requestId), String.class);
+            System.out.println("Response continued: " + requestId);
+        } catch (RuntimeException e) {
+            System.out.println("Error continuing response: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Continues a network request with authentication challenge response.
+     *
+     * @param requestId              The ID of the request.
+     * @param authChallengeResponse  The authentication challenge response.
+     * @throws RuntimeException if the operation fails.
+     */
+    public void continueWithAuth(String requestId, WDAuthCredentials authChallengeResponse) {
+        try {
+            webSocketManager.sendAndWaitForResponse(new NetworkRequest.ContinueWithAuth(requestId, authChallengeResponse), String.class);
+            System.out.println("Request continued with authentication: " + requestId);
+        } catch (RuntimeException e) {
+            System.out.println("Error continuing with authentication: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Fails a network request with the given request ID.
+     *
+     * @param requestId The ID of the request to fail.
+     * @throws RuntimeException if the operation fails.
+     */
+    public void failRequest(String requestId) {
+        try {
+            webSocketManager.sendAndWaitForResponse(new NetworkRequest.FailRequest(requestId), String.class);
+            System.out.println("Request failed: " + requestId);
+        } catch (RuntimeException e) {
+            System.out.println("Error failing request: " + e.getMessage());
+            throw e;
+        }
+    }
+
+
+    /**
+     * Provides a custom response for a network request.
+     *
+     * @param requestId   The ID of the request to respond to.
+     * @throws RuntimeException if the operation fails.
+     */
+    public void provideResponse(String requestId) {
+        try {
+            webSocketManager.sendAndWaitForResponse(new NetworkRequest.ProvideResponse(requestId), String.class);
+            System.out.println("Response provided for request: " + requestId);
+        } catch (RuntimeException e) {
+            System.out.println("Error providing response: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Removes a previously added intercept.
+     *
+     * @param interceptId The ID of the intercept to remove.
+     * @throws RuntimeException if the operation fails.
+     */
+    public void removeIntercept(String interceptId) {
+        try {
+            webSocketManager.sendAndWaitForResponse(new NetworkRequest.RemoveIntercept(interceptId), String.class);
+            System.out.println("Intercept removed: " + interceptId);
+        } catch (RuntimeException e) {
+            System.out.println("Error removing intercept: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Sets the cache behavior for the given context.
+     *
+     * @param cacheBehavior The cache behavior to set.
+     *
+     * @throws RuntimeException if the operation fails.
+     */
+    public void setCacheBehavior(SetCacheBehaviorParameters.CacheBehavior cacheBehavior) {
+        try {
+            webSocketManager.sendAndWaitForResponse(new NetworkRequest.SetCacheBehavior(cacheBehavior), String.class);
+        } catch (RuntimeException e) {
+            System.out.println("Error setting cache behavior: " + e.getMessage());
+            throw e;
+        }
+    }
+}

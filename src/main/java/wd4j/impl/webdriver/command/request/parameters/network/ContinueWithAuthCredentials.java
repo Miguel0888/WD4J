@@ -1,14 +1,14 @@
 package wd4j.impl.webdriver.command.request.parameters.network;
 
-import wd4j.impl.webdriver.type.network.AuthCredentials;
-import wd4j.impl.webdriver.type.network.Request;
+import wd4j.impl.webdriver.type.network.WDAuthCredentials;
+import wd4j.impl.webdriver.type.network.WDRequest;
 
 public class ContinueWithAuthCredentials extends ContinueWithAuthParameters {
     private final Action action = Action.PROVIDE_CREDENTIALS;
-    private final AuthCredentials credentials;
+    private final WDAuthCredentials credentials;
 
-    public ContinueWithAuthCredentials(Request request, AuthCredentials credentials) {
-        super(request);
+    public ContinueWithAuthCredentials(WDRequest WDRequest, WDAuthCredentials credentials) {
+        super(WDRequest);
         this.credentials = credentials;
     }
 
@@ -16,7 +16,7 @@ public class ContinueWithAuthCredentials extends ContinueWithAuthParameters {
         return action;
     }
 
-    public AuthCredentials getCredentials() {
+    public WDAuthCredentials getCredentials() {
         return credentials;
     }
 

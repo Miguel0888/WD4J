@@ -1,24 +1,24 @@
 package wd4j.impl.webdriver.command.request.parameters.browsingContext;
 
-import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.websocket.WDCommand;
 
-public class SetViewportParameters implements Command.Params {
-    private final BrowsingContext context;
+public class SetViewportParameters implements WDCommand.Params {
+    private final WDBrowsingContext context;
     private final Viewport viewport; // optional
     private final Float devicePixelRatio; // optional
 
-    public SetViewportParameters(BrowsingContext context) {
+    public SetViewportParameters(WDBrowsingContext context) {
         this(context, null, null);
     }
 
-    public SetViewportParameters(BrowsingContext context, Viewport viewport, Float devicePixelRatio) {
+    public SetViewportParameters(WDBrowsingContext context, Viewport viewport, Float devicePixelRatio) {
         this.context = context;
         this.viewport = viewport;
         this.devicePixelRatio = devicePixelRatio;
     }
 
-    public BrowsingContext getContext() {
+    public WDBrowsingContext getContext() {
         return context;
     }
 

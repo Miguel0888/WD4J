@@ -1,25 +1,25 @@
 package wd4j.impl.webdriver.command.request.parameters.storage;
 
-import wd4j.impl.webdriver.type.network.BytesValue;
-import wd4j.impl.webdriver.type.network.SameSite;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.network.WDBytesValue;
+import wd4j.impl.webdriver.type.network.WDSameSite;
+import wd4j.impl.websocket.WDCommand;
 
-public class CookieFilter implements Command.Params {
+public class CookieFilter implements WDCommand.Params {
     private final String name; // Optional
-    private final BytesValue value; // Optional
+    private final WDBytesValue value; // Optional
     private final String domain; // Optional
     private final String path; // Optional
     private final Integer size; // Optional
     private final Boolean httpOnly; // Optional
     private final Boolean secure; // Optional
-    private final SameSite sameSite; // Optional
+    private final WDSameSite WDSameSite; // Optional
     private final Integer expiry; // Optional
 
     public CookieFilter() {
         this(null, null, null, null, null, null, null, null, null);
     }
 
-    public CookieFilter(String name, BytesValue value, String domain, String path, Integer size, Boolean httpOnly, Boolean secure, SameSite sameSite, Integer expiry) {
+    public CookieFilter(String name, WDBytesValue value, String domain, String path, Integer size, Boolean httpOnly, Boolean secure, WDSameSite WDSameSite, Integer expiry) {
         this.name = name;
         this.value = value;
         this.domain = domain;
@@ -27,7 +27,7 @@ public class CookieFilter implements Command.Params {
         this.size = size;
         this.httpOnly = httpOnly;
         this.secure = secure;
-        this.sameSite = sameSite;
+        this.WDSameSite = WDSameSite;
         this.expiry = expiry;
     }
 
@@ -35,7 +35,7 @@ public class CookieFilter implements Command.Params {
         return name;
     }
 
-    public BytesValue getValue() {
+    public WDBytesValue getValue() {
         return value;
     }
 
@@ -59,8 +59,8 @@ public class CookieFilter implements Command.Params {
         return secure;
     }
 
-    public SameSite getSameSite() {
-        return sameSite;
+    public WDSameSite getSameSite() {
+        return WDSameSite;
     }
 
     public Integer getExpiry() {

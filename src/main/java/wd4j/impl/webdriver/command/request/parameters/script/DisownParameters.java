@@ -1,25 +1,25 @@
 package wd4j.impl.webdriver.command.request.parameters.script;
 
-import wd4j.impl.webdriver.type.script.Handle;
-import wd4j.impl.webdriver.type.script.Target;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.script.WDHandle;
+import wd4j.impl.webdriver.type.script.WDTarget;
+import wd4j.impl.websocket.WDCommand;
 
 import java.util.List;
 
-public class DisownParameters implements Command.Params {
-    private final List<Handle> handles;
-    private final Target target;
+public class DisownParameters implements WDCommand.Params {
+    private final List<WDHandle> WDHandles;
+    private final WDTarget WDTarget;
 
-    public DisownParameters(List<Handle> handles, Target target) {
-        this.handles = handles;
-        this.target = target;
+    public DisownParameters(List<WDHandle> WDHandles, WDTarget WDTarget) {
+        this.WDHandles = WDHandles;
+        this.WDTarget = WDTarget;
     }
 
-    public List<Handle> getHandles() {
-        return handles;
+    public List<WDHandle> getHandles() {
+        return WDHandles;
     }
 
-    public Target getTarget() {
-        return target;
+    public WDTarget getTarget() {
+        return WDTarget;
     }
 }

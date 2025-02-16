@@ -1,26 +1,25 @@
 package wd4j.impl.webdriver.command.request.parameters.browsingContext;
 
-import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
-import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
-import wd4j.impl.webdriver.type.browsingContext.ReadinessState;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.browsingContext.WDReadinessState;
+import wd4j.impl.websocket.WDCommand;
 
-public class NavigateParameters implements Command.Params {
-    private final BrowsingContext context;
+public class NavigateParameters implements WDCommand.Params {
+    private final WDBrowsingContext context;
     private final String url;
-    private final ReadinessState wait; // Optional
+    private final WDReadinessState wait; // Optional
 
-    public NavigateParameters(BrowsingContext context, String url) {
+    public NavigateParameters(WDBrowsingContext context, String url) {
         this(context, url, null);
     }
 
-    public NavigateParameters(BrowsingContext context, String url, ReadinessState wait) {
+    public NavigateParameters(WDBrowsingContext context, String url, WDReadinessState wait) {
         this.context = context;
         this.url = url;
         this.wait = wait;
     }
 
-    public BrowsingContext getContext() {
+    public WDBrowsingContext getContext() {
         return context;
     }
 
@@ -28,7 +27,7 @@ public class NavigateParameters implements Command.Params {
         return url;
     }
 
-    public ReadinessState getWait() {
+    public WDReadinessState getWait() {
         return wait;
     }
 }

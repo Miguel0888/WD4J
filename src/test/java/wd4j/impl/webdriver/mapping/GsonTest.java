@@ -2,7 +2,6 @@ package wd4j.impl.webdriver.mapping;
 
 import com.google.gson.Gson;
 import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
-import wd4j.impl.webdriver.type.browsingContext.ReadinessState;
 
 public class GsonTest {
     public static void main(String[] args) {

@@ -1,15 +1,15 @@
 package wd4j.impl.playwright;
 
 import com.google.gson.JsonObject;
-import wd4j.impl.manager.BrowsingContextManager;
+import wd4j.impl.manager.WDBrowsingContextManager;
 import wd4j.api.*;
 import wd4j.api.options.*;
-import wd4j.impl.manager.SessionManager;
-import wd4j.impl.webdriver.event.MethodEvent;
+import wd4j.impl.manager.WDSessionManager;
+import wd4j.impl.webdriver.event.WDMethodEvent;
 import wd4j.impl.support.JsonToPlaywrightMapper;
-import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
-import wd4j.impl.webdriver.type.script.Target;
-import wd4j.impl.websocket.CommunicationManager;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.script.WDTarget;
+import wd4j.impl.websocket.WebSocketManager;
 
 import java.nio.file.Path;
 import java.util.Base64;
@@ -22,20 +22,20 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 class PageImpl implements Page {
-    private final CommunicationManager communicationManager;
+    private final WebSocketManager webSocketManager;
     private final String pageId; // aka. page in Chromium DevTools Protocol
 
     private final BrowserSessionImpl session;
-    private final SessionManager sessionManager;
-    private final BrowsingContextManager browsingContextManager;
+    private final WDSessionManager WDSessionManager;
+    private final WDBrowsingContextManager WDBrowsingContextManager;
     private boolean isClosed;
     private String url;
 
-    public PageImpl(CommunicationManager communicationManager, BrowserSessionImpl session) {
-        this.communicationManager = communicationManager;
+    public PageImpl(WebSocketManager webSocketManager, BrowserSessionImpl session) {
+        this.webSocketManager = webSocketManager;
         this.session = session;
-        this.sessionManager = session.getSessionManager(); // ToDo: improve this!
-        this.browsingContextManager = new BrowsingContextManager(communicationManager); // ToDo: improve this!
+        this.WDSessionManager = session.getSessionManager(); // ToDo: improve this!
+        this.WDBrowsingContextManager = new WDBrowsingContextManager(webSocketManager); // ToDo: improve this!
 
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
@@ -45,7 +45,7 @@ class PageImpl implements Page {
 
     private String initPage() {
         // Create a new browsing context
-        return browsingContextManager.create();
+        return WDBrowsingContextManager.create();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -55,168 +55,168 @@ class PageImpl implements Page {
     @Override
     public void onClose(Consumer<Page> handler) {
         if (handler != null) {
-            session.addEventListener(MethodEvent.CONTEXT_DESTROYED.getName(), handler, Page.class, sessionManager);
+            session.addEventListener(WDMethodEvent.CONTEXT_DESTROYED.getName(), handler, Page.class, WDSessionManager);
         }
     }
 
     @Override
     public void offClose(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(MethodEvent.CONTEXT_DESTROYED.getName(), handler, sessionManager);
+            session.removeEventListener(WDMethodEvent.CONTEXT_DESTROYED.getName(), handler, WDSessionManager);
         }
     }
 
     @Override
     public void onConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
-            session.addEventListener(MethodEvent.ENTRY_ADDED.getName(), handler, ConsoleMessage.class, sessionManager);
+            session.addEventListener(WDMethodEvent.ENTRY_ADDED.getName(), handler, ConsoleMessage.class, WDSessionManager);
         }
     }
 
     @Override
     public void offConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
-            session.removeEventListener(MethodEvent.ENTRY_ADDED.getName(), handler, sessionManager);
+            session.removeEventListener(WDMethodEvent.ENTRY_ADDED.getName(), handler, WDSessionManager);
         }
     }
 
     @Override
     public void onCrash(Consumer<Page> handler) {
         if (handler != null) {
-            session.addEventListener(MethodEvent.NAVIGATION_FAILED.getName(), handler, Page.class, sessionManager);
+            session.addEventListener(WDMethodEvent.NAVIGATION_FAILED.getName(), handler, Page.class, WDSessionManager);
         }
     }
 
     @Override
     public void offCrash(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(MethodEvent.NAVIGATION_FAILED.getName(), handler, sessionManager);
+            session.removeEventListener(WDMethodEvent.NAVIGATION_FAILED.getName(), handler, WDSessionManager);
         }
     }
 
     @Override
     public void onDialog(Consumer<Dialog> handler) {
         if (handler != null) {
-            session.addEventListener(MethodEvent.USER_PROMPT_OPENED.getName(), handler, Dialog.class, sessionManager);
+            session.addEventListener(WDMethodEvent.USER_PROMPT_OPENED.getName(), handler, Dialog.class, WDSessionManager);
         }
     }
 
     @Override
     public void offDialog(Consumer<Dialog> handler) {
         if (handler != null) {
-            session.removeEventListener(MethodEvent.USER_PROMPT_OPENED.getName(), handler, sessionManager);
+            session.removeEventListener(WDMethodEvent.USER_PROMPT_OPENED.getName(), handler, WDSessionManager);
         }
     }
 
     @Override
     public void onDOMContentLoaded(Consumer<Page> handler) {
         if (handler != null) {
-            session.addEventListener(MethodEvent.DOM_CONTENT_LOADED.getName(), handler, Page.class, sessionManager);
+            session.addEventListener(WDMethodEvent.DOM_CONTENT_LOADED.getName(), handler, Page.class, WDSessionManager);
         }
     }
 
     @Override
     public void offDOMContentLoaded(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(MethodEvent.DOM_CONTENT_LOADED.getName(), handler, sessionManager);
+            session.removeEventListener(WDMethodEvent.DOM_CONTENT_LOADED.getName(), handler, WDSessionManager);
         }
     }
 
     @Override
     public void onLoad(Consumer<Page> handler) {
         if (handler != null) {
-            session.addEventListener(MethodEvent.LOAD.getName(), handler, Page.class, sessionManager);
+            session.addEventListener(WDMethodEvent.LOAD.getName(), handler, Page.class, WDSessionManager);
         }
     }
 
     @Override
     public void offLoad(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(MethodEvent.LOAD.getName(), handler, sessionManager);
+            session.removeEventListener(WDMethodEvent.LOAD.getName(), handler, WDSessionManager);
         }
     }
 
     @Override
     public void onRequest(Consumer<Request> handler) {
         if (handler != null) {
-            session.addEventListener(MethodEvent.BEFORE_REQUEST_SENT.getName(), handler, Request.class, sessionManager);
+            session.addEventListener(WDMethodEvent.BEFORE_REQUEST_SENT.getName(), handler, Request.class, WDSessionManager);
         }
     }
 
     @Override
     public void offRequest(Consumer<Request> handler) {
         if (handler != null) {
-            session.removeEventListener(MethodEvent.BEFORE_REQUEST_SENT.getName(), handler, sessionManager);
+            session.removeEventListener(WDMethodEvent.BEFORE_REQUEST_SENT.getName(), handler, WDSessionManager);
         }
     }
 
     @Override
     public void onRequestFailed(Consumer<Request> handler) {
         if (handler != null) {
-            session.addEventListener(MethodEvent.FETCH_ERROR.getName(), handler, Request.class, sessionManager);
+            session.addEventListener(WDMethodEvent.FETCH_ERROR.getName(), handler, Request.class, WDSessionManager);
         }
     }
 
     @Override
     public void offRequestFailed(Consumer<Request> handler) {
         if (handler != null) {
-            session.removeEventListener(MethodEvent.FETCH_ERROR.getName(), handler, sessionManager);
+            session.removeEventListener(WDMethodEvent.FETCH_ERROR.getName(), handler, WDSessionManager);
         }
     }
 
     @Override
     public void onRequestFinished(Consumer<Request> handler) {
         if (handler != null) {
-            session.addEventListener(MethodEvent.RESPONSE_COMPLETED.getName(), handler, Request.class, sessionManager);
+            session.addEventListener(WDMethodEvent.RESPONSE_COMPLETED.getName(), handler, Request.class, WDSessionManager);
         }
     }
 
     @Override
     public void offRequestFinished(Consumer<Request> handler) {
         if (handler != null) {
-            session.removeEventListener(MethodEvent.RESPONSE_COMPLETED.getName(), handler, sessionManager);
+            session.removeEventListener(WDMethodEvent.RESPONSE_COMPLETED.getName(), handler, WDSessionManager);
         }
     }
 
     @Override
     public void onResponse(Consumer<Response> handler) {
         if (handler != null) {
-            session.addEventListener(MethodEvent.RESPONSE_STARTED.getName(), handler, Response.class, sessionManager);
+            session.addEventListener(WDMethodEvent.RESPONSE_STARTED.getName(), handler, Response.class, WDSessionManager);
         }
     }
 
     @Override
     public void offResponse(Consumer<Response> handler) {
         if (handler != null) {
-            session.removeEventListener(MethodEvent.RESPONSE_STARTED.getName(), handler, sessionManager);
+            session.removeEventListener(WDMethodEvent.RESPONSE_STARTED.getName(), handler, WDSessionManager);
         }
     }
 
     @Override
     public void onWebSocket(Consumer<WebSocket> handler) {
         if (handler != null) {
-            session.addEventListener(MethodEvent.CONTEXT_CREATED.getName(), handler, WebSocket.class, sessionManager);
+            session.addEventListener(WDMethodEvent.CONTEXT_CREATED.getName(), handler, WebSocket.class, WDSessionManager);
         }
     }
 
     @Override
     public void offWebSocket(Consumer<WebSocket> handler) {
         if (handler != null) {
-            session.removeEventListener(MethodEvent.CONTEXT_CREATED.getName(), handler, sessionManager);
+            session.removeEventListener(WDMethodEvent.CONTEXT_CREATED.getName(), handler, WDSessionManager);
         }
     }
 
     @Override
     public void onWorker(Consumer<Worker> handler) {
         if (handler != null) {
-            session.addEventListener(MethodEvent.REALM_CREATED.getName(), handler, Worker.class, sessionManager);
+            session.addEventListener(WDMethodEvent.REALM_CREATED.getName(), handler, Worker.class, WDSessionManager);
         }
     }
 
     @Override
     public void offWorker(Consumer<Worker> handler) {
         if (handler != null) {
-            session.removeEventListener(MethodEvent.REALM_CREATED.getName(), handler, sessionManager);
+            session.removeEventListener(WDMethodEvent.REALM_CREATED.getName(), handler, WDSessionManager);
         }
     }
 
@@ -288,18 +288,18 @@ class PageImpl implements Page {
     @Override
     public void onPopup(Consumer<Page> handler) {
         if (handler != null) {
-            session.addEventListener(MethodEvent.CONTEXT_CREATED.getName(), jsonObject -> {
+            session.addEventListener(WDMethodEvent.CONTEXT_CREATED.getName(), jsonObject -> {
                 // Stelle sicher, dass jsonObject tatsächlich ein JsonObject ist
                 Page popupPage = JsonToPlaywrightMapper.mapToInterface((JsonObject) jsonObject, Page.class);
                 handler.accept(popupPage);
-            }, JsonObject.class, sessionManager);
+            }, JsonObject.class, WDSessionManager);
         }
     }
 
     @Override
     public void offPopup(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(MethodEvent.CONTEXT_CREATED.getName(), handler, sessionManager);
+            session.removeEventListener(WDMethodEvent.CONTEXT_CREATED.getName(), handler, WDSessionManager);
         }
     }
 
@@ -351,7 +351,7 @@ class PageImpl implements Page {
     public void close() {
         if (!isClosed) {
             isClosed = true;
-            browsingContextManager.close(pageId);
+            WDBrowsingContextManager.close(pageId);
         }
     }
 
@@ -365,7 +365,7 @@ class PageImpl implements Page {
         if (isClosed) {
             throw new PlaywrightException("Page is closed");
         }
-        Target.ContextTarget contextTarget = new Target.ContextTarget(new BrowsingContext(pageId));
+        WDTarget.ContextWDTarget contextTarget = new WDTarget.ContextWDTarget(new WDBrowsingContext(pageId));
         return session.getBrowser().getScriptManager().evaluate("return document.documentElement.outerHTML;", contextTarget, true);
     }
 
@@ -558,14 +558,14 @@ class PageImpl implements Page {
 
     @Override
     public Response goBack(GoBackOptions options) {
-        browsingContextManager.traverseHistory(pageId, -1);
+        WDBrowsingContextManager.traverseHistory(pageId, -1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
 
     @Override
     public Response goForward(GoForwardOptions options) {
-        browsingContextManager.traverseHistory(pageId, 1);
+        WDBrowsingContextManager.traverseHistory(pageId, 1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -586,7 +586,7 @@ class PageImpl implements Page {
         this.url = url;
 
         // WebDriver BiDi Befehl senden
-        browsingContextManager.navigate(url, pageId);
+        WDBrowsingContextManager.navigate(url, pageId);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -723,7 +723,7 @@ class PageImpl implements Page {
 
     @Override
     public Response reload(ReloadOptions options) {
-        browsingContextManager.reload(pageId);
+        WDBrowsingContextManager.reload(pageId);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -770,7 +770,7 @@ class PageImpl implements Page {
 
     @Override
     public byte[] screenshot(ScreenshotOptions options) {
-        String base64Image = browsingContextManager.captureScreenshot(pageId);
+        String base64Image = WDBrowsingContextManager.captureScreenshot(pageId);
         return Base64.getDecoder().decode(base64Image);
     }
 

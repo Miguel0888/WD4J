@@ -1,7 +1,7 @@
 package wd4j.impl.webdriver.command.request.parameters.session.parameters;
 
-import wd4j.impl.webdriver.type.session.CapabilitiesRequest;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.session.WDCapabilitiesRequest;
+import wd4j.impl.websocket.WDCommand;
 
 /**
  * The session.new command allows creating a new BiDi session.
@@ -10,14 +10,14 @@ import wd4j.impl.websocket.Command;
  * WebDriver BiDi extends the session concept from WebDriver.
  * A WebDriver session in general has a BiDi flag, which is false unless otherwise stated.
  */
-public class NewParameters implements Command.Params {
-    private final CapabilitiesRequest capabilities;
+public class NewParameters implements WDCommand.Params {
+    private final WDCapabilitiesRequest capabilities;
 
-    public NewParameters(CapabilitiesRequest capabilities) {
+    public NewParameters(WDCapabilitiesRequest capabilities) {
         this.capabilities = capabilities;
     }
 
-    public CapabilitiesRequest getCapabilities() {
+    public WDCapabilitiesRequest getCapabilities() {
         return capabilities;
     }
 }

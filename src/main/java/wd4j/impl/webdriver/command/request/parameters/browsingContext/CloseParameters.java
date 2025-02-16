@@ -1,23 +1,23 @@
 package wd4j.impl.webdriver.command.request.parameters.browsingContext;
 
-import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.websocket.WDCommand;
 
-public class CloseParameters implements Command.Params {
-    private final BrowsingContext context;
+public class CloseParameters implements WDCommand.Params {
+    private final WDBrowsingContext context;
     private final Boolean promptUnload; // Optional
 
-    public CloseParameters(BrowsingContext context, boolean promptUnload) {
+    public CloseParameters(WDBrowsingContext context, boolean promptUnload) {
         this.context = context;
         this.promptUnload = promptUnload;
     }
 
-    public CloseParameters(BrowsingContext context) {
+    public CloseParameters(WDBrowsingContext context) {
         this.context = context;
         this.promptUnload = null;
     }
 
-    public BrowsingContext getContext() {
+    public WDBrowsingContext getContext() {
         return context;
     }
 

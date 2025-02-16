@@ -1,26 +1,26 @@
 package wd4j.impl.webdriver.command.request.parameters.browser;
 
 import wd4j.impl.webdriver.mapping.EnumWrapper;
-import wd4j.impl.webdriver.type.browser.ClientWindow;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.browser.WDClientWindow;
+import wd4j.impl.websocket.WDCommand;
 
 //@JsonAdapter(GenericWrapperAdapter.class) // Not required, since for the GenericWrapper is searched for in the factory
-public abstract class SetClientWindowStateParameters implements Command.Params {
-    private final ClientWindow clientWindow;
+public abstract class SetClientWindowStateParameters implements WDCommand.Params {
+    private final WDClientWindow WDClientWindow;
 
-    public SetClientWindowStateParameters(ClientWindow clientWindow) {
-        this.clientWindow = clientWindow;
+    public SetClientWindowStateParameters(WDClientWindow WDClientWindow) {
+        this.WDClientWindow = WDClientWindow;
     }
 
-    public ClientWindow getClientWindow() {
-        return clientWindow;
+    public WDClientWindow getClientWindow() {
+        return WDClientWindow;
     }
 
     public static class ClientWindowNamedState extends SetClientWindowStateParameters {
         private final State state;
 
-        public ClientWindowNamedState(ClientWindow clientWindow, State state) {
-            super(clientWindow);
+        public ClientWindowNamedState(WDClientWindow WDClientWindow, State state) {
+            super(WDClientWindow);
             this.state = state;
         }
 
@@ -53,12 +53,12 @@ public abstract class SetClientWindowStateParameters implements Command.Params {
         private final Integer x; // optional
         private final Integer y; // optional
 
-        public ClientWindowRectState(ClientWindow clientWindow) {
-            this(clientWindow, null, null, null, null);
+        public ClientWindowRectState(WDClientWindow WDClientWindow) {
+            this(WDClientWindow, null, null, null, null);
         }
 
-        public ClientWindowRectState(ClientWindow clientWindow, Integer width, Integer height, Integer x, Integer y) {
-            super(clientWindow);
+        public ClientWindowRectState(WDClientWindow WDClientWindow, Integer width, Integer height, Integer x, Integer y) {
+            super(WDClientWindow);
             this.width = width;
             this.height = height;
             this.x = x;

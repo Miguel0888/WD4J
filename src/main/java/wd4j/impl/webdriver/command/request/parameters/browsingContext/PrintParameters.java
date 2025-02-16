@@ -1,10 +1,10 @@
 package wd4j.impl.webdriver.command.request.parameters.browsingContext;
 
-import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.websocket.WDCommand;
 
-public class PrintParameters implements Command.Params {
-    private final BrowsingContext context;
+public class PrintParameters implements WDCommand.Params {
+    private final WDBrowsingContext context;
     private final boolean background; // optional, default false
     private final PrintMarginParameters margin; // optional
     private final Orientation orientation; // optional, default PORTRAIT
@@ -13,7 +13,7 @@ public class PrintParameters implements Command.Params {
     private final float scale; // optional, default 1.0
     private final boolean shrinkToFit; // optional, default true
 
-    public PrintParameters(BrowsingContext context) {
+    public PrintParameters(WDBrowsingContext context) {
         this.context = context;
         this.background = false;
         this.margin = null;
@@ -24,7 +24,7 @@ public class PrintParameters implements Command.Params {
         this.shrinkToFit = true;
     }
 
-    public PrintParameters(BrowsingContext context, boolean background, PrintMarginParameters margin, Orientation orientation, PrintPageParameters page, char pageRanges, float scale, boolean shrinkToFit) {
+    public PrintParameters(WDBrowsingContext context, boolean background, PrintMarginParameters margin, Orientation orientation, PrintPageParameters page, char pageRanges, float scale, boolean shrinkToFit) {
         this.context = context;
         this.background = background;
         this.margin = margin;
@@ -35,7 +35,7 @@ public class PrintParameters implements Command.Params {
         this.shrinkToFit = shrinkToFit;
     }
 
-    public BrowsingContext getContext() {
+    public WDBrowsingContext getContext() {
         return context;
     }
 

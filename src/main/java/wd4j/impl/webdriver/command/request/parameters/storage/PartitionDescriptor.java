@@ -1,6 +1,6 @@
 package wd4j.impl.webdriver.command.request.parameters.storage;
 
-import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 
 public abstract class PartitionDescriptor {
     private final String type;
@@ -10,14 +10,14 @@ public abstract class PartitionDescriptor {
     }
 
     public static class BrowsingContextPartitionDescriptor extends PartitionDescriptor {
-        private final BrowsingContext context;
+        private final WDBrowsingContext context;
 
-        public BrowsingContextPartitionDescriptor(BrowsingContext context) {
+        public BrowsingContextPartitionDescriptor(WDBrowsingContext context) {
             super("context");
             this.context = context;
         }
 
-        public BrowsingContext getContext() {
+        public WDBrowsingContext getContext() {
             return context;
         }
     }

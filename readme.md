@@ -177,8 +177,8 @@ Dieses Projekt steht unter der **MIT-Lizenz**. Bitte beachten Sie, dass die verw
 | `input.userInteraction (type=change)`          | `page.on("change", event -> {})`              | `page.on("input", event -> {})`             |
 | `input.userInteraction (type=wheel)`           | ❌ (Kein direkter Eventhandler)               | `page.mouse().wheel(dx, dy)` für Simulation |
 | `input.userInteraction (type=contextMenu)`     | `page.on("contextmenu", event -> {})`         | `page.mouse().click(x, y, button="right")`  |
-| `input.userInteraction (type=focus)`           | `page.on("focus", event -> {})`               | `page.locator(selector).focus()`            |
-| `input.userInteraction (type=blur)`            | `page.on("blur", event -> {})`                | `page.locator(selector).blur()`             |
+| `input.userInteraction (type=focus)`           | `page.on("focus", event -> {})`               | `page.WDLocator(selector).focus()`            |
+| `input.userInteraction (type=blur)`            | `page.on("blur", event -> {})`                | `page.WDLocator(selector).blur()`             |
 
 
 ## Implementierung des Event-Recordings

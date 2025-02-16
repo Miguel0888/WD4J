@@ -1,48 +1,48 @@
 package wd4j.impl.webdriver.command.request.parameters.network;
 
-import wd4j.impl.webdriver.type.network.BytesValue;
-import wd4j.impl.webdriver.type.network.Header;
-import wd4j.impl.webdriver.type.network.Request;
-import wd4j.impl.webdriver.type.network.SetCookieHeader;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.network.WDBytesValue;
+import wd4j.impl.webdriver.type.network.WDHeader;
+import wd4j.impl.webdriver.type.network.WDRequest;
+import wd4j.impl.webdriver.type.network.WDSetCookieHeader;
+import wd4j.impl.websocket.WDCommand;
 
 import java.util.List;
 
-public class ProvideResponseParameters implements Command.Params {
-    private final Request requestId;
-    private final BytesValue body; // Optional
-    private final List<SetCookieHeader> cookies; // Optional
-    private final List<Header> headers; // Optional
+public class ProvideResponseParameters implements WDCommand.Params {
+    private final WDRequest WDRequestId;
+    private final WDBytesValue body; // Optional
+    private final List<WDSetCookieHeader> cookies; // Optional
+    private final List<WDHeader> WDHeaders; // Optional
     private final String reasonPhrase; // Optional
     private final Integer statusCode; // Optional
 
-    public ProvideResponseParameters(Request requestId) {
-        this(requestId, null, null, null, null, null);
+    public ProvideResponseParameters(WDRequest WDRequestId) {
+        this(WDRequestId, null, null, null, null, null);
     }
 
-    public ProvideResponseParameters(Request requestId, BytesValue body, List<SetCookieHeader> cookies, List<Header> headers, String reasonPhrase, Integer statusCode) {
-        this.requestId = requestId;
+    public ProvideResponseParameters(WDRequest WDRequestId, WDBytesValue body, List<WDSetCookieHeader> cookies, List<WDHeader> WDHeaders, String reasonPhrase, Integer statusCode) {
+        this.WDRequestId = WDRequestId;
         this.body = body;
         this.cookies = cookies;
-        this.headers = headers;
+        this.WDHeaders = WDHeaders;
         this.reasonPhrase = reasonPhrase;
         this.statusCode = statusCode;
     }
 
-    public Request getRequestId() {
-        return requestId;
+    public WDRequest getRequestId() {
+        return WDRequestId;
     }
 
-    public BytesValue getBody() {
+    public WDBytesValue getBody() {
         return body;
     }
 
-    public List<SetCookieHeader> getCookies() {
+    public List<WDSetCookieHeader> getCookies() {
         return cookies;
     }
 
-    public List<Header> getHeaders() {
-        return headers;
+    public List<WDHeader> getHeaders() {
+        return WDHeaders;
     }
 
     public String getReasonPhrase() {

@@ -1,31 +1,31 @@
 package wd4j.impl.webdriver.command.request.parameters.script;
 
-import wd4j.impl.webdriver.type.script.LocalValue;
-import wd4j.impl.webdriver.type.script.SerializationOptions;
-import wd4j.impl.webdriver.type.script.Target;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.script.WDLocalValue;
+import wd4j.impl.webdriver.type.script.WDSerializationOptions;
+import wd4j.impl.webdriver.type.script.WDTarget;
+import wd4j.impl.websocket.WDCommand;
 
 import java.util.List;
 
-public class CallFunctionParameters<T> implements Command.Params {
+public class CallFunctionParameters<T> implements WDCommand.Params {
     private final String functionDeclaration;
     private final boolean awaitPromise;
-    private final Target target;
-    private final List<LocalValue<T>> arguments; // Optional
-    private final SerializationOptions serializationOptions; // Optional
-    private final LocalValue<T> thisObject; // Optional
+    private final WDTarget WDTarget;
+    private final List<WDLocalValue<T>> arguments; // Optional
+    private final WDSerializationOptions WDSerializationOptions; // Optional
+    private final WDLocalValue<T> thisObject; // Optional
     private final boolean userActivation;  // Optional, default false
 
-    public CallFunctionParameters(String functionDeclaration, boolean awaitPromise, Target target) {
-        this(functionDeclaration, awaitPromise, target, null, null, null, false);
+    public CallFunctionParameters(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget) {
+        this(functionDeclaration, awaitPromise, WDTarget, null, null, null, false);
     }
 
-    public CallFunctionParameters(String functionDeclaration, boolean awaitPromise, Target target, List<LocalValue<T>> arguments, SerializationOptions serializationOptions, LocalValue<T> thisObject, boolean userActivation) {
+    public CallFunctionParameters(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue<T>> arguments, WDSerializationOptions WDSerializationOptions, WDLocalValue<T> thisObject, boolean userActivation) {
         this.functionDeclaration = functionDeclaration;
         this.awaitPromise = awaitPromise;
-        this.target = target;
+        this.WDTarget = WDTarget;
         this.arguments = arguments;
-        this.serializationOptions = serializationOptions;
+        this.WDSerializationOptions = WDSerializationOptions;
         this.thisObject = thisObject;
         this.userActivation = userActivation;
     }
@@ -38,19 +38,19 @@ public class CallFunctionParameters<T> implements Command.Params {
         return awaitPromise;
     }
 
-    public Target getTarget() {
-        return target;
+    public WDTarget getTarget() {
+        return WDTarget;
     }
 
-    public List<LocalValue<T>> getArguments() {
+    public List<WDLocalValue<T>> getArguments() {
         return arguments;
     }
 
-    public SerializationOptions getSerializationOptions() {
-        return serializationOptions;
+    public WDSerializationOptions getSerializationOptions() {
+        return WDSerializationOptions;
     }
 
-    public LocalValue<T> getThisObject() {
+    public WDLocalValue<T> getThisObject() {
         return thisObject;
     }
 

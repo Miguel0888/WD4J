@@ -1,12 +1,11 @@
 package wd4j.impl.webdriver.command.request;
 
-import wd4j.impl.markerInterfaces.CommandData;
-import wd4j.impl.webdriver.command.request.helper.CommandImpl;
+import wd4j.impl.markerInterfaces.WDCommandData;
+import wd4j.impl.webdriver.command.request.helper.WDCommandImpl;
 import wd4j.impl.webdriver.command.request.parameters.network.*;
 import wd4j.impl.webdriver.command.request.parameters.network.CookieHeader;
-import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.network.*;
-import wd4j.impl.websocket.Command;
 
 import java.util.List;
 
@@ -16,86 +15,86 @@ public class NetworkRequest {
     // Commands (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class AddIntercept extends CommandImpl<AddInterceptParameters> implements CommandData {
+    public static class AddIntercept extends WDCommandImpl<AddInterceptParameters> implements WDCommandData {
         public AddIntercept(List<AddInterceptParameters.InterceptPhase> phases) {
             super("network.addIntercept", new AddInterceptParameters(phases));
         }
-        public AddIntercept(List<AddInterceptParameters.InterceptPhase> phases, List<BrowsingContext> contexts, List<UrlPattern> urlPattern) {
-            super("network.addIntercept", new AddInterceptParameters(phases, contexts, urlPattern));
+        public AddIntercept(List<AddInterceptParameters.InterceptPhase> phases, List<WDBrowsingContext> contexts, List<WDUrlPattern> WDUrlPattern) {
+            super("network.addIntercept", new AddInterceptParameters(phases, contexts, WDUrlPattern));
         }
     }
 
-    public static class ContinueRequest extends CommandImpl<ContinueRequestParameters> implements CommandData {
+    public static class ContinueRequest extends WDCommandImpl<ContinueRequestParameters> implements WDCommandData {
         public ContinueRequest(String requestId) {
-            super("network.continueRequest", new ContinueRequestParameters(new Request(requestId)));
+            super("network.continueRequest", new ContinueRequestParameters(new WDRequest(requestId)));
         }
-        public ContinueRequest(Request request) {
-            super("network.continueRequest", new ContinueRequestParameters(request));
+        public ContinueRequest(WDRequest WDRequest) {
+            super("network.continueRequest", new ContinueRequestParameters(WDRequest));
         }
-        public ContinueRequest(Request request, BytesValue body, List<CookieHeader> cookies, List<Header> headers, String method, String url) {
-            super("network.continueRequest", new ContinueRequestParameters(request, body, cookies, headers, method, url));
+        public ContinueRequest(WDRequest WDRequest, WDBytesValue body, List<CookieHeader> cookies, List<WDHeader> WDHeaders, String method, String url) {
+            super("network.continueRequest", new ContinueRequestParameters(WDRequest, body, cookies, WDHeaders, method, url));
         }
     }
 
-    public static class ContinueResponse extends CommandImpl<ContinueResponseParameters> implements CommandData {
+    public static class ContinueResponse extends WDCommandImpl<ContinueResponseParameters> implements WDCommandData {
         public ContinueResponse(String requestId) {
-            super("network.continueResponse", new ContinueResponseParameters(new Request(requestId)));
+            super("network.continueResponse", new ContinueResponseParameters(new WDRequest(requestId)));
         }
-        public ContinueResponse(Request request) {
-            super("network.continueResponse", new ContinueResponseParameters(request));
+        public ContinueResponse(WDRequest WDRequest) {
+            super("network.continueResponse", new ContinueResponseParameters(WDRequest));
         }
-        public ContinueResponse(Request request, List<SetCookieHeader> cookies, AuthCredentials rawResponse, List<Header> responseHeaders, String text, Integer statusCode) {
-            super("network.continueResponse", new ContinueResponseParameters(request, cookies, rawResponse, responseHeaders, text, statusCode));
-        }
-    }
-
-    public static class ContinueWithAuth extends CommandImpl<ContinueWithAuthParameters> implements CommandData {
-        public ContinueWithAuth(String requestId, AuthCredentials authChallengeResponse) {
-            super("network.continueWithAuth", new ContinueWithAuthCredentials(new Request(requestId), authChallengeResponse));
-        }
-        public ContinueWithAuth(Request request, AuthCredentials authChallengeResponse) {
-            super("network.continueWithAuth", new ContinueWithAuthCredentials(request, authChallengeResponse));
-        }
-        public ContinueWithAuth(Request request, ContinueWithAuthNoCredentials.Action action) {
-            super("network.continueWithAuth", new ContinueWithAuthNoCredentials(request, action));
+        public ContinueResponse(WDRequest WDRequest, List<WDSetCookieHeader> cookies, WDAuthCredentials rawResponse, List<WDHeader> responseWDHeaders, String text, Integer statusCode) {
+            super("network.continueResponse", new ContinueResponseParameters(WDRequest, cookies, rawResponse, responseWDHeaders, text, statusCode));
         }
     }
 
-    public static class FailRequest extends CommandImpl<FailRequestParameters> implements CommandData {
+    public static class ContinueWithAuth extends WDCommandImpl<ContinueWithAuthParameters> implements WDCommandData {
+        public ContinueWithAuth(String requestId, WDAuthCredentials authChallengeResponse) {
+            super("network.continueWithAuth", new ContinueWithAuthCredentials(new WDRequest(requestId), authChallengeResponse));
+        }
+        public ContinueWithAuth(WDRequest WDRequest, WDAuthCredentials authChallengeResponse) {
+            super("network.continueWithAuth", new ContinueWithAuthCredentials(WDRequest, authChallengeResponse));
+        }
+        public ContinueWithAuth(WDRequest WDRequest, ContinueWithAuthNoCredentials.Action action) {
+            super("network.continueWithAuth", new ContinueWithAuthNoCredentials(WDRequest, action));
+        }
+    }
+
+    public static class FailRequest extends WDCommandImpl<FailRequestParameters> implements WDCommandData {
         public FailRequest(String requestId) {
-            super("network.failRequest", new FailRequestParameters(new Request(requestId)));
+            super("network.failRequest", new FailRequestParameters(new WDRequest(requestId)));
         }
-        public FailRequest(Request request) {
-            super("network.failRequest", new FailRequestParameters(request));
+        public FailRequest(WDRequest WDRequest) {
+            super("network.failRequest", new FailRequestParameters(WDRequest));
         }
     }
 
-    public static class ProvideResponse extends CommandImpl<ProvideResponseParameters> implements CommandData {
+    public static class ProvideResponse extends WDCommandImpl<ProvideResponseParameters> implements WDCommandData {
         public ProvideResponse(String requestId) {
-            super("network.provideResponse", new ProvideResponseParameters(new Request(requestId)));
+            super("network.provideResponse", new ProvideResponseParameters(new WDRequest(requestId)));
         }
-        public ProvideResponse(Request request) {
-            super("network.provideResponse", new ProvideResponseParameters(request));
+        public ProvideResponse(WDRequest WDRequest) {
+            super("network.provideResponse", new ProvideResponseParameters(WDRequest));
         }
-        public ProvideResponse(Request request, BytesValue body, List<SetCookieHeader> cookies, List<Header> headers, String reasonPhrase, Integer statusCode) {
-            super("network.provideResponse", new ProvideResponseParameters(request, body, cookies, headers, reasonPhrase, statusCode));
+        public ProvideResponse(WDRequest WDRequest, WDBytesValue body, List<WDSetCookieHeader> cookies, List<WDHeader> WDHeaders, String reasonPhrase, Integer statusCode) {
+            super("network.provideResponse", new ProvideResponseParameters(WDRequest, body, cookies, WDHeaders, reasonPhrase, statusCode));
         }
     }
 
-    public static class RemoveIntercept extends CommandImpl<RemoveInterceptParameters> implements CommandData {
+    public static class RemoveIntercept extends WDCommandImpl<RemoveInterceptParameters> implements WDCommandData {
         public RemoveIntercept(String interceptId) {
-            super("network.removeIntercept", new RemoveInterceptParameters(new Intercept(interceptId)));
+            super("network.removeIntercept", new RemoveInterceptParameters(new WDIntercept(interceptId)));
         }
-        public RemoveIntercept(Intercept intercept) {
-            super("network.removeIntercept", new RemoveInterceptParameters(intercept));
+        public RemoveIntercept(WDIntercept WDIntercept) {
+            super("network.removeIntercept", new RemoveInterceptParameters(WDIntercept));
         }
     }
 
-    public static class SetCacheBehavior extends CommandImpl<SetCacheBehaviorParameters> implements CommandData {
+    public static class SetCacheBehavior extends WDCommandImpl<SetCacheBehaviorParameters> implements WDCommandData {
         public SetCacheBehavior(SetCacheBehaviorParameters.CacheBehavior cacheBehavior) {
             super("network.setCacheBehavior", new SetCacheBehaviorParameters(cacheBehavior));
         }
-        public SetCacheBehavior(SetCacheBehaviorParameters.CacheBehavior cacheBehavior, List<BrowsingContext> contexts) {
+        public SetCacheBehavior(SetCacheBehaviorParameters.CacheBehavior cacheBehavior, List<WDBrowsingContext> contexts) {
             super("network.setCacheBehavior", new SetCacheBehaviorParameters(cacheBehavior, contexts));
         }
     }

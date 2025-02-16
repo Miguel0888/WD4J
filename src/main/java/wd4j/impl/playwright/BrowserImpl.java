@@ -2,7 +2,7 @@ package wd4j.impl.playwright;
 
 import wd4j.impl.manager.*;
 import wd4j.api.*;
-import wd4j.impl.websocket.CommunicationManager;
+import wd4j.impl.websocket.WebSocketManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,24 +12,24 @@ import java.util.function.Consumer;
 
 public class BrowserImpl implements Browser {
     private final BrowserTypeImpl browserType;
-    private final CommunicationManager communicationManager;
-    private final BrowserManager browserManager;
+    private final WebSocketManager webSocketManager;
+    private final WDBrowserManager WDBrowserManager;
     private final List<BrowserSessionImpl> sessions = new ArrayList<>();
     private String defaultContextId;
 
-    private ScriptManager scriptManager;
-    private NetworkManager networkManager;
-    private StorageManager storageManager;
-    private WebExtensionManager webExtensionManager;
+    private WDScriptManager WDScriptManager;
+    private WDNetworkManager WDNetworkManager;
+    private WDStorageManager WDStorageManager;
+    private WDWebExtensionManager WDWebExtensionManager;
 
-    public BrowserImpl(CommunicationManager communicationManager, BrowserTypeImpl browserType) throws ExecutionException, InterruptedException {
-        this.communicationManager = communicationManager;
-        this.browserManager = new BrowserManager(communicationManager);
+    public BrowserImpl(WebSocketManager webSocketManager, BrowserTypeImpl browserType) throws ExecutionException, InterruptedException {
+        this.webSocketManager = webSocketManager;
+        this.WDBrowserManager = new WDBrowserManager(webSocketManager);
 
-        this.scriptManager = new ScriptManager(communicationManager);
-        this.networkManager = new NetworkManager(communicationManager);
-        this.storageManager = new StorageManager(communicationManager);
-        this.webExtensionManager = new WebExtensionManager(communicationManager);
+        this.WDScriptManager = new WDScriptManager(webSocketManager);
+        this.WDNetworkManager = new WDNetworkManager(webSocketManager);
+        this.WDStorageManager = new WDStorageManager(webSocketManager);
+        this.WDWebExtensionManager = new WDWebExtensionManager(webSocketManager);
         this.browserType = browserType;
     }
 
@@ -64,7 +64,7 @@ public class BrowserImpl implements Browser {
 
     @Override
     public boolean isConnected() {
-        return communicationManager.isConnected();
+        return webSocketManager.isConnected();
     }
 
     @Override
@@ -74,7 +74,7 @@ public class BrowserImpl implements Browser {
 
     @Override
     public BrowserContext newContext(NewContextOptions options) {
-        BrowserSessionImpl session = new BrowserSessionImpl(communicationManager, this, options);
+        BrowserSessionImpl session = new BrowserSessionImpl(webSocketManager, this, options);
         sessions.add(session);
         return session;
     }
@@ -87,7 +87,7 @@ public class BrowserImpl implements Browser {
     @Override
     public Page newPage(NewPageOptions options) {
         BrowserSessionImpl context;
-        context = new BrowserSessionImpl(communicationManager, this, null);
+        context = new BrowserSessionImpl(webSocketManager, this, null);
         sessions.add(context);
 
         return context.newPage();
@@ -124,23 +124,23 @@ public class BrowserImpl implements Browser {
      *
      * @return The BrowserService.
      */
-    public BrowserManager getBrowserManager() {
-        return browserManager;
+    public WDBrowserManager getBrowserManager() {
+        return WDBrowserManager;
     }
 
-    public ScriptManager getScriptManager() {
-        return scriptManager;
+    public WDScriptManager getScriptManager() {
+        return WDScriptManager;
     }
 
-    public NetworkManager getNetworkManager() {
-        return networkManager;
+    public WDNetworkManager getNetworkManager() {
+        return WDNetworkManager;
     }
 
-    public StorageManager getStorageManager() {
-        return storageManager;
+    public WDStorageManager getStorageManager() {
+        return WDStorageManager;
     }
 
-    public WebExtensionManager getWebExtensionManager() {
-        return webExtensionManager;
+    public WDWebExtensionManager getWebExtensionManager() {
+        return WDWebExtensionManager;
     }
 }

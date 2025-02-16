@@ -1,16 +1,16 @@
 package wd4j.impl.webdriver.command.request.parameters.browser;
 
-import wd4j.impl.webdriver.type.browser.UserContext;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.browser.WDUserContext;
+import wd4j.impl.websocket.WDCommand;
 
-public class RemoveUserContextParameters implements Command.Params {
-    private final UserContext userContext;
+public class RemoveUserContextParameters implements WDCommand.Params {
+    private final WDUserContext WDUserContext;
 
-    public RemoveUserContextParameters(UserContext userContext) {
-        this.userContext = userContext;
+    public RemoveUserContextParameters(WDUserContext WDUserContext) {
+        this.WDUserContext = WDUserContext;
     }
 
-    public UserContext getUserContext() {
-        return userContext;
+    public WDUserContext getUserContext() {
+        return WDUserContext;
     }
 }

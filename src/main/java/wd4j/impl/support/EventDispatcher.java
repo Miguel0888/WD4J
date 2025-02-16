@@ -5,8 +5,8 @@ import com.google.gson.JsonObject;
 import wd4j.api.ConsoleMessage;
 import wd4j.api.Request;
 import wd4j.api.Response;
-import wd4j.impl.manager.SessionManager;
-import wd4j.impl.webdriver.event.MethodEvent;
+import wd4j.impl.manager.WDSessionManager;
+import wd4j.impl.webdriver.event.WDMethodEvent;
 
 import java.util.Collections;
 import java.util.Map;
@@ -39,7 +39,7 @@ public class EventDispatcher {
         String eventType = jsonMessage.get("method").getAsString();
         JsonObject params = jsonMessage.has("params") ? jsonMessage.getAsJsonObject("params") : new JsonObject();
 
-        MethodEvent event = MethodEvent.fromName(eventType);
+        WDMethodEvent event = WDMethodEvent.fromName(eventType);
         if (event != null) {
             System.out.println("[DEBUG] Dispatched event: " + eventType + " with params: " + params);
             dispatchEvent(eventType, params, event.getAssociatedClass());
@@ -82,20 +82,20 @@ public class EventDispatcher {
         }
     }
 
-    public <T> void addEventListener(String eventType, Consumer<T> listener, Class<T> eventTypeClass, SessionManager sessionManager) {
+    public <T> void addEventListener(String eventType, Consumer<T> listener, Class<T> eventTypeClass, WDSessionManager WDSessionManager) {
         eventListeners.computeIfAbsent(eventType, k -> {
             // 🚀 Erster Listener für dieses Event → WebDriver BiDi Subscribe senden
-            sessionManager.subscribe(Collections.singletonList(eventType));
+            WDSessionManager.subscribe(Collections.singletonList(eventType));
             return new ConcurrentLinkedQueue<>();
         }).add((Consumer<Object>) listener);
     }
 
-    public <T> void removeEventListener(String eventType, Consumer<T> listener, SessionManager sessionManager) {
+    public <T> void removeEventListener(String eventType, Consumer<T> listener, WDSessionManager WDSessionManager) {
         if (eventListeners.containsKey(eventType)) {
             eventListeners.get(eventType).remove(listener);
             if (eventListeners.get(eventType).isEmpty()) {
                 // 🛑 Letzter Listener wurde entfernt → WebDriver BiDi Unsubscribe senden
-                sessionManager.unsubscribe(Collections.singletonList(eventType));
+                WDSessionManager.unsubscribe(Collections.singletonList(eventType));
                 eventListeners.remove(eventType);
             }
         }

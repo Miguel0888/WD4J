@@ -1,16 +1,16 @@
 package wd4j.impl.webdriver.command.request.parameters.network;
 
-import wd4j.impl.webdriver.type.network.Request;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.network.WDRequest;
+import wd4j.impl.websocket.WDCommand;
 
-public class FailRequestParameters implements Command.Params {
-    private final Request request;
+public class FailRequestParameters implements WDCommand.Params {
+    private final WDRequest WDRequest;
 
-    public FailRequestParameters(Request request) {
-        this.request = request;
+    public FailRequestParameters(WDRequest WDRequest) {
+        this.WDRequest = WDRequest;
     }
 
-    public Request getRequest() {
-        return request;
+    public WDRequest getRequest() {
+        return WDRequest;
     }
 }

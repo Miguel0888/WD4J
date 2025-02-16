@@ -1,26 +1,28 @@
 package wd4j.impl.webdriver.command.request.parameters.session.parameters;
 
-import wd4j.impl.webdriver.type.browsingContext.BrowsingContext;
-import wd4j.impl.webdriver.type.session.Subscription;
-import wd4j.impl.websocket.Command;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.session.WDSubscription;
+import wd4j.impl.webdriver.type.session.WDUnsubscribeByAttributesRequest;
+import wd4j.impl.webdriver.type.session.WDUnsubscribeByIDRequest;
+import wd4j.impl.websocket.WDCommand;
 
 import java.util.List;
 
-public interface UnsubscribeParameters extends Command.Params {
+public interface UnsubscribeParameters extends WDCommand.Params {
 
-    public class UnsubscribeByAttributesRequestParams extends wd4j.impl.webdriver.type.session.UnsubscribeByAttributesRequest implements UnsubscribeParameters {
-        public UnsubscribeByAttributesRequestParams(List<String> events) {
+    public class WDUnsubscribeByAttributesRequestParams extends WDUnsubscribeByAttributesRequest implements UnsubscribeParameters {
+        public WDUnsubscribeByAttributesRequestParams(List<String> events) {
             super(events, null);
         }
 
-        public UnsubscribeByAttributesRequestParams(List<String> events, List<BrowsingContext> contexts) {
+        public WDUnsubscribeByAttributesRequestParams(List<String> events, List<WDBrowsingContext> contexts) {
             super(events, contexts);
         }
     }
 
-    public class UnsubscribeByIDRequestParams extends wd4j.impl.webdriver.type.session.UnsubscribeByIDRequest implements UnsubscribeParameters {
-        public UnsubscribeByIDRequestParams(List<Subscription> subscriptions) {
-            super(subscriptions);
+    public class WDUnsubscribeByIDRequestParams extends WDUnsubscribeByIDRequest implements UnsubscribeParameters {
+        public WDUnsubscribeByIDRequestParams(List<WDSubscription> WDSubscriptions) {
+            super(WDSubscriptions);
         }
     }
 }
