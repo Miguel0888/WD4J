@@ -4,6 +4,8 @@ import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDNetworkRequest;
 import wd4j.impl.webdriver.command.request.parameters.network.AddInterceptParameters;
 import wd4j.impl.webdriver.command.request.parameters.network.SetCacheBehaviorParameters;
+import wd4j.impl.webdriver.command.response.WDEmptyResult;
+import wd4j.impl.webdriver.command.response.WDNetworkResult;
 import wd4j.impl.webdriver.type.network.WDAuthCredentials;
 import wd4j.impl.websocket.WebSocketManager;
 
@@ -30,130 +32,77 @@ public class WDNetworkManager implements WDModule {
      * Adds an intercept for network requests matching the given URL pattern.
      *
      * @param phases The phases to intercept.
-     *
-     * @throws RuntimeException if the operation fails.
+     * @return The intercept ID of the added rule.
      */
-    public void addIntercept(List<AddInterceptParameters.InterceptPhase> phases) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.AddIntercept(phases), String.class);
-            System.out.println("Intercept added for intercept phases: " + phases);
-        } catch (RuntimeException e) {
-            System.out.println("Error adding intercept: " + e.getMessage());
-            throw e;
-        }
+    public WDNetworkResult.AddInterceptResult addIntercept(List<AddInterceptParameters.InterceptPhase> phases) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDNetworkRequest.AddIntercept(phases),
+                WDNetworkResult.AddInterceptResult.class
+        );
     }
 
     /**
-     * Continues a network request with the given request ID.
+     * Continues a previously intercepted request.
      *
-     * @param requestId The ID of the request to continue.
-     * @throws RuntimeException if the operation fails.
+     * @param requestId The ID of the intercepted request.
      */
     public void continueRequest(String requestId) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueRequest(requestId), String.class);
-            System.out.println("Request continued: " + requestId);
-        } catch (RuntimeException e) {
-            System.out.println("Error continuing request: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueRequest(requestId), WDEmptyResult.class);
     }
 
     /**
-     * Continues a network response with the given request ID.
+     * Continues a previously intercepted response.
      *
-     * @param requestId The ID of the response to continue.
-     * @throws RuntimeException if the operation fails.
+     * @param requestId The ID of the intercepted response.
      */
     public void continueResponse(String requestId) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueResponse(requestId), String.class);
-            System.out.println("Response continued: " + requestId);
-        } catch (RuntimeException e) {
-            System.out.println("Error continuing response: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueResponse(requestId), WDEmptyResult.class);
     }
 
+
     /**
-     * Continues a network request with authentication challenge response.
+     * Continues an authentication request with provided credentials or rejects it.
      *
-     * @param requestId              The ID of the request.
-     * @param authChallengeResponse  The authentication challenge response.
-     * @throws RuntimeException if the operation fails.
+     * @param requestId The ID of the intercepted authentication request.
+     * @param authChallengeResponse The authentication challenge response.
      */
     public void continueWithAuth(String requestId, WDAuthCredentials authChallengeResponse) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueWithAuth(requestId, authChallengeResponse), String.class);
-            System.out.println("Request continued with authentication: " + requestId);
-        } catch (RuntimeException e) {
-            System.out.println("Error continuing with authentication: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueWithAuth(requestId, authChallengeResponse), WDEmptyResult.class);
     }
 
     /**
-     * Fails a network request with the given request ID.
+     * Fails an intercepted network request.
      *
-     * @param requestId The ID of the request to fail.
-     * @throws RuntimeException if the operation fails.
+     * @param requestId The ID of the intercepted request.
      */
     public void failRequest(String requestId) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.FailRequest(requestId), String.class);
-            System.out.println("Request failed: " + requestId);
-        } catch (RuntimeException e) {
-            System.out.println("Error failing request: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.FailRequest(requestId), WDEmptyResult.class);
     }
 
-
     /**
-     * Provides a custom response for a network request.
+     * Provides a custom response to an intercepted request.
      *
-     * @param requestId   The ID of the request to respond to.
-     * @throws RuntimeException if the operation fails.
+     * @param requestId The ID of the intercepted request.
      */
     public void provideResponse(String requestId) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ProvideResponse(requestId), String.class);
-            System.out.println("Response provided for request: " + requestId);
-        } catch (RuntimeException e) {
-            System.out.println("Error providing response: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ProvideResponse(requestId), WDEmptyResult.class);
     }
 
     /**
-     * Removes a previously added intercept.
+     * Removes a previously added network request interception rule.
      *
      * @param interceptId The ID of the intercept to remove.
-     * @throws RuntimeException if the operation fails.
      */
     public void removeIntercept(String interceptId) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.RemoveIntercept(interceptId), String.class);
-            System.out.println("Intercept removed: " + interceptId);
-        } catch (RuntimeException e) {
-            System.out.println("Error removing intercept: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.RemoveIntercept(interceptId), WDEmptyResult.class);
     }
 
     /**
      * Sets the cache behavior for the given context.
      *
      * @param cacheBehavior The cache behavior to set.
-     *
-     * @throws RuntimeException if the operation fails.
      */
     public void setCacheBehavior(SetCacheBehaviorParameters.CacheBehavior cacheBehavior) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.SetCacheBehavior(cacheBehavior), String.class);
-        } catch (RuntimeException e) {
-            System.out.println("Error setting cache behavior: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.SetCacheBehavior(cacheBehavior), WDEmptyResult.class);
     }
 }
