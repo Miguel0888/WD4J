@@ -3,6 +3,7 @@ package wd4j.impl.manager;
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDInputRequest;
 import wd4j.impl.webdriver.command.request.parameters.input.PerformActionsParameters;
+import wd4j.impl.webdriver.command.response.WDEmptyResult;
 import wd4j.impl.webdriver.type.script.WDRemoteReference;
 import wd4j.impl.websocket.WebSocketManager;
 
@@ -32,18 +33,20 @@ public class WDInputManager implements WDModule {
      * @param actions   A list of actions to perform.
      * @throws RuntimeException if the action execution fails.
      */
+    /**
+     * Performs a sequence of input actions in the given browsing context.
+     *
+     * @param contextId The ID of the context where the actions are performed.
+     * @param actions   A list of actions to perform.
+     * @throws RuntimeException if the action execution fails.
+     */
     public void performActions(String contextId, List<PerformActionsParameters.SourceActions> actions) {
         if (actions == null || actions.isEmpty()) {
             throw new IllegalArgumentException("Actions list must not be null or empty.");
         }
 
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDInputRequest.PerformActions(contextId, actions), String.class);
-            System.out.println("Performed actions in context: " + contextId);
-        } catch (RuntimeException e) {
-            System.out.println("Error performing actions: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(new WDInputRequest.PerformActions(contextId, actions), WDEmptyResult.class);
+        System.out.println("Performed actions in context: " + contextId);
     }
 
     /**
@@ -53,13 +56,8 @@ public class WDInputManager implements WDModule {
      * @throws RuntimeException if the release operation fails.
      */
     public void releaseActions(String contextId) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDInputRequest.ReleaseActions(contextId), String.class);
-            System.out.println("Released actions in context: " + contextId);
-        } catch (RuntimeException e) {
-            System.out.println("Error releasing actions: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(new WDInputRequest.ReleaseActions(contextId), WDEmptyResult.class);
+        System.out.println("Released actions in context: " + contextId);
     }
 
     /**
@@ -76,12 +74,7 @@ public class WDInputManager implements WDModule {
             throw new IllegalArgumentException("File paths list must not be null or empty.");
         }
 
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDInputRequest.SetFiles(contextId, sharedReference, files), String.class);
-            System.out.println("Files set for element: " + sharedReference);
-        } catch (RuntimeException e) {
-            System.out.println("Error setting files: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(new WDInputRequest.SetFiles(contextId, sharedReference, files), WDEmptyResult.class);
+        System.out.println("Files set for element: " + sharedReference);
     }
 }
