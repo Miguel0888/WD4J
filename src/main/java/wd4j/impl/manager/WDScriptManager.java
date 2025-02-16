@@ -5,7 +5,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDScriptRequest;
+import wd4j.impl.webdriver.command.response.WDEmptyResult;
+import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.script.WDEvaluateResult;
 import wd4j.impl.webdriver.type.script.WDHandle;
 import wd4j.impl.webdriver.type.script.WDLocalValue;
 import wd4j.impl.webdriver.type.script.WDTarget;
@@ -38,14 +41,11 @@ public class WDScriptManager implements WDModule {
      * @param target The target to which the script is added.
      * @throws RuntimeException if the operation fails.
      */
-    public void addPreloadScript(String script, String target) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDScriptRequest.AddPreloadScript(script), String.class);
-            System.out.println("Preload script added: " + script + " to target: " + target);
-        } catch (RuntimeException e) {
-            System.out.println("Error adding preload script: " + e.getMessage());
-            throw e;
-        }
+    public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script, String target) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.AddPreloadScript(script),
+                WDScriptResult.AddPreloadScriptResult.class
+        );
     }
 
     /**
@@ -60,13 +60,10 @@ public class WDScriptManager implements WDModule {
             throw new IllegalArgumentException("Handles list must not be null or empty.");
         }
 
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDScriptRequest.Disown(WDHandles, WDTarget), String.class);
-            System.out.println("Handles disowned in target: " + WDTarget);
-        } catch (RuntimeException e) {
-            System.out.println("Error disowning handles: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.Disown(WDHandles, WDTarget),
+                WDEmptyResult.class
+        );
     }
 
     /**
@@ -77,14 +74,11 @@ public class WDScriptManager implements WDModule {
      * @param arguments           The arguments to pass to the function.
      * @throws RuntimeException if the operation fails.
      */
-    public <T> void callFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue<T>> arguments) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDScriptRequest.CallFunction<>(functionDeclaration, awaitPromise, WDTarget, arguments), String.class);
-            System.out.println("Function called: " + functionDeclaration + " on target: " + WDTarget);
-        } catch (RuntimeException e) {
-            System.out.println("Error calling function: " + e.getMessage());
-            throw e;
-        }
+    public <T> WDEvaluateResult callFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue<T>> arguments) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.CallFunction<>(functionDeclaration, awaitPromise, WDTarget, arguments),
+                WDEvaluateResult.class
+        );
     }
 
     /**
@@ -94,10 +88,12 @@ public class WDScriptManager implements WDModule {
      * @param WDTarget    The target where the script is evaluated. See {@link WDTarget}.
      * @throws RuntimeException if the operation fails.
      */
-    public String evaluate(String script, WDTarget WDTarget, boolean awaitPromise) {
-        return webSocketManager.sendAndWaitForResponse(new WDScriptRequest.Evaluate(script, WDTarget, awaitPromise), String.class);
+    public WDEvaluateResult evaluate(String script, WDTarget WDTarget, boolean awaitPromise) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.Evaluate(script, WDTarget, awaitPromise),
+                WDEvaluateResult.class
+        );
     }
-
 
     /**
      * Retrieves the realms for the specified context.
@@ -106,19 +102,11 @@ public class WDScriptManager implements WDModule {
      * @return A list of realm IDs.
      * @throws RuntimeException if the operation fails.
      */
-    public List<String> getRealms(WDBrowsingContext context) {
-        try {
-            String response = webSocketManager.sendAndWaitForResponse(new WDScriptRequest.GetRealms(context), String.class);
-            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
-            JsonArray realms = jsonResponse.getAsJsonObject("result").getAsJsonArray("realms");
-            List<String> realmIds = new ArrayList<>();
-            realms.forEach(realm -> realmIds.add(realm.getAsString()));
-            System.out.println("Realms retrieved for context: " + context);
-            return realmIds;
-        } catch (RuntimeException e) {
-            System.out.println("Error retrieving realms: " + e.getMessage());
-            throw e;
-        }
+    public WDScriptResult.GetRealmsResult getRealms(WDBrowsingContext context) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.GetRealms(context),
+                WDScriptResult.GetRealmsResult.class
+        );
     }
 
     /**
@@ -128,13 +116,9 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public void removePreloadScript(String scriptId) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDScriptRequest.RemovePreloadScript(scriptId), String.class);
-            System.out.println("Preload script removed: " + scriptId);
-        } catch (RuntimeException e) {
-            System.out.println("Error removing preload script: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.RemovePreloadScript(scriptId),
+                WDEmptyResult.class
+        );
     }
-
 }

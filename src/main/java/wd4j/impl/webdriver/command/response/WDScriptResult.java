@@ -7,20 +7,27 @@ import wd4j.impl.webdriver.type.script.WDRealmInfo;
 import java.util.List;
 
 public interface WDScriptResult extends WDResultData {
-    class AddPreloadScritpWDScriptResult implements WDScriptResult {
+    class AddPreloadScriptResult implements WDScriptResult {
         private WDPreloadScript script;
 
-        public AddPreloadScritpWDScriptResult(WDPreloadScript script) {
+        public AddPreloadScriptResult(WDPreloadScript script) {
             this.script = script;
         }
 
         public WDPreloadScript getScript() {
             return script;
         }
+
+        @Override
+        public String toString() {
+            return "AddPreloadScriptResult{" +
+                    "script=" + script +
+                    '}';
+        }
     }
 
-    class GetRealmsResult {
-        private List<WDRealmInfo> realms;
+    class GetRealmsResult implements WDScriptResult {
+        private final List<WDRealmInfo> realms;
 
         public GetRealmsResult(List<WDRealmInfo> realms) {
             this.realms = realms;
@@ -28,6 +35,13 @@ public interface WDScriptResult extends WDResultData {
 
         public List<WDRealmInfo> getRealms() {
             return realms;
+        }
+
+        @Override
+        public String toString() {
+            return "GetRealmsResult{" +
+                    "realms=" + realms +
+                    '}';
         }
     }
 }
