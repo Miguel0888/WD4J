@@ -7,10 +7,29 @@ import wd4j.impl.webdriver.type.network.WDCookie;
 import java.util.List;
 
 public interface WDStorageResult extends WDResultData {
-    class DeleteCookiesWDStorageResult implements WDStorageResult {
+
+    class GetCookieResult implements WDStorageResult {
+        List<WDCookie> cookies;
+        SetCookieParameters.PartitionKey partitionKey;
+
+        public GetCookieResult(List<WDCookie> cookies, SetCookieParameters.PartitionKey partitionKey) {
+            this.cookies = cookies;
+            this.partitionKey = partitionKey;
+        }
+
+        public List<WDCookie> getCookies() {
+            return cookies;
+        }
+
+        public SetCookieParameters.PartitionKey getPartitionKey() {
+            return partitionKey;
+        }
+    }
+
+    class SetCookieResult implements WDStorageResult {
         private final SetCookieParameters.PartitionKey partitionKey;
 
-        public DeleteCookiesWDStorageResult(SetCookieParameters.PartitionKey partitionKey) {
+        public SetCookieResult(SetCookieParameters.PartitionKey partitionKey) {
             this.partitionKey = partitionKey;
         }
 
@@ -19,17 +38,11 @@ public interface WDStorageResult extends WDResultData {
         }
     }
 
-    class GetCookieWDStorageResult implements WDStorageResult {
-        List<WDCookie> cookies;
-        SetCookieParameters.PartitionKey partitionKey;
+    class DeleteCookiesResult implements WDStorageResult {
+        private final SetCookieParameters.PartitionKey partitionKey;
 
-        public GetCookieWDStorageResult(List<WDCookie> cookies, SetCookieParameters.PartitionKey partitionKey) {
-            this.cookies = cookies;
+        public DeleteCookiesResult(SetCookieParameters.PartitionKey partitionKey) {
             this.partitionKey = partitionKey;
-        }
-
-        public List<WDCookie> getCookies() {
-            return cookies;
         }
 
         public SetCookieParameters.PartitionKey getPartitionKey() {

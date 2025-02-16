@@ -6,6 +6,7 @@ import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDStorageRequest;
 import wd4j.impl.webdriver.command.request.parameters.storage.CookieFilter;
 import wd4j.impl.webdriver.command.request.parameters.storage.SetCookieParameters;
+import wd4j.impl.webdriver.command.response.WDStorageResult;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.websocket.WebSocketManager;
 
@@ -33,15 +34,11 @@ public class WDStorageManager implements WDModule {
      * @return A JSON string containing the cookies.
      * @throws RuntimeException if the operation fails.
      */
-    public String getCookies(WDBrowsingContext contextId) {
-        try {
-            String response = webSocketManager.sendAndWaitForResponse(new WDStorageRequest.GetCookies(contextId), String.class);
-            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
-            return jsonResponse.getAsJsonObject("result").toString();
-        } catch (RuntimeException e) {
-            System.out.println("Error retrieving cookies: " + e.getMessage());
-            throw e;
-        }
+    public WDStorageResult.GetCookieResult getCookies(WDBrowsingContext contextId) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDStorageRequest.GetCookies(contextId),
+                WDStorageResult.GetCookieResult.class
+        );
     }
 
     /**
@@ -51,14 +48,11 @@ public class WDStorageManager implements WDModule {
      * @param cookie      The name and value of the cookie.
      * @throws RuntimeException if the operation fails.
      */
-    public void setCookie(String contextId, SetCookieParameters.PartialCookie cookie) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDStorageRequest.SetCookie(contextId, cookie), String.class);
-            System.out.println("Cookie set: " + cookie.getName() + " = " + cookie.getValue() + " in context: " + contextId);
-        } catch (RuntimeException e) {
-            System.out.println("Error setting cookie: " + e.getMessage());
-            throw e;
-        }
+    public WDStorageResult.SetCookieResult setCookie(String contextId, SetCookieParameters.PartialCookie cookie) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDStorageRequest.SetCookie(contextId, cookie),
+                WDStorageResult.SetCookieResult.class
+        );
     }
 
     /**
@@ -68,14 +62,12 @@ public class WDStorageManager implements WDModule {
      * @param name      The name of the cookie to delete.
      * @throws RuntimeException if the operation fails.
      */
-    public void deleteCookie(String contextId, String name) {
-        try {
-            CookieFilter cookieFilter = new CookieFilter(name, null, null, null, null, null, null, null, null);
-            webSocketManager.sendAndWaitForResponse(new WDStorageRequest.DeleteCookies(contextId, cookieFilter), String.class);
-            System.out.println("Cookie deleted: " + name + " from context: " + contextId);
-        } catch (RuntimeException e) {
-            System.out.println("Error deleting cookie: " + e.getMessage());
-            throw e;
-        }
+    public WDStorageResult.DeleteCookiesResult deleteCookie(String contextId, String name) {
+        CookieFilter cookieFilter = new CookieFilter(name, null, null, null, null, null, null, null, null);
+
+        return webSocketManager.sendAndWaitForResponse(
+                new WDStorageRequest.DeleteCookies(contextId, cookieFilter),
+                WDStorageResult.DeleteCookiesResult.class
+        );
     }
 }
