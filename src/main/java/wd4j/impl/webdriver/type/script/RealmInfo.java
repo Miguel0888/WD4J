@@ -1,14 +1,54 @@
 package wd4j.impl.webdriver.type.script;
 
+import com.google.gson.*;
+import com.google.gson.annotations.JsonAdapter;
+
+import java.lang.reflect.Type;
 import java.util.List;
 
 /**
  * The script.RealmInfo type represents the properties of a realm. See {@link Realm}
  */
+@JsonAdapter(RealmInfo.RealmInfoAdapter.class) // 🔥 Automatische JSON-Konvertierung
 public interface RealmInfo {
     String getType();
     String getRealm();
     String getOrigin();
+
+    // 🔥 **INNERE KLASSE für JSON-Deserialisierung**
+    class RealmInfoAdapter implements JsonDeserializer<RealmInfo> {
+        @Override
+        public RealmInfo deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            JsonObject jsonObject = json.getAsJsonObject();
+
+            if (!jsonObject.has("type")) {
+                throw new JsonParseException("Missing 'type' field in RealmInfo JSON");
+            }
+
+            String type = jsonObject.get("type").getAsString();
+
+            switch (type) {
+                case "window":
+                    return context.deserialize(jsonObject, WindowRealmInfo.class);
+                case "dedicated-worker":
+                    return context.deserialize(jsonObject, DedicatedWorkerRealmInfo.class);
+                case "shared-worker":
+                    return context.deserialize(jsonObject, SharedWorkerRealmInfo.class);
+                case "service-worker":
+                    return context.deserialize(jsonObject, ServiceWorkerRealmInfo.class);
+                case "worker":
+                    return context.deserialize(jsonObject, WorkerRealmInfo.class);
+                case "paint-worklet":
+                    return context.deserialize(jsonObject, PaintWorkletRealmInfo.class);
+                case "audio-worklet":
+                    return context.deserialize(jsonObject, AudioWorkletRealmInfo.class);
+                case "worklet":
+                    return context.deserialize(jsonObject, WorkletRealmInfo.class);
+                default:
+                    throw new JsonParseException("Unknown RealmInfo type: " + type);
+            }
+        }
+    }
 
     abstract class BaseRealmInfo implements RealmInfo {
         private final String realm;

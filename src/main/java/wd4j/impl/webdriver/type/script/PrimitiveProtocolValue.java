@@ -1,14 +1,42 @@
 package wd4j.impl.webdriver.type.script;
 
+import com.google.gson.*;
+import com.google.gson.annotations.JsonAdapter;
 import wd4j.impl.webdriver.mapping.EnumWrapper;
 
-/**
- * The script.PrimitiveProtocolValue represents values which can only be represented by value, never by reference.
- *
- * @param <T>
- */
+@JsonAdapter(PrimitiveProtocolValue.PrimitiveProtocolValueAdapter.class) // 🔥 Automatische JSON-Konvertierung
 public interface PrimitiveProtocolValue<T> {
     Type getType();
+
+    class PrimitiveProtocolValueAdapter implements JsonDeserializer<PrimitiveProtocolValue<?>> {
+        @Override
+        public PrimitiveProtocolValue<?> deserialize(JsonElement jsonElement, java.lang.reflect.Type type, JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+            JsonObject jsonObject = jsonElement.getAsJsonObject();
+
+            if (!jsonObject.has("type")) {
+                throw new JsonParseException("Missing 'type' field in PrimitiveProtocolValue JSON");
+            }
+
+            String valueType = jsonObject.get("type").getAsString();
+
+            switch (valueType) {
+                case "undefined":
+                    return jsonDeserializationContext.deserialize(jsonObject, UndefinedValue.class);
+                case "null":
+                    return jsonDeserializationContext.deserialize(jsonObject, NullValue.class);
+                case "string":
+                    return jsonDeserializationContext.deserialize(jsonObject, StringValue.class);
+                case "number":
+                    return jsonDeserializationContext.deserialize(jsonObject, NumberValue.class);
+                case "boolean":
+                    return jsonDeserializationContext.deserialize(jsonObject, BooleanValue.class);
+                case "bigint":
+                    return jsonDeserializationContext.deserialize(jsonObject, BigIntValue.class);
+                default:
+                    throw new JsonParseException("Unknown PrimitiveProtocolValue type: " + valueType);
+            }
+        }
+    }
 
     class UndefinedValue implements PrimitiveProtocolValue<Void> {
         private final Type type = Type.UNDEFINED;

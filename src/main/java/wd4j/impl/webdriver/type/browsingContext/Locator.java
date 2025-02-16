@@ -1,10 +1,44 @@
 package wd4j.impl.webdriver.type.browsingContext;
 
+import com.google.gson.*;
+import com.google.gson.annotations.JsonAdapter;
 import wd4j.impl.webdriver.mapping.EnumWrapper;
 
+import java.lang.reflect.Type;
+
+@JsonAdapter(Locator.LocatorAdapter.class) // 🔥 Automatische JSON-Konvertierung
 public interface Locator<T> {
-   String getType();
-   T getValue();
+    String getType();
+    T getValue();
+
+    // 🔥 **INNERE KLASSE für JSON-Deserialisierung**
+    class LocatorAdapter implements JsonDeserializer<Locator<?>> {
+        @Override
+        public Locator<?> deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            JsonObject jsonObject = json.getAsJsonObject();
+
+            if (!jsonObject.has("type")) {
+                throw new JsonParseException("Missing 'type' field in Locator JSON");
+            }
+
+            String type = jsonObject.get("type").getAsString();
+
+            switch (type) {
+                case "accessibility":
+                    return context.deserialize(jsonObject, AccessibilityLocator.class);
+                case "context":
+                    return context.deserialize(jsonObject, ContextLocator.class);
+                case "css":
+                    return context.deserialize(jsonObject, CssLocator.class);
+                case "innerText":
+                    return context.deserialize(jsonObject, InnerTextLocator.class);
+                case "xpath":
+                    return context.deserialize(jsonObject, XPathLocator.class);
+                default:
+                    throw new JsonParseException("Unknown Locator type: " + type);
+            }
+        }
+    }
 
    class AccessibilityLocator implements Locator<AccessibilityLocator.Value> {
        private final String type = "accessibility";

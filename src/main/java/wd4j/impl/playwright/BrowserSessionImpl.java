@@ -1,7 +1,5 @@
 package wd4j.impl.playwright;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import wd4j.api.options.BindingCallback;
 import wd4j.api.options.Cookie;
 import wd4j.api.options.FunctionCallback;
@@ -9,6 +7,7 @@ import wd4j.api.options.Geolocation;
 import wd4j.api.*;
 import wd4j.impl.manager.SessionManager;
 import wd4j.impl.support.EventDispatcher;
+import wd4j.impl.webdriver.command.response.SessionResult;
 import wd4j.impl.websocket.CommunicationManager;
 import wd4j.override.BrowserSession;
 
@@ -415,7 +414,7 @@ public class BrowserSessionImpl implements BrowserSession {
      */
     private void fetchDefaultSession(String browserName) throws InterruptedException, ExecutionException {
         // Create a new session
-        String sessionResponse = sessionManager.newSession(browserName); // ToDo: Does not work with Chrome!
+        SessionResult.NewResult sessionResponse = sessionManager.newSession(browserName); // ToDo: Does not work with Chrome!
 
         // Kontext-ID extrahieren oder neuen Kontext erstellen
         sessionId = processSessionResponse(sessionResponse);
@@ -426,29 +425,22 @@ public class BrowserSessionImpl implements BrowserSession {
         }
     }
 
-    private String processSessionResponse(String sessionResponse) {
-        String sessionId = null;
+    private String processSessionResponse(SessionResult.NewResult sessionResponse) {
+        if (sessionResponse == null) {
+            throw new IllegalArgumentException("SessionResponse darf nicht null sein!");
+        }
 
-        Gson gson = new Gson();
-        JsonObject jsonResponse = gson.fromJson(sessionResponse, JsonObject.class);
-        JsonObject result = jsonResponse.getAsJsonObject("result");
-
-        // Prüfe, ob die Antwort eine Session-ID enthält
-        if (result != null && result.has("sessionId")) {
-            sessionId = result.get("sessionId").getAsString();
+        // 1️⃣ **Session-ID extrahieren**
+        String sessionId = sessionResponse.getSessionId();
+        if (sessionId != null) {
             System.out.println("--- Session-ID gefunden: " + sessionId);
+        } else {
+            System.out.println("⚠ Keine Session-ID gefunden!");
         }
 
-        // Prüfe, ob ein Default Browsing-Kontext in der Antwort enthalten ist
-        if (result != null && result.has("contexts")) {
-            JsonObject context = result.getAsJsonArray("contexts")
-                    .get(0)
-                    .getAsJsonObject();
-            if (context.has("context")) {
-                defaultContextId = context.get("context").getAsString();
-                System.out.println("--- Browsing Context-ID gefunden: " + defaultContextId);
-            }
-        }
+        // 2️⃣ **Default Browsing-Kontext prüfen (Optional)**
+        // ⚠ Derzeit ist in der Spezifikation KEIN "contexts"-Feld vorgesehen. Muss ggf. zum DTO hinzugefügt werden!
+
         return sessionId;
     }
 

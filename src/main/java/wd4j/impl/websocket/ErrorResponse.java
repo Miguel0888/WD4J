@@ -1,11 +1,14 @@
 package wd4j.impl.websocket;
 
-import wd4j.impl.webdriver.type.error.ErrorCode;
+import wd4j.impl.websocket.CommandResponse;
 
-public class ErrorResponse implements Message {
-    private String type = "error";
-    private Integer id; // Kann null sein, wenn kein `id`-Feld vorhanden ist
-    private ErrorCode error;
+/**
+ * Represents an error response from the server. It IS part of the WebDriver protocol.
+ */
+public class ErrorResponse implements CommandResponse<ErrorResponse> {
+    private String type = "error"; // Immer "error"
+    private Integer id; // Kann `null` sein, wenn kein `id`-Feld vorhanden ist
+    private String error;
     private String message;
     private String stacktrace;
 
@@ -14,11 +17,17 @@ public class ErrorResponse implements Message {
         return type;
     }
 
-    public Integer getId() {
-        return id;
+    @Override
+    public int getId() {
+        return id != null ? id : -1; // Falls `null`, setzen wir `-1` als Fehler-ID
     }
 
-    public ErrorCode getError() {
+    @Override
+    public ErrorResponse getResult() {
+        return this;
+    }
+
+    public String getError() {
         return error;
     }
 
@@ -28,5 +37,14 @@ public class ErrorResponse implements Message {
 
     public String getStacktrace() {
         return stacktrace;
+    }
+
+    @Override
+    public String toString() {
+        return "ErrorResponse{" +
+                "error='" + error + '\'' +
+                ", message='" + message + '\'' +
+                ", stacktrace='" + stacktrace + '\'' +
+                '}';
     }
 }

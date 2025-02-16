@@ -1,15 +1,16 @@
 package wd4j.impl.websocket;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
-import wd4j.api.WebSocket;
 import wd4j.api.WebSocketFrame;
+import wd4j.impl.markerInterfaces.ResultData;
 import wd4j.impl.playwright.WebSocketImpl;
 import wd4j.impl.webdriver.mapping.GsonMapperFactory;
 
+import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -44,59 +45,87 @@ public class CommunicationManager {
      * @param <T> Der Typ der Antwort. Falls String.class gewählt wird, wird die Antwort als JSON-String zurückgegeben.
      * @return Ein deserialisiertes DTO der Klasse `T`.
      */
-    public <T> T sendAndWaitForResponse(Command command, Class<T> responseType) {
-        send(command); // 1️⃣ Senden des Commands
+    public <T> T sendAndWaitForResponse(Command command, Type responseType) {
+        send(command); // ✅ 1️⃣ Befehl senden
 
-        // 2️⃣ Predicate: Prüft, ob das empfangene Frame die richtige ID hat
         Predicate<WebSocketFrame> predicate = frame -> {
             try {
-                if (responseType == String.class) {
-                    // Falls `String.class`, müssen wir direkt das JSON analysieren
-                    JsonObject json = gson.fromJson(frame.text(), JsonObject.class);
-                    return json.has("id") && json.get("id").getAsInt() == command.getId();
-                } else {
-                    // Normales DTO-Mapping mit Gson
-                    T response = gson.fromJson(frame.text(), responseType);
-                    return response != null;
-                }
+                JsonObject json = gson.fromJson(frame.text(), JsonObject.class);
+                return json.has("id") && json.get("id").getAsInt() == command.getId();
             } catch (JsonSyntaxException e) {
-                System.out.println("[ERROR] JSON Parsing-Fehler: " + e.getMessage());
                 return false;
             }
         };
 
-        // 3️⃣ Warte auf die Antwort mit `receive()`
         try {
-            return receive(predicate, responseType).get(30, TimeUnit.SECONDS);
+            String jsonString = receive(predicate, String.class, true).get(30, TimeUnit.SECONDS);
+
+            // ✅ Direkt auf JSON-Objekt parsen
+            JsonObject jsonObject = gson.fromJson(jsonString, JsonObject.class);
+
+            // ✅ Falls `String.class`, gib einfach den JSON-String zurück
+            if (responseType == String.class) {
+                return (T) jsonString;
+            }
+
+            // ✅ "result" aus dem JSON extrahieren
+            JsonElement resultElement = jsonObject.get("result");
+            if (resultElement == null) {
+                throw new RuntimeException("Response does not contain a 'result' field.");
+            }
+
+            // ✅ "result" direkt auf `responseType` mappen und zurückgeben!
+            return gson.fromJson(resultElement, responseType);
         } catch (TimeoutException e) {
             throw new RuntimeException("Timeout while waiting for response.", e);
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error while waiting for response.", e);
         }
+    }
+
+
+
+    /**
+     * Wartet asynchron auf eine empfangene Nachricht, die durch das Predicate gefiltert wird.
+     *
+     * @param predicate    Die Bedingung für die zu erwartende Nachricht.
+     * @param responseType Die Klasse des erwarteten DTOs.
+     * @param <T>          Der Typ der Antwort.
+     * @throws WebSocketErrorException Falls eine Fehlerantwort empfangen wird.
+     * @return Ein CompletableFuture mit der Antwort oder einem Fehler.
+     */
+    public <T> CompletableFuture<T> receive(Predicate<WebSocketFrame> predicate, Class<T> responseType)
+    {
+        return receive(predicate, responseType, true);
     }
 
     /**
      * Wartet asynchron auf eine empfangene Nachricht, die durch das Predicate gefiltert wird.
      *
-     * @param predicate Die Bedingung für die zu erwartende Nachricht.
+     * @param predicate    Die Bedingung für die zu erwartende Nachricht.
      * @param responseType Die Klasse des erwarteten DTOs.
-     * @param <T> Der Typ der Antwort.
-     * @return Ein CompletableFuture mit der Antwort.
+     * @param throwError   Falls `false`, wird keine Exception geworfen, sondern ein Fehler-DTO zurückgegeben.
+     * @param <T>          Der Typ der Antwort.
+     * @throws WebSocketErrorException Falls `throwError == true` und eine Fehlerantwort empfangen wird.
+     * @return Ein CompletableFuture mit der Antwort oder einem Fehler.
      */
-    public <T> CompletableFuture<T> receive(Predicate<WebSocketFrame> predicate, Class<T> responseType) {
+    public <T> CompletableFuture<T> receive(Predicate<WebSocketFrame> predicate, Class<T> responseType, boolean throwError) {
         CompletableFuture<T> future = new CompletableFuture<>();
         AtomicReference<Consumer<WebSocketFrame>> listenerRef = new AtomicReference<>();
 
         Consumer<WebSocketFrame> listener = frame -> {
-//            System.out.println("[DEBUG] Frame empfangen: " + frame.text());
-
             try {
                 JsonObject json = gson.fromJson(frame.text(), JsonObject.class);
 
                 // 🛠 Falls der Frame ein Fehler ist, direkt in `ErrorResponse` mappen
                 if (json.has("type") && "error".equals(json.get("type").getAsString())) {
                     ErrorResponse errorResponse = gson.fromJson(frame.text(), ErrorResponse.class);
-                    future.completeExceptionally(new WebSocketErrorException(errorResponse)); // ✅ Fehler als `ErrorResponse` zurückgeben
+
+                    if (throwError) {
+                        future.completeExceptionally(new WebSocketErrorException(errorResponse)); // ✅ Werfe Exception
+                    } else {
+                        future.complete(responseType.cast(errorResponse)); // ✅ Gib `ErrorResponse` als DTO zurück
+                    }
                     webSocket.offFrameReceived(listenerRef.get()); // Listener entfernen
                     return;
                 }
@@ -107,12 +136,10 @@ public class CommunicationManager {
                     T response;
                     if (responseType == String.class) {
                         response = responseType.cast(frame.text());
-                    }
-                    else
-                    {
-                        // ✅ Normales Mapping für DTOs
+                    } else {
                         response = gson.fromJson(frame.text(), responseType);
                     }
+
                     if (response != null) {
                         future.complete(response);
                         webSocket.offFrameReceived(listenerRef.get()); // Listener entfernen
@@ -125,14 +152,11 @@ public class CommunicationManager {
             }
         };
 
-        listenerRef.set(listener);
-        webSocket.onFrameReceived(listenerRef.get());
-//        System.out.println("[DEBUG] Listener erfolgreich registriert.");
+        listenerRef.set(listener); // 🛠 Hier wird die Variable gesetzt!
+        webSocket.onFrameReceived(listenerRef.get()); // ✅ Sicherstellen, dass `listener` registriert ist
 
         return future;
     }
-
-
 
 
     /**

@@ -1,11 +1,47 @@
 package wd4j.impl.webdriver.type.script;
 
+import com.google.gson.*;
+import com.google.gson.annotations.JsonAdapter;
+
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 
+@JsonAdapter(LocalValue.LocalValueAdapter.class) // 🔥 Automatische JSON-Konvertierung
 public interface LocalValue<T> {
     String getType();
     T getValue();
+
+    // 🔥 **INNERE KLASSE für JSON-Deserialisierung**
+    class LocalValueAdapter implements JsonDeserializer<LocalValue<?>> {
+        @Override
+        public LocalValue<?> deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            JsonObject jsonObject = json.getAsJsonObject();
+
+            if (!jsonObject.has("type")) {
+                throw new JsonParseException("Missing 'type' field in LocalValue JSON");
+            }
+
+            String type = jsonObject.get("type").getAsString();
+
+            switch (type) {
+                case "array":
+                    return context.deserialize(jsonObject, ArrayLocalValue.class);
+                case "date":
+                    return context.deserialize(jsonObject, DateLocalValue.class);
+                case "map":
+                    return context.deserialize(jsonObject, MapLocalValue.class);
+                case "object":
+                    return context.deserialize(jsonObject, ObjectLocalValue.class);
+                case "regexp":
+                    return context.deserialize(jsonObject, RegExpLocalValue.class);
+                case "set":
+                    return context.deserialize(jsonObject, SetLocalValue.class);
+                default:
+                    throw new JsonParseException("Unknown LocalValue type: " + type);
+            }
+        }
+    }
 
     class ArrayLocalValue implements LocalValue<List<LocalValue<?>>> {
         private final String type = "array";

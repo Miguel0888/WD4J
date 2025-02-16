@@ -3,7 +3,7 @@ package wd4j.impl.manager;
 import wd4j.impl.webdriver.command.request.helper.CommandImpl;
 import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.webdriver.command.request.SessionRequest;
-import wd4j.impl.playwright.WebSocketImpl;
+import wd4j.impl.webdriver.command.response.SessionResult;
 import wd4j.impl.websocket.CommunicationManager;
 
 import java.util.ArrayList;
@@ -42,9 +42,8 @@ public class SessionManager implements Module {
     }
 
     // new() - Since plain "new" is a reserved word in Java!
-    public String newSession(String browserName) {
-        // ToDo. Should Response DTO
-        return communicationManager.sendAndWaitForResponse(new SessionRequest.New(browserName), String.class);
+    public SessionResult.NewResult newSession(String browserName) {
+        return communicationManager.sendAndWaitForResponse(new SessionRequest.New(browserName), SessionResult.NewResult.class);
     }
 
     // end() - In corespondance to new!
