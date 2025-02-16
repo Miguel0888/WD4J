@@ -1,6 +1,6 @@
 package wd4j.impl.webdriver.type.script;
 
-import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
+import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
 import wd4j.impl.webdriver.mapping.EnumWrapper;
 
 import java.util.List;
@@ -8,16 +8,16 @@ import java.util.Map;
 
 public abstract class WDRemoteValue {
     private final String type;
-    private final WDHandle WDHandle;
-    private final WDInternalId WDInternalId;
+    private final WDHandle handle;
+    private final WDInternalId internalId;
 
-    protected WDRemoteValue(String type, WDHandle WDHandle, WDInternalId WDInternalId) {
+    protected WDRemoteValue(String type, WDHandle handle, WDInternalId internalId) {
         if (type == null || type.isEmpty()) {
             throw new IllegalArgumentException("Type must not be null or empty.");
         }
         this.type = type;
-        this.WDHandle = WDHandle;
-        this.WDInternalId = WDInternalId;
+        this.handle = handle;
+        this.internalId = internalId;
     }
 
     public String getType() {
@@ -25,24 +25,24 @@ public abstract class WDRemoteValue {
     }
 
     public WDHandle getHandle() {
-        return WDHandle;
+        return handle;
     }
 
     public WDInternalId getInternalId() {
-        return WDInternalId;
+        return internalId;
     }
 
     class SymbolWDRemoteValue extends WDRemoteValue {
-        public SymbolWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId) {
-            super("symbol", WDHandle, WDInternalId);
+        public SymbolWDRemoteValue(WDHandle handle, WDInternalId internalId) {
+            super("symbol", handle, internalId);
         }
     }
 
     class ArrayWDRemoteValue extends WDRemoteValue {
         private final List<WDRemoteValue> value;
 
-        public ArrayWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId, List<WDRemoteValue> value) {
-            super("array", WDHandle, WDInternalId);
+        public ArrayWDRemoteValue(WDHandle handle, WDInternalId internalId, List<WDRemoteValue> value) {
+            super("array", handle, internalId);
             this.value = value;
         }
 
@@ -54,8 +54,8 @@ public abstract class WDRemoteValue {
     class ObjectWDRemoteValue extends WDRemoteValue {
         private final Map<WDRemoteValue, WDRemoteValue> value;
 
-        public ObjectWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId, Map<WDRemoteValue, WDRemoteValue> value) {
-            super("object", WDHandle, WDInternalId);
+        public ObjectWDRemoteValue(WDHandle handle, WDInternalId internalId, Map<WDRemoteValue, WDRemoteValue> value) {
+            super("object", handle, internalId);
             this.value = value;
         }
 
@@ -65,28 +65,28 @@ public abstract class WDRemoteValue {
     }
 
     class FunctionWDRemoteValue extends WDRemoteValue {
-        public FunctionWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId) {
-            super("function", WDHandle, WDInternalId);
+        public FunctionWDRemoteValue(WDHandle handle, WDInternalId internalId) {
+            super("function", handle, internalId);
         }
     }
 
     class RegExpWDRemoteValue extends WDRemoteValue {
-        public RegExpWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId) {
-            super("regexp", WDHandle, WDInternalId);
+        public RegExpWDRemoteValue(WDHandle handle, WDInternalId internalId) {
+            super("regexp", handle, internalId);
         }
     }
 
     class DateWDRemoteValue extends WDRemoteValue {
-        public DateWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId) {
-            super("date", WDHandle, WDInternalId);
+        public DateWDRemoteValue(WDHandle handle, WDInternalId internalId) {
+            super("date", handle, internalId);
         }
     }
 
     class MapWDRemoteValue extends WDRemoteValue {
         private final Map<WDRemoteValue, WDRemoteValue> value;
 
-        public MapWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId, Map<WDRemoteValue, WDRemoteValue> value) {
-            super("map", WDHandle, WDInternalId);
+        public MapWDRemoteValue(WDHandle handle, WDInternalId internalId, Map<WDRemoteValue, WDRemoteValue> value) {
+            super("map", handle, internalId);
             this.value = value;
         }
 
@@ -98,8 +98,8 @@ public abstract class WDRemoteValue {
     class SetWDRemoteValue extends WDRemoteValue {
         private final List<WDRemoteValue> value;
 
-        public SetWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId, List<WDRemoteValue> value) {
-            super("set", WDHandle, WDInternalId);
+        public SetWDRemoteValue(WDHandle handle, WDInternalId internalId, List<WDRemoteValue> value) {
+            super("set", handle, internalId);
             this.value = value;
         }
 
@@ -109,58 +109,58 @@ public abstract class WDRemoteValue {
     }
 
     class WeakMapWDRemoteValue extends WDRemoteValue {
-        public WeakMapWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId) {
-            super("weakmap", WDHandle, WDInternalId);
+        public WeakMapWDRemoteValue(WDHandle handle, WDInternalId internalId) {
+            super("weakmap", handle, internalId);
         }
     }
 
     class WeakSetWDRemoteValue extends WDRemoteValue {
-        public WeakSetWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId) {
-            super("weakset", WDHandle, WDInternalId);
+        public WeakSetWDRemoteValue(WDHandle handle, WDInternalId internalId) {
+            super("weakset", handle, internalId);
         }
     }
 
     class GeneratorWDRemoteValue extends WDRemoteValue {
-        public GeneratorWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId) {
-            super("generator", WDHandle, WDInternalId);
+        public GeneratorWDRemoteValue(WDHandle handle, WDInternalId internalId) {
+            super("generator", handle, internalId);
         }
     }
 
     class ErrorWDRemoteValue extends WDRemoteValue {
-        public ErrorWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId) {
-            super("error", WDHandle, WDInternalId);
+        public ErrorWDRemoteValue(WDHandle handle, WDInternalId internalId) {
+            super("error", handle, internalId);
         }
     }
 
     class ProxyWDRemoteValue extends WDRemoteValue {
-        public ProxyWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId) {
-            super("proxy", WDHandle, WDInternalId);
+        public ProxyWDRemoteValue(WDHandle handle, WDInternalId internalId) {
+            super("proxy", handle, internalId);
         }
     }
 
     class PromiseWDRemoteValue extends WDRemoteValue {
-        public PromiseWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId) {
-            super("promise", WDHandle, WDInternalId);
+        public PromiseWDRemoteValue(WDHandle handle, WDInternalId internalId) {
+            super("promise", handle, internalId);
         }
     }
 
     class TypedArrayWDRemoteValue extends WDRemoteValue {
-        public TypedArrayWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId) {
-            super("typedarray", WDHandle, WDInternalId);
+        public TypedArrayWDRemoteValue(WDHandle handle, WDInternalId internalId) {
+            super("typedarray", handle, internalId);
         }
     }
 
     class ArrayBufferWDRemoteValue extends WDRemoteValue {
-        public ArrayBufferWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId) {
-            super("arraybuffer", WDHandle, WDInternalId);
+        public ArrayBufferWDRemoteValue(WDHandle handle, WDInternalId internalId) {
+            super("arraybuffer", handle, internalId);
         }
     }
 
     class NodeListWDRemoteValue extends WDRemoteValue {
         private final List<WDRemoteValue> value;
 
-        public NodeListWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId, List<WDRemoteValue> value) {
-            super("nodelist", WDHandle, WDInternalId);
+        public NodeListWDRemoteValue(WDHandle handle, WDInternalId internalId, List<WDRemoteValue> value) {
+            super("nodelist", handle, internalId);
             this.value = value;
         }
 
@@ -172,8 +172,8 @@ public abstract class WDRemoteValue {
     class HTMLCollectionWDRemoteValue extends WDRemoteValue {
         private final List<WDRemoteValue> value;
 
-        public HTMLCollectionWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId, List<WDRemoteValue> value) {
-            super("htmlcollection", WDHandle, WDInternalId);
+        public HTMLCollectionWDRemoteValue(WDHandle handle, WDInternalId internalId, List<WDRemoteValue> value) {
+            super("htmlcollection", handle, internalId);
             this.value = value;
         }
 
@@ -186,8 +186,8 @@ public abstract class WDRemoteValue {
         private final WDSharedId WDSharedId;
         private final NodeProperties value;
 
-        public NodeWDRemoteValue(WDHandle WDHandle, WDInternalId WDInternalId, WDSharedId WDSharedId, NodeProperties value) {
-            super("node", WDHandle, WDInternalId);
+        public NodeWDRemoteValue(WDHandle handle, WDInternalId internalId, WDSharedId WDSharedId, NodeProperties value) {
+            super("node", handle, internalId);
             this.WDSharedId = WDSharedId;
             this.value = value;
         }
@@ -204,8 +204,8 @@ public abstract class WDRemoteValue {
     class WindowProxyWDRemoteValue extends WDRemoteValue {
         WindowProxyProperties value;
 
-        public WindowProxyWDRemoteValue(WDHandle WDHandle, WindowProxyProperties value, WDInternalId WDInternalId) {
-            super("window", WDHandle, WDInternalId);
+        public WindowProxyWDRemoteValue(WDHandle handle, WindowProxyProperties value, WDInternalId internalId) {
+            super("window", handle, internalId);
             this.value = value;
         }
 
@@ -296,13 +296,13 @@ public abstract class WDRemoteValue {
     }
 
     public static class WindowProxyProperties {
-        private final BrowsingContextRequest browsingContextRequest;
+        private final WDBrowsingContextRequest browsingContextRequest;
 
-        public WindowProxyProperties(BrowsingContextRequest browsingContextRequest) {
-            this.browsingContextRequest = browsingContextRequest;
+        public WindowProxyProperties(WDBrowsingContextRequest WDBrowsingContextRequest) {
+            this.browsingContextRequest = WDBrowsingContextRequest;
         }
 
-        public BrowsingContextRequest getBrowsingContext() {
+        public WDBrowsingContextRequest getBrowsingContext() {
             return browsingContextRequest;
         }
     }

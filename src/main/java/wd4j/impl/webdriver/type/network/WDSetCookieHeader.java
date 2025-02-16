@@ -8,7 +8,7 @@ public class WDSetCookieHeader {
     private final String expiry; // optional
     private final Long maxAge; // optional
     private final String path; // optional
-    private final WDSameSite WDSameSite; // optional
+    private final WDSameSite sameSite; // optional
     private final Boolean secure; // optional
 
     public WDSetCookieHeader(String name, WDBytesValue value) {
@@ -19,11 +19,11 @@ public class WDSetCookieHeader {
         this.expiry = null;
         this.maxAge = null;
         this.path = null;
-        this.WDSameSite = null;
+        this.sameSite = null;
         this.secure = false;
     }
 
-    public WDSetCookieHeader(String name, WDBytesValue value, String domain, boolean httpOnly, String expiry, long maxAge, String path, WDSameSite WDSameSite, boolean secure) {
+    public WDSetCookieHeader(String name, WDBytesValue value, String domain, boolean httpOnly, String expiry, long maxAge, String path, WDSameSite sameSite, boolean secure) {
         this.name = name;
         this.value = value;
         this.domain = domain;
@@ -31,7 +31,7 @@ public class WDSetCookieHeader {
         this.expiry = expiry;
         this.maxAge = maxAge;
         this.path = path;
-        this.WDSameSite = WDSameSite;
+        this.sameSite = sameSite;
         this.secure = secure;
     }
 
@@ -64,7 +64,7 @@ public class WDSetCookieHeader {
     }
 
     public WDSameSite getSameSite() {
-        return WDSameSite;
+        return sameSite;
     }
 
     public Boolean getSecure() {

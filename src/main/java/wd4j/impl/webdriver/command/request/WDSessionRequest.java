@@ -9,7 +9,7 @@ import wd4j.impl.webdriver.type.session.*;
 
 import java.util.List;
 
-public class SessionRequest {
+public class WDSessionRequest {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Commands (Classes)

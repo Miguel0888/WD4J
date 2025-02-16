@@ -7,7 +7,7 @@ import wd4j.impl.webdriver.command.request.parameters.webExtension.InstallParame
 import wd4j.impl.webdriver.command.request.parameters.webExtension.UninstallParameters;
 import wd4j.impl.webdriver.type.webExtension.WDExtension;
 
-public class WebExtensionRequest {
+public class WDWebExtensionRequest {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Commands (Classes)

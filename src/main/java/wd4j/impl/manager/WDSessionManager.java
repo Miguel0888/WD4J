@@ -1,7 +1,7 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.SessionRequest;
+import wd4j.impl.webdriver.command.request.WDSessionRequest;
 import wd4j.impl.webdriver.command.response.WDEmptyResult;
 import wd4j.impl.webdriver.command.response.WDSessionResult;
 import wd4j.impl.websocket.WebSocketManager;
@@ -41,7 +41,7 @@ public class WDSessionManager implements WDModule {
      * Ruft den Status der WebDriver BiDi Session ab.
      */
     public WDSessionResult.StatusWDSessionResult status() {
-        return webSocketManager.sendAndWaitForResponse(new SessionRequest.Status(), WDSessionResult.StatusWDSessionResult.class);
+        return webSocketManager.sendAndWaitForResponse(new WDSessionRequest.Status(), WDSessionResult.StatusWDSessionResult.class);
     }
 
     // new() - Since plain "new" is a reserved word in Java!
@@ -49,7 +49,7 @@ public class WDSessionManager implements WDModule {
      * Erstellt eine neue Session mit dem gegebenen Browser.
      */
     public WDSessionResult.NewWDSessionResult newSession(String browserName) {
-        return webSocketManager.sendAndWaitForResponse(new SessionRequest.New(browserName), WDSessionResult.NewWDSessionResult.class);
+        return webSocketManager.sendAndWaitForResponse(new WDSessionRequest.New(browserName), WDSessionResult.NewWDSessionResult.class);
     }
 
 
@@ -58,7 +58,7 @@ public class WDSessionManager implements WDModule {
      * Beendet die aktuelle WebDriver BiDi Session.
      */
     public void endSession() {
-        webSocketManager.sendAndWaitForResponse(new SessionRequest.End(), WDEmptyResult.class);
+        webSocketManager.sendAndWaitForResponse(new WDSessionRequest.End(), WDEmptyResult.class);
     }
 
 
@@ -82,7 +82,7 @@ public class WDSessionManager implements WDModule {
 
         if (!newEvents.isEmpty()) {
             result = webSocketManager.sendAndWaitForResponse(
-                    new SessionRequest.Subscribe(newEvents), WDSessionResult.SubscribeWDSessionResult.class);
+                    new WDSessionRequest.Subscribe(newEvents), WDSessionResult.SubscribeWDSessionResult.class);
             subscribedEvents.addAll(newEvents);
             System.out.println("Subscribed to new events: " + newEvents);
         }
@@ -106,7 +106,7 @@ public class WDSessionManager implements WDModule {
         }
 
         if (!eventsToRemove.isEmpty()) {
-            webSocketManager.sendAndWaitForResponse(new SessionRequest.Unsubscribe(eventsToRemove), WDEmptyResult.class);
+            webSocketManager.sendAndWaitForResponse(new WDSessionRequest.Unsubscribe(eventsToRemove), WDEmptyResult.class);
             subscribedEvents.removeAll(eventsToRemove);
             System.out.println("Unsubscribed from events: " + eventsToRemove);
         }

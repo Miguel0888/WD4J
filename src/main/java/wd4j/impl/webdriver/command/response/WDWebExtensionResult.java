@@ -5,14 +5,14 @@ import wd4j.impl.webdriver.type.webExtension.WDExtension;
 
 public interface WDWebExtensionResult extends WDResultData {
     class InstallWDWebExtensionResult implements WDWebExtensionResult {
-        private final WDExtension WDExtension;
+        private final WDExtension extension;
 
-        public InstallWDWebExtensionResult(WDExtension WDExtension) {
-            this.WDExtension = WDExtension;
+        public InstallWDWebExtensionResult(WDExtension extension) {
+            this.extension = extension;
         }
 
         public WDExtension getExtension() {
-            return WDExtension;
+            return extension;
         }
     }
 }

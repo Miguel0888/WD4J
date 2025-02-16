@@ -3,7 +3,7 @@ package wd4j.impl.websocket;
 /**
  * Represents an error response from the server. It IS part of the WebDriver protocol.
  */
-public class WDErrorResponseWD implements WDCommandResponse<WDErrorResponseWD> {
+public class WDErrorResponse implements WDCommandResponse<WDErrorResponse> {
     private String type = "error"; // Immer "error"
     private Integer id; // Kann `null` sein, wenn kein `id`-Feld vorhanden ist
     private String error;
@@ -21,7 +21,7 @@ public class WDErrorResponseWD implements WDCommandResponse<WDErrorResponseWD> {
     }
 
     @Override
-    public WDErrorResponseWD getResult() {
+    public WDErrorResponse getResult() {
         return this;
     }
 

@@ -11,7 +11,7 @@ public class WDLogEvent implements WDModule {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class EntryAdded extends WDEvent<EntryAdded.EntryAddedParameters> {
-        private String method = WDMethodEvent.ENTRY_ADDED.getName();
+        private String method = WDEventMapping.ENTRY_ADDED.getName();
 
         @Override
         public String getMethod() {
@@ -19,24 +19,24 @@ public class WDLogEvent implements WDModule {
         }
 
         public static class EntryAddedParameters {
-            private WDLogEntry WDLogEntry;
+            private WDLogEntry logEntry;
 
-            public EntryAddedParameters(WDLogEntry WDLogEntry) {
-                this.WDLogEntry = WDLogEntry;
+            public EntryAddedParameters(WDLogEntry logEntry) {
+                this.logEntry = logEntry;
             }
 
             public WDLogEntry getEntry() {
-                return WDLogEntry;
+                return logEntry;
             }
 
-            public void setEntry(WDLogEntry WDLogEntry) {
-                this.WDLogEntry = WDLogEntry;
+            public void setEntry(WDLogEntry logEntry) {
+                this.logEntry = logEntry;
             }
 
             @Override
             public String toString() {
                 return "EntryAddedParameters{" +
-                        "entry=" + WDLogEntry +
+                        "entry=" + logEntry +
                         '}';
             }
         }

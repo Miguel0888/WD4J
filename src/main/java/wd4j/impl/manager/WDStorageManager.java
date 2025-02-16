@@ -3,7 +3,7 @@ package wd4j.impl.manager;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.StorageRequest;
+import wd4j.impl.webdriver.command.request.WDStorageRequest;
 import wd4j.impl.webdriver.command.request.parameters.storage.CookieFilter;
 import wd4j.impl.webdriver.command.request.parameters.storage.SetCookieParameters;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
@@ -35,7 +35,7 @@ public class WDStorageManager implements WDModule {
      */
     public String getCookies(WDBrowsingContext contextId) {
         try {
-            String response = webSocketManager.sendAndWaitForResponse(new StorageRequest.GetCookies(contextId), String.class);
+            String response = webSocketManager.sendAndWaitForResponse(new WDStorageRequest.GetCookies(contextId), String.class);
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             return jsonResponse.getAsJsonObject("result").toString();
         } catch (RuntimeException e) {
@@ -53,7 +53,7 @@ public class WDStorageManager implements WDModule {
      */
     public void setCookie(String contextId, SetCookieParameters.PartialCookie cookie) {
         try {
-            webSocketManager.sendAndWaitForResponse(new StorageRequest.SetCookie(contextId, cookie), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDStorageRequest.SetCookie(contextId, cookie), String.class);
             System.out.println("Cookie set: " + cookie.getName() + " = " + cookie.getValue() + " in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error setting cookie: " + e.getMessage());
@@ -71,7 +71,7 @@ public class WDStorageManager implements WDModule {
     public void deleteCookie(String contextId, String name) {
         try {
             CookieFilter cookieFilter = new CookieFilter(name, null, null, null, null, null, null, null, null);
-            webSocketManager.sendAndWaitForResponse(new StorageRequest.DeleteCookies(contextId, cookieFilter), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDStorageRequest.DeleteCookies(contextId, cookieFilter), String.class);
             System.out.println("Cookie deleted: " + name + " from context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error deleting cookie: " + e.getMessage());

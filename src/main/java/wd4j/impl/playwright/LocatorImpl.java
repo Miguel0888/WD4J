@@ -9,7 +9,7 @@ import wd4j.api.options.AriaRole;
 import wd4j.api.options.BoundingBox;
 import wd4j.api.options.FilePayload;
 import wd4j.api.options.SelectOption;
-import wd4j.impl.webdriver.command.request.BrowsingContextRequest;
+import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
 import wd4j.impl.websocket.WebSocketManager;
 
 import java.nio.file.Path;
@@ -54,7 +54,7 @@ public class LocatorImpl implements Locator {
 //            String jsonResponse = futureResponse.get(5, TimeUnit.SECONDS).text();
 //            System.out.println("===>" + jsonResponse);
 
-            String jsonResponse  = webSocket.sendAndWaitForResponse(new BrowsingContextRequest.GetTree(), String.class);
+            String jsonResponse  = webSocket.sendAndWaitForResponse(new WDBrowsingContextRequest.GetTree(), String.class);
 
             JsonObject json = new Gson().fromJson(jsonResponse, JsonObject.class);
             JsonArray nodes = json.getAsJsonArray("nodes");

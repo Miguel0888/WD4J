@@ -20,16 +20,16 @@ public interface WDStorageResult extends WDResultData {
     }
 
     class GetCookieWDStorageResult implements WDStorageResult {
-        List<WDCookie> WDCookies;
+        List<WDCookie> cookies;
         SetCookieParameters.PartitionKey partitionKey;
 
-        public GetCookieWDStorageResult(List<WDCookie> WDCookies, SetCookieParameters.PartitionKey partitionKey) {
-            this.WDCookies = WDCookies;
+        public GetCookieWDStorageResult(List<WDCookie> cookies, SetCookieParameters.PartitionKey partitionKey) {
+            this.cookies = cookies;
             this.partitionKey = partitionKey;
         }
 
         public List<WDCookie> getCookies() {
-            return WDCookies;
+            return cookies;
         }
 
         public SetCookieParameters.PartitionKey getPartitionKey() {

@@ -8,42 +8,42 @@ public class WDResponseData {
     private final char status;
     private final String statusText;
     private final boolean fromCache;
-    private final List<WDHeader> WDHeaders;
+    private final List<WDHeader> headers;
     private final String mimeType;
     private final char bytesReceived;
     private final char headersSize;
     private final char bodySize;
     private final WDResponseContent content;
-    private final List<WDAuthChallenge> WDAuthChallenges; // optional
+    private final List<WDAuthChallenge> authChallenges; // optional
 
-    public WDResponseData(String url, String protocol, char status, String statusText, boolean fromCache, List<WDHeader> WDHeaders, String mimeType, char bytesReceived, char headersSize, char bodySize, WDResponseContent content) {
+    public WDResponseData(String url, String protocol, char status, String statusText, boolean fromCache, List<WDHeader> headers, String mimeType, char bytesReceived, char headersSize, char bodySize, WDResponseContent content) {
         this.url = url;
         this.protocol = protocol;
         this.status = status;
         this.statusText = statusText;
         this.fromCache = fromCache;
-        this.WDHeaders = WDHeaders;
+        this.headers = headers;
         this.mimeType = mimeType;
         this.bytesReceived = bytesReceived;
         this.headersSize = headersSize;
         this.bodySize = bodySize;
         this.content = content;
-        this.WDAuthChallenges = null;
+        this.authChallenges = null;
     }
 
-    public WDResponseData(String url, String protocol, char status, String statusText, boolean fromCache, List<WDHeader> WDHeaders, String mimeType, char bytesReceived, char headersSize, char bodySize, WDResponseContent content, List<WDAuthChallenge> WDAuthChallenges) {
+    public WDResponseData(String url, String protocol, char status, String statusText, boolean fromCache, List<WDHeader> headers, String mimeType, char bytesReceived, char headersSize, char bodySize, WDResponseContent content, List<WDAuthChallenge> authChallenges) {
         this.url = url;
         this.protocol = protocol;
         this.status = status;
         this.statusText = statusText;
         this.fromCache = fromCache;
-        this.WDHeaders = WDHeaders;
+        this.headers = headers;
         this.mimeType = mimeType;
         this.bytesReceived = bytesReceived;
         this.headersSize = headersSize;
         this.bodySize = bodySize;
         this.content = content;
-        this.WDAuthChallenges = WDAuthChallenges;
+        this.authChallenges = authChallenges;
     }
 
     public String getUrl() {
@@ -67,7 +67,7 @@ public class WDResponseData {
     }
 
     public List<WDHeader> getHeaders() {
-        return WDHeaders;
+        return headers;
     }
 
     public String getMimeType() {
@@ -91,6 +91,6 @@ public class WDResponseData {
     }
 
     public List<WDAuthChallenge> getAuthChallenges() {
-        return WDAuthChallenges;
+        return authChallenges;
     }
 }

@@ -6,25 +6,25 @@ import wd4j.impl.webdriver.type.script.WDStackTrace;
 public class WDInitiator {
     private final Character colomnNumber;
     private final Character lineNumber;
-    private final WDRequest WDRequest;
-    private final WDStackTrace WDStackTrace;
+    private final WDRequest request;
+    private final WDStackTrace stackTrace;
     private final Type type;
 
     public WDInitiator(Type type) {
         this.type = type;
         this.colomnNumber = null;
         this.lineNumber = null;
-        this.WDRequest = null;
-        this.WDStackTrace = null;
+        this.request = null;
+        this.stackTrace = null;
 
     }
 
-    public WDInitiator(Type type, Character colomnNumber, Character lineNumber, WDRequest WDRequest, WDStackTrace WDStackTrace) {
+    public WDInitiator(Type type, Character colomnNumber, Character lineNumber, WDRequest request, WDStackTrace stackTrace) {
         this.type = type;
         this.colomnNumber = colomnNumber;
         this.lineNumber = lineNumber;
-        this.WDRequest = WDRequest;
-        this.WDStackTrace = WDStackTrace;
+        this.request = request;
+        this.stackTrace = stackTrace;
     }
 
     public Character getColomnNumber() {
@@ -36,11 +36,11 @@ public class WDInitiator {
     }
 
     public WDRequest getRequest() {
-        return WDRequest;
+        return request;
     }
 
     public WDStackTrace getStackTrace() {
-        return WDStackTrace;
+        return stackTrace;
     }
 
     public Type getType() {

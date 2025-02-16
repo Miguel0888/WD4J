@@ -15,7 +15,7 @@ public class WDNetworkEvent implements WDModule {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class AuthRequired extends WDEvent<AuthRequired.AuthRequiredParametersWD> {
-        private String method = WDMethodEvent.AUTH_REQUIRED.getName();
+        private String method = WDEventMapping.AUTH_REQUIRED.getName();
 
         @Override
         public String getMethod() {
@@ -39,7 +39,7 @@ public class WDNetworkEvent implements WDModule {
     }
 
     public static class BeforeRequestSent extends WDEvent<BeforeRequestSent.BeforeRequestSentParametersWD> {
-        private String method = WDMethodEvent.BEFORE_REQUEST_SENT.getName();
+        private String method = WDEventMapping.BEFORE_REQUEST_SENT.getName();
 
         @Override
         public String getMethod() {
@@ -47,34 +47,34 @@ public class WDNetworkEvent implements WDModule {
         }
 
         public static class BeforeRequestSentParametersWD extends WDBaseParameters {
-            private WDInitiator WDInitiator;
+            private WDInitiator initiator;
 
             public BeforeRequestSentParametersWD(WDBrowsingContext context, boolean isBlocked, WDNavigation WDNavigation, char redirectCount,
                                                  WDRequestData request, long timestamp, List<WDIntercept> WDIntercepts,
-                                                 WDInitiator WDInitiator) {
+                                                 WDInitiator initiator) {
                 super(context, isBlocked, WDNavigation, redirectCount, request, timestamp, WDIntercepts);
-                this.WDInitiator = WDInitiator;
+                this.initiator = initiator;
             }
 
             public WDInitiator getInitiator() {
-                return WDInitiator;
+                return initiator;
             }
 
-            public void setInitiator(WDInitiator WDInitiator) {
-                this.WDInitiator = WDInitiator;
+            public void setInitiator(WDInitiator initiator) {
+                this.initiator = initiator;
             }
 
             @Override
             public String toString() {
                 return "BeforeRequestSentParameters{" +
-                        "initiator=" + WDInitiator +
+                        "initiator=" + initiator +
                         "} " + super.toString();
             }
         }
     }
 
     public static class FetchError extends WDEvent<FetchError.FetchErrorParametersWD> {
-        private String method = WDMethodEvent.FETCH_ERROR.getName();
+        private String method = WDEventMapping.FETCH_ERROR.getName();
 
         @Override
         public String getMethod() {
@@ -109,7 +109,7 @@ public class WDNetworkEvent implements WDModule {
     }
 
     public static class ResponseCompleted extends WDEvent<ResponseCompleted.ResponseCompletedParametersWD> {
-        private String method = WDMethodEvent.RESPONSE_COMPLETED.getName();
+        private String method = WDEventMapping.RESPONSE_COMPLETED.getName();
 
         @Override
         public String getMethod() {
@@ -144,7 +144,7 @@ public class WDNetworkEvent implements WDModule {
     }
 
     public static class ResponseStarted extends WDEvent<ResponseStarted.ResponseStartedParametersWD> {
-        private String method = WDMethodEvent.RESPONSE_STARTED.getName();
+        private String method = WDEventMapping.RESPONSE_STARTED.getName();
 
         @Override
         public String getMethod() {

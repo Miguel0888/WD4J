@@ -2,7 +2,7 @@ package wd4j.impl.webdriver.event;
 
 import wd4j.api.*;
 
-public enum WDMethodEvent {
+public enum WDEventMapping {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event methods see: https://w3c.github.io/webdriver-bidi#modules
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -42,7 +42,7 @@ public enum WDMethodEvent {
     private final String name;
     private final Class<?> associatedClass;
 
-    WDMethodEvent(String name, Class<?> associatedClass) {
+    WDEventMapping(String name, Class<?> associatedClass) {
         this.name = name;
         this.associatedClass = associatedClass;
     }
@@ -56,8 +56,8 @@ public enum WDMethodEvent {
     }
 
     // 🔹 Methode zur Suche eines Events anhand des Namens (für Dispatcher)
-    public static WDMethodEvent fromName(String name) {
-        for (WDMethodEvent event : WDMethodEvent.values()) {
+    public static WDEventMapping fromName(String name) {
+        for (WDEventMapping event : WDEventMapping.values()) {
             if (event.getName().equals(name)) {
                 return event;
             }

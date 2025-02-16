@@ -3,12 +3,12 @@ package wd4j.impl.webdriver.command.request;
 import wd4j.impl.markerInterfaces.WDCommandData;
 import wd4j.impl.webdriver.command.request.helper.WDCommandImpl;
 import wd4j.impl.webdriver.command.request.helper.WDEmptyParameters;
-import wd4j.impl.webdriver.command.request.parameters.browser.RemoveUserContextParameters;
-import wd4j.impl.webdriver.command.request.parameters.browser.SetClientWindowStateParameters;
+import wd4j.impl.webdriver.command.request.parameters.browser.WDRemoveUserContextParameters;
+import wd4j.impl.webdriver.command.request.parameters.browser.WDSetClientWindowStateParameters;
 import wd4j.impl.webdriver.type.browser.WDClientWindow;
 import wd4j.impl.webdriver.type.browser.WDUserContext;
 
-public class BrowserRequest {
+public class WDBrowserRequest {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Commands (Classes)
@@ -38,31 +38,31 @@ public class BrowserRequest {
         }
     }
 
-    public static class RemoveUserContext extends WDCommandImpl<RemoveUserContextParameters> implements WDCommandData {
+    public static class RemoveUserContext extends WDCommandImpl<WDRemoveUserContextParameters> implements WDCommandData {
         public RemoveUserContext(String contextId) {
-            super("browser.removeUserContext", new RemoveUserContextParameters(new WDUserContext(contextId)));
+            super("browser.removeUserContext", new WDRemoveUserContextParameters(new WDUserContext(contextId)));
         }
 
         public RemoveUserContext(WDUserContext context) {
-            super("browser.removeUserContext", new RemoveUserContextParameters(context));
+            super("browser.removeUserContext", new WDRemoveUserContextParameters(context));
         }
     }
 
-    public static class SetClientWindowState extends WDCommandImpl<SetClientWindowStateParameters> implements WDCommandData {
+    public static class SetClientWindowState extends WDCommandImpl<WDSetClientWindowStateParameters> implements WDCommandData {
         public SetClientWindowState(String clientWindowId, String state) {
             super("browser.setClientWindowState",
-                    new SetClientWindowStateParameters.ClientWindowNamedState( new WDClientWindow(clientWindowId),
-                            SetClientWindowStateParameters.ClientWindowNamedState.State.valueOf(state)));
+                    new WDSetClientWindowStateParameters.ClientWindowNamedStateWD( new WDClientWindow(clientWindowId),
+                            WDSetClientWindowStateParameters.ClientWindowNamedStateWD.State.valueOf(state)));
         }
-        public SetClientWindowState(WDClientWindow WDClientWindow, SetClientWindowStateParameters.ClientWindowNamedState.State state) {
+        public SetClientWindowState(WDClientWindow WDClientWindow, WDSetClientWindowStateParameters.ClientWindowNamedStateWD.State state) {
             super("browser.setClientWindowState",
-                    new SetClientWindowStateParameters.ClientWindowNamedState(WDClientWindow, state));
+                    new WDSetClientWindowStateParameters.ClientWindowNamedStateWD(WDClientWindow, state));
         }
         // ToDo: These are not quite correct, since ClientWindow ought to be a separate parameter, not a part of the state:
-        public SetClientWindowState(SetClientWindowStateParameters.ClientWindowNamedState clientWindowNamedState) {
+        public SetClientWindowState(WDSetClientWindowStateParameters.ClientWindowNamedStateWD clientWindowNamedState) {
             super("browser.setClientWindowState", clientWindowNamedState);
         }
-        public SetClientWindowState(SetClientWindowStateParameters.ClientWindowRectState clientWindowRectState) {
+        public SetClientWindowState(WDSetClientWindowStateParameters.ClientWindowRectStateWD clientWindowRectState) {
             super("browser.setClientWindowState", clientWindowRectState);
         }
     }

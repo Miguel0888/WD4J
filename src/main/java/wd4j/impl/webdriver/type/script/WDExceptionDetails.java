@@ -4,14 +4,14 @@ public class WDExceptionDetails {
     private final char coloumnNumber;
     private final WDRemoteValue exception;
     private final char lineNumber;
-    private final WDStackTrace WDStackTrace;
+    private final WDStackTrace stackTrace;
     private final String text;
 
-    public WDExceptionDetails(char coloumnNumber, WDRemoteValue exception, char lineNumber, WDStackTrace WDStackTrace, String text) {
+    public WDExceptionDetails(char coloumnNumber, WDRemoteValue exception, char lineNumber, WDStackTrace stackTrace, String text) {
         this.coloumnNumber = coloumnNumber;
         this.exception = exception;
         this.lineNumber = lineNumber;
-        this.WDStackTrace = WDStackTrace;
+        this.stackTrace = stackTrace;
         this.text = text;
     }
 
@@ -28,7 +28,7 @@ public class WDExceptionDetails {
     }
 
     public WDStackTrace getStackTrace() {
-        return WDStackTrace;
+        return stackTrace;
     }
 
     public String getText() {

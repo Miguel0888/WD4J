@@ -3,23 +3,23 @@ package wd4j.impl.webdriver.type.network;
 import java.util.List;
 
 public class WDRequestData {
-    private final WDRequest WDRequest;
+    private final WDRequest request;
     private final String url;
     private final String method;
-    private final List<WDHeader> WDHeaders;
-    private final List<WDCookie> WDCookies;
+    private final List<WDHeader> headers;
+    private final List<WDCookie> cookies;
     private final char headersSize;
     private final WDCookie bodySize;
     private final String destination;
     private final String initiatorType;
     private final WDFetchTimingInfo timings;
 
-    public WDRequestData(WDRequest WDRequest, String url, String method, List<WDHeader> WDHeaders, List<WDCookie> WDCookies, char headersSize, WDCookie bodySize, String destination, String initiatorType, WDFetchTimingInfo timings) {
-        this.WDRequest = WDRequest;
+    public WDRequestData(WDRequest request, String url, String method, List<WDHeader> headers, List<WDCookie> cookies, char headersSize, WDCookie bodySize, String destination, String initiatorType, WDFetchTimingInfo timings) {
+        this.request = request;
         this.url = url;
         this.method = method;
-        this.WDHeaders = WDHeaders;
-        this.WDCookies = WDCookies;
+        this.headers = headers;
+        this.cookies = cookies;
         this.headersSize = headersSize;
         this.bodySize = bodySize;
         this.destination = destination;
@@ -28,7 +28,7 @@ public class WDRequestData {
     }
 
     public WDRequest getRequest() {
-        return WDRequest;
+        return request;
     }
 
     public String getUrl() {
@@ -40,11 +40,11 @@ public class WDRequestData {
     }
 
     public List<WDHeader> getHeaders() {
-        return WDHeaders;
+        return headers;
     }
 
     public List<WDCookie> getCookies() {
-        return WDCookies;
+        return cookies;
     }
 
     public char getHeadersSize() {

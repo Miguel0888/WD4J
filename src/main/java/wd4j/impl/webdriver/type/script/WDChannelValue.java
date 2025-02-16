@@ -20,28 +20,28 @@ public class WDChannelValue {
     }
 
     public static class ChannelProperties {
-        private final WDChannel WDChannel;
-        private final WDSerializationOptions WDSerializationOptions; // Optional
+        private final WDChannel channel;
+        private final WDSerializationOptions serializationOptions; // Optional
         private final WDResultOwnership ownership; // Optional
 
-        public ChannelProperties(WDChannel WDChannel) {
-            this.WDChannel = WDChannel;
-            this.WDSerializationOptions = null;
+        public ChannelProperties(WDChannel channel) {
+            this.channel = channel;
+            this.serializationOptions = null;
             this.ownership = null;
         }
 
-        public ChannelProperties(WDChannel WDChannel, WDSerializationOptions WDSerializationOptions, WDResultOwnership ownership) {
-            this.WDChannel = WDChannel;
-            this.WDSerializationOptions = WDSerializationOptions;
+        public ChannelProperties(WDChannel channel, WDSerializationOptions serializationOptions, WDResultOwnership ownership) {
+            this.channel = channel;
+            this.serializationOptions = serializationOptions;
             this.ownership = ownership;
         }
 
         public WDChannel getChannel() {
-            return WDChannel;
+            return channel;
         }
 
         public WDSerializationOptions getSerializationOptions() {
-            return WDSerializationOptions;
+            return serializationOptions;
         }
 
         public WDResultOwnership getOwnership() {

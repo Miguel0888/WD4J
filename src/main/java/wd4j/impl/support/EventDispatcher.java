@@ -6,7 +6,7 @@ import wd4j.api.ConsoleMessage;
 import wd4j.api.Request;
 import wd4j.api.Response;
 import wd4j.impl.manager.WDSessionManager;
-import wd4j.impl.webdriver.event.WDMethodEvent;
+import wd4j.impl.webdriver.event.WDEventMapping;
 
 import java.util.Collections;
 import java.util.Map;
@@ -39,7 +39,7 @@ public class EventDispatcher {
         String eventType = jsonMessage.get("method").getAsString();
         JsonObject params = jsonMessage.has("params") ? jsonMessage.getAsJsonObject("params") : new JsonObject();
 
-        WDMethodEvent event = WDMethodEvent.fromName(eventType);
+        WDEventMapping event = WDEventMapping.fromName(eventType);
         if (event != null) {
             System.out.println("[DEBUG] Dispatched event: " + eventType + " with params: " + params);
             dispatchEvent(eventType, params, event.getAssociatedClass());

@@ -1,14 +1,14 @@
 package wd4j.impl.websocket;
 
 public class WDException extends RuntimeException {
-    private final WDErrorResponseWD WDErrorResponse;
+    private final WDErrorResponse errorResponse;
 
-    public WDException(WDErrorResponseWD WDErrorResponse) {
-        super("WebSocket Error: " + WDErrorResponse.getMessage());
-        this.WDErrorResponse = WDErrorResponse;
+    public WDException(WDErrorResponse errorResponse) {
+        super("WebSocket Error: " + errorResponse.getMessage());
+        this.errorResponse = errorResponse;
     }
 
-    public WDErrorResponseWD getErrorResponse() {
-        return WDErrorResponse;
+    public WDErrorResponse getErrorResponse() {
+        return errorResponse;
     }
 }

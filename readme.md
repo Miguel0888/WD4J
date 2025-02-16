@@ -132,7 +132,7 @@ Beiträge sind willkommen! Wenn du helfen möchtest:
 
 - [WebDriver BiDi Spezifikation (W3C)](https://w3c.github.io/webdriver-bidi/): Offizielle Dokumentation und Beschreibung des WebDriver BiDi-Protokolls.
 - [Session Management im WebDriver BiDi-Protokoll](https://w3c.github.io/webdriver-bidi/#session): Details zur Sitzungserstellung und -verwaltung.
-- [Module des WebDriver BiDi-Protokolls](https://w3c.github.io/webdriver-bidi/#modules): Überblick über die einzelnen Module und deren Funktionen (z. B. `session`, `browsingContextRequest`).
+- [Module des WebDriver BiDi-Protokolls](https://w3c.github.io/webdriver-bidi/#modules): Überblick über die einzelnen Module und deren Funktionen (z. B. `session`, `WDBrowsingContextRequest`).
 - [WebSocket-Kommunikation im BiDi-Protokoll](https://w3c.github.io/webdriver-bidi/#transport): Beschreibung der bidirektionalen Kommunikation zwischen Client und Browser.
 - [Capabilities für WebSocket-URLs](https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/webSocketUrl): Informationen zum Erlangen der WebSocket-URL mit WebDriver-Capabilities.
 
@@ -147,9 +147,9 @@ Dieses Projekt steht unter der **MIT-Lizenz**. Bitte beachten Sie, dass die verw
 
 | Event-Kategorie        | WebDriver BiDi Event                          | Bedeutung                          |
 |------------------------|----------------------------------------------|------------------------------------|
-| Navigation            | `browsingContextRequest.navigate`                    | Navigiert zu einer URL            |
-| Seitenwechsel        | `browsingContextRequest.domContentLoaded`            | DOM der Seite wurde geladen       |
-| Seitenwechsel        | `browsingContextRequest.load`                         | Seite vollständig geladen         |
+| Navigation            | `WDBrowsingContextRequest.navigate`                    | Navigiert zu einer URL            |
+| Seitenwechsel        | `WDBrowsingContextRequest.domContentLoaded`            | DOM der Seite wurde geladen       |
+| Seitenwechsel        | `WDBrowsingContextRequest.load`                         | Seite vollständig geladen         |
 | Mausklicks           | `input.userInteraction (type=pointerDown)`     | Benutzer hat geklickt            |
 | Mausklicks           | `input.userInteraction (type=pointerUp)`       | Klick losgelassen                 |
 | Mausbewegung         | `input.userInteraction (type=pointerMove)`     | Mausbewegung über Element         |
@@ -165,9 +165,9 @@ Dieses Projekt steht unter der **MIT-Lizenz**. Bitte beachten Sie, dass die verw
 ## Mapping der WebDriver BiDi Events auf die PlayWright-API
 | WebDriver BiDi Event                          | Playwright-Eventhandler                         | Playwright-Alternative                        |
 |----------------------------------------------|-----------------------------------------------|----------------------------------------------|
-| `browsingContextRequest.navigate`                    | `page.on("framenavigated", event -> {})`      | `page.on("domcontentloaded", event -> {})`  |
-| `browsingContextRequest.domContentLoaded`            | `page.on("domcontentloaded", event -> {})`    | Automatisch in `goto()` enthalten           |
-| `browsingContextRequest.load`                         | `page.on("load", event -> {})`                | `page.waitForLoadState("load")`             |
+| `WDBrowsingContextRequest.navigate`                    | `page.on("framenavigated", event -> {})`      | `page.on("domcontentloaded", event -> {})`  |
+| `WDBrowsingContextRequest.domContentLoaded`            | `page.on("domcontentloaded", event -> {})`    | Automatisch in `goto()` enthalten           |
+| `WDBrowsingContextRequest.load`                         | `page.on("load", event -> {})`                | `page.waitForLoadState("load")`             |
 | `input.userInteraction (type=pointerDown)`     | `page.on("mousedown", event -> {})`           | `page.on("click", event -> {})`             |
 | `input.userInteraction (type=pointerUp)`       | `page.on("mouseup", event -> {})`             | `page.on("click", event -> {})`             |
 | `input.userInteraction (type=pointerMove)`     | ❌ (Kein direkter Eventhandler)               | `page.mouse().move(x, y)` nur für Simulation |

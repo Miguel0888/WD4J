@@ -36,30 +36,30 @@ public interface WDLogEntry {
     }
 
     class BaseWDLogEntry implements WDLogEntry {
-        private final WDLevel WDLevel;
-        private final WDSource WDSource;
+        private final WDLevel level;
+        private final WDSource source;
         private final String text;
         private final long timestamp;
-        private final WDStackTrace WDStackTrace;
+        private final WDStackTrace stackTrace;
 
-        public BaseWDLogEntry(WDLevel WDLevel, WDSource WDSource, String text, long timestamp, WDStackTrace WDStackTrace) {
-            this.WDLevel = WDLevel;
-            this.WDSource = WDSource;
+        public BaseWDLogEntry(WDLevel level, WDSource source, String text, long timestamp, WDStackTrace stackTrace) {
+            this.level = level;
+            this.source = source;
             this.text = text;
             this.timestamp = timestamp;
-            this.WDStackTrace = WDStackTrace;
+            this.stackTrace = stackTrace;
         }
 
-        public BaseWDLogEntry(WDLevel WDLevel, WDSource WDSource, String text, long timestamp) {
-            this(WDLevel, WDSource, text, timestamp, null);
+        public BaseWDLogEntry(WDLevel level, WDSource source, String text, long timestamp) {
+            this(level, source, text, timestamp, null);
         }
 
         public WDLevel getLevel() {
-            return WDLevel;
+            return level;
         }
 
         public WDSource getSource() {
-            return WDSource;
+            return source;
         }
 
         public String getText() {
@@ -71,7 +71,7 @@ public interface WDLogEntry {
         }
 
         public WDStackTrace getStackTrace() {
-            return WDStackTrace;
+            return stackTrace;
         }
     }
 

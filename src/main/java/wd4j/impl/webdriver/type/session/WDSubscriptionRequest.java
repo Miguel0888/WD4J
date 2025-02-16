@@ -9,16 +9,16 @@ import java.util.List;
 public class WDSubscriptionRequest implements WDCommand.Params {
     private final List<String> events;
     private final List<WDBrowsingContext> contexts; // Optional
-    private final List<WDUserContext> WDUserContexts; // Optional
+    private final List<WDUserContext> userContexts; // Optional
 
     public WDSubscriptionRequest(List<String> events) {
         this(events, null, null);
     }
 
-    public WDSubscriptionRequest(List<String> events, List<WDBrowsingContext> contexts, List<WDUserContext> WDUserContexts) {
+    public WDSubscriptionRequest(List<String> events, List<WDBrowsingContext> contexts, List<WDUserContext> userContexts) {
         this.events = events;
         this.contexts = contexts;
-        this.WDUserContexts = WDUserContexts;
+        this.userContexts = userContexts;
     }
 
     public List<String> getEvents() {
@@ -30,6 +30,6 @@ public class WDSubscriptionRequest implements WDCommand.Params {
     }
 
     public List<WDUserContext> getUserContexts() {
-        return WDUserContexts;
+        return userContexts;
     }
 }

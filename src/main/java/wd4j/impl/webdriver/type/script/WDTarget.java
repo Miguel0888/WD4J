@@ -11,14 +11,14 @@ import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 public abstract class WDTarget {
 
     public static class RealmWDTarget extends WDTarget {
-        private final WDRealm WDRealm;
+        private final WDRealm realm;
 
-        public RealmWDTarget(WDRealm WDRealm) {
-            this.WDRealm = WDRealm;
+        public RealmWDTarget(WDRealm realm) {
+            this.realm = realm;
         }
 
         public WDRealm getRealm() {
-            return WDRealm;
+            return realm;
         }
     }
 

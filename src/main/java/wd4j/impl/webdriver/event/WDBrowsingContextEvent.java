@@ -14,7 +14,7 @@ public class WDBrowsingContextEvent implements WDModule {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class Created extends WDEvent<WDInfo> {
-        private String method = WDMethodEvent.CONTEXT_CREATED.name();
+        private String method = WDEventMapping.CONTEXT_CREATED.name();
 
         @Override
         public String getMethod() {
@@ -24,7 +24,7 @@ public class WDBrowsingContextEvent implements WDModule {
 
 
     public static class Destroyed extends WDEvent<WDInfo> {
-        private String method = WDMethodEvent.CONTEXT_DESTROYED.getName();
+        private String method = WDEventMapping.CONTEXT_DESTROYED.getName();
 
         @Override
         public String getMethod() {
@@ -33,7 +33,7 @@ public class WDBrowsingContextEvent implements WDModule {
     }
 
     public static class NavigationStarted extends WDEvent<WDNavigationInfo> {
-        private String method = WDMethodEvent.NAVIGATION_STARTED.getName();
+        private String method = WDEventMapping.NAVIGATION_STARTED.getName();
 
         @Override
         public String getMethod() {
@@ -42,7 +42,7 @@ public class WDBrowsingContextEvent implements WDModule {
     }
 
     public static class FragmentNavigated extends WDEvent<WDNavigationInfo> {
-        private String method = WDMethodEvent.FRAGMENT_NAVIGATED.getName();
+        private String method = WDEventMapping.FRAGMENT_NAVIGATED.getName();
 
         @Override
         public String getMethod() {
@@ -51,7 +51,7 @@ public class WDBrowsingContextEvent implements WDModule {
     }
 
     public static class DomContentLoaded extends WDEvent<WDNavigationInfo> {
-        private String method = WDMethodEvent.DOM_CONTENT_LOADED.getName();
+        private String method = WDEventMapping.DOM_CONTENT_LOADED.getName();
 
         @Override
         public String getMethod() {
@@ -60,7 +60,7 @@ public class WDBrowsingContextEvent implements WDModule {
     }
 
     public static class Load extends WDEvent<WDNavigationInfo> {
-        private String method = WDMethodEvent.LOAD.getName();
+        private String method = WDEventMapping.LOAD.getName();
 
         @Override
         public String getMethod() {
@@ -69,7 +69,7 @@ public class WDBrowsingContextEvent implements WDModule {
     }
 
     public static class DownloadWillBegin extends WDEvent<WDNavigationInfo> {
-        private String method = WDMethodEvent.DOWNLOAD_WILL_BEGIN.getName();
+        private String method = WDEventMapping.DOWNLOAD_WILL_BEGIN.getName();
 
         @Override
         public String getMethod() {
@@ -78,7 +78,7 @@ public class WDBrowsingContextEvent implements WDModule {
     }
 
     public static class NavigationAborted extends WDEvent<WDNavigationInfo> {
-        private String method = WDMethodEvent.NAVIGATION_ABORTED.getName();
+        private String method = WDEventMapping.NAVIGATION_ABORTED.getName();
 
         @Override
         public String getMethod() {
@@ -87,7 +87,7 @@ public class WDBrowsingContextEvent implements WDModule {
     }
 
     public static class NavigationFailed extends WDEvent<WDNavigationInfo> {
-        private String method = WDMethodEvent.NAVIGATION_FAILED.getName();
+        private String method = WDEventMapping.NAVIGATION_FAILED.getName();
 
         @Override
         public String getMethod() {
@@ -96,7 +96,7 @@ public class WDBrowsingContextEvent implements WDModule {
     }
 
     public static class UserPromptClosed extends WDEvent<UserPromptClosed.UserPromptClosedParameters> {
-        private String method = WDMethodEvent.USER_PROMPT_CLOSED.getName();
+        private String method = WDEventMapping.USER_PROMPT_CLOSED.getName();
 
         @Override
         public String getMethod() {
@@ -161,7 +161,7 @@ public class WDBrowsingContextEvent implements WDModule {
     }
 
     public static class UserPromptOpened extends WDEvent<UserPromptOpened.UserPromptOpenedParameters> {
-        private String method = WDMethodEvent.USER_PROMPT_OPENED.getName();
+        private String method = WDEventMapping.USER_PROMPT_OPENED.getName();
 
         @Override
         public String getMethod() {

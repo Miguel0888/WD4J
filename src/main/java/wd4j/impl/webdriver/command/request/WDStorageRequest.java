@@ -5,7 +5,7 @@ import wd4j.impl.webdriver.command.request.helper.WDCommandImpl;
 import wd4j.impl.webdriver.command.request.parameters.storage.*;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 
-public class StorageRequest {
+public class WDStorageRequest {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Commands (Classes)

@@ -1,7 +1,7 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.NetworkRequest;
+import wd4j.impl.webdriver.command.request.WDNetworkRequest;
 import wd4j.impl.webdriver.command.request.parameters.network.AddInterceptParameters;
 import wd4j.impl.webdriver.command.request.parameters.network.SetCacheBehaviorParameters;
 import wd4j.impl.webdriver.type.network.WDAuthCredentials;
@@ -35,7 +35,7 @@ public class WDNetworkManager implements WDModule {
      */
     public void addIntercept(List<AddInterceptParameters.InterceptPhase> phases) {
         try {
-            webSocketManager.sendAndWaitForResponse(new NetworkRequest.AddIntercept(phases), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.AddIntercept(phases), String.class);
             System.out.println("Intercept added for intercept phases: " + phases);
         } catch (RuntimeException e) {
             System.out.println("Error adding intercept: " + e.getMessage());
@@ -51,7 +51,7 @@ public class WDNetworkManager implements WDModule {
      */
     public void continueRequest(String requestId) {
         try {
-            webSocketManager.sendAndWaitForResponse(new NetworkRequest.ContinueRequest(requestId), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueRequest(requestId), String.class);
             System.out.println("Request continued: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error continuing request: " + e.getMessage());
@@ -67,7 +67,7 @@ public class WDNetworkManager implements WDModule {
      */
     public void continueResponse(String requestId) {
         try {
-            webSocketManager.sendAndWaitForResponse(new NetworkRequest.ContinueResponse(requestId), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueResponse(requestId), String.class);
             System.out.println("Response continued: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error continuing response: " + e.getMessage());
@@ -84,7 +84,7 @@ public class WDNetworkManager implements WDModule {
      */
     public void continueWithAuth(String requestId, WDAuthCredentials authChallengeResponse) {
         try {
-            webSocketManager.sendAndWaitForResponse(new NetworkRequest.ContinueWithAuth(requestId, authChallengeResponse), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueWithAuth(requestId, authChallengeResponse), String.class);
             System.out.println("Request continued with authentication: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error continuing with authentication: " + e.getMessage());
@@ -100,7 +100,7 @@ public class WDNetworkManager implements WDModule {
      */
     public void failRequest(String requestId) {
         try {
-            webSocketManager.sendAndWaitForResponse(new NetworkRequest.FailRequest(requestId), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.FailRequest(requestId), String.class);
             System.out.println("Request failed: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error failing request: " + e.getMessage());
@@ -117,7 +117,7 @@ public class WDNetworkManager implements WDModule {
      */
     public void provideResponse(String requestId) {
         try {
-            webSocketManager.sendAndWaitForResponse(new NetworkRequest.ProvideResponse(requestId), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ProvideResponse(requestId), String.class);
             System.out.println("Response provided for request: " + requestId);
         } catch (RuntimeException e) {
             System.out.println("Error providing response: " + e.getMessage());
@@ -133,7 +133,7 @@ public class WDNetworkManager implements WDModule {
      */
     public void removeIntercept(String interceptId) {
         try {
-            webSocketManager.sendAndWaitForResponse(new NetworkRequest.RemoveIntercept(interceptId), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.RemoveIntercept(interceptId), String.class);
             System.out.println("Intercept removed: " + interceptId);
         } catch (RuntimeException e) {
             System.out.println("Error removing intercept: " + e.getMessage());
@@ -150,7 +150,7 @@ public class WDNetworkManager implements WDModule {
      */
     public void setCacheBehavior(SetCacheBehaviorParameters.CacheBehavior cacheBehavior) {
         try {
-            webSocketManager.sendAndWaitForResponse(new NetworkRequest.SetCacheBehavior(cacheBehavior), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.SetCacheBehavior(cacheBehavior), String.class);
         } catch (RuntimeException e) {
             System.out.println("Error setting cache behavior: " + e.getMessage());
             throw e;

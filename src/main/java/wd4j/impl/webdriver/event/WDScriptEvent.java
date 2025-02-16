@@ -14,7 +14,7 @@ public class WDScriptEvent implements WDModule {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class WebSocketMessage extends WDEvent<WebSocketMessage.MessageParameters> {
-        private String method = WDMethodEvent.MESSAGE.getName();
+        private String method = WDEventMapping.MESSAGE.getName();
 
         @Override
         public String getMethod() {
@@ -22,22 +22,22 @@ public class WDScriptEvent implements WDModule {
         }
 
         public static class MessageParameters {
-            private WDChannel WDChannel;
+            private WDChannel channel;
             private WDRemoteValue data;
-            private WDSource WDSource;
+            private WDSource source;
 
-            public MessageParameters(WDChannel WDChannel, WDRemoteValue data, WDSource WDSource) {
-                this.WDChannel = WDChannel;
+            public MessageParameters(WDChannel channel, WDRemoteValue data, WDSource source) {
+                this.channel = channel;
                 this.data = data;
-                this.WDSource = WDSource;
+                this.source = source;
             }
 
             public WDChannel getChannel() {
-                return WDChannel;
+                return channel;
             }
 
-            public void setChannel(WDChannel WDChannel) {
-                this.WDChannel = WDChannel;
+            public void setChannel(WDChannel channel) {
+                this.channel = channel;
             }
 
             public WDRemoteValue getData() {
@@ -49,26 +49,26 @@ public class WDScriptEvent implements WDModule {
             }
 
             public WDSource getSource() {
-                return WDSource;
+                return source;
             }
 
-            public void setSource(WDSource WDSource) {
-                this.WDSource = WDSource;
+            public void setSource(WDSource source) {
+                this.source = source;
             }
 
             @Override
             public String toString() {
                 return "MessageParameters{" +
-                        "channel=" + WDChannel +
+                        "channel=" + channel +
                         ", data=" + data +
-                        ", source=" + WDSource +
+                        ", source=" + source +
                         '}';
             }
         }
     }
 
     public static class RealmCreated extends WDEvent<RealmCreated.RealmCreatedParameters> {
-        private String method = WDMethodEvent.REALM_CREATED.getName();
+        private String method = WDEventMapping.REALM_CREATED.getName();
 
         @Override
         public String getMethod() {
@@ -76,31 +76,31 @@ public class WDScriptEvent implements WDModule {
         }
 
         public static class RealmCreatedParameters {
-            private WDRealm WDRealm;
+            private WDRealm realm;
 
-            public RealmCreatedParameters(WDRealm WDRealm) {
-                this.WDRealm = WDRealm;
+            public RealmCreatedParameters(WDRealm realm) {
+                this.realm = realm;
             }
 
             public WDRealm getRealm() {
-                return WDRealm;
+                return realm;
             }
 
-            public void setRealm(WDRealm WDRealm) {
-                this.WDRealm = WDRealm;
+            public void setRealm(WDRealm realm) {
+                this.realm = realm;
             }
 
             @Override
             public String toString() {
                 return "RealmCreatedParameters{" +
-                        "realm=" + WDRealm +
+                        "realm=" + realm +
                         '}';
             }
         }
     }
 
     public static class RealmDestroyed extends WDEvent<RealmDestroyed.RealmDestroyedParameters> {
-        private String method = WDMethodEvent.REALM_DESTROYED.getName();
+        private String method = WDEventMapping.REALM_DESTROYED.getName();
 
         @Override
         public String getMethod() {

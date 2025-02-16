@@ -1,7 +1,7 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.WebExtensionRequest;
+import wd4j.impl.webdriver.command.request.WDWebExtensionRequest;
 import wd4j.impl.webdriver.command.request.parameters.webExtension.ExtensionData;
 import wd4j.impl.webdriver.type.webExtension.WDExtension;
 import wd4j.impl.websocket.WebSocketManager;
@@ -34,7 +34,7 @@ public class WDWebExtensionManager implements WDModule {
      */
     public void install(ExtensionData extensionData) {
         try {
-            webSocketManager.sendAndWaitForResponse(new WebExtensionRequest.Install(extensionData), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDWebExtensionRequest.Install(extensionData), String.class);
             System.out.println("Web extension installed of Type " + extensionData.getType());
         } catch (RuntimeException e) {
             System.out.println("Error installing web extension: " + e.getMessage());
@@ -50,7 +50,7 @@ public class WDWebExtensionManager implements WDModule {
      */
     public void uninstall(WDExtension WDExtension) {
         try {
-            webSocketManager.sendAndWaitForResponse(new WebExtensionRequest.Uninstall(WDExtension), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDWebExtensionRequest.Uninstall(WDExtension), String.class);
             System.out.println("Web extension uninstalled: " + WDExtension.value());
         } catch (RuntimeException e) {
             System.out.println("Error uninstalling web extension: " + e.getMessage());

@@ -1,7 +1,7 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.InputRequest;
+import wd4j.impl.webdriver.command.request.WDInputRequest;
 import wd4j.impl.webdriver.command.request.parameters.input.PerformActionsParameters;
 import wd4j.impl.webdriver.type.script.WDRemoteReference;
 import wd4j.impl.websocket.WebSocketManager;
@@ -38,7 +38,7 @@ public class WDInputManager implements WDModule {
         }
 
         try {
-            webSocketManager.sendAndWaitForResponse(new InputRequest.PerformActions(contextId, actions), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDInputRequest.PerformActions(contextId, actions), String.class);
             System.out.println("Performed actions in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error performing actions: " + e.getMessage());
@@ -54,7 +54,7 @@ public class WDInputManager implements WDModule {
      */
     public void releaseActions(String contextId) {
         try {
-            webSocketManager.sendAndWaitForResponse(new InputRequest.ReleaseActions(contextId), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDInputRequest.ReleaseActions(contextId), String.class);
             System.out.println("Released actions in context: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error releasing actions: " + e.getMessage());
@@ -77,7 +77,7 @@ public class WDInputManager implements WDModule {
         }
 
         try {
-            webSocketManager.sendAndWaitForResponse(new InputRequest.SetFiles(contextId, sharedReference, files), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDInputRequest.SetFiles(contextId, sharedReference, files), String.class);
             System.out.println("Files set for element: " + sharedReference);
         } catch (RuntimeException e) {
             System.out.println("Error setting files: " + e.getMessage());

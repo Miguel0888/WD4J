@@ -9,7 +9,7 @@ import wd4j.impl.webdriver.type.script.*;
 
 import java.util.List;
 
-public class ScriptRequest {
+public class WDScriptRequest {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Commands (Classes)

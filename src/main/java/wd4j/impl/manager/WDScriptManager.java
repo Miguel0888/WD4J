@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.ScriptRequest;
+import wd4j.impl.webdriver.command.request.WDScriptRequest;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.WDHandle;
 import wd4j.impl.webdriver.type.script.WDLocalValue;
@@ -40,7 +40,7 @@ public class WDScriptManager implements WDModule {
      */
     public void addPreloadScript(String script, String target) {
         try {
-            webSocketManager.sendAndWaitForResponse(new ScriptRequest.AddPreloadScript(script), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDScriptRequest.AddPreloadScript(script), String.class);
             System.out.println("Preload script added: " + script + " to target: " + target);
         } catch (RuntimeException e) {
             System.out.println("Error adding preload script: " + e.getMessage());
@@ -61,7 +61,7 @@ public class WDScriptManager implements WDModule {
         }
 
         try {
-            webSocketManager.sendAndWaitForResponse(new ScriptRequest.Disown(WDHandles, WDTarget), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDScriptRequest.Disown(WDHandles, WDTarget), String.class);
             System.out.println("Handles disowned in target: " + WDTarget);
         } catch (RuntimeException e) {
             System.out.println("Error disowning handles: " + e.getMessage());
@@ -79,7 +79,7 @@ public class WDScriptManager implements WDModule {
      */
     public <T> void callFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue<T>> arguments) {
         try {
-            webSocketManager.sendAndWaitForResponse(new ScriptRequest.CallFunction<>(functionDeclaration, awaitPromise, WDTarget, arguments), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDScriptRequest.CallFunction<>(functionDeclaration, awaitPromise, WDTarget, arguments), String.class);
             System.out.println("Function called: " + functionDeclaration + " on target: " + WDTarget);
         } catch (RuntimeException e) {
             System.out.println("Error calling function: " + e.getMessage());
@@ -95,7 +95,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public String evaluate(String script, WDTarget WDTarget, boolean awaitPromise) {
-        return webSocketManager.sendAndWaitForResponse(new ScriptRequest.Evaluate(script, WDTarget, awaitPromise), String.class);
+        return webSocketManager.sendAndWaitForResponse(new WDScriptRequest.Evaluate(script, WDTarget, awaitPromise), String.class);
     }
 
 
@@ -108,7 +108,7 @@ public class WDScriptManager implements WDModule {
      */
     public List<String> getRealms(WDBrowsingContext context) {
         try {
-            String response = webSocketManager.sendAndWaitForResponse(new ScriptRequest.GetRealms(context), String.class);
+            String response = webSocketManager.sendAndWaitForResponse(new WDScriptRequest.GetRealms(context), String.class);
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonArray realms = jsonResponse.getAsJsonObject("result").getAsJsonArray("realms");
             List<String> realmIds = new ArrayList<>();
@@ -129,7 +129,7 @@ public class WDScriptManager implements WDModule {
      */
     public void removePreloadScript(String scriptId) {
         try {
-            webSocketManager.sendAndWaitForResponse(new ScriptRequest.RemovePreloadScript(scriptId), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDScriptRequest.RemovePreloadScript(scriptId), String.class);
             System.out.println("Preload script removed: " + scriptId);
         } catch (RuntimeException e) {
             System.out.println("Error removing preload script: " + e.getMessage());

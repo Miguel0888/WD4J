@@ -116,7 +116,7 @@ public class WebSocketManager {
 
                 // 🛠 Falls der Frame ein Fehler ist, direkt in `ErrorResponse` mappen
                 if (json.has("type") && "error".equals(json.get("type").getAsString())) {
-                    WDErrorResponseWD WDErrorResponse = gson.fromJson(frame.text(), WDErrorResponseWD.class);
+                    WDErrorResponse WDErrorResponse = gson.fromJson(frame.text(), wd4j.impl.websocket.WDErrorResponse.class);
 
                     if (throwError) {
                         future.completeExceptionally(new WDException(WDErrorResponse)); // ✅ Werfe Exception

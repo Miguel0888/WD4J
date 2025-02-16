@@ -9,7 +9,7 @@ import wd4j.impl.webdriver.type.network.*;
 
 import java.util.List;
 
-public class NetworkRequest {
+public class WDNetworkRequest {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Commands (Classes)

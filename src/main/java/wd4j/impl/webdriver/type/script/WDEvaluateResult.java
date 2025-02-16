@@ -36,11 +36,11 @@ public interface WDEvaluateResult {
     class WDEvaluateResultSuccess implements WDEvaluateResult {
         private final String type = "success";
         private final WDRemoteValue result;
-        private final WDRealm WDRealm;
+        private final WDRealm realm;
 
-        public WDEvaluateResultSuccess(WDRemoteValue result, WDRealm WDRealm) {
+        public WDEvaluateResultSuccess(WDRemoteValue result, WDRealm realm) {
             this.result = result;
-            this.WDRealm = WDRealm;
+            this.realm = realm;
         }
 
         @Override
@@ -53,18 +53,18 @@ public interface WDEvaluateResult {
         }
 
         public WDRealm getRealm() {
-            return WDRealm;
+            return realm;
         }
     }
 
     class WDEvaluateResultError implements WDEvaluateResult {
         private final String type = "exception";
-        private final WDExceptionDetails WDExceptionDetails;
-        private final WDRealm WDRealm;
+        private final WDExceptionDetails exceptionDetails;
+        private final WDRealm realm;
 
-        public WDEvaluateResultError(WDExceptionDetails WDExceptionDetails, WDRealm WDRealm) {
-            this.WDExceptionDetails = WDExceptionDetails;
-            this.WDRealm = WDRealm;
+        public WDEvaluateResultError(WDExceptionDetails exceptionDetails, WDRealm realm) {
+            this.exceptionDetails = exceptionDetails;
+            this.realm = realm;
         }
 
         @Override
@@ -73,11 +73,11 @@ public interface WDEvaluateResult {
         }
 
         public WDExceptionDetails getExceptionDetails() {
-            return WDExceptionDetails;
+            return exceptionDetails;
         }
 
         public WDRealm getRealm() {
-            return WDRealm;
+            return realm;
         }
     }
 

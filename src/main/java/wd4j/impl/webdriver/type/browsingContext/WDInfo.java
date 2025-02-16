@@ -8,20 +8,20 @@ import java.util.List;
 
 public class WDInfo implements WDType<WDInfo> {
     private final List<WDInfo> children;
-    private final WDClientWindow WDClientWindow;
+    private final WDClientWindow clientWindow;
     private final WDBrowsingContext context;
     private final WDBrowsingContext originalOpener;
     private final String url;
-    private final WDUserContext WDUserContext;
+    private final WDUserContext userContext;
     private final WDBrowsingContext parent; // optional
 
-    public WDInfo(List<WDInfo> children, WDClientWindow WDClientWindow, WDBrowsingContext context, WDBrowsingContext originalOpener, String url, WDUserContext WDUserContext, WDBrowsingContext parent) {
+    public WDInfo(List<WDInfo> children, WDClientWindow clientWindow, WDBrowsingContext context, WDBrowsingContext originalOpener, String url, WDUserContext userContext, WDBrowsingContext parent) {
         this.children = children;
-        this.WDClientWindow = WDClientWindow;
+        this.clientWindow = clientWindow;
         this.context = context;
         this.originalOpener = originalOpener;
         this.url = url;
-        this.WDUserContext = WDUserContext;
+        this.userContext = userContext;
         this.parent = parent;
     }
 
@@ -30,7 +30,7 @@ public class WDInfo implements WDType<WDInfo> {
     }
 
     public WDClientWindow getClientWindow() {
-        return WDClientWindow;
+        return clientWindow;
     }
 
     public WDBrowsingContext getContext() {
@@ -46,7 +46,7 @@ public class WDInfo implements WDType<WDInfo> {
     }
 
     public WDUserContext getUserContext() {
-        return WDUserContext;
+        return userContext;
     }
 
     public WDBrowsingContext getParent() {

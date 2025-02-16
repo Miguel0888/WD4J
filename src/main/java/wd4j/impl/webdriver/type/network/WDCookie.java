@@ -8,10 +8,10 @@ public class WDCookie {
     private final char size;
     private final boolean httpOnly;
     private final boolean secure;
-    private final WDSameSite WDSameSite;
+    private final WDSameSite sameSite;
     private final Character expiry; // optional
 
-    public WDCookie(String name, WDBytesValue value, String domain, String path, char size, boolean httpOnly, boolean secure, WDSameSite WDSameSite) {
+    public WDCookie(String name, WDBytesValue value, String domain, String path, char size, boolean httpOnly, boolean secure, WDSameSite sameSite) {
         this.name = name;
         this.value = value;
         this.domain = domain;
@@ -19,11 +19,11 @@ public class WDCookie {
         this.size = size;
         this.httpOnly = httpOnly;
         this.secure = secure;
-        this.WDSameSite = WDSameSite;
+        this.sameSite = sameSite;
         this.expiry = null;
     }
 
-    public WDCookie(String name, WDBytesValue value, String domain, String path, char size, boolean httpOnly, boolean secure, WDSameSite WDSameSite, char expiry) {
+    public WDCookie(String name, WDBytesValue value, String domain, String path, char size, boolean httpOnly, boolean secure, WDSameSite sameSite, char expiry) {
         this.name = name;
         this.value = value;
         this.domain = domain;
@@ -31,7 +31,7 @@ public class WDCookie {
         this.size = size;
         this.httpOnly = httpOnly;
         this.secure = secure;
-        this.WDSameSite = WDSameSite;
+        this.sameSite = sameSite;
         this.expiry = expiry;
     }
 
@@ -64,7 +64,7 @@ public class WDCookie {
     }
 
     public WDSameSite getSameSite() {
-        return WDSameSite;
+        return sameSite;
     }
 
     public Character getExpiry() {

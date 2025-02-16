@@ -1,4 +1,4 @@
-package wd4j.impl.webdriver.type.error;
+package wd4j.impl.websocket;
 
 import wd4j.impl.webdriver.mapping.EnumWrapper;
 

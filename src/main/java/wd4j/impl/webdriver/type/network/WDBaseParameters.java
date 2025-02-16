@@ -8,30 +8,30 @@ import java.util.List;
 public class WDBaseParameters {
     private final WDBrowsingContext contextId;
     private final boolean isBlocked;
-    private final WDNavigation WDNavigation;
+    private final WDNavigation navigation;
     private final char redirectCount;
     private final WDRequestData request;
     private final long timestamp;
-    private final List<WDIntercept> WDIntercepts; // optional
+    private final List<WDIntercept> intercepts; // optional
 
-    public WDBaseParameters(WDBrowsingContext contextId, boolean isBlocked, WDNavigation WDNavigation, char redirectCount, WDRequestData request, long timestamp) {
+    public WDBaseParameters(WDBrowsingContext contextId, boolean isBlocked, WDNavigation navigation, char redirectCount, WDRequestData request, long timestamp) {
         this.contextId = contextId;
         this.isBlocked = isBlocked;
-        this.WDNavigation = WDNavigation;
+        this.navigation = navigation;
         this.redirectCount = redirectCount;
         this.request = request;
         this.timestamp = timestamp;
-        this.WDIntercepts = null;
+        this.intercepts = null;
     }
 
-    public WDBaseParameters(WDBrowsingContext contextId, boolean isBlocked, WDNavigation WDNavigation, char redirectCount, WDRequestData request, long timestamp, List<WDIntercept> WDIntercepts) {
+    public WDBaseParameters(WDBrowsingContext contextId, boolean isBlocked, WDNavigation navigation, char redirectCount, WDRequestData request, long timestamp, List<WDIntercept> intercepts) {
         this.contextId = contextId;
         this.isBlocked = isBlocked;
-        this.WDNavigation = WDNavigation;
+        this.navigation = navigation;
         this.redirectCount = redirectCount;
         this.request = request;
         this.timestamp = timestamp;
-        this.WDIntercepts = WDIntercepts;
+        this.intercepts = intercepts;
     }
 
     public WDBrowsingContext getContextId() {
@@ -43,7 +43,7 @@ public class WDBaseParameters {
     }
 
     public WDNavigation getNavigation() {
-        return WDNavigation;
+        return navigation;
     }
 
     public char getRedirectCount() {
@@ -59,10 +59,10 @@ public class WDBaseParameters {
     }
 
     public List<WDIntercept> getIntercepts() {
-        return WDIntercepts;
+        return intercepts;
     }
 
     public boolean hasIntercepts() {
-        return WDIntercepts != null && !WDIntercepts.isEmpty();
+        return intercepts != null && !intercepts.isEmpty();
     }
 }

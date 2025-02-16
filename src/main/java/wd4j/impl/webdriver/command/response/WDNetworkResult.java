@@ -5,14 +5,14 @@ import wd4j.impl.webdriver.type.network.WDIntercept;
 
 public interface WDNetworkResult extends WDResultData {
     class AddInterceptWDNetworkResult implements WDNetworkResult {
-        WDIntercept WDIntercept;
+        WDIntercept intercept;
 
-        public AddInterceptWDNetworkResult(WDIntercept WDIntercept) {
-            this.WDIntercept = WDIntercept;
+        public AddInterceptWDNetworkResult(WDIntercept intercept) {
+            this.intercept = intercept;
         }
 
         public WDIntercept getIntercept() {
-            return WDIntercept;
+            return intercept;
         }
     }
 }

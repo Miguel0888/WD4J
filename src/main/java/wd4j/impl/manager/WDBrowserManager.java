@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.BrowserRequest;
+import wd4j.impl.webdriver.command.request.WDBrowserRequest;
 import wd4j.impl.webdriver.command.response.WDEmptyResult;
 import wd4j.impl.webdriver.type.browser.WDClientWindow;
 import wd4j.impl.webdriver.type.browser.WDClientWindowInfo;
@@ -41,7 +41,7 @@ public class WDBrowserManager implements WDModule {
      * Closes the browser.
      */
     public void closeBrowser() {
-        webSocketManager.sendAndWaitForResponse(new BrowserRequest.Close(), WDEmptyResult.class);
+        webSocketManager.sendAndWaitForResponse(new WDBrowserRequest.Close(), WDEmptyResult.class);
         System.out.println("Browser closed successfully.");
     }
 
@@ -52,7 +52,7 @@ public class WDBrowserManager implements WDModule {
      */
     public WDUserContextInfo createUserContext() {
         WDUserContextInfo result =
-                webSocketManager.sendAndWaitForResponse(new BrowserRequest.CreateUserContext(), WDUserContextInfo.class);
+                webSocketManager.sendAndWaitForResponse(new WDBrowserRequest.CreateUserContext(), WDUserContextInfo.class);
         System.out.println("User context created: " + result.getUserContext().value());
         return result;
     }
@@ -65,7 +65,7 @@ public class WDBrowserManager implements WDModule {
      */
     public List<String> getClientWindows() {
         try {
-            String response = webSocketManager.sendAndWaitForResponse(new BrowserRequest.GetClientWindows(), String.class);
+            String response = webSocketManager.sendAndWaitForResponse(new WDBrowserRequest.GetClientWindows(), String.class);
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonArray windows = jsonResponse.getAsJsonObject("result").getAsJsonArray("windows");
             List<String> windowIds = new ArrayList<>();
@@ -87,7 +87,7 @@ public class WDBrowserManager implements WDModule {
      */
     public List<String> getUserContexts() {
         try {
-            String response = webSocketManager.sendAndWaitForResponse(new BrowserRequest.GetUserContexts(), String.class);
+            String response = webSocketManager.sendAndWaitForResponse(new WDBrowserRequest.GetUserContexts(), String.class);
             JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
             JsonArray contexts = jsonResponse.getAsJsonObject("result").getAsJsonArray("contexts");
             List<String> contextIds = new ArrayList<>();
@@ -109,7 +109,7 @@ public class WDBrowserManager implements WDModule {
      */
     public void removeUserContext(String contextId) {
         try {
-            webSocketManager.sendAndWaitForResponse(new BrowserRequest.RemoveUserContext(contextId), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDBrowserRequest.RemoveUserContext(contextId), String.class);
             System.out.println("User context removed: " + contextId);
         } catch (RuntimeException e) {
             System.out.println("Error removing user context: " + e.getMessage());
@@ -126,7 +126,7 @@ public class WDBrowserManager implements WDModule {
      */
     public void setClientWindowState(String clientWindowId, String state) {
         try {
-            webSocketManager.sendAndWaitForResponse(new BrowserRequest.SetClientWindowState(clientWindowId, state), String.class);
+            webSocketManager.sendAndWaitForResponse(new WDBrowserRequest.SetClientWindowState(clientWindowId, state), String.class);
             System.out.println("Client window state set: " + clientWindowId + " -> " + state);
         } catch (RuntimeException e) {
             System.out.println("Error setting client window state: " + e.getMessage());
