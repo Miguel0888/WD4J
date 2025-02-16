@@ -6,6 +6,8 @@ import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
 import wd4j.impl.webdriver.command.request.parameters.browsingContext.CreateType;
 import wd4j.impl.webdriver.command.request.parameters.browsingContext.SetViewportParameters;
+import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
+import wd4j.impl.webdriver.command.response.WDEmptyResult;
 import wd4j.impl.webdriver.type.browsingContext.WDLocator;
 import wd4j.impl.websocket.WebSocketManager;
 
@@ -33,28 +35,12 @@ public class WDBrowsingContextManager implements WDModule {
      * @return The ID of the new context.
      */
     // Required for Firefox ESR ?
-    public String create() {
-        WDBrowsingContextRequest.Create createContextCommand = new WDBrowsingContextRequest.Create(CreateType.TAB);
-
-        try {
-            String response = webSocketManager.sendAndWaitForResponse(createContextCommand, String.class);
-
-            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
-            JsonObject result = jsonResponse.getAsJsonObject("result");
-
-            if (result != null && result.has("context")) {
-                String contextId = result.get("context").getAsString();
-                System.out.println("--- Neuer Context erstellt: " + contextId);
-                return contextId;
-            }
-        } catch (RuntimeException e) {
-            System.out.println("Error creating context: " + e.getMessage());
-            throw e;
-        }
-
-        throw new IllegalStateException("Failed to create new context."); // ToDo: Maybe return null instead?
+    public WDBrowsingContextResult.CreateResult create() {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.Create(CreateType.TAB),
+                WDBrowsingContextResult.CreateResult.class
+        );
     }
-
 
     /**
      * Navigates to the given URL within this browsing context.
@@ -62,19 +48,26 @@ public class WDBrowsingContextManager implements WDModule {
      * @param url The target URL to navigate to.
      * @return The response of the navigation command.
      */
-    public void navigate(String url, String contextId) {
+    public WDBrowsingContextResult.NavigateResult navigate(String url, String contextId) {
         if (contextId == null || contextId.isEmpty()) {
             throw new IllegalStateException("Cannot navigate: contextId is null or empty!");
         }
         if (url == null || url.isEmpty()) {
             throw new IllegalArgumentException("Cannot navigate: URL is null or empty!");
         }
-        webSocketManager.sendAndWaitForResponse(new WDBrowsingContextRequest.Navigate(url, contextId), String.class);
+
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.Navigate(url, contextId),
+                WDBrowsingContextResult.NavigateResult.class
+        );
     }
 
-    public void getTree() {
-        // Send the command, don't wait for the response
-        webSocketManager.sendAndWaitForResponse(new WDBrowsingContextRequest.GetTree(), String.class);
+
+    public WDBrowsingContextResult.GetTreeResult getTree() {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.GetTree(),
+                WDBrowsingContextResult.GetTreeResult.class
+        );
     }
 
     /**
@@ -84,13 +77,12 @@ public class WDBrowsingContextManager implements WDModule {
      * @throws RuntimeException if the activation fails.
      */
     public void activate(String contextId) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDBrowsingContextRequest.Activate(contextId), String.class);
-        } catch (RuntimeException e) {
-            System.out.println("Error activating context: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.Activate(contextId),
+                WDEmptyResult.class
+        );
     }
+
 
     /**
      * Captures a screenshot of the given browsing context.
@@ -98,15 +90,11 @@ public class WDBrowsingContextManager implements WDModule {
      * @param contextId The ID of the context to capture a screenshot from.
      * @return The screenshot as a base64-encoded string.
      */
-    public String captureScreenshot(String contextId) {
-        try {
-            String response = webSocketManager.sendAndWaitForResponse(new WDBrowsingContextRequest.CaptureScreenshot(contextId), String.class);
-            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
-            return jsonResponse.getAsJsonObject("result").get("data").getAsString();
-        } catch (RuntimeException e) {
-            System.out.println("Error capturing screenshot: " + e.getMessage());
-            throw e;
-        }
+    public WDBrowsingContextResult.CaptureScreenshotResult captureScreenshot(String contextId) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.CaptureScreenshot(contextId),
+                WDBrowsingContextResult.CaptureScreenshotResult.class
+        );
     }
 
     /**
@@ -116,12 +104,10 @@ public class WDBrowsingContextManager implements WDModule {
      * @throws RuntimeException if the close operation fails.
      */
     public void close(String contextId) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDBrowsingContextRequest.Close(contextId), String.class);
-        } catch (RuntimeException e) {
-            System.out.println("Error closing context: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.Close(contextId),
+                WDEmptyResult.class
+        );
     }
 
     /**
@@ -134,12 +120,10 @@ public class WDBrowsingContextManager implements WDModule {
      * @throws RuntimeException if handling the prompt fails.
      */
     public void handleUserPrompt(String contextId, Boolean accept, String userText) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDBrowsingContextRequest.HandleUserPrompt(contextId, accept, userText), String.class);
-        } catch (RuntimeException e) {
-            System.out.println("Error handling user prompt: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.HandleUserPrompt(contextId, accept, userText),
+                WDEmptyResult.class
+        );
     }
 
     /**
@@ -149,15 +133,11 @@ public class WDBrowsingContextManager implements WDModule {
      * @param WDLocator  The CSS selector to locate nodes or the like.
      * @return The response containing the located nodes.
      */
-    public String locateNodes(String contextId, WDLocator WDLocator) {
-        try {
-            String response = webSocketManager.sendAndWaitForResponse(new WDBrowsingContextRequest.LocateNodes(contextId, WDLocator), String.class);
-            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
-            return jsonResponse.getAsJsonObject("result").toString();
-        } catch (RuntimeException e) {
-            System.out.println("Error locating nodes: " + e.getMessage());
-            throw e;
-        }
+    public WDBrowsingContextResult.LocateNodesResult locateNodes(String contextId, WDLocator WDLocator) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.LocateNodes(contextId, WDLocator),
+                WDBrowsingContextResult.LocateNodesResult.class
+        );
     }
 
     /**
@@ -167,15 +147,11 @@ public class WDBrowsingContextManager implements WDModule {
      * @return The print output as a base64-encoded string.
      * @throws RuntimeException if the print operation fails.
      */
-    public String print(String contextId) {
-        try {
-            String response = webSocketManager.sendAndWaitForResponse(new WDBrowsingContextRequest.Print(contextId), String.class);
-            JsonObject jsonResponse = new Gson().fromJson(response, JsonObject.class);
-            return jsonResponse.getAsJsonObject("result").get("data").getAsString();
-        } catch (RuntimeException e) {
-            System.out.println("Error printing context: " + e.getMessage());
-            throw e;
-        }
+    public WDBrowsingContextResult.PrintResult print(String contextId) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.Print(contextId),
+                WDBrowsingContextResult.PrintResult.class
+        );
     }
 
     /**
@@ -185,14 +161,11 @@ public class WDBrowsingContextManager implements WDModule {
      * @throws RuntimeException if the reload operation fails.
      */
     public void reload(String contextId) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDBrowsingContextRequest.Reload(contextId), String.class);
-        } catch (RuntimeException e) {
-            System.out.println("Error reloading context: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.Reload(contextId),
+                WDEmptyResult.class
+        );
     }
-
 
     /**
      * Sets the viewport size of the given browsing context.
@@ -203,12 +176,14 @@ public class WDBrowsingContextManager implements WDModule {
      * @throws RuntimeException if setting the viewport size fails.
      */
     public void setViewport(String contextId, char width, char height) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDBrowsingContextRequest.SetViewport(contextId, new SetViewportParameters.Viewport(width, height), null), String.class);
-        } catch (RuntimeException e) {
-            System.out.println("Error setting viewport: " + e.getMessage());
-            throw e;
-        }
+        webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.SetViewport(
+                        contextId,
+                        new SetViewportParameters.Viewport(width, height),
+                        null
+                ),
+                WDEmptyResult.class
+        );
     }
 
     /**
@@ -218,18 +193,10 @@ public class WDBrowsingContextManager implements WDModule {
      * @param delta     The number of steps to move in the history (e.g., -1 for back, 1 for forward).
      * @throws RuntimeException if traversing history fails.
      */
-    public void traverseHistory(String contextId, int delta) {
-        try {
-            webSocketManager.sendAndWaitForResponse(new WDBrowsingContextRequest.TraverseHistory(contextId, delta), String.class);
-        } catch (RuntimeException e) {
-            System.out.println("Error traversing history: " + e.getMessage());
-            throw e;
-        }
+    public WDBrowsingContextResult.TraverseHistoryResult traverseHistory(String contextId, int delta) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.TraverseHistory(contextId, delta),
+                WDBrowsingContextResult.TraverseHistoryResult.class
+        );
     }
-
-//    public Response traverseHistory(String contextId, int delta) {
-//        // ToDo: Hier fehlt wohl doch eine JSON-Objekt-Mapper!
-//        return webSocketImpl.sendAndWaitForResponse(new BrowsingContext.TraverseHistory(contextId, delta));
-//    }
-
 }

@@ -7,19 +7,15 @@ import wd4j.impl.webdriver.type.script.WDRemoteValue;
 import java.util.List;
 
 public interface WDBrowsingContextResult extends WDResultData {
-    class CaptureScreenshotWDBrowsingContextResult implements WDBrowsingContextResult {
+    class CaptureScreenshotResult implements WDBrowsingContextResult {
         private String data;
 
-        public CaptureScreenshotWDBrowsingContextResult(String data) {
+        public CaptureScreenshotResult(String data) {
             this.data = data;
         }
 
         public String getData() {
             return data;
-        }
-
-        public void setData(String data) {
-            this.data = data;
         }
 
         @Override
@@ -30,19 +26,15 @@ public interface WDBrowsingContextResult extends WDResultData {
         }
     }
 
-    class CreateWDBrowsingContextResult implements WDBrowsingContextResult {
+    class CreateResult implements WDBrowsingContextResult {
         private String context;
 
-        public CreateWDBrowsingContextResult(String context) {
+        public CreateResult(String context) {
             this.context = context;
         }
 
         public String getContext() {
             return context;
-        }
-
-        public void setContext(String context) {
-            this.context = context;
         }
 
         @Override
@@ -53,19 +45,15 @@ public interface WDBrowsingContextResult extends WDResultData {
         }
     }
 
-    class GetTreeWDBrowsingContextResult implements WDBrowsingContextResult {
+    class GetTreeResult implements WDBrowsingContextResult {
         private List<WDInfo> contexts;
 
-        public GetTreeWDBrowsingContextResult(List<WDInfo> contexts) {
+        public GetTreeResult(List<WDInfo> contexts) {
             this.contexts = contexts;
         }
 
         public List<WDInfo> getContexts() {
             return contexts;
-        }
-
-        public void setContexts(List<WDInfo> contexts) {
-            this.contexts = contexts;
         }
 
         @Override
@@ -76,19 +64,15 @@ public interface WDBrowsingContextResult extends WDResultData {
         }
     }
 
-    class LocateNodesWDBrowsingContextResult implements WDBrowsingContextResult {
+    class LocateNodesResult implements WDBrowsingContextResult {
         private List<WDRemoteValue.NodeWDRemoteValue> nodes;
 
-        public LocateNodesWDBrowsingContextResult(List<WDRemoteValue.NodeWDRemoteValue> nodes) {
+        public LocateNodesResult(List<WDRemoteValue.NodeWDRemoteValue> nodes) {
             this.nodes = nodes;
         }
 
         public List<WDRemoteValue.NodeWDRemoteValue> getNodes() {
             return nodes;
-        }
-
-        public void setNodes(List<WDRemoteValue.NodeWDRemoteValue> nodes) {
-            this.nodes = nodes;
         }
 
         @Override
@@ -99,11 +83,11 @@ public interface WDBrowsingContextResult extends WDResultData {
         }
     }
 
-    class NavigateWDBrowsingContextResult implements WDBrowsingContextResult {
-        private String navigation;
+    class NavigateResult implements WDBrowsingContextResult {
+        private String navigation; // Optional: May be null either!
         private String url;
 
-        public NavigateWDBrowsingContextResult(String navigation, String url) {
+        public NavigateResult(String navigation, String url) {
             this.navigation = navigation;
             this.url = url;
         }
@@ -112,16 +96,8 @@ public interface WDBrowsingContextResult extends WDResultData {
             return navigation;
         }
 
-        public void setNavigation(String navigation) {
-            this.navigation = navigation;
-        }
-
         public String getUrl() {
             return url;
-        }
-
-        public void setUrl(String url) {
-            this.url = url;
         }
 
         @Override
@@ -133,19 +109,15 @@ public interface WDBrowsingContextResult extends WDResultData {
         }
     }
 
-    class PrintWDBrowsingContextResult implements WDBrowsingContextResult {
+    class PrintResult implements WDBrowsingContextResult {
         private String data;
 
-        public PrintWDBrowsingContextResult(String data) {
+        public PrintResult(String data) {
             this.data = data;
         }
 
         public String getData() {
             return data;
-        }
-
-        public void setData(String data) {
-            this.data = data;
         }
 
         @Override
@@ -156,10 +128,67 @@ public interface WDBrowsingContextResult extends WDResultData {
         }
     }
 
-    class TraverseHistoryWDBrowsingContextResult implements WDBrowsingContextResult {
+    /**
+     * @deprecated since unclear documentation
+     */
+    @Deprecated
+    class TraverseHistoryResult implements WDBrowsingContextResult {
+        private final String navigation;
+        private final List<HistoryEntry> entries;
+        private final int currentEntryIndex;
+
+        public TraverseHistoryResult(String navigation, List<HistoryEntry> entries, int currentEntryIndex) {
+            this.navigation = navigation;
+            this.entries = entries;
+            this.currentEntryIndex = currentEntryIndex;
+        }
+
+        public String getNavigation() {
+            return navigation;
+        }
+
+        public List<HistoryEntry> getEntries() {
+            return entries;
+        }
+
+        public int getCurrentEntryIndex() {
+            return currentEntryIndex;
+        }
+
         @Override
         public String toString() {
-            return "TraverseHistoryResult{}";
+            return "TraverseHistoryResult{" +
+                    "navigation='" + navigation + '\'' +
+                    ", entries=" + entries +
+                    ", currentEntryIndex=" + currentEntryIndex +
+                    '}';
+        }
+
+        // Inner class for history entries
+        public static class HistoryEntry {
+            private final String url;
+            private final boolean isActive;
+
+            public HistoryEntry(String url, boolean isActive) {
+                this.url = url;
+                this.isActive = isActive;
+            }
+
+            public String getUrl() {
+                return url;
+            }
+
+            public boolean isActive() {
+                return isActive;
+            }
+
+            @Override
+            public String toString() {
+                return "HistoryEntry{" +
+                        "url='" + url + '\'' +
+                        ", isActive=" + isActive +
+                        '}';
+            }
         }
     }
 }

@@ -5,6 +5,8 @@ import wd4j.impl.manager.WDBrowsingContextManager;
 import wd4j.api.*;
 import wd4j.api.options.*;
 import wd4j.impl.manager.WDSessionManager;
+import wd4j.impl.support.PlaywrightResponse;
+import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.event.WDEventMapping;
 import wd4j.impl.support.JsonToPlaywrightMapper;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
@@ -40,12 +42,7 @@ class PageImpl implements Page {
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        this.pageId = initPage();
-    }
-
-    private String initPage() {
-        // Create a new browsing context
-        return WDBrowsingContextManager.create();
+        this.pageId = WDBrowsingContextManager.create().getContext();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -586,9 +583,9 @@ class PageImpl implements Page {
         this.url = url;
 
         // WebDriver BiDi Befehl senden
-        WDBrowsingContextManager.navigate(url, pageId);
+        WDBrowsingContextResult.NavigateResult navigate = WDBrowsingContextManager.navigate(url, pageId);
 
-        return null; // ToDo: Echte Response zurückgeben
+        return new PlaywrightResponse<WDBrowsingContextResult.NavigateResult>(navigate);
     }
 
     @Override
@@ -770,7 +767,8 @@ class PageImpl implements Page {
 
     @Override
     public byte[] screenshot(ScreenshotOptions options) {
-        String base64Image = WDBrowsingContextManager.captureScreenshot(pageId);
+        WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult = WDBrowsingContextManager.captureScreenshot(pageId);
+        String base64Image = captureScreenshotResult.getData();
         return Base64.getDecoder().decode(base64Image);
     }
 

@@ -46,6 +46,9 @@ import java.util.Map;
  *     <li>Fallback default values for missing JSON fields to prevent NullPointerExceptions.</li>
  * </ul>
  */
+// @Deprecated since Proxy does not provide fields, only methods. Therefore, we map JSON on DTOs first!
+// See: PlaywrightResponse.java
+@Deprecated
 public class JsonToPlaywrightMapper {
     private static final Gson gson = new Gson();
 
