@@ -3,6 +3,7 @@ package wd4j.impl.manager;
 import wd4j.impl.webdriver.command.request.helper.CommandImpl;
 import wd4j.impl.markerInterfaces.Module;
 import wd4j.impl.webdriver.command.request.SessionRequest;
+import wd4j.impl.webdriver.command.response.EmptyResult;
 import wd4j.impl.webdriver.command.response.SessionResult;
 import wd4j.impl.websocket.CommunicationManager;
 
@@ -37,28 +38,37 @@ public class SessionManager implements Module {
     // Commands
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public String status() {
-        return communicationManager.sendAndWaitForResponse(new SessionRequest.Status(), String.class);
+    /**
+     * Ruft den Status der WebDriver BiDi Session ab.
+     */
+    public SessionResult.StatusResult status() {
+        return communicationManager.sendAndWaitForResponse(new SessionRequest.Status(), SessionResult.StatusResult.class);
     }
 
     // new() - Since plain "new" is a reserved word in Java!
+    /**
+     * Erstellt eine neue Session mit dem gegebenen Browser.
+     */
     public SessionResult.NewResult newSession(String browserName) {
         return communicationManager.sendAndWaitForResponse(new SessionRequest.New(browserName), SessionResult.NewResult.class);
     }
 
+
     // end() - In corespondance to new!
-    public String endSession() {
-        // ToDo: Maybe close all BrowsingContexts?
-        CommandImpl endSessionCommand = new SessionRequest.End();
-    
-        return communicationManager.sendAndWaitForResponse(endSessionCommand, String.class);
+    /**
+     * Beendet die aktuelle WebDriver BiDi Session.
+     */
+    public EmptyResult endSession() {
+        return communicationManager.sendAndWaitForResponse(new SessionRequest.End(), EmptyResult.class);
     }
+
 
     /**
      * Abonniert WebDriver BiDi Events.
      * Falls bereits abonniert, wird das Event nicht erneut angefordert.
      */
-    public void subscribe(List<String> events) {
+    public SessionResult.SubscribeResult subscribe(List<String> events) {
+        SessionResult.SubscribeResult result = null;
         if (events == null || events.isEmpty()) {
             throw new IllegalArgumentException("Events list must not be null or empty.");
         }
@@ -72,10 +82,13 @@ public class SessionManager implements Module {
         }
 
         if (!newEvents.isEmpty()) {
-            communicationManager.sendAndWaitForResponse(new SessionRequest.Subscribe(newEvents), String.class);
+            result = communicationManager.sendAndWaitForResponse(
+                    new SessionRequest.Subscribe(newEvents), SessionResult.SubscribeResult.class);
             subscribedEvents.addAll(newEvents);
             System.out.println("Subscribed to new events: " + newEvents);
         }
+
+        return result;
     }
 
     /**
@@ -94,7 +107,7 @@ public class SessionManager implements Module {
         }
 
         if (!eventsToRemove.isEmpty()) {
-            communicationManager.sendAndWaitForResponse(new SessionRequest.Unsubscribe(eventsToRemove), String.class);
+            communicationManager.sendAndWaitForResponse(new SessionRequest.Unsubscribe(eventsToRemove), EmptyResult.class);
             subscribedEvents.removeAll(eventsToRemove);
             System.out.println("Unsubscribed from events: " + eventsToRemove);
         }
