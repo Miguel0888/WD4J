@@ -8,10 +8,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class BrowserImpl implements Browser {
     private final BrowserTypeImpl browserType;
+    private final Process process;
     private final WebSocketManager webSocketManager;
     private final WDBrowserManager WDBrowserManager;
     private final List<BrowserSessionImpl> sessions = new ArrayList<>();
@@ -22,7 +24,7 @@ public class BrowserImpl implements Browser {
     private WDStorageManager WDStorageManager;
     private WDWebExtensionManager WDWebExtensionManager;
 
-    public BrowserImpl(WebSocketManager webSocketManager, BrowserTypeImpl browserType) throws ExecutionException, InterruptedException {
+    public BrowserImpl(WebSocketManager webSocketManager, BrowserTypeImpl browserType, Process process) throws ExecutionException, InterruptedException {
         this.webSocketManager = webSocketManager;
         this.WDBrowserManager = new WDBrowserManager(webSocketManager);
 
@@ -31,6 +33,24 @@ public class BrowserImpl implements Browser {
         this.WDStorageManager = new WDStorageManager(webSocketManager);
         this.WDWebExtensionManager = new WDWebExtensionManager(webSocketManager);
         this.browserType = browserType;
+        this.process = process;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public void terminateProcess() {
+        if (process != null && process.isAlive()) {
+            System.out.println("Beende Browser-Prozess...");
+            process.destroy(); // Normaler Stop-Versuch
+            try {
+                if (!process.waitFor(3, TimeUnit.SECONDS)) {
+                    System.out.println("Erzwungener Stopp des Browsers...");
+                    process.destroyForcibly(); // Erzwinge den Stopp
+                }
+            } catch (InterruptedException e) {
+                System.err.println("Fehler beim Beenden des Browsers: " + e.getMessage());
+            }
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,7 +74,9 @@ public class BrowserImpl implements Browser {
 
     @Override
     public void close(CloseOptions options) {
-        // ToDo: implement
+        // ToDo: Implement options
+        // ToDo: Implement Cleanup
+        terminateProcess();
     }
 
     @Override

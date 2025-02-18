@@ -44,8 +44,9 @@ public class Main {
         });
 
         JCheckBox headlessCheckbox = new JCheckBox("Headless");
-        JCheckBox disableGpuCheckbox = new JCheckBox("Disable GPU");
+        JCheckBox disableGpuCheckbox = new JCheckBox("Dis. GPU");
         JCheckBox noRemoteCheckbox = new JCheckBox("No Remote");
+        JCheckBox startMaximizedCheckbox = new JCheckBox("Maximized");
 
         JComboBox<String> browserSelector = new JComboBox<>(new String[]{"Firefox", "Chrome", "Edge", "Safari"});
 
@@ -64,6 +65,7 @@ public class Main {
         browserToolBar.add(headlessCheckbox);
         browserToolBar.add(disableGpuCheckbox);
         browserToolBar.add(noRemoteCheckbox);
+        browserToolBar.add(startMaximizedCheckbox);
         browserToolBar.add(launchButton);
         browserToolBar.add(terminateButton);
         browserToolBar.add(screenshotButton);
@@ -131,6 +133,7 @@ public class Main {
                 headlessCheckbox,
                 disableGpuCheckbox,
                 noRemoteCheckbox,
+                startMaximizedCheckbox,
                 browserSelector,
                 launchButton,
                 terminateButton,
@@ -153,11 +156,19 @@ public class Main {
 
         // ToDo: Implement this additional features (optional, not part of playwright, except of the headless mode)
         // Disable als UI-Options
-        useProfileCheckbox.setEnabled(false);
-        profilePathField.setEnabled(false);
-        headlessCheckbox.setEnabled(false);
-        disableGpuCheckbox.setEnabled(false);
-        noRemoteCheckbox.setEnabled(false);
+        useProfileCheckbox.setEnabled(true);
+        profilePathField.setEnabled(true);
+        headlessCheckbox.setEnabled(true);
+        disableGpuCheckbox.setEnabled(true);
+        noRemoteCheckbox.setEnabled(true);
+        startMaximizedCheckbox.setEnabled(true);
+
+        useProfileCheckbox.setSelected(true);
+        profilePathField.setText(null); // ToDo: Remove this line an set Settings from BrowserTypeImpl, here
+        headlessCheckbox.setSelected(false);
+        disableGpuCheckbox.setSelected(false);
+        noRemoteCheckbox.setSelected(false);
+        startMaximizedCheckbox.setSelected(false);
     }
 
     /**

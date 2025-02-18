@@ -3,6 +3,10 @@ package app.controller;
 import wd4j.api.*;
 
 import javax.swing.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class MainController {
     private Playwright playwright;
@@ -28,6 +32,7 @@ public class MainController {
             JCheckBox headlessCheckbox,
             JCheckBox disableGpuCheckbox,
             JCheckBox noRemoteCheckbox,
+            JCheckBox startMaximizedCheckbox,
             JComboBox<String> browserSelector,
             JButton launchButton,
             JButton terminateButton,
@@ -46,6 +51,9 @@ public class MainController {
                 try {
                     playwright = Playwright.create();
                     BrowserType.LaunchOptions options = new BrowserType.LaunchOptions().setHeadless(headless);
+
+                    // UI-Parameter setzen
+                    setBrowserOptions(selectedBrowser, options, portField, profilePathField, disableGpuCheckbox, noRemoteCheckbox, startMaximizedCheckbox);
 
                     switch (selectedBrowser.toLowerCase()) {
                         case "chromium":
@@ -97,7 +105,8 @@ public class MainController {
         terminateButton.addActionListener(e -> {
             try {
                 onCloseBrowser();
-                JOptionPane.showMessageDialog(null, "Browser wurde beendet.");
+//                JOptionPane.showMessageDialog(null, "Browser wurde beendet.");
+                System.out.println(" --- Browser wurde beendet ---");
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(null, "Fehler beim Beenden des Browsers: " + ex.getMessage());
             }
@@ -118,6 +127,61 @@ public class MainController {
             }
         });
     }
+
+    private void setBrowserOptions(
+            String selectedBrowser,
+            BrowserType.LaunchOptions options,
+            JTextField portField,
+            JTextField profilePathField,
+            JCheckBox disableGpuCheckbox,
+            JCheckBox noRemoteCheckbox,
+            JCheckBox startMaximizedCheckbox
+    ) {
+        // Kommandozeilenargumente aus der UI
+        List<String> browserArgs = new ArrayList<>();
+        Map<String, Object> firefoxPrefs = new HashMap<>();
+
+        // Werte aus UI lesen
+        String port = portField.getText().trim();
+        boolean noRemote = noRemoteCheckbox.isSelected();
+        boolean disableGpu = disableGpuCheckbox.isSelected();
+        boolean startMaximized = startMaximizedCheckbox.isSelected();
+        String profilePath = profilePathField.getText().trim();
+
+        // Port hinzufügen, falls gesetzt
+        if (!port.isEmpty()) browserArgs.add("--remote-debugging-port=" + port);
+
+        // UI-Parameter übernehmen
+        if (noRemote) browserArgs.add("--no-remote");
+        if (disableGpu) browserArgs.add("--disable-gpu");
+        if (startMaximized) browserArgs.add("--start-maximized");
+
+        // Profilpfad-Verarbeitung
+        if (profilePath == null || profilePath.isEmpty()) {
+            // Temporäres Profil verwenden
+            String tempProfilePath = System.getProperty("java.io.tmpdir") + "\\temp_profile_" + System.currentTimeMillis();
+            browserArgs.add(selectedBrowser.equalsIgnoreCase("firefox")
+                    ? "--profile=" + tempProfilePath
+                    : "--user-data-dir=" + tempProfilePath);
+
+            System.out.println("Kein Profil angegeben, temporäres Profil wird verwendet: " + tempProfilePath);
+        } else {
+        // Benutzerdefiniertes Profil verwenden
+            browserArgs.add(selectedBrowser.equalsIgnoreCase("firefox")
+                    ? "--profile=" + profilePath
+                    : "--user-data-dir=" + profilePath);
+        }
+
+        // Falls Firefox gewählt wurde, spezifische User Preferences setzen
+        if ("firefox".equalsIgnoreCase(selectedBrowser)) {
+            firefoxPrefs.put("browser.startup.homepage", "https://www.google.com"); // Beispiel
+            options.setFirefoxUserPrefs(firefoxPrefs);
+        }
+
+        // Die gesammelten Argumente setzen
+        options.setArgs(browserArgs);
+    }
+
 
     public byte[] captureScreenshot() {
         return page.screenshot();

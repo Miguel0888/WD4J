@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class has a lot of methods that are not part of the Playwright API. This is due to the fact that the W3C stamdard
@@ -38,26 +39,17 @@ public class BrowserTypeImpl implements BrowserType {
     private final String browserPath;
     private String profilePath;
     private final String webSocketEndpoint;
-    @Deprecated // ToDo: Remove since it is part of the playwright API
-    private boolean headless;
-    private boolean noRemote;
-    private boolean disableGpu;
-    private boolean startMaximized;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// Constructors
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private BrowserTypeImpl(PlaywrightImpl playwright, String name, String browserPath, String profilePath, String webSocketEndpoint, boolean headless, boolean noRemote, boolean disableGpu, boolean startMaximized) {
+    private BrowserTypeImpl(PlaywrightImpl playwright, String name, String browserPath, String profilePath, String webSocketEndpoint) {
         this.playwright = playwright;
         this.name = name;
         this.browserPath = browserPath;
         this.profilePath = profilePath;
         this.webSocketEndpoint = webSocketEndpoint;
-        this.headless = headless;
-        this.noRemote = noRemote;
-        this.disableGpu = disableGpu;
-        this.startMaximized = startMaximized;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -65,19 +57,19 @@ public class BrowserTypeImpl implements BrowserType {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static BrowserTypeImpl newFirefoxInstance(PlaywrightImpl playwright) {
-        return new BrowserTypeImpl(playwright, "firefox","C:\\Program Files\\Mozilla Firefox\\firefox.exe", "C:\\FirefoxProfile", "/session", false, true, false, false);
+        return new BrowserTypeImpl(playwright, "firefox","C:\\Program Files\\Mozilla Firefox\\firefox.exe", "C:\\FirefoxProfile", "/session");
     }
 
     public static BrowserTypeImpl newChromiumInstance(PlaywrightImpl playwright) {
-        return new BrowserTypeImpl(playwright,"chromium" ,"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\ChromeProfile", "", true, false, true, true);
+        return new BrowserTypeImpl(playwright,"chromium" ,"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\ChromeProfile", "");
     }
 
     public static BrowserTypeImpl newEdgeInstance(PlaywrightImpl playwright) {
-        return new BrowserTypeImpl(playwright,"edge","C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe", "C:\\EdgeProfile", "", true, false, true, false);
+        return new BrowserTypeImpl(playwright,"edge","C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe", "C:\\EdgeProfile", "");
     }
 
     public static BrowserTypeImpl newWebkitInstance(PlaywrightImpl playwright) {
-        return new BrowserTypeImpl(playwright,"webkit",null, null, "", false, false, false, false);
+        return new BrowserTypeImpl(playwright,"webkit",null, null, "");
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -102,14 +94,12 @@ public class BrowserTypeImpl implements BrowserType {
      */
     @Override
     public Browser launch(LaunchOptions options) {
-
-        // ToDo: Use Options for Headless (OPTIONAL: NoRemote, DisableGpu, StartMaximized)
-        if(options != null) {
-            setParams(null, null, options.headless, null, null);
+        if (options == null) {
+            options = new LaunchOptions();
         }
 
         try {
-            startProcess();
+            startProcess(getCommandLineArgs(options));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -144,7 +134,7 @@ public class BrowserTypeImpl implements BrowserType {
         }
 
         try {
-            BrowserImpl browser = new BrowserImpl(new WebSocketManager(webSocketImpl), this);
+            BrowserImpl browser = new BrowserImpl(new WebSocketManager(webSocketImpl), this, process);
             playwright.addBrowser(browser);
             return browser;
         } catch (ExecutionException e) {
@@ -169,9 +159,8 @@ public class BrowserTypeImpl implements BrowserType {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Hilfsmethode zum Starten eines Prozesses mit Protokollierung
-    protected void startProcess() throws Exception {
+    protected void startProcess(List<String> commandLineArgs) throws Exception {
         String logPrefix = "[" + name() + "]";
-        List<String> commandLineArgs = getCommandLineArgs();
         ProcessBuilder builder = new ProcessBuilder(commandLineArgs);
 
         builder.redirectErrorStream(true);
@@ -214,12 +203,6 @@ public class BrowserTypeImpl implements BrowserType {
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     }
 
-    public void terminateProcess(Process process) {
-        if (process != null && process.isAlive()) {
-            process.destroy();
-        }
-    }
-
     /////////////////////////////////////////////////////////////////////////////
 
     private String getDevToolsUrl() {
@@ -231,82 +214,8 @@ public class BrowserTypeImpl implements BrowserType {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-    /////
-
-    private Integer getPort() {
-        return port;
-    }
-
-    private String getWebsocketEndpoint() {
-        return webSocketEndpoint;
-    }
-
-    private String getProfilePath() {
-        return profilePath;
-    }
-
-    private boolean isNoRemote() {
-        return noRemote;
-    }
-
-    private boolean isDisableGpu() {
-        return disableGpu;
-    }
-
-    private boolean isStartMaximized() {
-        return startMaximized;
-    }
-
-    private boolean isHeadless() {
-        return headless;
-    }
 
     ///////////////////////////////////////////////////////////////////////////
-
-    private void setPort(Integer port) {
-        this.port = port;
-    }
-
-    private void setProfilePath(String profilePath) {
-        this.profilePath = profilePath;
-    }
-
-    private void setNoRemote(boolean noRemote) {
-        this.noRemote = noRemote;
-    }
-
-    private void setDisableGpu(boolean disableGpu) {
-        this.disableGpu = disableGpu;
-    }
-
-    private void setStartMaximized(boolean startMaximized) {
-        this.startMaximized = startMaximized;
-    }
-
-    private void setHeadless(boolean headless) {
-        this.headless = headless;
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-
-    private void setParams(Integer port, String profilePath, Boolean headless, Boolean disableGpu, Boolean noRemote) {
-
-        if( port != null) {
-            this.port = port;
-        }
-        if (profilePath != null) {
-            this.profilePath = profilePath;
-        }
-        if (headless != null) {
-            this.headless = headless;
-        }
-        if (disableGpu != null) {
-            this.disableGpu = disableGpu;
-        }
-        if (noRemote != null) {
-            this.noRemote = noRemote;
-        }
-    }
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -314,45 +223,22 @@ public class BrowserTypeImpl implements BrowserType {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Argumente für den Start des Browsers dynamisch zusammenstellen
-    // ToDo: Needs to be updated to the Playwright API Options
-    protected List<String> getCommandLineArgs() {
+    // ToDo: Port is only set via UI, but is still found in BrowserTypeImpl
+    protected List<String> getCommandLineArgs(LaunchOptions options) {
+        if (options.args == null || options.args.isEmpty()) {
+            throw new IllegalArgumentException("Keine Startargumente gesetzt. Stelle sicher, dass die UI-Optionen korrekt übergeben werden.");
+        }
+
         List<String> args = new ArrayList<>();
-        args.add(browserPath);
+        args.add(browserPath); // Browser-Executable hinzufügen
+        args.addAll(options.args); // Alle Argumente aus der UI übernehmen
 
-        if (port > 0) {
-            args.add("--remote-debugging-port=" + port);
-        }
-        if (noRemote) {
-            args.add("--no-remote");
-        }
-        if( profilePath == null) {
-            // Kein Profil-Argument hinzufügen, wenn profilePath null oder leer ist
-            System.out.println("Kein Profil angegeben, der Browser wird ohne Profil gestartet.");
-        }
-        else if (!profilePath.isEmpty()) {
-            args.add(browserPath.endsWith("firefox.exe") ? "--profile=" + profilePath : "--user-data-dir=" + profilePath);
-        }
-        else {
-            // Temporäres Profil verwenden
-            String tempProfilePath = System.getProperty("java.io.tmpdir") + "\\temp_profile_" + System.currentTimeMillis();
-            args.add(browserPath.endsWith("firefox.exe") ? "--profile=" + tempProfilePath : "--user-data-dir=" + tempProfilePath);
-
-            // Optional: Log für Debugging
-            System.out.println("Kein Profil angegeben, temporäres Profil wird verwendet: " + tempProfilePath);
-        }
-        if (headless) {
+        // Headless-Mode explizit setzen, wenn erforderlich
+        if (Boolean.TRUE.equals(options.headless)) {
             args.add("--headless");
         }
-        if (disableGpu) {
-            args.add("--disable-gpu");
-        }
-        if (startMaximized) {
-            args.add("--start-maximized");
-        }
-//        if (!useCdp) {
-////            args.add("--remote-debugging-address=127.0.0.1");
-//        }
 
         return args;
     }
+
 }
