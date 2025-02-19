@@ -3,7 +3,6 @@ package wd4j.impl.webdriver.command.response;
 import wd4j.impl.markerInterfaces.WDResultData;
 import wd4j.impl.webdriver.type.session.WDProxyConfiguration;
 import wd4j.impl.webdriver.type.session.WDSubscription;
-import wd4j.impl.webdriver.type.session.WDUserPromptHandlerType;
 
 public interface WDSessionResult extends WDResultData {
     public static class NewWDSessionResult implements WDSessionResult {
@@ -38,7 +37,7 @@ public interface WDSessionResult extends WDResultData {
 
             private WDProxyConfiguration proxy; // Optional
             @Deprecated // since it should return WDUserPromptHandler Object instead of the String
-            private WDUserPromptHandlerType unhandledPromptBehavior;
+            private String unhandledPromptBehavior;
             //            private WDUserPromptHandler unhandledPromptBehavior; // Optional
             private String webSocketUrl; // Optional
 
@@ -71,7 +70,7 @@ public interface WDSessionResult extends WDResultData {
             }
 
             @Deprecated // since it should return WDUserPromptHandler Object instead of the String
-            public WDUserPromptHandlerType getUnhandledPromptBehavior() {
+            public String getUnhandledPromptBehavior() {
                 return unhandledPromptBehavior;
             }
 
