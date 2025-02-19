@@ -16,6 +16,8 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.sun.corba.se.impl.util.Utility.printStackTrace;
+
 public class WebSocketManager {
     private final WebSocketImpl webSocket;
     private final Gson gson = GsonMapperFactory.getGson(); // ✅ Nutzt zentrale Fabrik
@@ -78,6 +80,9 @@ public class WebSocketManager {
         } catch (TimeoutException e) {
             throw new RuntimeException("Timeout while waiting for response.", e);
         } catch (Exception e) {
+            // Stacktrace ausgeben
+            System.out.println("[ERROR] Error while waiting for response: " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Error while waiting for response.", e);
         }
     }
