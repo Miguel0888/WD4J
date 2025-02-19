@@ -10,10 +10,8 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * This class has a lot of methods that are not part of the Playwright API. This is due to the fact that the W3C stamdard
@@ -29,7 +27,8 @@ public class BrowserTypeImpl implements BrowserType {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-    final String[] devToolsUrl = {null};
+    private final String[] cdpUrl = {null};
+    private final String[] wdUrl = {null};
     private final PlaywrightImpl playwright; // Required for the Playwright interface to implement the close method
     private Process process;
 
@@ -174,11 +173,19 @@ public class BrowserTypeImpl implements BrowserType {
                 while ((line = reader.readLine()) != null) {
                     System.out.println(logPrefix + " " + line);
 
-                    // WebSocket-URL aus der Log-Ausgabe extrahieren
+                    // CDP-URL aus der Log-Ausgabe extrahieren
                     if (line.contains("DevTools listening on ws://")) {
                         String url = line.substring(line.indexOf("ws://")).trim();
-                        synchronized (devToolsUrl) {
-                            devToolsUrl[0] = url; // Speichere die URL
+                        synchronized (cdpUrl) {
+                            cdpUrl[0] = url; // Speichere die URL
+                        }
+                    }
+
+                    // WebDriver-URL aus der Log-Ausgabe extrahieren
+                    if (line.contains("WebDriver BiDi listening on ws://")) {
+                        String url = line.substring(line.indexOf("ws://")).trim();
+                        synchronized (wdUrl) {
+                            wdUrl[0] = url; // Speichere die URL
                         }
                     }
                 }
@@ -188,27 +195,38 @@ public class BrowserTypeImpl implements BrowserType {
         }).start();
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        if (!this.name.equalsIgnoreCase("FIREFOX")) {
+        if (this.name.equalsIgnoreCase("FIREFOX")) {
             // Warte auf die WebSocket-URL, falls erforderlich
             for (int i = 0; i < 10; i++) { // Maximal 10 Sekunden warten
-                synchronized (devToolsUrl) {
-                    if (devToolsUrl[0] != null) {
+                synchronized (wdUrl) {
+                    if (wdUrl[0] != null) {
                         break;
                     }
                 }
                 Thread.sleep(1000); // Warte 1 Sekunde
             }
-
-            System.out.println("Gefundene DevTools-URL: " + devToolsUrl[0]);
+            System.out.println("Gefundene WebDriver-URL: " + wdUrl[0]);
+        }
+        else
+        {
+            for (int i = 0; i < 10; i++) { // Maximal 10 Sekunden warten
+                synchronized (cdpUrl) {
+                    if (cdpUrl[0] != null) {
+                        break;
+                    }
+                }
+                Thread.sleep(1000); // Warte 1 Sekunde
+            }
+            System.out.println("Gefundene DevTools-URL: " + cdpUrl[0]);
         }
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     }
 
     /////////////////////////////////////////////////////////////////////////////
 
-    private String getDevToolsUrl() {
-        synchronized (devToolsUrl) {
-            return devToolsUrl[0];
+    private String getCdpUrl() {
+        synchronized (cdpUrl) {
+            return cdpUrl[0];
         }
     }
 

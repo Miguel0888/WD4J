@@ -25,6 +25,7 @@ public class MainController {
     // Listener-Setup
     public void setupListeners(
             JTextField portField,
+            JCheckBox useProfileCheckbox,
             JTextField profilePathField,
             JCheckBox headlessCheckbox,
             JCheckBox disableGpuCheckbox,
@@ -50,7 +51,7 @@ public class MainController {
                     BrowserType.LaunchOptions options = new BrowserType.LaunchOptions().setHeadless(headless);
 
                     // UI-Parameter setzen
-                    setBrowserOptions(selectedBrowser, options, portField, profilePathField, disableGpuCheckbox, noRemoteCheckbox, startMaximizedCheckbox);
+                    setBrowserOptions(selectedBrowser, options, portField, useProfileCheckbox, profilePathField, disableGpuCheckbox, noRemoteCheckbox, startMaximizedCheckbox);
 
                     switch (selectedBrowser.toLowerCase()) {
                         case "chromium":
@@ -129,7 +130,7 @@ public class MainController {
             String selectedBrowser,
             BrowserType.LaunchOptions options,
             JTextField portField,
-            JTextField profilePathField,
+            JCheckBox useProfileCheckbox, JTextField profilePathField,
             JCheckBox disableGpuCheckbox,
             JCheckBox noRemoteCheckbox,
             JCheckBox startMaximizedCheckbox
@@ -138,57 +139,51 @@ public class MainController {
         List<String> browserArgs = new ArrayList<>();
         Map<String, Object> firefoxPrefs = new HashMap<>();
 
-        // Werte aus UI lesen
-        String port = portField.getText().trim();
-        boolean noRemote = noRemoteCheckbox.isSelected();
-        boolean disableGpu = disableGpuCheckbox.isSelected();
-        boolean startMaximized = startMaximizedCheckbox.isSelected();
-        String profilePath = profilePathField.getText().trim();
-
         // Port hinzufügen, falls gesetzt
+        String port = portField.getText().trim();
         if (!port.isEmpty()) browserArgs.add("--remote-debugging-port=" + port);
 
         // UI-Parameter übernehmen
-        if (noRemote) browserArgs.add("--no-remote");
-        if (disableGpu) browserArgs.add("--disable-gpu");
-        if (startMaximized) browserArgs.add("--start-maximized");
+        if (noRemoteCheckbox.isSelected()) browserArgs.add("--no-remote");
+        if (disableGpuCheckbox.isSelected()) browserArgs.add("--disable-gpu");
+        if (startMaximizedCheckbox.isSelected()) browserArgs.add("--start-maximized");
 
         // Profilpfad-Verarbeitung
-        if (profilePath == null || profilePath.isEmpty()) {
-            // Temporäres Profil verwenden
-            String tempProfilePath = System.getProperty("java.io.tmpdir") + "temp_profile_" + System.currentTimeMillis();
-            if(selectedBrowser.equalsIgnoreCase("firefox"))
-            {
-                browserArgs.add("--profile");
-                browserArgs.add(tempProfilePath);
-            }
-            else // Chrome
-            {
-                browserArgs.add("--user-data-dir=" + tempProfilePath);
-            }
+        if(useProfileCheckbox.isSelected()) {
+            if (profilePathField.getText().trim().isEmpty()) {
+                // Temporäres Profil verwenden
+                String tempProfilePath = System.getProperty("java.io.tmpdir") + "temp_profile_" + System.currentTimeMillis();
+                if(selectedBrowser.equalsIgnoreCase("firefox"))
+                {
+                    browserArgs.add("--profile");
+                    browserArgs.add(tempProfilePath);
+                }
+                else // Chrome
+                {
+                    browserArgs.add("--user-data-dir=" + tempProfilePath);
+                }
 
-            System.out.println("Kein Profil angegeben, temporäres Profil wird verwendet: " + tempProfilePath);
-        } else {
-        // Benutzerdefiniertes Profil verwenden
-            if(selectedBrowser.equalsIgnoreCase("firefox"))
-            {
-                browserArgs.add("--profile");
-                browserArgs.add(profilePath);
-            }
-            else // Chrome
-            {
-                browserArgs.add("--user-data-dir=" + profilePath);
+                System.out.println("Kein Profil angegeben, temporäres Profil wird verwendet: " + tempProfilePath);
+            } else {
+                // Benutzerdefiniertes Profil verwenden
+                if(selectedBrowser.equalsIgnoreCase("firefox"))
+                {
+                    browserArgs.add("--profile");
+                    browserArgs.add(profilePathField.getText().trim());
+                }
+                else // Chrome
+                {
+                    browserArgs.add("--user-data-dir=" + profilePathField.getText());
+                }
             }
         }
 
+        // ToDo: Implement User Preferences for Firefox
         // Falls Firefox gewählt wurde, spezifische User Preferences setzen
         if ("firefox".equalsIgnoreCase(selectedBrowser)) {
             firefoxPrefs.put("browser.startup.homepage", "https://www.google.com"); // Beispiel
             options.setFirefoxUserPrefs(firefoxPrefs);
         }
-
-//        browserArgs.add("--new-instance"); // ToDo: Remove this line, it is only for testing purposes
-//        browserArgs.add("--no-remote"); // ToDo: Remove this line, it is only for testing purposes
 
         // Die gesammelten Argumente setzen
         options.setArgs(browserArgs);

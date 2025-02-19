@@ -129,6 +129,7 @@ public class Main {
         // Event Listeners
         controller.setupListeners(
                 portField,
+                useProfileCheckbox,
                 profilePathField,
                 headlessCheckbox,
                 disableGpuCheckbox,
@@ -163,8 +164,8 @@ public class Main {
         noRemoteCheckbox.setEnabled(true);
         startMaximizedCheckbox.setEnabled(true);
 
-        useProfileCheckbox.setSelected(false);
-        profilePathField.setText(null); // ToDo: Remove this line an set Settings from BrowserTypeImpl, here
+        useProfileCheckbox.setSelected(true);
+        profilePathField.setText(""); // ToDo: Remove this line an set Settings from BrowserTypeImpl, here
         headlessCheckbox.setSelected(false);
         disableGpuCheckbox.setSelected(false);
         noRemoteCheckbox.setSelected(false);
