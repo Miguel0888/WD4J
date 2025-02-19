@@ -170,9 +170,15 @@ public class MainController {
             System.out.println("Kein Profil angegeben, temporäres Profil wird verwendet: " + tempProfilePath);
         } else {
         // Benutzerdefiniertes Profil verwenden
-            browserArgs.add(selectedBrowser.equalsIgnoreCase("firefox")
-                    ? "--profile=" + profilePath
-                    : "--user-data-dir=" + profilePath);
+            if(selectedBrowser.equalsIgnoreCase("firefox"))
+            {
+                browserArgs.add("--profile");
+                browserArgs.add(profilePath);
+            }
+            else // Chrome
+            {
+                browserArgs.add("--user-data-dir=" + profilePath);
+            }
         }
 
         // Falls Firefox gewählt wurde, spezifische User Preferences setzen

@@ -10,7 +10,7 @@ import java.io.ByteArrayInputStream;
 import java.util.Base64;
 
 public class Main {
-    private static String lastProfilePath;
+    private static String lastProfilePath = "C:\\BrowserProfile"; // ToDo: Make this configurable
     private static JLabel imageContainer; // Bildcontainer für Screenshots
     private static JTextArea eventLog; // Textfeld für Events
     private static JButton playButton, pauseButton; // Play/Pause Buttons
@@ -31,7 +31,7 @@ public class Main {
 
         JTextField portField = new JTextField("9222", 5);
         JCheckBox useProfileCheckbox = new JCheckBox("", true);
-        JTextField profilePathField = new JTextField("C:\\BrowserProfile", 15);
+        JTextField profilePathField = new JTextField(lastProfilePath, 15);
         useProfileCheckbox.addActionListener(e -> {
             boolean isSelected = useProfileCheckbox.isSelected();
             profilePathField.setEnabled(isSelected);
@@ -163,7 +163,7 @@ public class Main {
         noRemoteCheckbox.setEnabled(true);
         startMaximizedCheckbox.setEnabled(true);
 
-        useProfileCheckbox.setSelected(true);
+        useProfileCheckbox.setSelected(false);
         profilePathField.setText(null); // ToDo: Remove this line an set Settings from BrowserTypeImpl, here
         headlessCheckbox.setSelected(false);
         disableGpuCheckbox.setSelected(false);
