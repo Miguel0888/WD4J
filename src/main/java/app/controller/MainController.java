@@ -3,10 +3,7 @@ package app.controller;
 import wd4j.api.*;
 
 import javax.swing.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class MainController {
     private Playwright playwright;
@@ -159,10 +156,16 @@ public class MainController {
         // Profilpfad-Verarbeitung
         if (profilePath == null || profilePath.isEmpty()) {
             // Temporäres Profil verwenden
-            String tempProfilePath = System.getProperty("java.io.tmpdir") + "\\temp_profile_" + System.currentTimeMillis();
-            browserArgs.add(selectedBrowser.equalsIgnoreCase("firefox")
-                    ? "--profile=" + tempProfilePath
-                    : "--user-data-dir=" + tempProfilePath);
+            String tempProfilePath = System.getProperty("java.io.tmpdir") + "temp_profile_" + System.currentTimeMillis();
+            if(selectedBrowser.equalsIgnoreCase("firefox"))
+            {
+                browserArgs.add("--profile");
+                browserArgs.add(tempProfilePath);
+            }
+            else // Chrome
+            {
+                browserArgs.add("--user-data-dir=" + tempProfilePath);
+            }
 
             System.out.println("Kein Profil angegeben, temporäres Profil wird verwendet: " + tempProfilePath);
         } else {
@@ -177,6 +180,9 @@ public class MainController {
             firefoxPrefs.put("browser.startup.homepage", "https://www.google.com"); // Beispiel
             options.setFirefoxUserPrefs(firefoxPrefs);
         }
+
+//        browserArgs.add("--new-instance"); // ToDo: Remove this line, it is only for testing purposes
+//        browserArgs.add("--no-remote"); // ToDo: Remove this line, it is only for testing purposes
 
         // Die gesammelten Argumente setzen
         options.setArgs(browserArgs);
