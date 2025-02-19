@@ -1,7 +1,18 @@
 plugins {
     id 'java'
     id 'com.github.johnrengelman.shadow' version '8.1.1' //um Fat-Jar mit allen Dependendies zu erzeugen
+//    id "com.appland.appmap" version "1.0.2"
 }
+
+//appmap {
+//    configFile = file("$projectDir/appmap.yml")
+//    outputDirectory = file("$buildDir/appmap")
+//    skip = false
+//    debug = "info"
+//    debugFile = file("$buildDir/appmap/agent.log")
+//    eventValueSize = 1024
+//}
+
 
 group = 'org.example'
 version = '1.0-SNAPSHOT'
@@ -24,6 +35,12 @@ dependencies {
 
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    // Only for AppMap Debugging:
+//    implementation 'org.eclipse.jetty:jetty-server:9.4.51.v20230217'
+//    implementation 'org.eclipse.jetty:jetty-servlet:9.4.51.v20230217'
+//    implementation 'com.appland:appmap-agent:latest.release'  // Version prüfen
+//    implementation 'com.appland:appmap-annotation:latest.release'
 }
 
 test {

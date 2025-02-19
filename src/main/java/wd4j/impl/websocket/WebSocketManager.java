@@ -16,8 +16,6 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.sun.corba.se.impl.util.Utility.printStackTrace;
-
 public class WebSocketManager {
     private final WebSocketImpl webSocket;
     private final Gson gson = GsonMapperFactory.getGson(); // ✅ Nutzt zentrale Fabrik

@@ -9,6 +9,14 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.util.Base64;
 
+//import org.eclipse.jetty.server.Server;
+//import org.eclipse.jetty.servlet.ServletContextHandler;
+//import org.eclipse.jetty.servlet.ServletHolder;
+//import javax.servlet.http.HttpServlet;
+//import javax.servlet.http.HttpServletRequest;
+//import javax.servlet.http.HttpServletResponse;
+//import java.io.IOException;
+
 public class Main {
     private static String lastProfilePath = "C:\\BrowserProfile"; // ToDo: Make this configurable
     private static JLabel imageContainer; // Bildcontainer für Screenshots
@@ -17,6 +25,7 @@ public class Main {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Main::createAndShowGUI);
+//        runAppMapServer();
     }
 
     private static void createAndShowGUI() {
@@ -196,4 +205,51 @@ public class Main {
             JOptionPane.showMessageDialog(null, "Error taking screenshot: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
+
+    public static void runAppMapServer() {
+        try {
+//            startAppMapAgent();
+            Server server = new Server(8080);
+            ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+            context.setContextPath("/");
+            server.setHandler(context);
+
+            context.addServlet(new ServletHolder(new HttpServlet() {
+                protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+                    resp.getWriter().println("AppMap Server Running!");
+                }
+            }), "/");
+
+            server.start();
+            server.join();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+//    public static void startAppMapAgent() {
+//        try {
+//            File agentJar = findAppMapAgent();
+//            if (agentJar == null || !agentJar.exists()) {
+//                System.err.println("⚠ AppMap-Agent nicht gefunden – wird ignoriert.");
+//                return;
+//            }
+//
+//            URL agentURL = agentJar.toURI().toURL();
+//            URLClassLoader classLoader = new URLClassLoader(new URL[]{agentURL}, ClassLoader.getSystemClassLoader());
+//
+//            Class<?> agentClass = classLoader.loadClass("com.appland.appmap.Agent");
+//            Method premainMethod = agentClass.getMethod("premain", String.class, Instrumentation.class);
+//            premainMethod.invoke(null, "", null);
+//
+//            System.out.println("✅ AppMap-Agent erfolgreich gestartet!");
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            System.err.println("❌ Fehler beim Starten des AppMap-Agenten");
+//        }
+//    }
+//
+//    private static File findAppMapAgent() {
+//        return new File("libs/appmap-agent.jar"); // Falls du es mit ShadowJar in libs packst
+//    }
 }
