@@ -206,26 +206,26 @@ public class Main {
         }
     }
 
-    public static void runAppMapServer() {
-        try {
-//            startAppMapAgent();
-            Server server = new Server(8080);
-            ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-            context.setContextPath("/");
-            server.setHandler(context);
-
-            context.addServlet(new ServletHolder(new HttpServlet() {
-                protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-                    resp.getWriter().println("AppMap Server Running!");
-                }
-            }), "/");
-
-            server.start();
-            server.join();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
+//    public static void runAppMapServer() {
+//        try {
+////            startAppMapAgent();
+//            Server server = new Server(8080);
+//            ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+//            context.setContextPath("/");
+//            server.setHandler(context);
+//
+//            context.addServlet(new ServletHolder(new HttpServlet() {
+//                protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+//                    resp.getWriter().println("AppMap Server Running!");
+//                }
+//            }), "/");
+//
+//            server.start();
+//            server.join();
+//        } catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
 
 //    public static void startAppMapAgent() {
 //        try {
