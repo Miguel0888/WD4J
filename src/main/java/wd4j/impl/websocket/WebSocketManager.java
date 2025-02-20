@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import wd4j.api.WebSocketFrame;
 import wd4j.impl.playwright.WebSocketImpl;
+import wd4j.impl.support.EventDispatcher;
 import wd4j.impl.webdriver.mapping.GsonMapperFactory;
 
 import java.lang.reflect.Type;
@@ -21,8 +22,11 @@ public class WebSocketManager {
     private final Gson gson = GsonMapperFactory.getGson(); // ✅ Nutzt zentrale Fabrik
     private int commandCounter = 0; // Zählt Befehle für eindeutige IDs
 
+    EventDispatcher eventDispatcher = new EventDispatcher();
+
     public WebSocketManager(WebSocketImpl webSocket) {
         this.webSocket = webSocket;
+        registerEventListener(eventDispatcher); // 🔥 Events aktivieren!
     }
 
     /**
@@ -158,6 +162,26 @@ public class WebSocketManager {
         return future;
     }
 
+    /**
+     * Registriert einen Event-Listener, der auf eingehende Events reagiert.
+     *
+     * @param eventDispatcher Der EventDispatcher, der die Events verarbeitet.
+     */
+    public void registerEventListener(EventDispatcher eventDispatcher) {
+        webSocket.onFrameReceived(frame -> {
+            try {
+                JsonObject json = gson.fromJson(frame.text(), JsonObject.class);
+
+                // Prüfen, ob es sich um ein Event handelt (kein "id"-Feld)
+                if (json.has("method")) {
+                    System.out.println("[DEBUG] WebSocketManager detected event: " + json.get("method").getAsString());
+                    eventDispatcher.processEvent(json); // 🔥 Event an Dispatcher weitergeben
+                }
+            } catch (JsonSyntaxException e) {
+                System.err.println("[ERROR] Failed to parse WebSocket event: " + e.getMessage());
+            }
+        });
+    }
 
     /**
      * Gibt eine neue eindeutige Command-ID zurück.
