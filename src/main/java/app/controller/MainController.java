@@ -4,6 +4,7 @@ import wd4j.api.*;
 
 import javax.swing.*;
 import java.util.*;
+import java.util.function.Consumer;
 
 public class MainController {
     private Playwright playwright;
@@ -13,6 +14,11 @@ public class MainController {
 
     private JTextArea eventLog;
     private boolean loggingActive = false; // Status für Play/Pause
+
+    private final Consumer<ConsoleMessage> consoleMessageHandler = msg -> logEvent("Console: " + msg.text());
+    private final Consumer<Response> responseHandler = response -> logEvent("Response: " + response.url());
+    private final Consumer<Page> loadHandler = p -> logEvent("Page loaded!");
+
 
     // Browser schließen
     public void onCloseBrowser() {
@@ -212,13 +218,13 @@ public class MainController {
             logEvent("📢 Event-Logging gestartet...");
 
             // Event: Console message ✅
-            page.onConsoleMessage(msg -> logEvent("Console: " + msg.text()));
+            page.onConsoleMessage(consoleMessageHandler);
 
             // Event: Response received ✅
-            page.onResponse(response -> logEvent("Response: " + response.url()));
+            page.onResponse(responseHandler);
 
             // Event: Page loaded ✅
-            page.onLoad(p -> logEvent("Page loaded!"));
+            page.onLoad(loadHandler);
 
 //            // Event: Klick auf ein Element ✅
 //            page.onClick(event -> logEvent("Click on: " + event.target()));
@@ -242,11 +248,11 @@ public class MainController {
             logEvent("⏹️ Event-Logging gestoppt.");
 
             // Event-Listener entfernen
-//            page.offConsoleMessage();
-//            page.offResponse();
-//            page.offLoad();
-//            page.offClick();
-//            page.offKeyPress();
+            page.offConsoleMessage(consoleMessageHandler);
+            page.offResponse(responseHandler);
+            page.offLoad(loadHandler);
+            //            page.offClick();
+            //            page.offKeyPress();
         }
     }
 

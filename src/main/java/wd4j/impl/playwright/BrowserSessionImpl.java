@@ -34,7 +34,7 @@ public class BrowserSessionImpl implements BrowserSession {
     private final WebSocketManager webSocketManager;
     private final WDSessionManager WDSessionManager;
     private final BrowserImpl browser;
-    private final EventDispatcher dispatcher = new EventDispatcher();
+    private final EventDispatcher dispatcher;
     private final List<PageImpl> pages = new ArrayList<>(); // aka. contexts in WebDriver BiDi
     private boolean isClosed = false; // ToDo: Is this variable really necessary?
 
@@ -48,6 +48,7 @@ public class BrowserSessionImpl implements BrowserSession {
     public BrowserSessionImpl(WebSocketManager webSocketManager, BrowserImpl browser, Browser.NewContextOptions options) {
         this.webSocketManager = webSocketManager;
         this.browser = browser;
+        this.dispatcher = webSocketManager.getEventDispatcher();
 
         String browserName = browser.browserType().name();
 

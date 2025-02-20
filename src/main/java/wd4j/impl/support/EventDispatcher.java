@@ -57,6 +57,8 @@ public class EventDispatcher {
      * @param <T>
      */
     private <T> void dispatchEvent(String eventType, JsonObject params, Class<T> eventTypeClass) {
+        System.out.println("[DEBUG] dispatchEvent() aufgerufen (EventDispatcher Instanz: " + this + ") für eventType=" + eventType);
+
         System.out.println("[DEBUG] Dispatching event '" + eventType + "' to class: " + eventTypeClass);
 
         if (eventTypeClass == null) {
@@ -83,11 +85,16 @@ public class EventDispatcher {
     }
 
     public <T> void addEventListener(String eventType, Consumer<T> listener, Class<T> eventTypeClass, WDSessionManager WDSessionManager) {
+        System.out.println("[DEBUG] addEventListener() aufgerufen (EventDispatcher Instanz: " + this + ") mit eventType=" + eventType);
+
         eventListeners.computeIfAbsent(eventType, k -> {
             // 🚀 Erster Listener für dieses Event → WebDriver BiDi Subscribe senden
             WDSessionManager.subscribe(Collections.singletonList(eventType));
             return new ConcurrentLinkedQueue<>();
         }).add((Consumer<Object>) listener);
+
+        // 🔍 DEBUG: Zeige an, wie viele Listener es gibt
+        System.out.println("[DEBUG] Registrierte Listener für " + eventType + ": " + eventListeners.get(eventType).size());
     }
 
     public <T> void removeEventListener(String eventType, Consumer<T> listener, WDSessionManager WDSessionManager) {

@@ -22,11 +22,16 @@ public class WebSocketManager {
     private final Gson gson = GsonMapperFactory.getGson(); // ✅ Nutzt zentrale Fabrik
     private int commandCounter = 0; // Zählt Befehle für eindeutige IDs
 
-    EventDispatcher eventDispatcher = new EventDispatcher();
+    private final EventDispatcher eventDispatcher;
 
     public WebSocketManager(WebSocketImpl webSocket) {
         this.webSocket = webSocket;
+        this.eventDispatcher = new EventDispatcher();
         registerEventListener(eventDispatcher); // 🔥 Events aktivieren!
+    }
+
+    public EventDispatcher getEventDispatcher() {
+        return eventDispatcher;
     }
 
     /**
