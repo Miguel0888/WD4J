@@ -19,6 +19,25 @@ public class MainController {
     private final Consumer<Response> responseHandler = response -> logEvent("Response: " + response.url());
     private final Consumer<Page> loadHandler = p -> logEvent("Page loaded!");
 
+    // Map mit allen Events und den zugehörigen Methoden
+    private final Map<String, EventHandler> eventHandlers = new HashMap<>();
+
+    public MainController() {
+        eventHandlers.put("Console Log", new EventHandler(
+                () -> registerConsoleLogEvent(),
+                () -> deregisterConsoleLogEvent()
+        ));
+
+        eventHandlers.put("Network Response", new EventHandler(
+                () -> registerNetworkResponseEvent(),
+                () -> deregisterNetworkResponseEvent()
+        ));
+
+        eventHandlers.put("Page Loaded", new EventHandler(
+                () -> registerPageLoadEvent(),
+                () -> deregisterPageLoadEvent()
+        ));
+    }
 
     // Browser schließen
     public void onCloseBrowser() {
@@ -75,24 +94,6 @@ public class MainController {
 
                     browserContext = browser.newContext();
                     page = browserContext.newPage();
-
-//                    // Event: Console message ✅
-//                    page.onConsoleMessage(msg -> {
-//                        JOptionPane.showMessageDialog(null, "Console message: " + msg.text());
-//                    });
-//
-                    // Event: Response received ✅
-//                    page.onResponse(response -> {
-//                        JOptionPane.showMessageDialog(null, "Response received: " + response.url());
-//                    });
-
-                    // Event: Page loaded ✅
-//                    page.onLoad(p -> {
-//                        JOptionPane.showMessageDialog(null, "Page loaded!\n");
-//                    });
-
-
-
 
                     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -217,20 +218,21 @@ public class MainController {
             loggingActive = true;
             logEvent("📢 Event-Logging gestartet...");
 
-            // Event: Console message ✅
-            page.onConsoleMessage(consoleMessageHandler);
-
-            // Event: Response received ✅
-            page.onResponse(responseHandler);
-
-            // Event: Page loaded ✅
-            page.onLoad(loadHandler);
-
-//            // Event: Klick auf ein Element ✅
-//            page.onClick(event -> logEvent("Click on: " + event.target()));
+            //ToDo
+//            // Event: Console message ✅
+//            page.onConsoleMessage(consoleMessageHandler);
 //
-//            // Event: Tastatureingabe ✅
-//            page.onKeyPress(event -> logEvent("Key Pressed: " + event.key()));
+//            // Event: Response received ✅
+//            page.onResponse(responseHandler);
+//
+//            // Event: Page loaded ✅
+//            page.onLoad(loadHandler);
+//
+////            // Event: Klick auf ein Element ✅
+////            page.onClick(event -> logEvent("Click on: " + event.target()));
+////
+////            // Event: Tastatureingabe ✅
+////            page.onKeyPress(event -> logEvent("Key Pressed: " + event.key()));
         }
     }
 
@@ -247,12 +249,13 @@ public class MainController {
             loggingActive = false;
             logEvent("⏹️ Event-Logging gestoppt.");
 
-            // Event-Listener entfernen
-            page.offConsoleMessage(consoleMessageHandler);
-            page.offResponse(responseHandler);
-            page.offLoad(loadHandler);
-            //            page.offClick();
-            //            page.offKeyPress();
+            // ToDo
+//            // Event-Listener entfernen
+//            page.offConsoleMessage(consoleMessageHandler);
+//            page.offResponse(responseHandler);
+//            page.offLoad(loadHandler);
+//            //            page.offClick();
+//            //            page.offKeyPress();
         }
     }
 
@@ -261,6 +264,57 @@ public class MainController {
      */
     private void logEvent(String message) {
         SwingUtilities.invokeLater(() -> eventLog.append(message + "\n"));
+    }
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public Map<String, EventHandler> getEventHandlers() {
+        return eventHandlers;
+    }
+
+    public void registerEvent(String eventName) {
+        EventHandler handler = eventHandlers.get(eventName);
+        if (handler != null) {
+            handler.register();
+            System.out.println("Event aktiviert: " + eventName);
+        }
+    }
+
+    public void deregisterEvent(String eventName) {
+        EventHandler handler = eventHandlers.get(eventName);
+        if (handler != null) {
+            handler.deregister();
+            System.out.println("Event deaktiviert: " + eventName);
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ToDo: Improve this part:
+
+    /** Registrierungs-Methoden */
+    private void registerConsoleLogEvent() {
+        if (page != null) page.onConsoleMessage(consoleMessageHandler);
+    }
+
+    private void deregisterConsoleLogEvent() {
+        if (page != null) page.offConsoleMessage(consoleMessageHandler);
+    }
+
+    private void registerNetworkResponseEvent() {
+        if (page != null) page.onResponse(responseHandler);
+    }
+
+    private void deregisterNetworkResponseEvent() {
+        if (page != null) page.offResponse(responseHandler);
+    }
+
+    private void registerPageLoadEvent() {
+        if (page != null) page.onLoad(loadHandler);
+    }
+
+    private void deregisterPageLoadEvent() {
+        if (page != null) page.offLoad(loadHandler);
     }
 
 }

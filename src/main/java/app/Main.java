@@ -7,6 +7,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Main {
     private static String lastProfilePath = "C:\\BrowserProfile"; // ToDo: Make this configurable
@@ -27,6 +29,9 @@ public class Main {
     private static JTextField profilePathField;
     private static JTextField portField;
 
+    private static final Map<String, JCheckBox> eventCheckboxes = new HashMap<>();
+    private static MainController controller;
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Main::createAndShowGUI);
 //        runAppMapServer();
@@ -37,7 +42,7 @@ public class Main {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static void createAndShowGUI() {
-        MainController controller = new MainController();
+        controller = new MainController();
 
         JFrame frame = new JFrame("Web Testing Dashboard");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -93,8 +98,10 @@ public class Main {
 
         screenshotButton.addActionListener(e -> captureScreenshot(controller));
 
-        playButton.addActionListener(e -> controller.startLogging());
-        pauseButton.addActionListener(e -> controller.stopLogging());
+//        playButton.addActionListener(e -> controller.startLogging());
+//        pauseButton.addActionListener(e -> controller.stopLogging());
+        playButton.addActionListener(e -> registerSelectedEvents());
+        pauseButton.addActionListener(e -> deregisterAllEvents());
 
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent windowEvent) {
@@ -184,18 +191,41 @@ public class Main {
     }
 
     private static JToolBar createThirdToolbar() {
-        JToolBar eventToolBar = new JToolBar();
-        eventToolBar.setFloatable(false);
+        JToolBar eventToolbar = new JToolBar();
 
-        playButton = new JButton("▶️"); // Play-Symbol
-        pauseButton = new JButton("⏸️"); // Pause-Symbol
-        playButton.setToolTipText("Start event logging");
-        pauseButton.setToolTipText("Pause event logging");
+        // Play & Pause Buttons
+        playButton = new JButton("Play");
+        pauseButton = new JButton("Pause");
 
-        eventToolBar.add(playButton);
-        eventToolBar.add(pauseButton);
+        playButton.addActionListener(e -> registerSelectedEvents());
+        pauseButton.addActionListener(e -> deregisterAllEvents());
 
-        return eventToolBar;
+        eventToolbar.add(playButton);
+        eventToolbar.add(pauseButton);
+
+        // Dynamische Checkboxen für Events hinzufügen
+        for (String event : controller.getEventHandlers().keySet()) {
+            JCheckBox checkBox = new JCheckBox(event);
+            checkBox.setSelected(false); // Standardmäßig nicht aktiviert
+            eventCheckboxes.put(event, checkBox);
+            eventToolbar.add(checkBox);
+        }
+
+        return eventToolbar;
+    }
+
+    private static void registerSelectedEvents() {
+        for (Map.Entry<String, JCheckBox> entry : eventCheckboxes.entrySet()) {
+            if (entry.getValue().isSelected()) {
+                controller.registerEvent(entry.getKey());
+            }
+        }
+    }
+
+    private static void deregisterAllEvents() {
+        for (String event : eventCheckboxes.keySet()) {
+            controller.deregisterEvent(event);
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
