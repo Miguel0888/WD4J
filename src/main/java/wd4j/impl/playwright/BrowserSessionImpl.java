@@ -398,11 +398,11 @@ public class BrowserSessionImpl implements BrowserSession {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public <T> void addEventListener(String eventName, Consumer<T> handler, Class<T> eventClass, WDSessionManager WDSessionManager) {
+    public <T> void addEventListener(String eventName, Consumer<T> handler, Class<T> eventClass) {
         dispatcher.addEventListener(eventName, handler, eventClass, WDSessionManager);
     }
 
-    public <T> void removeEventListener(String eventType, Consumer<T> listener, WDSessionManager WDSessionManager) {
+    public <T> void removeEventListener(String eventType, Consumer<T> listener) {
         dispatcher.removeEventListener(eventType, listener, WDSessionManager);
     }
 

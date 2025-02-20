@@ -50,168 +50,168 @@ class PageImpl implements Page {
     @Override
     public void onClose(Consumer<Page> handler) {
         if (handler != null) {
-            session.addEventListener(WDEventMapping.CONTEXT_DESTROYED.getName(), handler, Page.class, WDSessionManager);
+            session.addEventListener(WDEventMapping.CONTEXT_DESTROYED.getName(), handler, Page.class);
         }
     }
 
     @Override
     public void offClose(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.CONTEXT_DESTROYED.getName(), handler, WDSessionManager);
+            session.removeEventListener(WDEventMapping.CONTEXT_DESTROYED.getName(), handler);
         }
     }
 
     @Override
     public void onConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
-            session.addEventListener(WDEventMapping.ENTRY_ADDED.getName(), handler, ConsoleMessage.class, WDSessionManager);
+            session.addEventListener(WDEventMapping.ENTRY_ADDED.getName(), handler, ConsoleMessage.class);
         }
     }
 
     @Override
     public void offConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.ENTRY_ADDED.getName(), handler, WDSessionManager);
+            session.removeEventListener(WDEventMapping.ENTRY_ADDED.getName(), handler);
         }
     }
 
     @Override
     public void onCrash(Consumer<Page> handler) {
         if (handler != null) {
-            session.addEventListener(WDEventMapping.NAVIGATION_FAILED.getName(), handler, Page.class, WDSessionManager);
+            session.addEventListener(WDEventMapping.NAVIGATION_FAILED.getName(), handler, Page.class);
         }
     }
 
     @Override
     public void offCrash(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.NAVIGATION_FAILED.getName(), handler, WDSessionManager);
+            session.removeEventListener(WDEventMapping.NAVIGATION_FAILED.getName(), handler);
         }
     }
 
     @Override
     public void onDialog(Consumer<Dialog> handler) {
         if (handler != null) {
-            session.addEventListener(WDEventMapping.USER_PROMPT_OPENED.getName(), handler, Dialog.class, WDSessionManager);
+            session.addEventListener(WDEventMapping.USER_PROMPT_OPENED.getName(), handler, Dialog.class);
         }
     }
 
     @Override
     public void offDialog(Consumer<Dialog> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.USER_PROMPT_OPENED.getName(), handler, WDSessionManager);
+            session.removeEventListener(WDEventMapping.USER_PROMPT_OPENED.getName(), handler);
         }
     }
 
     @Override
     public void onDOMContentLoaded(Consumer<Page> handler) {
         if (handler != null) {
-            session.addEventListener(WDEventMapping.DOM_CONTENT_LOADED.getName(), handler, Page.class, WDSessionManager);
+            session.addEventListener(WDEventMapping.DOM_CONTENT_LOADED.getName(), handler, Page.class);
         }
     }
 
     @Override
     public void offDOMContentLoaded(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.DOM_CONTENT_LOADED.getName(), handler, WDSessionManager);
+            session.removeEventListener(WDEventMapping.DOM_CONTENT_LOADED.getName(), handler);
         }
     }
 
     @Override
     public void onLoad(Consumer<Page> handler) {
         if (handler != null) {
-            session.addEventListener(WDEventMapping.LOAD.getName(), handler, Page.class, WDSessionManager);
+            session.addEventListener(WDEventMapping.LOAD.getName(), handler, Page.class);
         }
     }
 
     @Override
     public void offLoad(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.LOAD.getName(), handler, WDSessionManager);
+            session.removeEventListener(WDEventMapping.LOAD.getName(), handler);
         }
     }
 
     @Override
     public void onRequest(Consumer<Request> handler) {
         if (handler != null) {
-            session.addEventListener(WDEventMapping.BEFORE_REQUEST_SENT.getName(), handler, Request.class, WDSessionManager);
+            session.addEventListener(WDEventMapping.BEFORE_REQUEST_SENT.getName(), handler, Request.class);
         }
     }
 
     @Override
     public void offRequest(Consumer<Request> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.BEFORE_REQUEST_SENT.getName(), handler, WDSessionManager);
+            session.removeEventListener(WDEventMapping.BEFORE_REQUEST_SENT.getName(), handler);
         }
     }
 
     @Override
     public void onRequestFailed(Consumer<Request> handler) {
         if (handler != null) {
-            session.addEventListener(WDEventMapping.FETCH_ERROR.getName(), handler, Request.class, WDSessionManager);
+            session.addEventListener(WDEventMapping.FETCH_ERROR.getName(), handler, Request.class);
         }
     }
 
     @Override
     public void offRequestFailed(Consumer<Request> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.FETCH_ERROR.getName(), handler, WDSessionManager);
+            session.removeEventListener(WDEventMapping.FETCH_ERROR.getName(), handler);
         }
     }
 
     @Override
     public void onRequestFinished(Consumer<Request> handler) {
         if (handler != null) {
-            session.addEventListener(WDEventMapping.RESPONSE_COMPLETED.getName(), handler, Request.class, WDSessionManager);
+            session.addEventListener(WDEventMapping.RESPONSE_COMPLETED.getName(), handler, Request.class);
         }
     }
 
     @Override
     public void offRequestFinished(Consumer<Request> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.RESPONSE_COMPLETED.getName(), handler, WDSessionManager);
+            session.removeEventListener(WDEventMapping.RESPONSE_COMPLETED.getName(), handler);
         }
     }
 
     @Override
     public void onResponse(Consumer<Response> handler) {
         if (handler != null) {
-            session.addEventListener(WDEventMapping.RESPONSE_STARTED.getName(), handler, Response.class, WDSessionManager);
+            session.addEventListener(WDEventMapping.RESPONSE_STARTED.getName(), handler, Response.class);
         }
     }
 
     @Override
     public void offResponse(Consumer<Response> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.RESPONSE_STARTED.getName(), handler, WDSessionManager);
+            session.removeEventListener(WDEventMapping.RESPONSE_STARTED.getName(), handler);
         }
     }
 
     @Override
     public void onWebSocket(Consumer<WebSocket> handler) {
         if (handler != null) {
-            session.addEventListener(WDEventMapping.CONTEXT_CREATED.getName(), handler, WebSocket.class, WDSessionManager);
+            session.addEventListener(WDEventMapping.CONTEXT_CREATED.getName(), handler, WebSocket.class);
         }
     }
 
     @Override
     public void offWebSocket(Consumer<WebSocket> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), handler, WDSessionManager);
+            session.removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), handler);
         }
     }
 
     @Override
     public void onWorker(Consumer<Worker> handler) {
         if (handler != null) {
-            session.addEventListener(WDEventMapping.REALM_CREATED.getName(), handler, Worker.class, WDSessionManager);
+            session.addEventListener(WDEventMapping.REALM_CREATED.getName(), handler, Worker.class);
         }
     }
 
     @Override
     public void offWorker(Consumer<Worker> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.REALM_CREATED.getName(), handler, WDSessionManager);
+            session.removeEventListener(WDEventMapping.REALM_CREATED.getName(), handler);
         }
     }
 
@@ -307,14 +307,14 @@ class PageImpl implements Page {
                 // Stelle sicher, dass jsonObject tatsächlich ein JsonObject ist
                 Page popupPage = JsonToPlaywrightMapper.mapToInterface((JsonObject) jsonObject, Page.class);
                 handler.accept(popupPage);
-            }, JsonObject.class, WDSessionManager);
+            }, JsonObject.class);
         }
     }
 
     @Override
     public void offPopup(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), handler, WDSessionManager);
+            session.removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), handler);
         }
     }
 
