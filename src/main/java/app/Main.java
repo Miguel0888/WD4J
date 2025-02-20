@@ -7,26 +7,34 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.util.Base64;
-
-//import org.eclipse.jetty.server.Server;
-//import org.eclipse.jetty.servlet.ServletContextHandler;
-//import org.eclipse.jetty.servlet.ServletHolder;
-//import javax.servlet.http.HttpServlet;
-//import javax.servlet.http.HttpServletRequest;
-//import javax.servlet.http.HttpServletResponse;
-//import java.io.IOException;
 
 public class Main {
     private static String lastProfilePath = "C:\\BrowserProfile"; // ToDo: Make this configurable
     private static JLabel imageContainer; // Bildcontainer für Screenshots
     private static JTextArea eventLog; // Textfeld für Events
     private static JButton playButton, pauseButton; // Play/Pause Buttons
+    private static JCheckBox headlessCheckbox;
+    private static JCheckBox disableGpuCheckbox;
+    private static JCheckBox noRemoteCheckbox;
+    private static JCheckBox startMaximizedCheckbox;
+    private static JComboBox<String> browserSelector;
+    private static JButton launchButton;
+    private static JButton terminateButton;
+    private static JButton screenshotButton;
+    private static JTextField addressBar;
+    private static JButton navigateButton;
+    private static JCheckBox useProfileCheckbox;
+    private static JTextField profilePathField;
+    private static JTextField portField;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Main::createAndShowGUI);
 //        runAppMapServer();
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Build UI
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static void createAndShowGUI() {
         MainController controller = new MainController();
@@ -35,96 +43,25 @@ public class Main {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         // Erste Toolbar (Browser-Steuerung)
-        JToolBar browserToolBar = new JToolBar();
-        browserToolBar.setFloatable(false);
-
-        JTextField portField = new JTextField("9222", 5);
-        JCheckBox useProfileCheckbox = new JCheckBox("", true);
-        JTextField profilePathField = new JTextField(lastProfilePath, 15);
-        useProfileCheckbox.addActionListener(e -> {
-            boolean isSelected = useProfileCheckbox.isSelected();
-            profilePathField.setEnabled(isSelected);
-            if (!isSelected) {
-                lastProfilePath = profilePathField.getText();
-                profilePathField.setText(null);
-            } else {
-                profilePathField.setText(lastProfilePath);
-            }
-        });
-
-        JCheckBox headlessCheckbox = new JCheckBox("Headless");
-        JCheckBox disableGpuCheckbox = new JCheckBox("Dis. GPU");
-        JCheckBox noRemoteCheckbox = new JCheckBox("No Remote");
-        JCheckBox startMaximizedCheckbox = new JCheckBox("Maximized");
-
-        JComboBox<String> browserSelector = new JComboBox<>(new String[]{"Firefox", "Chrome", "Edge", "Safari"});
-
-        JButton launchButton = new JButton("Launch Browser");
-        JButton terminateButton = new JButton("Terminate Browser");
-        JButton screenshotButton = new JButton("\uD83D\uDCF8"); // Kamera-Symbol
-        screenshotButton.setToolTipText("Take Screenshot");
-
-        browserToolBar.add(new JLabel("Browser:"));
-        browserToolBar.add(browserSelector);
-        browserToolBar.add(new JLabel("Port:"));
-        browserToolBar.add(portField);
-        browserToolBar.add(useProfileCheckbox);
-        browserToolBar.add(new JLabel("Profile Path:"));
-        browserToolBar.add(profilePathField);
-        browserToolBar.add(headlessCheckbox);
-        browserToolBar.add(disableGpuCheckbox);
-        browserToolBar.add(noRemoteCheckbox);
-        browserToolBar.add(startMaximizedCheckbox);
-        browserToolBar.add(launchButton);
-        browserToolBar.add(terminateButton);
-        browserToolBar.add(screenshotButton);
+        JToolBar browserToolBar = createFirstToolbar();
 
         // Zweite Toolbar (Navigation)
-        JToolBar navigationToolBar = new JToolBar();
-        navigationToolBar.setFloatable(false);
-
-        JTextField addressBar = new JTextField("https://www.google.com", 30);
-        JButton navigateButton = new JButton("Navigate");
-
-        navigationToolBar.add(new JLabel("URL:"));
-        navigationToolBar.add(addressBar);
-        navigationToolBar.add(navigateButton);
+        JToolBar navigationToolBar = createSecondToolbar();
 
         // Dritte Toolbar (Event-Steuerung)
-        JToolBar eventToolBar = new JToolBar();
-        eventToolBar.setFloatable(false);
+        JToolBar eventToolBar = createThirdToolbar();
 
-        playButton = new JButton("▶️"); // Play-Symbol
-        pauseButton = new JButton("⏸️"); // Pause-Symbol
-        playButton.setToolTipText("Start event logging");
-        pauseButton.setToolTipText("Pause event logging");
-
-        eventToolBar.add(playButton);
-        eventToolBar.add(pauseButton);
-
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // Toolbar-Panel mit drei Zeilen
         JPanel toolBarPanel = new JPanel();
         toolBarPanel.setLayout(new GridLayout(3, 1));
         toolBarPanel.add(browserToolBar);
         toolBarPanel.add(navigationToolBar);
         toolBarPanel.add(eventToolBar);
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        // Tabs für Events & Screenshots
-        JTabbedPane tabbedPane = new JTabbedPane();
-
-        // Panel für Events
-        eventLog = new JTextArea();
-        eventLog.setEditable(false);
-        JScrollPane eventScrollPane = new JScrollPane(eventLog);
-        tabbedPane.addTab("Events", eventScrollPane);
-
-        // Panel für Screenshots
-        imageContainer = new JLabel();
-        imageContainer.setHorizontalAlignment(SwingConstants.CENTER);
-        imageContainer.setVerticalAlignment(SwingConstants.CENTER);
-        JScrollPane imageScrollPane = new JScrollPane(imageContainer);
-        imageScrollPane.setPreferredSize(new Dimension(1024, 400));
-        tabbedPane.addTab("Screenshots", imageScrollPane);
+        // Tabs für Events & Screenshots (Content Container)
+        JTabbedPane tabbedPane = createTabs();
 
         // Hauptlayout
         frame.setLayout(new BorderLayout());
@@ -134,6 +71,8 @@ public class Main {
         frame.setSize(1024, 768);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         // Event Listeners
         controller.setupListeners(
@@ -181,6 +120,111 @@ public class Main {
         startMaximizedCheckbox.setSelected(false);
     }
 
+    private static JToolBar createFirstToolbar()
+    {
+        JToolBar browserToolBar = new JToolBar();
+        browserToolBar.setFloatable(false);
+
+        portField = new JTextField("9222", 5);
+        useProfileCheckbox = new JCheckBox("", true);
+        profilePathField = new JTextField(lastProfilePath, 15);
+        useProfileCheckbox.addActionListener(e -> {
+            boolean isSelected = useProfileCheckbox.isSelected();
+            profilePathField.setEnabled(isSelected);
+            if (!isSelected) {
+                lastProfilePath = profilePathField.getText();
+                profilePathField.setText(null);
+            } else {
+                profilePathField.setText(lastProfilePath);
+            }
+        });
+
+        headlessCheckbox = new JCheckBox("Headless");
+        disableGpuCheckbox = new JCheckBox("Dis. GPU");
+        noRemoteCheckbox = new JCheckBox("No Remote");
+        startMaximizedCheckbox = new JCheckBox("Maximized");
+
+        browserSelector = new JComboBox<>(new String[]{"Firefox", "Chrome", "Edge", "Safari"});
+
+        launchButton = new JButton("Launch Browser");
+        terminateButton = new JButton("Terminate Browser");
+        // Kamera-Symbol
+        screenshotButton = new JButton("\uD83D\uDCF8");
+        screenshotButton.setToolTipText("Take Screenshot");
+
+        browserToolBar.add(new JLabel("Browser:"));
+        browserToolBar.add(browserSelector);
+        browserToolBar.add(new JLabel("Port:"));
+        browserToolBar.add(portField);
+        browserToolBar.add(useProfileCheckbox);
+        browserToolBar.add(new JLabel("Profile Path:"));
+        browserToolBar.add(profilePathField);
+        browserToolBar.add(headlessCheckbox);
+        browserToolBar.add(disableGpuCheckbox);
+        browserToolBar.add(noRemoteCheckbox);
+        browserToolBar.add(startMaximizedCheckbox);
+        browserToolBar.add(launchButton);
+        browserToolBar.add(terminateButton);
+        browserToolBar.add(screenshotButton);
+        return browserToolBar;
+    }
+
+    private static JToolBar createSecondToolbar()
+    {
+        JToolBar navigationToolBar = new JToolBar();
+        navigationToolBar.setFloatable(false);
+
+        addressBar = new JTextField("https://www.google.com", 30);
+        navigateButton = new JButton("Navigate");
+
+        navigationToolBar.add(new JLabel("URL:"));
+        navigationToolBar.add(addressBar);
+        navigationToolBar.add(navigateButton);
+        return navigationToolBar;
+    }
+
+    private static JToolBar createThirdToolbar() {
+        JToolBar eventToolBar = new JToolBar();
+        eventToolBar.setFloatable(false);
+
+        playButton = new JButton("▶️"); // Play-Symbol
+        pauseButton = new JButton("⏸️"); // Pause-Symbol
+        playButton.setToolTipText("Start event logging");
+        pauseButton.setToolTipText("Pause event logging");
+
+        eventToolBar.add(playButton);
+        eventToolBar.add(pauseButton);
+
+        return eventToolBar;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Content Container
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private static JTabbedPane createTabs() {
+        JTabbedPane tabbedPane = new JTabbedPane();
+
+        // Panel für Events
+        eventLog = new JTextArea();
+        eventLog.setEditable(false);
+        JScrollPane eventScrollPane = new JScrollPane(eventLog);
+        tabbedPane.addTab("Events", eventScrollPane);
+
+        // Panel für Screenshots
+        imageContainer = new JLabel();
+        imageContainer.setHorizontalAlignment(SwingConstants.CENTER);
+        imageContainer.setVerticalAlignment(SwingConstants.CENTER);
+        JScrollPane imageScrollPane = new JScrollPane(imageContainer);
+        imageScrollPane.setPreferredSize(new Dimension(1024, 400));
+        tabbedPane.addTab("Screenshots", imageScrollPane);
+        return tabbedPane;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Business Logic
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     /**
      * Speichert einen Screenshot im "Screenshots"-Tab.
      */
@@ -205,51 +249,4 @@ public class Main {
             JOptionPane.showMessageDialog(null, "Error taking screenshot: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-
-//    public static void runAppMapServer() {
-//        try {
-////            startAppMapAgent();
-//            Server server = new Server(8080);
-//            ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-//            context.setContextPath("/");
-//            server.setHandler(context);
-//
-//            context.addServlet(new ServletHolder(new HttpServlet() {
-//                protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-//                    resp.getWriter().println("AppMap Server Running!");
-//                }
-//            }), "/");
-//
-//            server.start();
-//            server.join();
-//        } catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
-
-//    public static void startAppMapAgent() {
-//        try {
-//            File agentJar = findAppMapAgent();
-//            if (agentJar == null || !agentJar.exists()) {
-//                System.err.println("⚠ AppMap-Agent nicht gefunden – wird ignoriert.");
-//                return;
-//            }
-//
-//            URL agentURL = agentJar.toURI().toURL();
-//            URLClassLoader classLoader = new URLClassLoader(new URL[]{agentURL}, ClassLoader.getSystemClassLoader());
-//
-//            Class<?> agentClass = classLoader.loadClass("com.appland.appmap.Agent");
-//            Method premainMethod = agentClass.getMethod("premain", String.class, Instrumentation.class);
-//            premainMethod.invoke(null, "", null);
-//
-//            System.out.println("✅ AppMap-Agent erfolgreich gestartet!");
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            System.err.println("❌ Fehler beim Starten des AppMap-Agenten");
-//        }
-//    }
-//
-//    private static File findAppMapAgent() {
-//        return new File("libs/appmap-agent.jar"); // Falls du es mit ShadowJar in libs packst
-//    }
 }
