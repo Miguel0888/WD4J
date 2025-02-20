@@ -211,8 +211,17 @@ public class Main {
             eventToolbar.add(checkBox);
         }
 
+        // Abstandshalter hinzufügen, damit der nächste Button rechtsbündig ist
+        eventToolbar.add(Box.createHorizontalGlue());
+
+        // "Clear Log"-Button rechtsbündig hinzufügen
+        JButton clearLogButton = new JButton("Clear Log");
+        clearLogButton.addActionListener(e -> controller.clearLog());
+        eventToolbar.add(clearLogButton);
+
         return eventToolbar;
     }
+
 
     private static void registerSelectedEvents() {
         for (Map.Entry<String, JCheckBox> entry : eventCheckboxes.entrySet()) {

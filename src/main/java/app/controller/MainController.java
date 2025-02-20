@@ -289,6 +289,10 @@ public class MainController {
         }
     }
 
+    public void clearLog() {
+        SwingUtilities.invokeLater(() -> eventLog.setText(""));
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // ToDo: Improve this part:
 
