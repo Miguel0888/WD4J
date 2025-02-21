@@ -92,7 +92,9 @@ public class MainController {
                             throw new IllegalArgumentException("Unsupported browser: " + selectedBrowser);
                     }
 
+                    // ToDo:
                     browserContext = browser.newContext();
+//                    page = browser.newPage();
                     page = browserContext.newPage();
 
                     ////////////////////////////////////////////////////////////////////////////////////////////////////

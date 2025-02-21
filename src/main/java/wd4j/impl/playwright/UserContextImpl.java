@@ -29,10 +29,12 @@ public class UserContextImpl implements BrowserContext{
     private String defaultContextId; // ToDo: If found, it should be used to create a new page with this id
     private WebSocketManager webSocketManager;
 
-    public UserContextImpl(WebSocketManager webSocketManager, BrowserImpl browser, Session session) {
-        this.webSocketManager = webSocketManager;
+    public UserContextImpl(BrowserImpl browser) {
         this.browser = browser;
-        this.session = session;
+        this.webSocketManager = browser.getWebSockatManager();
+        this.session = browser.getSession();
+
+        // ToDo: Send new WDBrowserRequest#createUserContext command to the browser
     }
 
 

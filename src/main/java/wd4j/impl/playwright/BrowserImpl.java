@@ -13,6 +13,7 @@ import java.util.function.Consumer;
 
 public class BrowserImpl implements Browser {
     private final BrowserTypeImpl browserType;
+    private final Session session;
     private final Process process;
     private final WebSocketManager webSocketManager;
     private final WDBrowserManager WDBrowserManager;
@@ -34,6 +35,7 @@ public class BrowserImpl implements Browser {
         this.WDWebExtensionManager = new WDWebExtensionManager(webSocketManager);
         this.browserType = browserType;
         this.process = process;
+        this.session = new Session(webSocketManager, this); // ToDo: Add PW Options
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -96,9 +98,9 @@ public class BrowserImpl implements Browser {
 
     @Override
     public BrowserContext newContext(NewContextOptions options) {
-        UserContextImpl session = new UserContextImpl(webSocketManager, this, null);
-        userContextImpls.add(session);
-        return session;
+        UserContextImpl userContext = new UserContextImpl(this);
+        userContextImpls.add(userContext);
+        return userContext;
     }
 
     /**
@@ -112,7 +114,7 @@ public class BrowserImpl implements Browser {
         // TODO: DIE SESSION GEHÖRT IN DEN BROWSER, NICHT IN DIE PAGE
         //  DER BROWSER HÄLT HINGEGEN DIE PAGES (=BROWSING CONTEXTS) -> IN EINEM DEFAULT USER CONTEXT
         //  PAGES KÖNNEN ABER ZU EINEM USER CONTEXT GEHÖREN
-        context = new UserContextImpl(webSocketManager, this, null); // ToDo: Should use the default context, here
+        context = new UserContextImpl(this); // ToDo: Should use the default context, here
         userContextImpls.add(context);
 
         return context.newPage();
@@ -143,6 +145,14 @@ public class BrowserImpl implements Browser {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// ToDo: Think about where to put the service instances
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public WebSocketManager getWebSockatManager() {
+        return webSocketManager;
+    }
+
+    public Session getSession() {
+        return session;
+    }
 
     /**
      * Returns the BrowserService.
