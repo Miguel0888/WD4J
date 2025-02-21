@@ -20,6 +20,10 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 /**
+ * TODO: DIE SESSION GIBT ES NICHT IN PLAYWRIGHT, DER CONTEXT MEINT DEN USER-CONTEXT UND IST OPTIONAL!
+ *  Z.B. KANN MAN browser.newContext() AUFRUFEN, UM EINEN NEUEN KONTEXT ZU ERSTELLEN
+ *  ODER MAN KANN DIREKT newPage() AUFRUFEN, UM EINE NEUE SEITE - OHNE USER-CONTEXT - ZU ERSTELLEN.
+ *
  *  Differs from the W3C BrowsingContext Module in that it includes the Session Module. (The reason for this may be that
  *  the Chromium DevTools Protocol has a different understanding of what a Context and what a Session is.)
  *  See: https://playwright.dev/java/docs/api/class-browsercontext
@@ -415,7 +419,7 @@ public class BrowserSessionImpl implements BrowserSession {
      */
     private void fetchDefaultSession(String browserName) throws InterruptedException, ExecutionException {
         // Create a new session
-        WDSessionResult.NewWDSessionResult sessionResponse = WDSessionManager.newSession(browserName); // ToDo: Does not work with Chrome!
+        WDSessionResult.NewSessionResult sessionResponse = WDSessionManager.newSession(browserName); // ToDo: Does not work with Chrome!
 
         // Kontext-ID extrahieren oder neuen Kontext erstellen
         sessionId = processSessionResponse(sessionResponse);
@@ -426,7 +430,7 @@ public class BrowserSessionImpl implements BrowserSession {
         }
     }
 
-    private String processSessionResponse(WDSessionResult.NewWDSessionResult sessionResponse) {
+    private String processSessionResponse(WDSessionResult.NewSessionResult sessionResponse) {
         if (sessionResponse == null) {
             throw new IllegalArgumentException("SessionResponse darf nicht null sein!");
         }

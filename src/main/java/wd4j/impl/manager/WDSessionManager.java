@@ -40,16 +40,16 @@ public class WDSessionManager implements WDModule {
     /**
      * Ruft den Status der WebDriver BiDi Session ab.
      */
-    public WDSessionResult.StatusWDSessionResult status() {
-        return webSocketManager.sendAndWaitForResponse(new WDSessionRequest.Status(), WDSessionResult.StatusWDSessionResult.class);
+    public WDSessionResult.StatusSessionResult status() {
+        return webSocketManager.sendAndWaitForResponse(new WDSessionRequest.Status(), WDSessionResult.StatusSessionResult.class);
     }
 
     // new() - Since plain "new" is a reserved word in Java!
     /**
      * Erstellt eine neue Session mit dem gegebenen Browser.
      */
-    public WDSessionResult.NewWDSessionResult newSession(String browserName) {
-        return webSocketManager.sendAndWaitForResponse(new WDSessionRequest.New(browserName), WDSessionResult.NewWDSessionResult.class);
+    public WDSessionResult.NewSessionResult newSession(String browserName) {
+        return webSocketManager.sendAndWaitForResponse(new WDSessionRequest.New(browserName), WDSessionResult.NewSessionResult.class);
     }
 
 
@@ -66,8 +66,8 @@ public class WDSessionManager implements WDModule {
      * Abonniert WebDriver BiDi Events.
      * Falls bereits abonniert, wird das Event nicht erneut angefordert.
      */
-    public WDSessionResult.SubscribeWDSessionResult subscribe(List<String> events) {
-        WDSessionResult.SubscribeWDSessionResult result = null;
+    public WDSessionResult.SubscribeSessionResult subscribe(List<String> events) {
+        WDSessionResult.SubscribeSessionResult result = null;
         if (events == null || events.isEmpty()) {
             throw new IllegalArgumentException("Events list must not be null or empty.");
         }
@@ -82,7 +82,7 @@ public class WDSessionManager implements WDModule {
 
         if (!newEvents.isEmpty()) {
             result = webSocketManager.sendAndWaitForResponse(
-                    new WDSessionRequest.Subscribe(newEvents), WDSessionResult.SubscribeWDSessionResult.class);
+                    new WDSessionRequest.Subscribe(newEvents), WDSessionResult.SubscribeSessionResult.class);
             subscribedEvents.addAll(newEvents);
             System.out.println("Subscribed to new events: " + newEvents);
         }

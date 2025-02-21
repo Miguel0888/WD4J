@@ -109,6 +109,9 @@ public class BrowserImpl implements Browser {
     @Override
     public Page newPage(NewPageOptions options) {
         BrowserSessionImpl context;
+        // TODO: DIE SESSION GEHÖRT IN DEN BROWSER, NICHT IN DIE PAGE
+        //  DER BROWSER HÄLT HINGEGEN DIE PAGES (=BROWSING CONTEXTS) -> IN EINEM DEFAULT USER CONTEXT
+        //  PAGES KÖNNEN ABER ZU EINEM USER CONTEXT GEHÖREN
         context = new BrowserSessionImpl(webSocketManager, this, null);
         sessions.add(context);
 
