@@ -25,13 +25,13 @@ class PageImpl implements Page {
     private final WebSocketManager webSocketManager;
     private final String pageId; // aka. page in Chromium DevTools Protocol
 
-    private final BrowserSessionImpl session;
+    private final Session session;
     private final WDSessionManager WDSessionManager;
     private final WDBrowsingContextManager WDBrowsingContextManager;
     private boolean isClosed;
     private String url;
 
-    public PageImpl(WebSocketManager webSocketManager, BrowserSessionImpl session) {
+    public PageImpl(WebSocketManager webSocketManager, Session session) {
         this.webSocketManager = webSocketManager;
         this.session = session;
         this.WDSessionManager = session.getSessionManager(); // ToDo: improve this!

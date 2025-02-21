@@ -16,7 +16,7 @@ public class BrowserImpl implements Browser {
     private final Process process;
     private final WebSocketManager webSocketManager;
     private final WDBrowserManager WDBrowserManager;
-    private final List<BrowserSessionImpl> sessions = new ArrayList<>();
+    private final List<UserContextImpl> userContextImpls = new ArrayList<>();
     private String defaultContextId;
 
     private WDScriptManager WDScriptManager;
@@ -81,7 +81,7 @@ public class BrowserImpl implements Browser {
 
     @Override
     public List<BrowserContext> contexts() {
-        return Collections.unmodifiableList(sessions);
+        return Collections.unmodifiableList(userContextImpls);
     }
 
     @Override
@@ -96,8 +96,8 @@ public class BrowserImpl implements Browser {
 
     @Override
     public BrowserContext newContext(NewContextOptions options) {
-        BrowserSessionImpl session = new BrowserSessionImpl(webSocketManager, this, options);
-        sessions.add(session);
+        UserContextImpl session = new UserContextImpl(webSocketManager, this, null);
+        userContextImpls.add(session);
         return session;
     }
 
@@ -108,12 +108,12 @@ public class BrowserImpl implements Browser {
      */
     @Override
     public Page newPage(NewPageOptions options) {
-        BrowserSessionImpl context;
+        UserContextImpl context;
         // TODO: DIE SESSION GEHÖRT IN DEN BROWSER, NICHT IN DIE PAGE
         //  DER BROWSER HÄLT HINGEGEN DIE PAGES (=BROWSING CONTEXTS) -> IN EINEM DEFAULT USER CONTEXT
         //  PAGES KÖNNEN ABER ZU EINEM USER CONTEXT GEHÖREN
-        context = new BrowserSessionImpl(webSocketManager, this, null);
-        sessions.add(context);
+        context = new UserContextImpl(webSocketManager, this, null); // ToDo: Should use the default context, here
+        userContextImpls.add(context);
 
         return context.newPage();
     }
