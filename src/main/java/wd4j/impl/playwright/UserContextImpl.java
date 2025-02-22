@@ -21,7 +21,7 @@ import java.util.regex.Pattern;
 // The WebDriverBiDi term "UserContext" is equivalent to the CDP term "BrowserContext".
 // IT IS DIFFERENT FROM THE W3C BROWSING CONTEXT MODULE, WHICH IS A NAVIGABLE AKA. PAGE IN CHROMIUM DEVTOOLS PROTOCOL.
 public class UserContextImpl implements BrowserContext{
-    private final List<PageImpl> pages = new ArrayList<>(); // aka. contexts in WebDriver BiDi
+    private final List<PageImpl> pages = new ArrayList<>(); // aka. BrowsingContexts / Navigables in WebDriver BiDi
     private final BrowserImpl browser;
     private final Session session;
     private boolean isClosed = false; // ToDo: Is this variable really necessary?

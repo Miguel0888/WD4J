@@ -24,7 +24,6 @@ import java.util.function.Consumer;
  *  => Better use the terms Session and Page to avoid confusion.
  */
 public class Session {
-    //ToDo: Move support.BrowserSession Class in here..
     private String sessionId;
     private final WebSocketManager webSocketManager;
     private final WDSessionManager WDSessionManager;
@@ -49,10 +48,8 @@ public class Session {
 
         try {
             this.WDSessionManager = new WDSessionManager(webSocketManager);
-            fetchDefaultSession(browserName);
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
-        } catch (InterruptedException e) {
+            createSession(browserName);
+        } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
@@ -86,31 +83,15 @@ public class Session {
      *
      * To avoid this issue, you can also create a new context every time you launch a browser. Thus, this method is optional.
      */
-    private void fetchDefaultSession(String browserName) throws InterruptedException, ExecutionException {
+    private void createSession(String browserName) throws InterruptedException, ExecutionException {
         // Create a new session
         WDSessionResult.NewSessionResult sessionResponse = WDSessionManager.newSession(browserName); // ToDo: Does not work with Chrome!
 
         // Kontext-ID extrahieren oder neuen Kontext erstellen
-        sessionId = processSessionResponse(sessionResponse);
-    }
-
-    private String processSessionResponse(WDSessionResult.NewSessionResult sessionResponse) {
         if (sessionResponse == null) {
             throw new IllegalArgumentException("SessionResponse darf nicht null sein!");
         }
-
-        // 1️⃣ **Session-ID extrahieren**
-        String sessionId = sessionResponse.getSessionId();
-        if (sessionId != null) {
-            System.out.println("--- Session-ID gefunden: " + sessionId);
-        } else {
-            System.out.println("⚠ Keine Session-ID gefunden!");
-        }
-
-        // 2️⃣ **Default Browsing-Kontext prüfen (Optional)**
-        // ⚠ Derzeit ist in der Spezifikation KEIN "contexts"-Feld vorgesehen. Muss ggf. zum DTO hinzugefügt werden!
-
-        return sessionId;
+        sessionId = sessionResponse.getSessionId();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

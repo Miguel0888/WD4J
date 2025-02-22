@@ -25,6 +25,8 @@ public class BrowserImpl implements Browser {
     private WDStorageManager WDStorageManager;
     private WDWebExtensionManager WDWebExtensionManager;
 
+    private final List<PageImpl> pages = new ArrayList<>(); // aka. BrowsingContexts / Navigables in WebDriver BiDi
+
     public BrowserImpl(WebSocketManager webSocketManager, BrowserTypeImpl browserType, Process process) throws ExecutionException, InterruptedException {
         this.webSocketManager = webSocketManager;
         this.WDBrowserManager = new WDBrowserManager(webSocketManager);
@@ -110,14 +112,9 @@ public class BrowserImpl implements Browser {
      */
     @Override
     public Page newPage(NewPageOptions options) {
-        UserContextImpl context;
-        // TODO: DIE SESSION GEHÖRT IN DEN BROWSER, NICHT IN DIE PAGE
-        //  DER BROWSER HÄLT HINGEGEN DIE PAGES (=BROWSING CONTEXTS) -> IN EINEM DEFAULT USER CONTEXT
-        //  PAGES KÖNNEN ABER ZU EINEM USER CONTEXT GEHÖREN
-        context = new UserContextImpl(this); // ToDo: Should use the default context, here
-        userContextImpls.add(context);
-
-        return context.newPage();
+        PageImpl page = new PageImpl(webSocketManager, session);
+        pages.add(page);
+        return page;
     }
 
 

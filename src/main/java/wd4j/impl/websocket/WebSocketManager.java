@@ -54,8 +54,7 @@ public class WebSocketManager {
      * @return Ein deserialisiertes DTO der Klasse `T`.
      */
     public <T> T sendAndWaitForResponse(WDCommand WDCommand, Type responseType) {
-        send(WDCommand); // ✅ 1️⃣ Befehl senden
-
+        // Antwort vorbereiten (Listener registrieren)
         Predicate<WebSocketFrame> predicate = frame -> {
             try {
                 JsonObject json = gson.fromJson(frame.text(), JsonObject.class);
@@ -64,10 +63,12 @@ public class WebSocketManager {
                 return false;
             }
         };
+        CompletableFuture<String> receive = receive(predicate, String.class, true);
 
+        // Befehl senden und auf Antwort warten
+        send(WDCommand); // ✅ 1️⃣ Befehl senden
         try {
-            String jsonString = receive(predicate, String.class, true).get(30, TimeUnit.SECONDS);
-
+            String jsonString = receive.get(30, TimeUnit.SECONDS);
             // ✅ Direkt auf JSON-Objekt parsen
             JsonObject jsonObject = gson.fromJson(jsonString, JsonObject.class);
 
@@ -123,6 +124,7 @@ public class WebSocketManager {
         AtomicReference<Consumer<WebSocketFrame>> listenerRef = new AtomicReference<>();
 
         Consumer<WebSocketFrame> listener = frame -> {
+            System.out.println("[DEBUG] WebSocketManager received frame: " + frame.text());
             try {
                 JsonObject json = gson.fromJson(frame.text(), JsonObject.class);
 

@@ -93,9 +93,10 @@ public class MainController {
                     }
 
                     // ToDo:
-                    browserContext = browser.newContext();
-//                    page = browser.newPage();
-                    page = browserContext.newPage();
+//                    browserContext = browser.newContext();
+//                    page = browserContext.newPage();
+                    page = browser.newPage();
+
 
                     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
