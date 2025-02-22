@@ -1,6 +1,10 @@
 package app.controller;
 
+import app.Main;
 import wd4j.api.*;
+import wd4j.impl.playwright.BrowserImpl;
+import wd4j.impl.playwright.PageImpl;
+import wd4j.impl.playwright.UserContextImpl;
 
 import javax.swing.*;
 import java.util.*;
@@ -10,9 +14,9 @@ public class MainController {
     private Playwright playwright;
     private Browser browser;
     private BrowserContext browserContext;
-    private Page page;
+    private UserContextImpl selectedUserContext;
+    private Page selectedPage;
 
-    private JTextArea eventLog;
     private boolean loggingActive = false; // Status für Play/Pause
 
     private final Consumer<ConsoleMessage> consoleMessageHandler = msg -> logEvent("Console: " + msg.text());
@@ -60,10 +64,8 @@ public class MainController {
             JButton launchButton,
             JButton terminateButton,
             JButton navigateButton,
-            JTextField addressBar,
-            JTextArea eventLog) {
+            JTextField addressBar) {
 
-        this.eventLog = eventLog; // Speichern des Event-Log-Felds
 
         // Browser starten
         launchButton.addActionListener(e -> {
@@ -95,7 +97,10 @@ public class MainController {
                     // ToDo:
 //                    browserContext = browser.newContext();
 //                    page = browserContext.newPage();
-                    page = browser.newPage();
+                    selectedPage = browser.newPage();
+                    updateUserContextDropdown();
+                    updateBrowsingContextDropdown();
+
 
 
                     ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -125,7 +130,7 @@ public class MainController {
             String url = addressBar.getText();
             if (!url.isEmpty()) {
                 try {
-                    page.navigate(url);
+                    selectedPage.navigate(url);
 //                    JOptionPane.showMessageDialog(null, "Navigiere zu: " + url);
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(null, "Fehler beim Navigieren: " + ex.getMessage());
@@ -201,7 +206,7 @@ public class MainController {
 
 
     public byte[] captureScreenshot() {
-        return page.screenshot();
+        return selectedPage.screenshot();
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -210,7 +215,7 @@ public class MainController {
      * Aktiviert das Event-Logging
      */
     public void startLogging() {
-        if (page == null) {
+        if (selectedPage == null) {
             JOptionPane.showMessageDialog(null, "Browser ist nicht gestartet.");
             return;
         }
@@ -243,7 +248,7 @@ public class MainController {
      * Deaktiviert das Event-Logging
      */
     public void stopLogging() {
-        if (page == null) {
+        if (selectedPage == null) {
             JOptionPane.showMessageDialog(null, "Browser ist nicht gestartet.");
             return;
         }
@@ -266,7 +271,7 @@ public class MainController {
      * Fügt eine Nachricht zum Event-Log hinzu.
      */
     private void logEvent(String message) {
-        SwingUtilities.invokeLater(() -> eventLog.append(message + "\n"));
+        SwingUtilities.invokeLater(() -> Main.eventLog.append(message + "\n"));
     }
 
 
@@ -293,7 +298,62 @@ public class MainController {
     }
 
     public void clearLog() {
-        SwingUtilities.invokeLater(() -> eventLog.setText(""));
+        SwingUtilities.invokeLater(() -> Main.eventLog.setText(""));
+    }
+
+    public void updateBrowsingContextDropdown() {
+        SwingUtilities.invokeLater(() -> {
+            Main.browsingContextDropdown.removeAllItems();
+            Main.browsingContextDropdown.addItem("All"); // Standardwert
+
+            for (PageImpl page : ((BrowserImpl) browser).getPages()) {
+                Main.browsingContextDropdown.addItem(page.getContextId());
+            }
+        });
+    }
+
+    public void updateUserContextDropdown() {
+        SwingUtilities.invokeLater(() -> {
+            Main.userContextDropdown.removeAllItems();
+            // Der Standardwert ist in der Liste enthalten und muss nicht extra hinzugefügt werden
+            for (UserContextImpl userContext : ((BrowserImpl) browser).getUserContextImpls()) {
+                Main.userContextDropdown.addItem(userContext.getUserContextId());
+            }
+        });
+    }
+
+    public void updateSelectedPage() {
+        String selectedContextId = (String) Main.browsingContextDropdown.getSelectedItem();
+        if(selectedContextId == null)
+        {
+            return;
+        }
+        if (selectedContextId.equals("All")) {
+            selectedPage = null; // Alle Seiten beobachten
+        } else {
+            selectedPage = ((BrowserImpl) browser).getPages().stream()
+                    .filter(page -> page.getContextId().equals(selectedContextId))
+                    .findFirst()
+                    .orElse(null);
+        }
+        System.out.println("Selected Page updated: " + (selectedPage != null ? ((PageImpl) selectedPage).getContextId() : "All"));
+    }
+
+    public void updateSelectedUserContext() {
+        String selectedContextId = (String) Main.userContextDropdown.getSelectedItem();
+        if(selectedContextId == null)
+        {
+            return;
+        }
+        if (selectedContextId.equals("default")) {
+            selectedUserContext = null;
+        } else {
+            selectedUserContext = ((BrowserImpl) browser).getUserContextImpls().stream()
+                    .filter(ctx -> ctx.getUserContextId().equals(selectedContextId))
+                    .findFirst()
+                    .orElse(null);
+        }
+        System.out.println("Selected User Context updated: " + (selectedUserContext != null ? ((UserContextImpl) selectedUserContext).getUserContextId() : "default"));
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -301,27 +361,26 @@ public class MainController {
 
     /** Registrierungs-Methoden */
     private void registerConsoleLogEvent() {
-        if (page != null) page.onConsoleMessage(consoleMessageHandler);
+        if (selectedPage != null) selectedPage.onConsoleMessage(consoleMessageHandler);
     }
 
     private void deregisterConsoleLogEvent() {
-        if (page != null) page.offConsoleMessage(consoleMessageHandler);
+        if (selectedPage != null) selectedPage.offConsoleMessage(consoleMessageHandler);
     }
 
     private void registerNetworkResponseEvent() {
-        if (page != null) page.onResponse(responseHandler);
+        if (selectedPage != null) selectedPage.onResponse(responseHandler);
     }
 
     private void deregisterNetworkResponseEvent() {
-        if (page != null) page.offResponse(responseHandler);
+        if (selectedPage != null) selectedPage.offResponse(responseHandler);
     }
 
     private void registerPageLoadEvent() {
-        if (page != null) page.onLoad(loadHandler);
+        if (selectedPage != null) selectedPage.onLoad(loadHandler);
     }
 
     private void deregisterPageLoadEvent() {
-        if (page != null) page.offLoad(loadHandler);
+        if (selectedPage != null) selectedPage.offLoad(loadHandler);
     }
-
 }

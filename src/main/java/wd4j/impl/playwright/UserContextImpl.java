@@ -26,7 +26,7 @@ public class UserContextImpl implements BrowserContext{
     private final Session session;
     private boolean isClosed = false; // ToDo: Is this variable really necessary?
 
-    private String userContextId; // ToDo: If found, it should be used to create a new page with this id
+    private final String userContextId; // ToDo: If found, it should be used to create a new page with this id
     private WebSocketManager webSocketManager;
 
     public UserContextImpl(BrowserImpl browser) {
@@ -367,5 +367,9 @@ public class UserContextImpl implements BrowserContext{
 
     public List<PageImpl> getPages() {
         return pages;
+    }
+
+    public String getUserContextId() {
+        return userContextId;
     }
 }

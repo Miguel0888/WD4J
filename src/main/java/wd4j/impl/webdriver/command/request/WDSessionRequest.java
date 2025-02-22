@@ -40,8 +40,12 @@ public class WDSessionRequest {
     }
 
     public static class Subscribe extends WDCommandImpl<WDSubscriptionRequest> implements WDCommandData {
+        @Deprecated
         public Subscribe(List<String> events) {
             super("session.subscribe", new WDSubscriptionRequest(events));
+        }
+        public Subscribe(WDSubscriptionRequest subscriptionRequest) {
+            super("session.subscribe", subscriptionRequest);
         }
     }
 

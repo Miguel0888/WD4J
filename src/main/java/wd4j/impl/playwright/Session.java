@@ -4,9 +4,11 @@ import wd4j.api.*;
 import wd4j.impl.manager.WDSessionManager;
 import wd4j.impl.support.EventDispatcher;
 import wd4j.impl.webdriver.command.response.WDSessionResult;
+import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 import wd4j.impl.websocket.WDException;
 import wd4j.impl.websocket.WebSocketManager;
 
+import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
@@ -79,8 +81,8 @@ public class Session {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public <T> void addEventListener(String eventName, Consumer<T> handler, Class<T> eventClass) {
-        dispatcher.addEventListener(eventName, handler, eventClass, WDSessionManager);
+    public <T> void addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> handler, Class<T> eventClass) {
+        dispatcher.addEventListener(subscriptionRequest, handler, eventClass, WDSessionManager);
     }
 
     public <T> void removeEventListener(String eventType, Consumer<T> listener) {

@@ -223,4 +223,12 @@ public class BrowserImpl implements Browser {
     public WebSocketManager getWebSocketManager() {
         return webSocketManager;
     }
+
+    public List<PageImpl> getPages() {
+        return pages;
+    }
+
+    public List<UserContextImpl> getUserContextImpls() {
+        return userContextImpls;
+    }
 }

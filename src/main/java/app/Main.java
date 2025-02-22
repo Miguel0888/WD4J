@@ -9,28 +9,34 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Vector;
 
 public class Main {
-    private static String lastProfilePath = "C:\\BrowserProfile"; // ToDo: Make this configurable
-    private static JLabel imageContainer; // Bildcontainer für Screenshots
-    private static JTextArea eventLog; // Textfeld für Events
-    private static JButton playButton, pauseButton; // Play/Pause Buttons
-    private static JCheckBox headlessCheckbox;
-    private static JCheckBox disableGpuCheckbox;
-    private static JCheckBox noRemoteCheckbox;
-    private static JCheckBox startMaximizedCheckbox;
-    private static JComboBox<String> browserSelector;
-    private static JButton launchButton;
-    private static JButton terminateButton;
-    private static JButton screenshotButton;
-    private static JTextField addressBar;
-    private static JButton navigateButton;
-    private static JCheckBox useProfileCheckbox;
-    private static JTextField profilePathField;
-    private static JTextField portField;
+    public static String lastProfilePath = ""; // ToDo: Make this configurable
+    public static JLabel imageContainer; // Bildcontainer für Screenshots
+    public static JTextArea eventLog; // Textfeld für Events
+    public static JCheckBox headlessCheckbox;
+    public static JCheckBox disableGpuCheckbox;
+    public static JCheckBox noRemoteCheckbox;
+    public static JCheckBox startMaximizedCheckbox;
+    public static JComboBox<String> browserSelector;
+    public static JButton launchButton;
+    public static JButton terminateButton;
+    public static JButton screenshotButton;
+    public static JTextField addressBar;
+    public static JButton navigateButton;
+    public static JCheckBox useProfileCheckbox;
+    public static JTextField profilePathField;
+    public static JTextField portField;
 
-    private static final Map<String, JCheckBox> eventCheckboxes = new HashMap<>();
-    private static MainController controller;
+    private static JButton eventDropdownButton;
+    private static JPopupMenu eventMenu;
+    public static final Map<String, JCheckBoxMenuItem> eventCheckboxes = new HashMap<>();
+
+    public static MainController controller;
+    public static JComboBox<Object> browsingContextDropdown;
+    public static JComboBox<Object> userContextDropdown;
+    private static JToggleButton togglePlayPauseButton;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Main::createAndShowGUI);
@@ -48,21 +54,23 @@ public class Main {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         // Erste Toolbar (Browser-Steuerung)
-        JToolBar browserToolBar = createFirstToolbar();
+        JToolBar browserToolBar = createBrowserToolBar();
 
         // Zweite Toolbar (Navigation)
-        JToolBar navigationToolBar = createSecondToolbar();
+        JToolBar navigationToolBar = createNavigationToolBar();
 
         // Dritte Toolbar (Event-Steuerung)
-        JToolBar eventToolBar = createThirdToolbar();
+        JToolBar eventToolBar = createEventToolBar();
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        // Toolbar-Panel mit drei Zeilen
+        // Toolbar-Panel mit vier Zeilen
         JPanel toolBarPanel = new JPanel();
-        toolBarPanel.setLayout(new GridLayout(3, 1));
-        toolBarPanel.add(browserToolBar);
-        toolBarPanel.add(navigationToolBar);
-        toolBarPanel.add(eventToolBar);
+        toolBarPanel.setLayout(new GridLayout(4, 1)); // Statt 3 nun 4 Zeilen
+        toolBarPanel.add(createBrowserToolBar());
+        toolBarPanel.add(createContextsToolbar());
+        toolBarPanel.add(createNavigationToolBar());
+        toolBarPanel.add(createEventToolBar());
+
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         // Tabs für Events & Screenshots (Content Container)
@@ -80,6 +88,7 @@ public class Main {
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         // Event Listeners
+        // ToDo: Remove this, since the ui fields are static in Main.java and can be accessed directly
         controller.setupListeners(
                 portField,
                 useProfileCheckbox,
@@ -92,16 +101,10 @@ public class Main {
                 launchButton,
                 terminateButton,
                 navigateButton,
-                addressBar,
-                eventLog
+                addressBar
         );
 
         screenshotButton.addActionListener(e -> captureScreenshot(controller));
-
-//        playButton.addActionListener(e -> controller.startLogging());
-//        pauseButton.addActionListener(e -> controller.stopLogging());
-        playButton.addActionListener(e -> registerSelectedEvents());
-        pauseButton.addActionListener(e -> deregisterAllEvents());
 
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent windowEvent) {
@@ -127,7 +130,7 @@ public class Main {
         startMaximizedCheckbox.setSelected(false);
     }
 
-    private static JToolBar createFirstToolbar()
+    private static JToolBar createBrowserToolBar()
     {
         JToolBar browserToolBar = new JToolBar();
         browserToolBar.setFloatable(false);
@@ -176,7 +179,7 @@ public class Main {
         return browserToolBar;
     }
 
-    private static JToolBar createSecondToolbar()
+    private static JToolBar createNavigationToolBar()
     {
         JToolBar navigationToolBar = new JToolBar();
         navigationToolBar.setFloatable(false);
@@ -190,28 +193,38 @@ public class Main {
         return navigationToolBar;
     }
 
-    private static JToolBar createThirdToolbar() {
+    private static JToolBar createEventToolBar() {
         JToolBar eventToolbar = new JToolBar();
 
-        // Play & Pause Buttons
-        playButton = new JButton("Play");
-        pauseButton = new JButton("Pause");
+        // Play/Pause Toggle Button
+        togglePlayPauseButton = new JToggleButton("Play");
+        togglePlayPauseButton.addItemListener(e -> {
+            if (togglePlayPauseButton.isSelected()) {
+                togglePlayPauseButton.setText("Pause");
+                registerSelectedEvents();
+            } else {
+                togglePlayPauseButton.setText("Play");
+                deregisterAllEvents();
+            }
+        });
+        eventToolbar.add(togglePlayPauseButton);
 
-        playButton.addActionListener(e -> registerSelectedEvents());
-        pauseButton.addActionListener(e -> deregisterAllEvents());
+        // Multi-Select Dropdown für Events (links)
+        eventDropdownButton = new JButton("Select Events");
+        eventMenu = new JPopupMenu();
 
-        eventToolbar.add(playButton);
-        eventToolbar.add(pauseButton);
-
-        // Dynamische Checkboxen für Events hinzufügen
         for (String event : controller.getEventHandlers().keySet()) {
-            JCheckBox checkBox = new JCheckBox(event);
-            checkBox.setSelected(false); // Standardmäßig nicht aktiviert
-            eventCheckboxes.put(event, checkBox);
-            eventToolbar.add(checkBox);
+            JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(event);
+            eventCheckboxes.put(event, menuItem);
+            menuItem.addActionListener(e -> updateEventDropdownLabel());
+            eventMenu.add(menuItem);
         }
 
-        // Abstandshalter hinzufügen, damit der nächste Button rechtsbündig ist
+        eventDropdownButton.addActionListener(e -> eventMenu.show(eventDropdownButton, 0, eventDropdownButton.getHeight()));
+
+        eventToolbar.add(eventDropdownButton);
+
+        // Abstandshalter für rechtsbündige Elemente (damit Dropdown & Play links bleiben)
         eventToolbar.add(Box.createHorizontalGlue());
 
         // "Clear Log"-Button rechtsbündig hinzufügen
@@ -222,9 +235,50 @@ public class Main {
         return eventToolbar;
     }
 
+    private static JToolBar createContextsToolbar() {
+        JToolBar contextToolbar = new JToolBar();
+
+        // User Context Combobox (leere Liste)
+        userContextDropdown = new JComboBox<>(new DefaultComboBoxModel<>(new Vector<>()));
+        userContextDropdown.addItem("default"); // Standardwert
+        userContextDropdown.addActionListener(e -> controller.updateSelectedUserContext());
+
+        // Browsing Context Combobox (leere Liste)
+        browsingContextDropdown = new JComboBox<>(new DefaultComboBoxModel<>(new Vector<>()));
+        browsingContextDropdown.addItem("All"); // Standardwert
+        browsingContextDropdown.addActionListener(e -> controller.updateSelectedPage());
+
+        // Labels & Dropdowns hinzufügen
+        contextToolbar.add(new JLabel("User Context:"));
+        contextToolbar.add(userContextDropdown);
+        contextToolbar.add(new JLabel("Browsing Context:"));
+        contextToolbar.add(browsingContextDropdown);
+
+        return contextToolbar;
+    }
+
+
+    private static void updateEventDropdownLabel() {
+        StringBuilder selectedEvents = new StringBuilder("Selected: ");
+
+        boolean first = true;
+        for (Map.Entry<String, JCheckBoxMenuItem> entry : eventCheckboxes.entrySet()) {
+            if (entry.getValue().isSelected()) {
+                if (!first) selectedEvents.append(", ");
+                selectedEvents.append(entry.getKey());
+                first = false;
+            }
+        }
+
+        if (selectedEvents.toString().equals("Selected: ")) {
+            eventDropdownButton.setText("Select Events");
+        } else {
+            eventDropdownButton.setText(selectedEvents.toString());
+        }
+    }
 
     private static void registerSelectedEvents() {
-        for (Map.Entry<String, JCheckBox> entry : eventCheckboxes.entrySet()) {
+        for (Map.Entry<String, JCheckBoxMenuItem> entry : eventCheckboxes.entrySet()) {
             if (entry.getValue().isSelected()) {
                 controller.registerEvent(entry.getKey());
             }
@@ -235,7 +289,15 @@ public class Main {
         for (String event : eventCheckboxes.keySet()) {
             controller.deregisterEvent(event);
         }
+
+        // Alle Checkboxen im Menü deaktivieren
+        for (JCheckBoxMenuItem item : eventCheckboxes.values()) {
+            item.setSelected(false);
+        }
+
+        updateEventDropdownLabel();
     }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Content Container

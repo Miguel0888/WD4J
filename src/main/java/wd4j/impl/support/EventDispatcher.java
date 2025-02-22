@@ -7,6 +7,7 @@ import wd4j.api.Request;
 import wd4j.api.Response;
 import wd4j.impl.manager.WDSessionManager;
 import wd4j.impl.webdriver.event.WDEventMapping;
+import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 
 import java.util.Collections;
 import java.util.Map;
@@ -84,17 +85,11 @@ public class EventDispatcher {
         }
     }
 
-    public <T> void addEventListener(String eventType, Consumer<T> listener, Class<T> eventTypeClass, WDSessionManager WDSessionManager) {
-        System.out.println("[DEBUG] addEventListener() aufgerufen (EventDispatcher Instanz: " + this + ") mit eventType=" + eventType);
-
-        eventListeners.computeIfAbsent(eventType, k -> {
-            // 🚀 Erster Listener für dieses Event → WebDriver BiDi Subscribe senden
-            WDSessionManager.subscribe(Collections.singletonList(eventType));
+    public <T> void addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> listener, Class<T> eventTypeClass, WDSessionManager WDSessionManager) {
+        eventListeners.computeIfAbsent(subscriptionRequest.getEvents().get(0), k -> {
+            WDSessionManager.subscribe(subscriptionRequest);
             return new ConcurrentLinkedQueue<>();
         }).add((Consumer<Object>) listener);
-
-        // 🔍 DEBUG: Zeige an, wie viele Listener es gibt
-        System.out.println("[DEBUG] Registrierte Listener für " + eventType + ": " + eventListeners.get(eventType).size());
     }
 
     public <T> void removeEventListener(String eventType, Consumer<T> listener, WDSessionManager WDSessionManager) {
