@@ -15,9 +15,6 @@ public interface WDCommand extends WDType {
     /** The WebDriver BiDi command name */
     String getName();
 
-    /** Lets the WebClientConnection set the WebDriver BiDi command ID */
-    void setId(Integer id);
-
     /** Gets WebDriver BiDi command ID, which is used to identify the command response */
     Integer getId();
 

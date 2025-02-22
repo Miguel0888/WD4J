@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicReference;
 public class WebSocketManager {
     private final WebSocketImpl webSocket;
     private final Gson gson = GsonMapperFactory.getGson(); // ✅ Nutzt zentrale Fabrik
-    private int commandCounter = 0; // Zählt Befehle für eindeutige IDs
 
     private final EventDispatcher eventDispatcher;
 
@@ -41,7 +40,6 @@ public class WebSocketManager {
      * @param WDCommand Das Command-Objekt, das gesendet werden soll.
      */
     public void send(WDCommand WDCommand) {
-        WDCommand.setId(getNextCommandId()); // Command ID setzen
         String jsonCommand = gson.toJson(WDCommand);
         webSocket.send(jsonCommand); // Nachricht senden
     }
@@ -192,15 +190,6 @@ public class WebSocketManager {
                 System.err.println("[ERROR] Failed to parse WebSocket event: " + e.getMessage());
             }
         });
-    }
-
-    /**
-     * Gibt eine neue eindeutige Command-ID zurück.
-     *
-     * @return Eine inkrementelle ID.
-     */
-    private synchronized int getNextCommandId() {
-        return ++commandCounter;
     }
 
     public boolean isConnected() {
