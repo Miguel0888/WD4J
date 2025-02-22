@@ -35,9 +35,11 @@ public class BrowserTypeImpl implements BrowserType {
     private final String name;
 
     // ToDo: Check this not playwrigth specific parameters:
-    private int port = 9222;
+    private final int defaultPort = 9222; // ToDo: Externalize to a configuration file
+    private final String defaultUrl = "ws://127.0.0.1"; // ToDo: Externalize to a configuration file
     private final String browserPath;
     private String profilePath;
+    private String websocketUrl;
     private final String webSocketEndpoint;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -50,6 +52,7 @@ public class BrowserTypeImpl implements BrowserType {
         this.browserPath = browserPath;
         this.profilePath = profilePath;
         this.webSocketEndpoint = webSocketEndpoint;
+        this.websocketUrl = defaultUrl + ":" + defaultPort; // Default WebSocket URL
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -104,7 +107,6 @@ public class BrowserTypeImpl implements BrowserType {
             throw new RuntimeException(e);
         }
 
-        String websocketUrl = "ws://127.0.0.1:" + port;
         return connect(websocketUrl + webSocketEndpoint, null);
     }
 
@@ -206,6 +208,7 @@ public class BrowserTypeImpl implements BrowserType {
                 Thread.sleep(1000); // Warte 1 Sekunde
             }
             System.out.println("Gefundene WebDriver-URL: " + wdUrl[0]);
+            websocketUrl = wdUrl[0];
         }
         else
         {
