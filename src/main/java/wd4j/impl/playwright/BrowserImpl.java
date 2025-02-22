@@ -41,7 +41,7 @@ public class BrowserImpl implements Browser {
         this.webExtensionManager = new WDWebExtensionManager(webSocketManager);
         this.browserType = browserType;
         this.process = process;
-        this.session = new Session(webSocketManager, this); // ToDo: Add PW Options
+        this.session = new Session(this); // ToDo: Add PW Options
         fetchDefaultData();
     }
 
@@ -218,5 +218,9 @@ public class BrowserImpl implements Browser {
 
     public WDWebExtensionManager getWebExtensionManager() {
         return webExtensionManager;
+    }
+
+    public WebSocketManager getWebSocketManager() {
+        return webSocketManager;
     }
 }

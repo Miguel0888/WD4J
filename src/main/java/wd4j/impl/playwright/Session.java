@@ -4,6 +4,7 @@ import wd4j.api.*;
 import wd4j.impl.manager.WDSessionManager;
 import wd4j.impl.support.EventDispatcher;
 import wd4j.impl.webdriver.command.response.WDSessionResult;
+import wd4j.impl.websocket.WDException;
 import wd4j.impl.websocket.WebSocketManager;
 
 import java.util.concurrent.ExecutionException;
@@ -30,25 +31,35 @@ public class Session {
     private final BrowserImpl browser;
     private final EventDispatcher dispatcher;
 
-
-    public Session(WebSocketManager webSocketManager, BrowserImpl browser) {
-        this(webSocketManager, browser, null);
+    /**
+     * Creates a new session aka. browsing context.
+     * @param browser The browser instance.
+     * @throws WDException if the session cannot be created (mostly in case of an duplicated session)
+     */
+    public Session(BrowserImpl browser) throws WDException {
+        this(browser, null);
     }
 
-    public Session(WebSocketManager webSocketManager, BrowserImpl browser, Browser.NewContextOptions options) {
-        this.webSocketManager = webSocketManager;
+    /**
+     * Creates a new session aka. browsing context.
+     * @param browser The browser instance.
+     * @param sessionId The ID of an existing session or null to create a new session.
+     * @throws WDException if the session cannot be created (mostly in case of an duplicated session)
+     */
+    public Session(BrowserImpl browser, String sessionId) throws WDException {
+        this.webSocketManager = browser.getWebSocketManager();
         this.browser = browser;
         this.dispatcher = webSocketManager.getEventDispatcher();
 
         String browserName = browser.browserType().name();
 
-        if (options != null) {
-            // ToDo: Use options to create a new session
-        }
-
         try {
             this.WDSessionManager = new WDSessionManager(webSocketManager);
-            createSession(browserName);
+            if (sessionId != null) {
+                this.sessionId = sessionId;
+            } else {
+                createSession(browserName);
+            }
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException(e);
         }

@@ -107,7 +107,13 @@ public class BrowserTypeImpl implements BrowserType {
             throw new RuntimeException(e);
         }
 
-        return connect(websocketUrl + webSocketEndpoint, null);
+        try {
+            return connect(websocketUrl + webSocketEndpoint, null);
+        } catch (Exception e) {
+            process.destroyForcibly(); // Erzwinge den Stopp
+            throw e;
+        }
+
     }
 
     @Override
@@ -139,9 +145,7 @@ public class BrowserTypeImpl implements BrowserType {
             BrowserImpl browser = new BrowserImpl(new WebSocketManager(webSocketImpl), this, process);
             playwright.addBrowser(browser);
             return browser;
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
-        } catch (InterruptedException e) {
+        } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
