@@ -221,6 +221,7 @@ public class BrowserTypeImpl implements BrowserType {
                 Thread.sleep(1000); // Warte 1 Sekunde
             }
             System.out.println("Gefundene DevTools-URL: " + cdpUrl[0]);
+//            websocketUrl = cdpUrl[0];
         }
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     }
