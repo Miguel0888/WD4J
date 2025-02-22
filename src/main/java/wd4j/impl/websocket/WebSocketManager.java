@@ -124,7 +124,7 @@ public class WebSocketManager {
         AtomicReference<Consumer<WebSocketFrame>> listenerRef = new AtomicReference<>();
 
         Consumer<WebSocketFrame> listener = frame -> {
-            System.out.println("[DEBUG] WebSocketManager received frame: " + frame.text());
+//            System.out.println("[DEBUG] WebSocketManager received frame: " + frame.text());
             try {
                 JsonObject json = gson.fromJson(frame.text(), JsonObject.class);
 
