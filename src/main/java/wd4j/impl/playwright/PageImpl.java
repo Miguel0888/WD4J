@@ -26,21 +26,42 @@ class PageImpl implements Page {
     private final String pageId; // aka. page in Chromium DevTools Protocol
 
     private final Session session;
-    private final WDSessionManager WDSessionManager;
-    private final WDBrowsingContextManager WDBrowsingContextManager;
+    private final WDSessionManager sessionManager;
+    private final WDBrowsingContextManager browsingContextManager;
     private boolean isClosed;
     private String url;
 
-    public PageImpl(WebSocketManager webSocketManager, Session session) {
-        this.webSocketManager = webSocketManager;
-        this.session = session;
-        this.WDSessionManager = session.getSessionManager(); // ToDo: improve this!
-        this.WDBrowsingContextManager = new WDBrowsingContextManager(webSocketManager); // ToDo: improve this!
+    /**
+     * Constructor for a new page.
+     * @param browser
+     */
+    public PageImpl(BrowserImpl browser) {
+        this.webSocketManager = browser.getWebSockatManager();
+        this.session = browser.getSession();
+        this.sessionManager = session.getSessionManager(); // ToDo: improve this!
+        this.browsingContextManager = browser.getBrowsingContextManager(); // ToDo: improve this!
 
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        this.pageId = WDBrowsingContextManager.create().getContext();
+        this.pageId = browsingContextManager.create().getContext();
+    }
+
+    /**
+     * Constructor for a new page with a given pageId.
+     * @param browser
+     * @param pageId
+     */
+    public PageImpl(BrowserImpl browser, String pageId) {
+        this.webSocketManager = browser.getWebSockatManager();
+        this.session = browser.getSession();
+        this.sessionManager = session.getSessionManager(); // ToDo: improve this!
+        this.browsingContextManager = browser.getBrowsingContextManager(); // ToDo: improve this!
+
+        this.isClosed = false;
+        this.url = "about:blank"; // Standard-Startseite
+
+        this.pageId = pageId;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -366,7 +387,7 @@ class PageImpl implements Page {
     public void close() {
         if (!isClosed) {
             isClosed = true;
-            WDBrowsingContextManager.close(pageId);
+            browsingContextManager.close(pageId);
         }
     }
 
@@ -589,14 +610,14 @@ class PageImpl implements Page {
 
     @Override
     public Response goBack(GoBackOptions options) {
-        WDBrowsingContextManager.traverseHistory(pageId, -1);
+        browsingContextManager.traverseHistory(pageId, -1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
 
     @Override
     public Response goForward(GoForwardOptions options) {
-        WDBrowsingContextManager.traverseHistory(pageId, 1);
+        browsingContextManager.traverseHistory(pageId, 1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -617,7 +638,7 @@ class PageImpl implements Page {
         this.url = url;
 
         // WebDriver BiDi Befehl senden
-        WDBrowsingContextResult.NavigateResult navigate = WDBrowsingContextManager.navigate(url, pageId);
+        WDBrowsingContextResult.NavigateResult navigate = browsingContextManager.navigate(url, pageId);
 
         return new PlaywrightResponse<WDBrowsingContextResult.NavigateResult>(navigate);
     }
@@ -754,7 +775,7 @@ class PageImpl implements Page {
 
     @Override
     public Response reload(ReloadOptions options) {
-        WDBrowsingContextManager.reload(pageId);
+        browsingContextManager.reload(pageId);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -801,7 +822,7 @@ class PageImpl implements Page {
 
     @Override
     public byte[] screenshot(ScreenshotOptions options) {
-        WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult = WDBrowsingContextManager.captureScreenshot(pageId);
+        WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult = browsingContextManager.captureScreenshot(pageId);
         String base64Image = captureScreenshotResult.getData();
         return Base64.getDecoder().decode(base64Image);
     }

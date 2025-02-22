@@ -11,6 +11,7 @@ import wd4j.impl.webdriver.mapping.GsonMapperFactory;
 
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -87,10 +88,13 @@ public class WebSocketManager {
             return gson.fromJson(resultElement, responseType);
         } catch (TimeoutException e) {
             throw new RuntimeException("Timeout while waiting for response.", e);
-        } catch (Exception e) {
-            // Stacktrace ausgeben
-            System.out.println("[ERROR] Error while waiting for response: " + e.getMessage());
-            e.printStackTrace();
+        }
+        catch (InterruptedException | ExecutionException e)
+        {
+            if(e.getCause() instanceof WDException)
+            {
+                throw (WDException) e.getCause();
+            }
             throw new RuntimeException("Error while waiting for response.", e);
         }
     }

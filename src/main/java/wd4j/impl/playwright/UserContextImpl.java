@@ -26,7 +26,7 @@ public class UserContextImpl implements BrowserContext{
     private final Session session;
     private boolean isClosed = false; // ToDo: Is this variable really necessary?
 
-    private String defaultContextId; // ToDo: If found, it should be used to create a new page with this id
+    private String userContextId; // ToDo: If found, it should be used to create a new page with this id
     private WebSocketManager webSocketManager;
 
     public UserContextImpl(BrowserImpl browser) {
@@ -34,16 +34,23 @@ public class UserContextImpl implements BrowserContext{
         this.webSocketManager = browser.getWebSockatManager();
         this.session = browser.getSession();
 
-        // ToDo: Send new WDBrowserRequest#createUserContext command to the browser
+        userContextId = browser.getBrowserManager().createUserContext().getUserContext().value();
     }
 
+    public UserContextImpl(BrowserImpl browser, String userContextId) {
+        this.browser = browser;
+        this.webSocketManager = browser.getWebSockatManager();
+        this.session = browser.getSession();
+
+        this.userContextId = userContextId;
+    }
 
     @Override
     public Page newPage() {
         if (isClosed) {
             throw new PlaywrightException("BrowserContext is closed");
         }
-        PageImpl page = new PageImpl(webSocketManager, session);
+        PageImpl page = new PageImpl(browser);
         pages.add(page);
         return page;
     }
@@ -354,5 +361,11 @@ public class UserContextImpl implements BrowserContext{
     @Override
     public Page waitForPage(BrowserContext.WaitForPageOptions options, Runnable callback) {
         return null;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    public List<PageImpl> getPages() {
+        return pages;
     }
 }

@@ -8,6 +8,7 @@ import wd4j.impl.webdriver.command.request.parameters.browsingContext.CreateType
 import wd4j.impl.webdriver.command.request.parameters.browsingContext.SetViewportParameters;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.command.response.WDEmptyResult;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.browsingContext.WDLocator;
 import wd4j.impl.websocket.WebSocketManager;
 
@@ -66,6 +67,13 @@ public class WDBrowsingContextManager implements WDModule {
     public WDBrowsingContextResult.GetTreeResult getTree() {
         return webSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.GetTree(),
+                WDBrowsingContextResult.GetTreeResult.class
+        );
+    }
+
+    public WDBrowsingContextResult.GetTreeResult getTree(WDBrowsingContext context) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.GetTree(context),
                 WDBrowsingContextResult.GetTreeResult.class
         );
     }
