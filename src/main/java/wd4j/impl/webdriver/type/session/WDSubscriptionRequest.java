@@ -4,6 +4,7 @@ import wd4j.impl.webdriver.type.browser.WDUserContext;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.websocket.WDCommand;
 
+import java.util.Collections;
 import java.util.List;
 
 public class WDSubscriptionRequest implements WDCommand.Params {
@@ -25,6 +26,22 @@ public class WDSubscriptionRequest implements WDCommand.Params {
         this.events = events;
         this.contexts = contexts;
         this.userContexts = userContexts;
+    }
+
+    public WDSubscriptionRequest(String event, String browsingContextId, String userContextId) {
+        this.events = Collections.singletonList(event);
+        if(browsingContextId != null) {
+            this.contexts = Collections.singletonList(new WDBrowsingContext(browsingContextId));
+        }
+        else {
+            this.contexts = null;
+        }
+        if(userContextId != null) {
+            this.userContexts = Collections.singletonList(new WDUserContext(userContextId));
+        }
+        else {
+            this.userContexts = null;
+        }
     }
 
     public List<String> getEvents() {

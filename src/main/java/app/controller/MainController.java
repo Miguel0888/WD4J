@@ -307,7 +307,7 @@ public class MainController {
             Main.browsingContextDropdown.addItem("All"); // Standardwert
 
             for (PageImpl page : ((BrowserImpl) browser).getPages()) {
-                Main.browsingContextDropdown.addItem(page.getContextId());
+                Main.browsingContextDropdown.addItem(page.getBrowsingContextId());
             }
         });
     }
@@ -332,11 +332,11 @@ public class MainController {
             selectedPage = null; // Alle Seiten beobachten
         } else {
             selectedPage = ((BrowserImpl) browser).getPages().stream()
-                    .filter(page -> page.getContextId().equals(selectedContextId))
+                    .filter(page -> page.getBrowsingContextId().equals(selectedContextId))
                     .findFirst()
                     .orElse(null);
         }
-        System.out.println("Selected Page updated: " + (selectedPage != null ? ((PageImpl) selectedPage).getContextId() : "All"));
+        System.out.println("Selected Page updated: " + (selectedPage != null ? ((PageImpl) selectedPage) : "All"));
     }
 
     public void updateSelectedUserContext() {

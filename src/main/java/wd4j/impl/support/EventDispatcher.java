@@ -53,7 +53,7 @@ public class EventDispatcher {
      * Dispatches an event to all registered listeners. Params are mapped to the corresponding event type, here.
      *
      * @param eventType
-     * @param json
+     * @param params
      * @param eventTypeClass
      * @param <T>
      */

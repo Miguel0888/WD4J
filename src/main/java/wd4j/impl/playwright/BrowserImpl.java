@@ -76,7 +76,7 @@ public class BrowserImpl implements Browser {
             WDBrowsingContextResult.GetTreeResult tree = browsingContextManager.getTree();
             tree.getContexts().forEach(context -> {
                 System.out.println("BrowsingContext: " + context.getContext().value());
-                currentPages.add(new PageImpl(this, context.getContext().value()));
+                currentPages.add(new PageImpl(this, null, context.getContext()));
             });
         } catch (WDException ignored) {}
     }

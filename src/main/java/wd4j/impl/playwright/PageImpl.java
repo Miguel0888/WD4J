@@ -9,6 +9,7 @@ import wd4j.impl.support.PlaywrightResponse;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.event.WDEventMapping;
 import wd4j.impl.support.JsonToPlaywrightMapper;
+import wd4j.impl.webdriver.type.browser.WDUserContext;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.WDEvaluateResult;
 import wd4j.impl.webdriver.type.script.WDTarget;
@@ -24,7 +25,8 @@ import java.util.regex.Pattern;
 
 public class PageImpl implements Page {
     private final WebSocketManager webSocketManager;
-    private final String pageId; // aka. page in Chromium DevTools Protocol
+    private final String pageId; // aka. browsing context id or navigable id in WebDriver BiDi
+    private final String userContextId; // aka. simply as contextId in CDP - default is "default"
 
     private final Session session;
     private final WDSessionManager sessionManager;
@@ -37,6 +39,15 @@ public class PageImpl implements Page {
      * @param browser
      */
     public PageImpl(BrowserImpl browser) {
+        this(browser, null);
+    }
+
+    /**
+     * Constructor for a new page.
+     * @param browser
+     * @param userContext
+     */
+    public PageImpl(BrowserImpl browser, WDUserContext userContext) {
         this.webSocketManager = browser.getWebSockatManager();
         this.session = browser.getSession();
         this.sessionManager = session.getSessionManager(); // ToDo: improve this!
@@ -46,14 +57,16 @@ public class PageImpl implements Page {
         this.url = "about:blank"; // Standard-Startseite
 
         this.pageId = browsingContextManager.create().getContext();
+        this.userContextId = userContext != null ? userContext.value() : null;
     }
 
     /**
      * Constructor for a new page with a given pageId.
      * @param browser
-     * @param pageId
+     * @param userContext
+     * @param browsingContext
      */
-    public PageImpl(BrowserImpl browser, String pageId) {
+    public PageImpl(BrowserImpl browser,  WDUserContext userContext, WDBrowsingContext browsingContext) {
         this.webSocketManager = browser.getWebSockatManager();
         this.session = browser.getSession();
         this.sessionManager = session.getSessionManager(); // ToDo: improve this!
@@ -62,7 +75,8 @@ public class PageImpl implements Page {
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        this.pageId = pageId;
+        this.pageId = browsingContext.value();
+        this.userContextId = userContext != null ? userContext.value() : null;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -87,7 +101,7 @@ public class PageImpl implements Page {
     @Override
     public void onConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(Collections.singletonList(WDEventMapping.ENTRY_ADDED.getName()));
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.ENTRY_ADDED.getName(), this.getBrowsingContextId(), null);
             session.addEventListener(wdSubscriptionRequest, handler, ConsoleMessage.class);
         }
     }
@@ -1106,7 +1120,11 @@ public class PageImpl implements Page {
         return Collections.emptyList();
     }
 
-    public String getContextId() {
+    public String getBrowsingContextId() {
         return pageId;
+    }
+
+    public String getUserContextId() {
+        return userContextId;
     }
 }
