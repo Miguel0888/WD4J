@@ -13,6 +13,7 @@ import wd4j.impl.webdriver.type.browser.WDUserContext;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.WDEvaluateResult;
 import wd4j.impl.webdriver.type.script.WDTarget;
+import wd4j.impl.webdriver.type.session.WDSubscription;
 import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 import wd4j.impl.websocket.WebSocketManager;
 
@@ -33,6 +34,9 @@ public class PageImpl implements Page {
     private final WDBrowsingContextManager browsingContextManager;
     private boolean isClosed;
     private String url;
+
+    // ToDo: Not supported yet, just for testing: Firefox does not remember the id, only accepts event + contextId
+    private WDSubscription consoleMessageSubscription;
 
     /**
      * Constructor for a new page.
@@ -102,16 +106,26 @@ public class PageImpl implements Page {
     public void onConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.ENTRY_ADDED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler, ConsoleMessage.class);
+            consoleMessageSubscription = session.addEventListener(wdSubscriptionRequest, handler, ConsoleMessage.class);
         }
     }
 
     @Override
     public void offConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.ENTRY_ADDED.getName(), handler);
+            session.removeEventListener(WDEventMapping.ENTRY_ADDED.getName(), getBrowsingContextId(), handler);
         }
     }
+
+    // ToDo: Not supported yet
+//    @Override
+//    public void offConsoleMessage(Consumer<ConsoleMessage> handler) {
+//        if (consoleMessageSubscription != null) {
+//            session.removeEventListener(consoleMessageSubscription, handler);
+//            consoleMessageSubscription = null;
+//        }
+//    }
+
 
     @Override
     public void onCrash(Consumer<Page> handler) {

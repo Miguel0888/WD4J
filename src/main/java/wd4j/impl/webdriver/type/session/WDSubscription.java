@@ -12,6 +12,13 @@ public class WDSubscription implements StringWrapper {
         this.value = value;
     }
 
+    public WDSubscription(Integer value) {
+        if (value == null) {
+            throw new IllegalArgumentException("Event name must not be null or empty.");
+        }
+        this.value = value.toString();
+    }
+
     @Override // confirmed
     public String value() {
         return value;

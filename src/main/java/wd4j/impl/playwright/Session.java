@@ -4,6 +4,7 @@ import wd4j.api.*;
 import wd4j.impl.manager.WDSessionManager;
 import wd4j.impl.support.EventDispatcher;
 import wd4j.impl.webdriver.command.response.WDSessionResult;
+import wd4j.impl.webdriver.type.session.WDSubscription;
 import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 import wd4j.impl.websocket.WDException;
 import wd4j.impl.websocket.WebSocketManager;
@@ -81,10 +82,20 @@ public class Session {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public <T> void addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> handler, Class<T> eventClass) {
-        dispatcher.addEventListener(subscriptionRequest, handler, eventClass, WDSessionManager);
+    public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> handler, Class<T> eventClass) {
+        return dispatcher.addEventListener(subscriptionRequest, handler, eventClass, WDSessionManager);
     }
 
+    public <T> void removeEventListener(String eventType, String browsingContextId, Consumer<T> listener) {
+        dispatcher.removeEventListener(eventType, browsingContextId, listener, WDSessionManager);
+    }
+
+    // ToDo: Not supported yet
+    public <T> void removeEventListener(WDSubscription subscription, Consumer<T> listener) {
+        dispatcher.removeEventListener(subscription, listener, WDSessionManager);
+    }
+
+    @Deprecated
     public <T> void removeEventListener(String eventType, Consumer<T> listener) {
         dispatcher.removeEventListener(eventType, listener, WDSessionManager);
     }

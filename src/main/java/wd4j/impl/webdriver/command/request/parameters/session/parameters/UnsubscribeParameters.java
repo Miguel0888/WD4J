@@ -20,6 +20,7 @@ public interface UnsubscribeParameters extends WDCommand.Params {
         }
     }
 
+    // ToDo: Not supported in Firefox yet?
     public class WDUnsubscribeByIDRequestParams extends WDUnsubscribeByIDRequest implements UnsubscribeParameters {
         public WDUnsubscribeByIDRequestParams(List<WDSubscription> WDSubscriptions) {
             super(WDSubscriptions);

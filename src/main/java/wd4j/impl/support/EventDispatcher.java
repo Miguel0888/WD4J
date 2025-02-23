@@ -6,7 +6,10 @@ import wd4j.api.ConsoleMessage;
 import wd4j.api.Request;
 import wd4j.api.Response;
 import wd4j.impl.manager.WDSessionManager;
+import wd4j.impl.webdriver.command.response.WDSessionResult;
 import wd4j.impl.webdriver.event.WDEventMapping;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.session.WDSubscription;
 import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 
 import java.util.Collections;
@@ -85,21 +88,51 @@ public class EventDispatcher {
         }
     }
 
-    public <T> void addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> listener, Class<T> eventTypeClass, WDSessionManager WDSessionManager) {
-        eventListeners.computeIfAbsent(subscriptionRequest.getEvents().get(0), k -> {
-            WDSessionManager.subscribe(subscriptionRequest);
+    public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> listener, Class<T> eventTypeClass, WDSessionManager sessionManager) {
+        // Hole oder erzeuge die Liste der Listener für das Event
+        ConcurrentLinkedQueue<Consumer<Object>> listeners = eventListeners.computeIfAbsent(subscriptionRequest.getEvents().get(0), k -> {
             return new ConcurrentLinkedQueue<>();
-        }).add((Consumer<Object>) listener);
+        });
+
+        // Registriere das Event in WebDriver BiDi und speichere die Subscription-ID
+        WDSessionResult.SubscribeSessionResult result = sessionManager.subscribe(subscriptionRequest);
+        WDSubscription subscription = (result != null) ? result.getSubscription() : null;
+
+        // Listener zur Liste hinzufügen
+        listeners.add((Consumer<Object>) listener);
+
+        return subscription;
     }
 
-    public <T> void removeEventListener(String eventType, Consumer<T> listener, WDSessionManager WDSessionManager) {
+    public <T> void removeEventListener(String eventType, Consumer<T> listener, WDSessionManager sessionManager) {
+        removeEventListener(eventType, null, listener, sessionManager);
+    }
+
+    public <T> void removeEventListener(String eventType, String browsingContextId, Consumer<T> listener, WDSessionManager sessionManager) {
         if (eventListeners.containsKey(eventType)) {
             eventListeners.get(eventType).remove(listener);
             if (eventListeners.get(eventType).isEmpty()) {
+                WDBrowsingContext browsingContext = (browsingContextId != null) ? new WDBrowsingContext(browsingContextId) : null;
                 // 🛑 Letzter Listener wurde entfernt → WebDriver BiDi Unsubscribe senden
-                WDSessionManager.unsubscribe(Collections.singletonList(eventType));
+                sessionManager.unsubscribe(Collections.singletonList(eventType), browsingContext == null ? null : Collections.singletonList(browsingContext));
                 eventListeners.remove(eventType);
             }
         }
     }
+
+    // ToDo: Not supported yet
+    public <T> void removeEventListener(WDSubscription subscription, Consumer<T> listener, WDSessionManager sessionManager) {
+        if (subscription == null || listener == null) {
+            throw new IllegalArgumentException("Subscription and listener must not be null.");
+        }
+
+        sessionManager.unsubscribe(subscription);
+
+        // 🔹 Entferne den Listener aus eventListeners
+        eventListeners.values().forEach(listeners -> listeners.remove(listener));
+
+        System.out.println("[INFO] Removed listener for Subscription-ID: " + subscription.value());
+    }
+
+
 }
