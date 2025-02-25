@@ -10,7 +10,14 @@ import javax.swing.*;
 import java.util.*;
 import java.util.function.Consumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class MainController {
+
+    // SLF4J Logger definieren
+    private static final Logger logger = LoggerFactory.getLogger(MainController.class);
+
     private Playwright playwright;
     private Browser browser;
     private BrowserContext browserContext;
@@ -35,11 +42,22 @@ public class MainController {
     private final Consumer<Worker> workerHandler = worker -> logEvent("Worker created: " + worker.url());
     private final Consumer<Page> popupHandler = popup -> logEvent("Popup opened!");
 
+    // 🆕 Zusätzliche Event-Handler
+    private final Consumer<ConsoleMessage> consoleHandler = msg -> logEvent("Console message: " + msg.text());
+    private final Consumer<Page> frameNavigatedHandler = p -> logEvent("Frame navigated: " + p.url());
+    private final Consumer<Page> frameAttachedHandler = p -> logEvent("Frame attached!");
+    private final Consumer<Page> frameDetachedHandler = p -> logEvent("Frame detached!");
+    private final Consumer<Page> downloadHandler = p -> logEvent("File downloaded!");
+    private final Consumer<Video> videoHandler = video -> logEvent("Video started recording: " + video.path());
+
+
 
     // Map mit allen Events und den zugehörigen Methoden
     private final Map<String, EventHandler> eventHandlers = new HashMap<>();
 
     public MainController() {
+        logger.info(" *** MainController gestartet! *** ");
+
         eventHandlers.put("Console Log", new EventHandler(
                 () -> registerConsoleLogEvent(),
                 () -> deregisterConsoleLogEvent()

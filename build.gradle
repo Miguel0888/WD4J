@@ -41,6 +41,9 @@ dependencies {
 //    implementation 'org.eclipse.jetty:jetty-servlet:9.4.51.v20230217'
 //    implementation 'com.appland:appmap-agent:latest.release'  // Version prüfen
 //    implementation 'com.appland:appmap-annotation:latest.release'
+
+    implementation 'org.slf4j:slf4j-api:1.7.36'  // SLF4J API für Java 8
+    implementation 'ch.qos.logback:logback-classic:1.2.11'  // Logback als Implementierung
 }
 
 test {
