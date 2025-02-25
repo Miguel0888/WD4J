@@ -6,99 +6,150 @@ import wd4j.api.Response;
 import wd4j.api.options.HttpHeader;
 import wd4j.api.options.SecurityDetails;
 import wd4j.api.options.ServerAddr;
-import wd4j.impl.webdriver.event.WDNetworkEvent;
+import wd4j.impl.webdriver.event.WDNetworkEvent.ResponseStarted;
+import wd4j.impl.webdriver.type.network.WDResponseData;
+import wd4j.impl.webdriver.type.network.WDHeader;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class ResponseImpl implements Response {
-    public ResponseImpl(WDNetworkEvent wdNetworkEvent) {
-        // TODO: Implement this
+
+    private final ResponseStarted.ResponseStartedParametersWD responseParams; // 🔹 Speichert das gesamte Event-DTO
+    private final WDResponseData responseData;
+    private final Request request;
+    private final Frame frame;
+    private final byte[] responseBody; // 🔹 Speichert den Response-Body
+
+    public ResponseImpl(ResponseStarted event, byte[] responseBody) {
+        this.responseParams = event.getParams(); // 🔹 Speichere das komplette Event-Objekt
+        this.responseData = responseParams.getResponse();
+        this.request = null; // TODO: Mapping von `request`
+        this.frame = null; // TODO: Mapping von `frame`
+        this.responseBody = responseBody; // 🔹 Response-Body speichern
+    }
+
+    /**
+     * 🔹 Konvertiert `List<WDHeader>` zu `List<HttpHeader>` (Playwright-Format).
+     */
+    private List<HttpHeader> convertHeaders(List<WDHeader> headers) {
+        if (headers == null) return Collections.emptyList();
+        return headers.stream().map(header -> {
+            HttpHeader httpHeader = new HttpHeader();
+            httpHeader.name = header.getName();
+            httpHeader.value = extractHeaderValue(header); // 🔹 Wert korrekt extrahieren
+            return httpHeader;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * 🔹 Konvertiert `List<WDHeader>` zu `Map<String, String>`, falls nötig.
+     */
+    private Map<String, String> convertHeadersToMap(List<WDHeader> headers) {
+        if (headers == null) return Collections.emptyMap();
+        return headers.stream().collect(Collectors.toMap(WDHeader::getName, this::extractHeaderValue));
+    }
+
+    /**
+     * 🔹 Extrahiert den Header-Wert aus dem JSON.
+     */
+    private String extractHeaderValue(WDHeader header) {
+        if (header.getValue() != null) {
+            return header.getValue().toString(); // 🔹 Direkt als String zurückgeben (z.B. für `content-type`)
+        }
+        return "";
     }
 
     @Override
     public Map<String, String> allHeaders() {
-        return Collections.emptyMap();
+        return convertHeadersToMap(responseData.getHeaders());
     }
 
     @Override
     public byte[] body() {
-        return new byte[0];
+        return responseBody; // 🔹 Rückgabe des tatsächlichen Response-Bodys
     }
 
     @Override
     public String finished() {
-        return "";
+        return responseData.getProtocol();
     }
 
     @Override
     public Frame frame() {
-        return null;
+        return frame;
     }
 
     @Override
     public boolean fromServiceWorker() {
-        return false;
+        return responseData.getFromCache();
     }
 
     @Override
     public Map<String, String> headers() {
-        return Collections.emptyMap();
+        return convertHeadersToMap(responseData.getHeaders());
     }
 
     @Override
     public List<HttpHeader> headersArray() {
-        return Collections.emptyList();
+        return convertHeaders(responseData.getHeaders());
     }
 
     @Override
     public String headerValue(String name) {
-        return "";
+        return convertHeadersToMap(responseData.getHeaders()).getOrDefault(name, "");
     }
 
     @Override
     public List<String> headerValues(String name) {
-        return Collections.emptyList();
+        return Collections.singletonList(convertHeadersToMap(responseData.getHeaders()).getOrDefault(name, ""));
     }
 
     @Override
     public boolean ok() {
-        return false;
+        int status = responseData.getStatus();
+        return status >= 200 && status < 300;
     }
 
     @Override
     public Request request() {
-        return null;
+        return request;
     }
 
     @Override
     public SecurityDetails securityDetails() {
-        return null;
+        return null; // TODO: Mapping für SecurityDetails hinzufügen
     }
 
     @Override
     public ServerAddr serverAddr() {
-        return null;
+        return null; // TODO: Mapping für ServerAddr hinzufügen
     }
 
     @Override
     public int status() {
-        return 0;
+        return responseData.getStatus();
     }
 
     @Override
     public String statusText() {
-        return "";
+        return responseData.getStatusText();
     }
 
     @Override
     public String text() {
-        return "";
+        return new String(responseBody); // 🔹 Konvertiere Body in String
     }
 
     @Override
     public String url() {
-        return "";
+        return responseData.getUrl();
+    }
+
+    /**
+     * 🔹 Ermöglicht Zugriff auf das vollständige `ResponseStartedParametersWD`-DTO.
+     */
+    public ResponseStarted.ResponseStartedParametersWD getResponseParams() {
+        return responseParams;
     }
 }

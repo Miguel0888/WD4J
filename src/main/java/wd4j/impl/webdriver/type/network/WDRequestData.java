@@ -8,13 +8,13 @@ public class WDRequestData {
     private final String method;
     private final List<WDHeader> headers;
     private final List<WDCookie> cookies;
-    private final char headersSize;
-    private final WDCookie bodySize;
+    private final long headersSize;
+    private final long bodySize;
     private final String destination;
     private final String initiatorType;
     private final WDFetchTimingInfo timings;
 
-    public WDRequestData(WDRequest request, String url, String method, List<WDHeader> headers, List<WDCookie> cookies, char headersSize, WDCookie bodySize, String destination, String initiatorType, WDFetchTimingInfo timings) {
+    public WDRequestData(WDRequest request, String url, String method, List<WDHeader> headers, List<WDCookie> cookies, char headersSize, long bodySize, String destination, String initiatorType, WDFetchTimingInfo timings) {
         this.request = request;
         this.url = url;
         this.method = method;
@@ -47,11 +47,11 @@ public class WDRequestData {
         return cookies;
     }
 
-    public char getHeadersSize() {
+    public long getHeadersSize() {
         return headersSize;
     }
 
-    public WDCookie getBodySize() {
+    public long getBodySize() {
         return bodySize;
     }
 

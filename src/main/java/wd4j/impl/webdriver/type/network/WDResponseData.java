@@ -5,18 +5,18 @@ import java.util.List;
 public class WDResponseData {
     private final String url;
     private final String protocol;
-    private final char status;
+    private final int status;
     private final String statusText;
     private final boolean fromCache;
     private final List<WDHeader> headers;
     private final String mimeType;
-    private final char bytesReceived;
-    private final char headersSize;
-    private final char bodySize;
+    private final long bytesReceived;
+    private final long headersSize;
+    private final long bodySize;
     private final WDResponseContent content;
     private final List<WDAuthChallenge> authChallenges; // optional
 
-    public WDResponseData(String url, String protocol, char status, String statusText, boolean fromCache, List<WDHeader> headers, String mimeType, char bytesReceived, char headersSize, char bodySize, WDResponseContent content) {
+    public WDResponseData(String url, String protocol, int status, String statusText, boolean fromCache, List<WDHeader> headers, String mimeType, long bytesReceived, long headersSize, long bodySize, WDResponseContent content) {
         this.url = url;
         this.protocol = protocol;
         this.status = status;
@@ -54,7 +54,7 @@ public class WDResponseData {
         return protocol;
     }
 
-    public char getStatus() {
+    public int getStatus() {
         return status;
     }
 
@@ -74,15 +74,15 @@ public class WDResponseData {
         return mimeType;
     }
 
-    public char getBytesReceived() {
+    public long getBytesReceived() {
         return bytesReceived;
     }
 
-    public char getHeadersSize() {
+    public long getHeadersSize() {
         return headersSize;
     }
 
-    public char getBodySize() {
+    public long getBodySize() {
         return bodySize;
     }
 

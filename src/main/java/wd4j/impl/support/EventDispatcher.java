@@ -3,6 +3,7 @@ package wd4j.impl.support;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.api.ConsoleMessage;
+import wd4j.api.Frame;
 import wd4j.api.Request;
 import wd4j.api.Response;
 import wd4j.impl.manager.WDSessionManager;
@@ -164,11 +165,12 @@ public class EventDispatcher {
             case "log.entryAdded":
                 return new ConsoleMessageImpl(new WDLogEvent.EntryAdded(json));
             case "network.responseStarted":
-                return new ResponseImpl(new WDNetworkEvent(json));
+                return new ResponseImpl(new WDNetworkEvent.ResponseStarted(json), null);
             case "browsingContext.domContentLoaded":
                 return new PageImpl(new WDBrowsingContextEvent(json));
             default:
                 return null;
         }
     }
+
 }

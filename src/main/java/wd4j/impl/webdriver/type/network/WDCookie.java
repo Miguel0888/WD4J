@@ -5,11 +5,11 @@ public class WDCookie {
     private final WDBytesValue value;
     private final String domain;
     private final String path;
-    private final char size;
+    private final long size;
     private final boolean httpOnly;
     private final boolean secure;
     private final WDSameSite sameSite;
-    private final Character expiry; // optional
+    private final Long expiry; // optional
 
     public WDCookie(String name, WDBytesValue value, String domain, String path, char size, boolean httpOnly, boolean secure, WDSameSite sameSite) {
         this.name = name;
@@ -23,7 +23,7 @@ public class WDCookie {
         this.expiry = null;
     }
 
-    public WDCookie(String name, WDBytesValue value, String domain, String path, char size, boolean httpOnly, boolean secure, WDSameSite sameSite, char expiry) {
+    public WDCookie(String name, WDBytesValue value, String domain, String path, Long size, boolean httpOnly, boolean secure, WDSameSite sameSite, Long expiry) {
         this.name = name;
         this.value = value;
         this.domain = domain;
@@ -51,7 +51,7 @@ public class WDCookie {
         return path;
     }
 
-    public char getSize() {
+    public long getSize() {
         return size;
     }
 
@@ -67,7 +67,7 @@ public class WDCookie {
         return sameSite;
     }
 
-    public Character getExpiry() {
+    public Long getExpiry() {
         return expiry;
     }
 }
