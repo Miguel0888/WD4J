@@ -1,5 +1,6 @@
 package wd4j.impl.webdriver.event;
 
+import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.browsingContext.WDNavigation;
@@ -9,6 +10,9 @@ import wd4j.impl.websocket.WDEvent;
 import java.util.List;
 
 public class WDNetworkEvent implements WDModule {
+    public WDNetworkEvent(JsonObject json) {
+        // TODO: Implement mapping of JSON to Java Object
+    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event Types (Classes)
@@ -16,6 +20,10 @@ public class WDNetworkEvent implements WDModule {
 
     public static class AuthRequired extends WDEvent<AuthRequired.AuthRequiredParametersWD> {
         private String method = WDEventMapping.AUTH_REQUIRED.getName();
+
+        public AuthRequired(JsonObject json) {
+            super(json, AuthRequired.AuthRequiredParametersWD.class);
+        }
 
         @Override
         public String getMethod() {
@@ -40,6 +48,10 @@ public class WDNetworkEvent implements WDModule {
 
     public static class BeforeRequestSent extends WDEvent<BeforeRequestSent.BeforeRequestSentParametersWD> {
         private String method = WDEventMapping.BEFORE_REQUEST_SENT.getName();
+
+        public BeforeRequestSent(JsonObject json) {
+            super(json, BeforeRequestSent.BeforeRequestSentParametersWD.class);
+        }
 
         @Override
         public String getMethod() {
@@ -76,6 +88,10 @@ public class WDNetworkEvent implements WDModule {
     public static class FetchError extends WDEvent<FetchError.FetchErrorParametersWD> {
         private String method = WDEventMapping.FETCH_ERROR.getName();
 
+        public FetchError(JsonObject json) {
+            super(json, FetchError.FetchErrorParametersWD.class);
+        }
+
         @Override
         public String getMethod() {
             return method;
@@ -111,6 +127,10 @@ public class WDNetworkEvent implements WDModule {
     public static class ResponseCompleted extends WDEvent<ResponseCompleted.ResponseCompletedParametersWD> {
         private String method = WDEventMapping.RESPONSE_COMPLETED.getName();
 
+        public ResponseCompleted(JsonObject json) {
+            super(json, ResponseCompleted.ResponseCompletedParametersWD.class);
+        }
+
         @Override
         public String getMethod() {
             return method;
@@ -145,6 +165,10 @@ public class WDNetworkEvent implements WDModule {
 
     public static class ResponseStarted extends WDEvent<ResponseStarted.ResponseStartedParametersWD> {
         private String method = WDEventMapping.RESPONSE_STARTED.getName();
+
+        public ResponseStarted(JsonObject json) {
+            super(json, ResponseStarted.ResponseStartedParametersWD.class);
+        }
 
         @Override
         public String getMethod() {

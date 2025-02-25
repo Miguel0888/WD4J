@@ -4,6 +4,7 @@ import com.google.gson.*;
 import com.google.gson.annotations.JsonAdapter;
 import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
 import wd4j.impl.webdriver.mapping.EnumWrapper;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 
 import java.lang.reflect.Type;
 import java.util.List;
@@ -443,13 +444,13 @@ public abstract class WDRemoteValue {
     }
 
     public static class WindowProxyProperties {
-        private final WDBrowsingContextRequest browsingContextRequest;
+        private final WDBrowsingContext browsingContextRequest;
 
-        public WindowProxyProperties(WDBrowsingContextRequest WDBrowsingContextRequest) {
-            this.browsingContextRequest = WDBrowsingContextRequest;
+        public WindowProxyProperties(WDBrowsingContext browsingContext) {
+            this.browsingContextRequest = browsingContext;
         }
 
-        public WDBrowsingContextRequest getBrowsingContext() {
+        public WDBrowsingContext getBrowsingContext() {
             return browsingContextRequest;
         }
     }

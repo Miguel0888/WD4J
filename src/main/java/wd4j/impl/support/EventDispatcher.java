@@ -6,8 +6,15 @@ import wd4j.api.ConsoleMessage;
 import wd4j.api.Request;
 import wd4j.api.Response;
 import wd4j.impl.manager.WDSessionManager;
+import wd4j.impl.playwright.PageImpl;
+import wd4j.impl.playwright.event.ConsoleMessageImpl;
+import wd4j.impl.playwright.event.ResponseImpl;
 import wd4j.impl.webdriver.command.response.WDSessionResult;
+import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
 import wd4j.impl.webdriver.event.WDEventMapping;
+import wd4j.impl.webdriver.event.WDLogEvent;
+import wd4j.impl.webdriver.event.WDNetworkEvent;
+import wd4j.impl.webdriver.mapping.GsonMapperFactory;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.session.WDSubscription;
 import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
@@ -19,7 +26,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
 public class EventDispatcher {
-    private final Gson gson = new Gson();
+    private final Gson gson = GsonMapperFactory.getGson(); // ToDo: Maybe removed
 
     // Event-Typen von WebDriver BiDi als Schlüssel verwenden
     private final Map<String, Consumer<JsonObject>> eventHandlers = new ConcurrentHashMap<>();
@@ -70,12 +77,12 @@ public class EventDispatcher {
             return;
         }
 
-        // Konvertiere JSON in Playwright-Objekt
-        T event = JsonToPlaywrightMapper.mapToInterface(params, eventTypeClass); // public fields may cause problems though
+        // Nutze mapEvent() für Mapping in die korrekte Impl-Klasse
+        Object event = mapEvent(eventType, params);
 
+        // Falls kein Mapping in eine Impl-Klasse möglich war, nutze die alte Mapper-Methode
         if (event == null) {
-            System.err.println("[ERROR] Mapping failed for event: " + eventType);
-            return;
+            event = JsonToPlaywrightMapper.mapToInterface(params, eventTypeClass);
         }
 
         if (eventListeners.containsKey(eventType)) {
@@ -88,6 +95,23 @@ public class EventDispatcher {
         }
     }
 
+    public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> listener, WDSessionManager sessionManager) {
+        // Hole oder erzeuge die Liste der Listener für das Event
+        ConcurrentLinkedQueue<Consumer<Object>> listeners = eventListeners.computeIfAbsent(subscriptionRequest.getEvents().get(0), k -> {
+            return new ConcurrentLinkedQueue<>();
+        });
+
+        // Registriere das Event in WebDriver BiDi und speichere die Subscription-ID
+        WDSessionResult.SubscribeSessionResult result = sessionManager.subscribe(subscriptionRequest);
+        WDSubscription subscription = (result != null) ? result.getSubscription() : null;
+
+        // Listener zur Liste hinzufügen
+        listeners.add((Consumer<Object>) listener);
+
+        return subscription;
+    }
+
+    @Deprecated // Since the Class is derived from the JSON response via "type"
     public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> listener, Class<T> eventTypeClass, WDSessionManager sessionManager) {
         // Hole oder erzeuge die Liste der Listener für das Event
         ConcurrentLinkedQueue<Consumer<Object>> listeners = eventListeners.computeIfAbsent(subscriptionRequest.getEvents().get(0), k -> {
@@ -135,4 +159,16 @@ public class EventDispatcher {
     }
 
 
+    public Object mapEvent(String eventType, JsonObject json) {
+        switch (eventType) {
+            case "log.entryAdded":
+                return new ConsoleMessageImpl(new WDLogEvent.EntryAdded(json));
+            case "network.responseStarted":
+                return new ResponseImpl(new WDNetworkEvent(json));
+            case "browsingContext.domContentLoaded":
+                return new PageImpl(new WDBrowsingContextEvent(json));
+            default:
+                return null;
+        }
+    }
 }

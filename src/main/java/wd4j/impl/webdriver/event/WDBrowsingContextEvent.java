@@ -1,5 +1,6 @@
 package wd4j.impl.webdriver.event;
 
+import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.type.browsingContext.WDInfo;
 import wd4j.impl.webdriver.type.browsingContext.WDNavigationInfo;
@@ -8,6 +9,9 @@ import wd4j.impl.webdriver.type.session.WDUserPromptHandlerType;
 import wd4j.impl.websocket.WDEvent;
 
 public class WDBrowsingContextEvent implements WDModule {
+    public WDBrowsingContextEvent(JsonObject json) {
+        // TODO: Implement mapping from JSON to Java Object
+    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event Types (Classes)
@@ -15,6 +19,10 @@ public class WDBrowsingContextEvent implements WDModule {
 
     public static class Created extends WDEvent<WDInfo> {
         private String method = WDEventMapping.CONTEXT_CREATED.name();
+
+        public Created(JsonObject json) {
+            super(json, WDInfo.class);
+        }
 
         @Override
         public String getMethod() {
@@ -26,6 +34,10 @@ public class WDBrowsingContextEvent implements WDModule {
     public static class Destroyed extends WDEvent<WDInfo> {
         private String method = WDEventMapping.CONTEXT_DESTROYED.getName();
 
+        public Destroyed(JsonObject json) {
+            super(json, WDInfo.class);
+        }
+
         @Override
         public String getMethod() {
             return method;
@@ -34,6 +46,10 @@ public class WDBrowsingContextEvent implements WDModule {
 
     public static class NavigationStarted extends WDEvent<WDNavigationInfo> {
         private String method = WDEventMapping.NAVIGATION_STARTED.getName();
+
+        public NavigationStarted(JsonObject json) {
+            super(json, WDNavigationInfo.class);
+        }
 
         @Override
         public String getMethod() {
@@ -44,6 +60,10 @@ public class WDBrowsingContextEvent implements WDModule {
     public static class FragmentNavigated extends WDEvent<WDNavigationInfo> {
         private String method = WDEventMapping.FRAGMENT_NAVIGATED.getName();
 
+        public FragmentNavigated(JsonObject json) {
+            super(json, WDNavigationInfo.class);
+        }
+
         @Override
         public String getMethod() {
             return method;
@@ -52,6 +72,10 @@ public class WDBrowsingContextEvent implements WDModule {
 
     public static class DomContentLoaded extends WDEvent<WDNavigationInfo> {
         private String method = WDEventMapping.DOM_CONTENT_LOADED.getName();
+
+        public DomContentLoaded(JsonObject json) {
+            super(json, WDNavigationInfo.class);
+        }
 
         @Override
         public String getMethod() {
@@ -62,6 +86,10 @@ public class WDBrowsingContextEvent implements WDModule {
     public static class Load extends WDEvent<WDNavigationInfo> {
         private String method = WDEventMapping.LOAD.getName();
 
+        public Load(JsonObject json) {
+            super(json, WDNavigationInfo.class);
+        }
+
         @Override
         public String getMethod() {
             return method;
@@ -70,6 +98,10 @@ public class WDBrowsingContextEvent implements WDModule {
 
     public static class DownloadWillBegin extends WDEvent<WDNavigationInfo> {
         private String method = WDEventMapping.DOWNLOAD_WILL_BEGIN.getName();
+
+        public DownloadWillBegin(JsonObject json) {
+            super(json, WDNavigationInfo.class);
+        }
 
         @Override
         public String getMethod() {
@@ -80,6 +112,10 @@ public class WDBrowsingContextEvent implements WDModule {
     public static class NavigationAborted extends WDEvent<WDNavigationInfo> {
         private String method = WDEventMapping.NAVIGATION_ABORTED.getName();
 
+        public NavigationAborted(JsonObject json) {
+            super(json, WDNavigationInfo.class);
+        }
+
         @Override
         public String getMethod() {
             return method;
@@ -89,6 +125,10 @@ public class WDBrowsingContextEvent implements WDModule {
     public static class NavigationFailed extends WDEvent<WDNavigationInfo> {
         private String method = WDEventMapping.NAVIGATION_FAILED.getName();
 
+        public NavigationFailed(JsonObject json) {
+            super(json, WDNavigationInfo.class);
+        }
+
         @Override
         public String getMethod() {
             return method;
@@ -97,6 +137,10 @@ public class WDBrowsingContextEvent implements WDModule {
 
     public static class UserPromptClosed extends WDEvent<UserPromptClosed.UserPromptClosedParameters> {
         private String method = WDEventMapping.USER_PROMPT_CLOSED.getName();
+
+        public UserPromptClosed(JsonObject json) {
+            super(json, UserPromptClosed.UserPromptClosedParameters.class);
+        }
 
         @Override
         public String getMethod() {
@@ -162,6 +206,10 @@ public class WDBrowsingContextEvent implements WDModule {
 
     public static class UserPromptOpened extends WDEvent<UserPromptOpened.UserPromptOpenedParameters> {
         private String method = WDEventMapping.USER_PROMPT_OPENED.getName();
+
+        public UserPromptOpened(JsonObject json) {
+            super(json, UserPromptOpened.UserPromptOpenedParameters.class);
+        }
 
         @Override
         public String getMethod() {

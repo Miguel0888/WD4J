@@ -7,6 +7,7 @@ import wd4j.api.options.*;
 import wd4j.impl.manager.WDSessionManager;
 import wd4j.impl.support.PlaywrightResponse;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
+import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
 import wd4j.impl.webdriver.event.WDEventMapping;
 import wd4j.impl.support.JsonToPlaywrightMapper;
 import wd4j.impl.webdriver.type.browser.WDUserContext;
@@ -81,6 +82,10 @@ public class PageImpl implements Page {
 
         this.pageId = browsingContext.value();
         this.userContextId = userContext != null ? userContext.value() : null;
+    }
+
+    public PageImpl(WDBrowsingContextEvent wdBrowsingContextEvent) {
+        this((BrowserImpl) null); // ToDo: Implement this
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

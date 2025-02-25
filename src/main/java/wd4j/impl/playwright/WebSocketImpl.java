@@ -14,7 +14,6 @@ import java.util.function.Predicate;
 public class WebSocketImpl implements WebSocket {
     private static final int MAX_QUEUE_SIZE = 100;
     private WebSocketClient webSocketClient;
-    private final Gson gson = new Gson();
     private boolean isClosed = false;
     private String url;
 

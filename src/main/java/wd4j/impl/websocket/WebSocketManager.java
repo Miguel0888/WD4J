@@ -106,6 +106,7 @@ public class WebSocketManager {
      * @throws WDException Falls eine Fehlerantwort empfangen wird.
      * @return Ein CompletableFuture mit der Antwort oder einem Fehler.
      */
+    @Deprecated
     public <T> CompletableFuture<T> receive(Predicate<WebSocketFrame> predicate, Class<T> responseType)
     {
         return receive(predicate, responseType, true);

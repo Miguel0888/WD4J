@@ -8,12 +8,15 @@ import wd4j.impl.websocket.WebSocketManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class BrowserImpl implements Browser {
+    private static final List<BrowserImpl> browsers = new ArrayList<>(); // ToDo: Improve this
+
     private final BrowserTypeImpl browserType;
     private final Session session;
     private final Process process;
@@ -31,6 +34,7 @@ public class BrowserImpl implements Browser {
     private final List<PageImpl> pages = new ArrayList<>(); // aka. BrowsingContexts / Navigables in WebDriver BiDi
 
     public BrowserImpl(WebSocketManager webSocketManager, BrowserTypeImpl browserType, Process process) throws ExecutionException, InterruptedException {
+        browsers.add(this);
         this.webSocketManager = webSocketManager;
         this.browserManager = new WDBrowserManager(webSocketManager);
         this.browsingContextManager = new WDBrowsingContextManager(webSocketManager);
@@ -43,6 +47,10 @@ public class BrowserImpl implements Browser {
         this.process = process;
         this.session = new Session(this); // ToDo: Add PW Options
         fetchDefaultData();
+    }
+
+    public static List<BrowserImpl> getBrowsers() {
+        return Collections.unmodifiableList(browsers);
     }
 
     // ToDo: May require another UserContext if this is not "default"

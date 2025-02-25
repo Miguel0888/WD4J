@@ -23,6 +23,19 @@ public class MainController {
     private final Consumer<Response> responseHandler = response -> logEvent("Response: " + response.url());
     private final Consumer<Page> loadHandler = p -> logEvent("Page loaded!");
 
+    // Neue Event-Handler
+    private final Consumer<Page> closeHandler = p -> logEvent("Page closed!");
+    private final Consumer<Page> crashHandler = p -> logEvent("Page crashed!");
+    private final Consumer<Dialog> dialogHandler = dialog -> logEvent("Dialog opened: " + dialog.message());
+    private final Consumer<Page> domContentLoadedHandler = p -> logEvent("DOM Content Loaded!");
+    private final Consumer<Request> requestHandler = req -> logEvent("Request: " + req.url());
+    private final Consumer<Request> requestFailedHandler = req -> logEvent("Request Failed: " + req.url());
+    private final Consumer<Request> requestFinishedHandler = req -> logEvent("Request Finished: " + req.url());
+    private final Consumer<WebSocket> webSocketHandler = ws -> logEvent("WebSocket opened: " + ws.url());
+    private final Consumer<Worker> workerHandler = worker -> logEvent("Worker created: " + worker.url());
+    private final Consumer<Page> popupHandler = popup -> logEvent("Popup opened!");
+
+
     // Map mit allen Events und den zugehörigen Methoden
     private final Map<String, EventHandler> eventHandlers = new HashMap<>();
 
@@ -41,6 +54,58 @@ public class MainController {
                 () -> registerPageLoadEvent(),
                 () -> deregisterPageLoadEvent()
         ));
+
+        // Neue Events hinzufügen
+        eventHandlers.put("Close", new EventHandler(
+                () -> registerCloseEvent(),
+                () -> deregisterCloseEvent()
+        ));
+
+        eventHandlers.put("Crash", new EventHandler(
+                () -> registerCrashEvent(),
+                () -> deregisterCrashEvent()
+        ));
+
+        eventHandlers.put("Dialog", new EventHandler(
+                () -> registerDialogEvent(),
+                () -> deregisterDialogEvent()
+        ));
+
+        eventHandlers.put("DOM Content Loaded", new EventHandler(
+                () -> registerDOMContentLoadedEvent(),
+                () -> deregisterDOMContentLoadedEvent()
+        ));
+
+        eventHandlers.put("Request", new EventHandler(
+                () -> registerRequestEvent(),
+                () -> deregisterRequestEvent()
+        ));
+
+        eventHandlers.put("Request Failed", new EventHandler(
+                () -> registerRequestFailedEvent(),
+                () -> deregisterRequestFailedEvent()
+        ));
+
+        eventHandlers.put("Request Finished", new EventHandler(
+                () -> registerRequestFinishedEvent(),
+                () -> deregisterRequestFinishedEvent()
+        ));
+
+        eventHandlers.put("WebSocket", new EventHandler(
+                () -> registerWebSocketEvent(),
+                () -> deregisterWebSocketEvent()
+        ));
+
+        eventHandlers.put("Worker", new EventHandler(
+                () -> registerWorkerEvent(),
+                () -> deregisterWorkerEvent()
+        ));
+
+        eventHandlers.put("Popup", new EventHandler(
+                () -> registerPopupEvent(),
+                () -> deregisterPopupEvent()
+        ));
+
     }
 
     // Browser schließen
@@ -382,5 +447,86 @@ public class MainController {
 
     private void deregisterPageLoadEvent() {
         if (selectedPage != null) selectedPage.offLoad(loadHandler);
+    }
+
+    /** Neue Registrierungs-Methoden */
+    private void registerCloseEvent() {
+        if (selectedPage != null) selectedPage.onClose(closeHandler);
+    }
+
+    private void deregisterCloseEvent() {
+        if (selectedPage != null) selectedPage.offClose(closeHandler);
+    }
+
+    private void registerCrashEvent() {
+        if (selectedPage != null) selectedPage.onCrash(crashHandler);
+    }
+
+    private void deregisterCrashEvent() {
+        if (selectedPage != null) selectedPage.offCrash(crashHandler);
+    }
+
+    private void registerDialogEvent() {
+        if (selectedPage != null) selectedPage.onDialog(dialogHandler);
+    }
+
+    private void deregisterDialogEvent() {
+        if (selectedPage != null) selectedPage.offDialog(dialogHandler);
+    }
+
+    private void registerDOMContentLoadedEvent() {
+        if (selectedPage != null) selectedPage.onDOMContentLoaded(domContentLoadedHandler);
+    }
+
+    private void deregisterDOMContentLoadedEvent() {
+        if (selectedPage != null) selectedPage.offDOMContentLoaded(domContentLoadedHandler);
+    }
+
+    private void registerRequestEvent() {
+        if (selectedPage != null) selectedPage.onRequest(requestHandler);
+    }
+
+    private void deregisterRequestEvent() {
+        if (selectedPage != null) selectedPage.offRequest(requestHandler);
+    }
+
+    private void registerRequestFailedEvent() {
+        if (selectedPage != null) selectedPage.onRequestFailed(requestFailedHandler);
+    }
+
+    private void deregisterRequestFailedEvent() {
+        if (selectedPage != null) selectedPage.offRequestFailed(requestFailedHandler);
+    }
+
+    private void registerRequestFinishedEvent() {
+        if (selectedPage != null) selectedPage.onRequestFinished(requestFinishedHandler);
+    }
+
+    private void deregisterRequestFinishedEvent() {
+        if (selectedPage != null) selectedPage.offRequestFinished(requestFinishedHandler);
+    }
+
+    private void registerWebSocketEvent() {
+        if (selectedPage != null) selectedPage.onWebSocket(webSocketHandler);
+    }
+
+    private void deregisterWebSocketEvent() {
+        if (selectedPage != null) selectedPage.offWebSocket(webSocketHandler);
+    }
+
+    private void registerWorkerEvent() {
+        if (selectedPage != null) selectedPage.onWorker(workerHandler);
+    }
+
+    private void deregisterWorkerEvent() {
+        if (selectedPage != null) selectedPage.offWorker(workerHandler);
+    }
+
+    private void registerPopupEvent() {
+        if (selectedPage != null) selectedPage.onPopup(popupHandler);
+    }
+
+    private void deregisterPopupEvent() {
+        if (selectedPage != null) selectedPage.offPopup(popupHandler);
     }
 }

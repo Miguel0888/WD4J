@@ -2,6 +2,7 @@ package wd4j.impl.webdriver.type.log;
 
 import com.google.gson.*;
 import com.google.gson.annotations.JsonAdapter;
+import wd4j.impl.webdriver.mapping.EnumWrapper;
 import wd4j.impl.webdriver.type.script.WDRemoteValue;
 import wd4j.impl.webdriver.type.script.WDSource;
 import wd4j.impl.webdriver.type.script.WDStackTrace;
@@ -36,13 +37,13 @@ public interface WDLogEntry {
     }
 
     class BaseWDLogEntry implements WDLogEntry {
-        private final WDLevel level;
+        private final Level level;
         private final WDSource source;
         private final String text;
         private final long timestamp;
         private final WDStackTrace stackTrace;
 
-        public BaseWDLogEntry(WDLevel level, WDSource source, String text, long timestamp, WDStackTrace stackTrace) {
+        public BaseWDLogEntry(Level level, WDSource source, String text, long timestamp, WDStackTrace stackTrace) {
             this.level = level;
             this.source = source;
             this.text = text;
@@ -50,11 +51,11 @@ public interface WDLogEntry {
             this.stackTrace = stackTrace;
         }
 
-        public BaseWDLogEntry(WDLevel level, WDSource source, String text, long timestamp) {
+        public BaseWDLogEntry(Level level, WDSource source, String text, long timestamp) {
             this(level, source, text, timestamp, null);
         }
 
-        public WDLevel getLevel() {
+        public Level getLevel() {
             return level;
         }
 
@@ -80,18 +81,26 @@ public interface WDLogEntry {
         private String method;
         private List<WDRemoteValue> args;
 
-        public ConsoleWDLogEntry(WDLevel WDLevel, WDSource WDSource, String text, long timestamp, WDStackTrace WDStackTrace, String method, List<WDRemoteValue> args) {
-            super(WDLevel, WDSource, text, timestamp, WDStackTrace);
+        public ConsoleWDLogEntry(Level Level, WDSource WDSource, String text, long timestamp, WDStackTrace WDStackTrace, String method, List<WDRemoteValue> args) {
+            super(Level, WDSource, text, timestamp, WDStackTrace);
             this.method = method;
             this.args = args;
+        }
+
+        public String getMethod() {
+            return method;
+        }
+
+        public List<WDRemoteValue> getArgs() {
+            return args;
         }
     }
 
     class GenericWDLogEntry extends BaseWDLogEntry {
         private final String type;
 
-        public GenericWDLogEntry(WDLevel WDLevel, WDSource WDSource, String text, long timestamp, WDStackTrace WDStackTrace, String type) {
-            super(WDLevel, WDSource, text, timestamp, WDStackTrace);
+        public GenericWDLogEntry(Level Level, WDSource WDSource, String text, long timestamp, WDStackTrace WDStackTrace, String type) {
+            super(Level, WDSource, text, timestamp, WDStackTrace);
             this.type = type;
         }
     }
@@ -99,8 +108,26 @@ public interface WDLogEntry {
     class JavascriptWDLogEntry extends BaseWDLogEntry {
         private final String type = "javascript";
 
-        public JavascriptWDLogEntry(WDLevel WDLevel, WDSource WDSource, String text, long timestamp, WDStackTrace WDStackTrace) {
-            super(WDLevel, WDSource, text, timestamp, WDStackTrace);
+        public JavascriptWDLogEntry(Level Level, WDSource WDSource, String text, long timestamp, WDStackTrace WDStackTrace) {
+            super(Level, WDSource, text, timestamp, WDStackTrace);
+        }
+    }
+
+    enum Level implements EnumWrapper {
+        DEBUG("debug"),
+        INFO("info"),
+        WARN("warn"),
+        ERROR("error");
+
+        private final String value;
+
+        Level(String value) {
+            this.value = value;
+        }
+
+        @Override // confirmed
+        public String value() {
+            return value;
         }
     }
 }

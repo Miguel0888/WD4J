@@ -82,6 +82,11 @@ public class Session {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> handler) {
+        return dispatcher.addEventListener(subscriptionRequest, handler, WDSessionManager);
+    }
+
+    @Deprecated // Since the Class is derived from the JSON response via "type"
     public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> handler, Class<T> eventClass) {
         return dispatcher.addEventListener(subscriptionRequest, handler, eventClass, WDSessionManager);
     }

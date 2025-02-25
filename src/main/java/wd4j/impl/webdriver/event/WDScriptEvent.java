@@ -1,5 +1,6 @@
 package wd4j.impl.webdriver.event;
 
+import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.type.script.WDChannel;
 import wd4j.impl.webdriver.type.script.WDRealm;
@@ -15,6 +16,10 @@ public class WDScriptEvent implements WDModule {
 
     public static class WebSocketMessage extends WDEvent<WebSocketMessage.MessageParameters> {
         private String method = WDEventMapping.MESSAGE.getName();
+
+        public WebSocketMessage(JsonObject json) {
+            super(json, MessageParameters.class);
+        }
 
         @Override
         public String getMethod() {
@@ -70,6 +75,10 @@ public class WDScriptEvent implements WDModule {
     public static class RealmCreated extends WDEvent<RealmCreated.RealmCreatedParameters> {
         private String method = WDEventMapping.REALM_CREATED.getName();
 
+        public RealmCreated(JsonObject json) {
+            super(json, RealmCreatedParameters.class);
+        }
+
         @Override
         public String getMethod() {
             return method;
@@ -101,6 +110,10 @@ public class WDScriptEvent implements WDModule {
 
     public static class RealmDestroyed extends WDEvent<RealmDestroyed.RealmDestroyedParameters> {
         private String method = WDEventMapping.REALM_DESTROYED.getName();
+
+        public RealmDestroyed(JsonObject json) {
+            super(json, RealmDestroyedParameters.class);
+        }
 
         @Override
         public String getMethod() {
