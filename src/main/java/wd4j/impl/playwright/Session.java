@@ -95,7 +95,7 @@ public class Session {
         dispatcher.removeEventListener(subscription, listener, WDSessionManager);
     }
 
-    @Deprecated
+    @Deprecated // Since it does neither use the subscription id nor the browsing context id, thus terminating all listeners for the event type
     public <T> void removeEventListener(String eventType, Consumer<T> listener) {
         dispatcher.removeEventListener(eventType, listener, WDSessionManager);
     }
