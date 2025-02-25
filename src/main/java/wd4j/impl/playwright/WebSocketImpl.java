@@ -84,7 +84,7 @@ public class WebSocketImpl implements WebSocket {
     /// **WebSocket-Frames Implementierung**
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private static class WebSocketFrameImpl implements WebSocketFrame {
+    public static class WebSocketFrameImpl implements WebSocketFrame {
         private final byte[] binaryData;
         private final String textData;
 
