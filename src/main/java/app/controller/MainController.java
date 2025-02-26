@@ -28,13 +28,13 @@ public class MainController {
 
     private final Consumer<ConsoleMessage> consoleMessageHandler = msg -> logEvent("Console: " + msg.text());
     private final Consumer<Response> responseHandler = response -> logEvent("Response: " + response.url());
-    private final Consumer<Page> loadHandler = p -> logEvent("Page loaded!");
+    private final Consumer<Page> loadHandler = p -> logEvent("Page loaded: " + p.url() + " (" + p.title() + ")");
 
     // Neue Event-Handler
     private final Consumer<Page> closeHandler = p -> logEvent("Page closed!");
     private final Consumer<Page> crashHandler = p -> logEvent("Page crashed!");
     private final Consumer<Dialog> dialogHandler = dialog -> logEvent("Dialog opened: " + dialog.message());
-    private final Consumer<Page> domContentLoadedHandler = p -> logEvent("DOM Content Loaded!");
+    private final Consumer<Page> domContentLoadedHandler = p -> logEvent("DOM Content Loaded! - " + p.url());
     private final Consumer<Request> requestHandler = req -> logEvent("Request: " + req.url());
     private final Consumer<Request> requestFailedHandler = req -> logEvent("Request Failed: " + req.url());
     private final Consumer<Request> requestFinishedHandler = req -> logEvent("Request Finished: " + req.url());

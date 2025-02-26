@@ -26,15 +26,15 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 public class PageImpl implements Page {
-    private WebSocketManager webSocketManager;
-    private String pageId; // aka. browsing context id or navigable id in WebDriver BiDi
-    private String userContextId; // aka. simply as contextId in CDP - default is "default"
-
-    private Session session;
-    private WDSessionManager sessionManager;
-    private WDBrowsingContextManager browsingContextManager;
+    private final String pageId; // aka. browsing context id or navigable id in WebDriver BiDi
+    private final String userContextId; // aka. simply as contextId in CDP - default is "default"
     private boolean isClosed;
     private String url;
+
+    private final BrowserImpl browser;
+
+    @Deprecated // Use browser.getSession() instead
+    private final Session session;
 
     // ToDo: Not supported yet, just for testing: Firefox does not remember the id, only accepts event + contextId
     private WDSubscription consoleMessageSubscription;
@@ -53,15 +53,13 @@ public class PageImpl implements Page {
      * @param userContext
      */
     public PageImpl(BrowserImpl browser, WDUserContext userContext) {
-        this.webSocketManager = browser.getWebSockatManager();
+        this.browser = browser;
         this.session = browser.getSession();
-        this.sessionManager = session.getSessionManager(); // ToDo: improve this!
-        this.browsingContextManager = browser.getBrowsingContextManager(); // ToDo: improve this!
 
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        this.pageId = browsingContextManager.create().getContext();
+        this.pageId = browser.getBrowsingContextManager().create().getContext();
         this.userContextId = userContext != null ? userContext.value() : null;
     }
 
@@ -72,10 +70,8 @@ public class PageImpl implements Page {
      * @param browsingContext
      */
     public PageImpl(BrowserImpl browser,  WDUserContext userContext, WDBrowsingContext browsingContext) {
-        this.webSocketManager = browser.getWebSockatManager();
+        this.browser = browser;
         this.session = browser.getSession();
-        this.sessionManager = session.getSessionManager(); // ToDo: improve this!
-        this.browsingContextManager = browser.getBrowsingContextManager(); // ToDo: improve this!
 
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
@@ -84,41 +80,61 @@ public class PageImpl implements Page {
         this.userContextId = userContext != null ? userContext.value() : null;
     }
 
-    public PageImpl(WDBrowsingContextEvent wdBrowsingContextEvent) {
-        this((BrowserImpl) null); // ToDo: Implement this
-    }
-
     public PageImpl(WDBrowsingContextEvent.Load load) {
-        // ToDo: Implement this
+        WDBrowsingContext context = load.getParams().getContext();
+        PageImpl existingPage = BrowserImpl.getPage(context);
+
+        this.browser = existingPage != null ? ((PageImpl) existingPage).getBrowser() : null;
+        this.session = (this.browser != null)  ? this.browser.getSession() : null;
+        this.userContextId = (existingPage != null) ? existingPage.getUserContextId() : null;
+
+        // 🔹 Falls keine existierende Seite vorhanden ist, eine neue Instanz initialisieren
+        this.pageId = context.value();
+        this.isClosed = false;
+        this.url = load.getParams().getUrl();
     }
 
     public PageImpl(WDBrowsingContextEvent.DomContentLoaded domContentLoaded) {
-        // ToDo: Implement this
+        WDBrowsingContext context = domContentLoaded.getParams().getContext();
+        PageImpl existingPage = BrowserImpl.getPage(context);
+
+        // 🔹 Übernahme der bestehenden Browser-Instanz und Session, falls vorhanden
+        this.browser = existingPage != null ? existingPage.getBrowser() : null;
+        this.session = (this.browser != null) ? this.browser.getSession() : null;
+        this.userContextId = (existingPage != null) ? existingPage.getUserContextId() : null;
+
+        // 🔹 Falls keine existierende Seite vorhanden ist, eine neue Instanz initialisieren
+        this.pageId = context.value();
+        this.isClosed = false;
+        this.url = domContentLoaded.getParams().getUrl();
     }
 
     public PageImpl(WDBrowsingContextEvent.Destroyed destroyed) {
-        // ToDo: Implement this
+        WDBrowsingContext context = destroyed.getParams().getContext();
+        PageImpl existingPage = BrowserImpl.getPage(context);
+
+        // 🔹 Falls die Page existiert, markieren wir sie als geschlossen
+        this.browser = existingPage != null ? existingPage.getBrowser() : null;
+        this.session = (this.browser != null) ? this.browser.getSession() : null;
+        this.userContextId = (existingPage != null) ? existingPage.getUserContextId() : null;
+
+        this.pageId = context.value();
+        this.isClosed = true;  // Diese Page gilt als "destroyed"
+        this.url = (existingPage != null) ? existingPage.url() : null;
     }
 
     public PageImpl(WDBrowsingContextEvent.Created created) {
         WDBrowsingContext context = created.getParams().getContext();
-
-        // 🔹 Überprüfen, ob es eine bestehende Seite gibt
         PageImpl existingPage = BrowserImpl.getPage(context);
-        if (existingPage != null) {
-            // ✅ Seite existiert bereits, also diese verwenden
-            this.pageId = existingPage.getBrowsingContextId();
-            this.userContextId = existingPage.getUserContextId();
-            this.isClosed = false;
-            this.url = existingPage.url();
-            return;
-        }
 
-        // 🔹 Falls keine existierende Seite vorhanden ist, eine neue Instanz initialisieren
+        // 🔹 Falls eine existierende Page vorhanden ist, übernehmen wir ihre fehlenden Werte
+        this.browser = existingPage != null ? existingPage.getBrowser() : null;
+        this.session = (this.browser != null) ? this.browser.getSession() : null;
+        this.userContextId = (existingPage != null) ? existingPage.getUserContextId() : created.getParams().getUserContext().value();
+
         this.pageId = context.value();
-        this.userContextId = created.getParams().getUserContext() != null ? created.getParams().getUserContext().value() : null;
         this.isClosed = false;
-        this.url = "about:blank"; // Standardwert setzen
+        this.url = created.getParams().getUrl();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -467,7 +483,7 @@ public class PageImpl implements Page {
     public void close() {
         if (!isClosed) {
             isClosed = true;
-            browsingContextManager.close(pageId);
+            browser.getBrowsingContextManager().close(pageId);
         }
     }
 
@@ -690,14 +706,14 @@ public class PageImpl implements Page {
 
     @Override
     public Response goBack(GoBackOptions options) {
-        browsingContextManager.traverseHistory(pageId, -1);
+        browser.getBrowsingContextManager().traverseHistory(pageId, -1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
 
     @Override
     public Response goForward(GoForwardOptions options) {
-        browsingContextManager.traverseHistory(pageId, 1);
+        browser.getBrowsingContextManager().traverseHistory(pageId, 1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -718,7 +734,7 @@ public class PageImpl implements Page {
         this.url = url;
 
         // WebDriver BiDi Befehl senden
-        WDBrowsingContextResult.NavigateResult navigate = browsingContextManager.navigate(url, pageId);
+        WDBrowsingContextResult.NavigateResult navigate = browser.getBrowsingContextManager().navigate(url, pageId);
 
         return new PlaywrightResponse<WDBrowsingContextResult.NavigateResult>(navigate);
     }
@@ -855,7 +871,7 @@ public class PageImpl implements Page {
 
     @Override
     public Response reload(ReloadOptions options) {
-        browsingContextManager.reload(pageId);
+        browser.getBrowsingContextManager().reload(pageId);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -902,7 +918,7 @@ public class PageImpl implements Page {
 
     @Override
     public byte[] screenshot(ScreenshotOptions options) {
-        WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult = browsingContextManager.captureScreenshot(pageId);
+        WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult = browser.getBrowsingContextManager().captureScreenshot(pageId);
         String base64Image = captureScreenshotResult.getData();
         return Base64.getDecoder().decode(base64Image);
     }
@@ -1178,5 +1194,9 @@ public class PageImpl implements Page {
 
     public String getUserContextId() {
         return userContextId;
+    }
+
+    public BrowserImpl getBrowser() {
+        return browser;
     }
 }

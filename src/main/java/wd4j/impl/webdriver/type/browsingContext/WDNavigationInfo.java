@@ -3,10 +3,10 @@ package wd4j.impl.webdriver.type.browsingContext;
 public class WDNavigationInfo {
     private final WDBrowsingContext context;
     private final WDNavigation navigation;
-    private final char timestamp;
+    private final long timestamp;
     private final String url;
 
-    public WDNavigationInfo(WDBrowsingContext context, WDNavigation navigation, char timestamp, String url) {
+    public WDNavigationInfo(WDBrowsingContext context, WDNavigation navigation, long timestamp, String url) {
         this.context = context;
         this.navigation = navigation;
         this.timestamp = timestamp;
@@ -21,7 +21,7 @@ public class WDNavigationInfo {
         return navigation;
     }
 
-    public char getTimestamp() {
+    public long getTimestamp() {
         return timestamp;
     }
 
