@@ -591,7 +591,8 @@ public class MainController {
                 + "     document.addEventListener('mouseover', function(event) {"
                 + "         var el = event.target;"
                 + "         var selector = getSelector(el);"
-                + "         tooltip.textContent = selector;"
+                + "         var id = el.id ? ' ID: ' + el.id : '';"
+                + "         tooltip.textContent = selector + id;"
                 + "         tooltip.style.top = (event.clientY + 10) + 'px';"
                 + "         tooltip.style.left = (event.clientX + 10) + 'px';"
                 + "         tooltip.style.display = 'block';"
@@ -603,7 +604,7 @@ public class MainController {
                 + " }"
 
                 + " document.addEventListener('DOMContentLoaded', initializeTooltip);"
-                + "})";
+                + "})"; // ❌ KEINE `()` AM ENDE !!!
 
 
         ((BrowserImpl) browser).getScriptManager().addPreloadScript(preloadScript, ((PageImpl) selectedPage).getBrowsingContextId());
