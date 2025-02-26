@@ -2,6 +2,7 @@ package wd4j.impl.webdriver.event;
 
 import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.WDModule;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.browsingContext.WDInfo;
 import wd4j.impl.webdriver.type.browsingContext.WDNavigationInfo;
 import wd4j.impl.webdriver.type.browsingContext.WDUserPromptType;
@@ -280,6 +281,54 @@ public class WDBrowsingContextEvent implements WDModule {
                         ", message='" + message + '\'' +
                         ", type=" + type +
                         ", defaultValue='" + defaultValue + '\'' +
+                        '}';
+            }
+        }
+    }
+
+    // ToDo: Check this:
+    public static class HistoryUodated extends WDEvent<HistoryUodated.HistoryUpdatedParameters> {
+        private String method = WDEventMapping.HISTORY_UPDATED.getName();
+
+        public HistoryUodated(JsonObject json) {
+            super(json, HistoryUpdatedParameters.class);
+        }
+
+        @Override
+        public String getMethod() {
+            return method;
+        }
+
+        public static class HistoryUpdatedParameters {
+            private WDBrowsingContext context; // browsingContext.BrowsingContext (vermutlich eine ID als String)
+            private String url;
+
+            public HistoryUpdatedParameters(WDBrowsingContext context, String url) {
+                this.context = context;
+                this.url = url;
+            }
+
+            public WDBrowsingContext getContext() {
+                return context;
+            }
+
+            public void setContext(WDBrowsingContext context) {
+                this.context = context;
+            }
+
+            public String getUrl() {
+                return url;
+            }
+
+            public void setUrl(String url) {
+                this.url = url;
+            }
+
+            @Override
+            public String toString() {
+                return "HistoryUpdatedParameters{" +
+                        "context='" + context + '\'' +
+                        ", length=" + url +
                         '}';
             }
         }

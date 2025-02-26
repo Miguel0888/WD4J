@@ -6,6 +6,7 @@ import wd4j.api.Response;
 import wd4j.api.options.HttpHeader;
 import wd4j.api.options.SecurityDetails;
 import wd4j.api.options.ServerAddr;
+import wd4j.impl.webdriver.event.WDNetworkEvent;
 import wd4j.impl.webdriver.event.WDNetworkEvent.ResponseStarted;
 import wd4j.impl.webdriver.type.network.WDResponseData;
 import wd4j.impl.webdriver.type.network.WDHeader;
@@ -15,11 +16,11 @@ import java.util.stream.Collectors;
 
 public class ResponseImpl implements Response {
 
-    private final ResponseStarted.ResponseStartedParametersWD responseParams; // 🔹 Speichert das gesamte Event-DTO
-    private final WDResponseData responseData;
-    private final Request request;
-    private final Frame frame;
-    private final byte[] responseBody; // 🔹 Speichert den Response-Body
+    private ResponseStarted.ResponseStartedParametersWD responseParams; // 🔹 Speichert das gesamte Event-DTO
+    private WDResponseData responseData;
+    private Request request;
+    private Frame frame;
+    private byte[] responseBody; // 🔹 Speichert den Response-Body
 
     public ResponseImpl(ResponseStarted event, byte[] responseBody) {
         this.responseParams = event.getParams(); // 🔹 Speichere das komplette Event-Objekt
@@ -27,6 +28,14 @@ public class ResponseImpl implements Response {
         this.request = null; // TODO: Mapping von `request`
         this.frame = null; // TODO: Mapping von `frame`
         this.responseBody = responseBody; // 🔹 Response-Body speichern
+    }
+
+    public ResponseImpl(WDNetworkEvent.FetchError fetchError, Object responseBody) {
+        // TODO: Mapping von `fetchError`
+    }
+
+    public ResponseImpl(WDNetworkEvent.ResponseCompleted responseCompleted, Object responseBody) {
+        // TODO: Mapping von `responseCompleted`
     }
 
     /**

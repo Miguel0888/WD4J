@@ -11,10 +11,7 @@ import wd4j.impl.playwright.PageImpl;
 import wd4j.impl.playwright.WebSocketImpl;
 import wd4j.impl.playwright.event.*;
 import wd4j.impl.webdriver.command.response.WDSessionResult;
-import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
-import wd4j.impl.webdriver.event.WDEventMapping;
-import wd4j.impl.webdriver.event.WDLogEvent;
-import wd4j.impl.webdriver.event.WDNetworkEvent;
+import wd4j.impl.webdriver.event.*;
 import wd4j.impl.webdriver.mapping.GsonMapperFactory;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.session.WDSubscription;
@@ -161,67 +158,79 @@ public class EventDispatcher {
 
 
     public Object mapEvent(String eventType, JsonObject json) {
-        switch (eventType) {
-            // ✅ Console-Events
-            case "log.entryAdded":
+        WDEventMapping eventMapping = WDEventMapping.fromName(eventType);
+        if (eventMapping == null) {
+            return null; // Falls das Event nicht bekannt ist, nichts zurückgeben
+        }
+
+        switch (eventMapping) {
+            // 🔹 Browsing Context Events
+            case CONTEXT_CREATED:
+                return new PageImpl(new WDBrowsingContextEvent.Created(json));
+            case CONTEXT_DESTROYED:
+                return new PageImpl(new WDBrowsingContextEvent.Destroyed(json));
+
+            case NAVIGATION_STARTED:
+                return new FrameImpl(new WDBrowsingContextEvent.NavigationStarted(json));
+            case NAVIGATION_COMMITTED:
+                return null; // ToDo: How map onto Playwright?
+            case NAVIGATION_FAILED:
+                return new FrameImpl(new WDBrowsingContextEvent.NavigationFailed(json));
+            case NAVIGATION_ABORTED:
+                return new FrameImpl(new WDBrowsingContextEvent.NavigationAborted(json));
+            case FRAGMENT_NAVIGATED:
+                return new FrameImpl(new WDBrowsingContextEvent.FragmentNavigated(json)); // ToDo: Check if correct
+            case HISTORY_UPDATED:
+                return new FrameImpl(new WDBrowsingContextEvent.HistoryUodated(json));
+
+            case DOM_CONTENT_LOADED:
+                return new PageImpl(new WDBrowsingContextEvent.DomContentLoaded(json));
+            case LOAD:
+                return new PageImpl(new WDBrowsingContextEvent.Load(json));
+
+            case DOWNLOAD_WILL_BEGIN:
+                return new DownloadImpl(new WDBrowsingContextEvent.DownloadWillBegin(json));
+
+            case USER_PROMPT_OPENED:
+                return new DialogImpl(new WDBrowsingContextEvent.UserPromptOpened(json));
+            case USER_PROMPT_CLOSED:
+                return new DialogImpl(new WDBrowsingContextEvent.UserPromptClosed(json));
+
+            // 🔹 Network Events
+            case AUTH_REQUIRED:
+                return new AuthChallenge(new WDNetworkEvent.AuthRequired(json)); // ToDo: How map onto Playwright?
+
+            case BEFORE_REQUEST_SENT:
+                return new RequestImpl(new WDNetworkEvent.BeforeRequestSent(json));
+
+            case FETCH_ERROR:
+                return new ResponseImpl(new WDNetworkEvent.FetchError(json), null);
+
+            case RESPONSE_STARTED:
+                return new ResponseImpl(new WDNetworkEvent.ResponseStarted(json), null);
+            case RESPONSE_COMPLETED:
+                return new ResponseImpl(new WDNetworkEvent.ResponseCompleted(json), null);
+
+            // 🔹 WebSocket Events
+            case MESSAGE:
                 return new ConsoleMessageImpl(new WDLogEvent.EntryAdded(json));
 
-            // ✅ Netzwerk-Events
-            case "network.responseStarted":
-                return new ResponseImpl(new WDNetworkEvent.ResponseStarted(json), null);
-            case "network.requestWillBeSent":
-                return new RequestImpl(new WDNetworkEvent.RequestWillBeSent(json));
-            case "network.requestFailed":
-                return new RequestFailedImpl(new WDNetworkEvent.RequestFailed(json));
-            case "network.requestFinished":
-                return new RequestFinishedImpl(new WDNetworkEvent.RequestFinished(json));
+            // 🔹 Script Events
+            case REALM_CREATED:
+                return new WorkerImpl(new WDScriptEvent.RealmCreated(json));
+            case REALM_DESTROYED:
+                return new WorkerImpl(new WDScriptEvent.RealmDestroyed(json));
 
-            // ✅ BrowsingContext (Seitenbezogene Events)
-            case "browsingContext.domContentLoaded":
-                return new PageImpl(new WDBrowsingContextEvent(json));
-            case "browsingContext.load":
-                return new PageImpl(new WDBrowsingContextEvent(json)); // Page Load Event
-            case "browsingContext.fragmentNavigated":
-                return new NavigationImpl(new WDBrowsingContextEvent(json));
-
-            // ✅ WebSocket-Events
-            case "network.webSocketCreated":
-                return new WebSocketImpl(new WDNetworkEvent.WebSocketCreated(json));
-            case "network.webSocketClosed":
-                return new WebSocketImpl(new WDNetworkEvent.WebSocketClosed(json));
-            case "network.webSocketFrameSent":
-                return new WebSocketImpl.WebSocketFrameImpl(new WDNetworkEvent.WebSocketFrameSent(json));
-            case "network.webSocketFrameReceived":
-                return new WebSocketImpl.WebSocketFrameImpl(new WDNetworkEvent.WebSocketFrameReceived(json));
-
-            // ✅ Dialoge (Alerts, Prompts, Confirms)
-            case "browsingContext.dialogOpened":
-                return new DialogImpl(new WDDialogEvent.DialogOpened(json));
-            case "browsingContext.dialogClosed":
-                return new DialogImpl(new WDDialogEvent.DialogClosed(json));
-
-            // ✅ Web Worker Events
-            case "browsingContext.workerStarted":
-                return new WorkerImpl(new WDWorkerEvent.WorkerStarted(json));
-            case "browsingContext.workerTerminated":
-                return new WorkerImpl(new WDWorkerEvent.WorkerTerminated(json));
-
-            // ✅ Page Events
-            case "browsingContext.pageCrashed":
-                return new PageImpl(new WDBrowsingContextEvent(json));
-            case "browsingContext.pageClosed":
-                return new PageImpl(new WDBrowsingContextEvent(json));
-
-            // ✅ Sonstige Playwright Events
-            case "browsingContext.popupOpened":
-                return new PageImpl(new WDBrowsingContextEvent(json)); // Playwright's Popup Event
-            case "network.certificateError":
-                return new SecurityDetailsImpl(new WDSecurityEvent.CertificateError(json));
+            // 🔹 Log Events
+            case ENTRY_ADDED:
+                return new ConsoleMessageImpl(new WDLogEvent.EntryAdded(json));
 
             default:
                 return null;
         }
     }
+
+
 
 
 }

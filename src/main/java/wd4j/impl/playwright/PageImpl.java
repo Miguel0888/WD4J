@@ -26,13 +26,13 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 public class PageImpl implements Page {
-    private final WebSocketManager webSocketManager;
-    private final String pageId; // aka. browsing context id or navigable id in WebDriver BiDi
-    private final String userContextId; // aka. simply as contextId in CDP - default is "default"
+    private WebSocketManager webSocketManager;
+    private String pageId; // aka. browsing context id or navigable id in WebDriver BiDi
+    private String userContextId; // aka. simply as contextId in CDP - default is "default"
 
-    private final Session session;
-    private final WDSessionManager sessionManager;
-    private final WDBrowsingContextManager browsingContextManager;
+    private Session session;
+    private WDSessionManager sessionManager;
+    private WDBrowsingContextManager browsingContextManager;
     private boolean isClosed;
     private String url;
 
@@ -86,6 +86,22 @@ public class PageImpl implements Page {
 
     public PageImpl(WDBrowsingContextEvent wdBrowsingContextEvent) {
         this((BrowserImpl) null); // ToDo: Implement this
+    }
+
+    public PageImpl(WDBrowsingContextEvent.Load load) {
+        // ToDo: Implement this
+    }
+
+    public PageImpl(WDBrowsingContextEvent.DomContentLoaded domContentLoaded) {
+        // ToDo: Implement this
+    }
+
+    public PageImpl(WDBrowsingContextEvent.Destroyed destroyed) {
+        // ToDo: Implement this
+    }
+
+    public PageImpl(WDBrowsingContextEvent.Created created) {
+        // ToDo: Implement this
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
