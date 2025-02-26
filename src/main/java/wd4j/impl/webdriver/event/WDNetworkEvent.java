@@ -139,10 +139,10 @@ public class WDNetworkEvent implements WDModule {
         public static class ResponseCompletedParametersWD extends WDBaseParameters {
             private WDResponseData response;
 
-            public ResponseCompletedParametersWD(WDBrowsingContext context, boolean isBlocked, WDNavigation WDNavigation, char redirectCount,
-                                                 WDRequestData request, long timestamp, List<WDIntercept> WDIntercepts,
+            public ResponseCompletedParametersWD(WDBrowsingContext context, boolean isBlocked, WDNavigation navigation, char redirectCount,
+                                                 WDRequestData request, long timestamp, List<WDIntercept> intercepts,
                                                  WDResponseData response) {
-                super(context, isBlocked, WDNavigation, redirectCount, request, timestamp, WDIntercepts);
+                super(context, isBlocked, navigation, redirectCount, request, timestamp, intercepts);
                 this.response = response;
             }
 

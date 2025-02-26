@@ -101,7 +101,24 @@ public class PageImpl implements Page {
     }
 
     public PageImpl(WDBrowsingContextEvent.Created created) {
-        // ToDo: Implement this
+        WDBrowsingContext context = created.getParams().getContext();
+
+        // 🔹 Überprüfen, ob es eine bestehende Seite gibt
+        PageImpl existingPage = BrowserImpl.getPage(context);
+        if (existingPage != null) {
+            // ✅ Seite existiert bereits, also diese verwenden
+            this.pageId = existingPage.getBrowsingContextId();
+            this.userContextId = existingPage.getUserContextId();
+            this.isClosed = false;
+            this.url = existingPage.url();
+            return;
+        }
+
+        // 🔹 Falls keine existierende Seite vorhanden ist, eine neue Instanz initialisieren
+        this.pageId = context.value();
+        this.userContextId = created.getParams().getUserContext() != null ? created.getParams().getUserContext().value() : null;
+        this.isClosed = false;
+        this.url = "about:blank"; // Standardwert setzen
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -3,19 +3,19 @@ package wd4j.impl.playwright;
 import wd4j.impl.manager.*;
 import wd4j.api.*;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.websocket.WDException;
 import wd4j.impl.websocket.WebSocketManager;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class BrowserImpl implements Browser {
     private static final List<BrowserImpl> browsers = new ArrayList<>(); // ToDo: Improve this
+    private final Map<String, Page> pages = new ConcurrentHashMap<>(); // aka. BrowsingContexts / Navigables in WebDriver BiDi
 
     private final BrowserTypeImpl browserType;
     private final Session session;
@@ -30,8 +30,6 @@ public class BrowserImpl implements Browser {
     private WDNetworkManager networkManager;
     private WDStorageManager storageManager;
     private WDWebExtensionManager webExtensionManager;
-
-    private final List<PageImpl> pages = new ArrayList<>(); // aka. BrowsingContexts / Navigables in WebDriver BiDi
 
     public BrowserImpl(WebSocketManager webSocketManager, BrowserTypeImpl browserType, Process process) throws ExecutionException, InterruptedException {
         browsers.add(this);
@@ -77,14 +75,15 @@ public class BrowserImpl implements Browser {
         } catch (WDException ignored) {}
     }
 
-    private void fetchDefaultBrowsingContexts(List<PageImpl> currentPages, String userContextId) {
+    private void fetchDefaultBrowsingContexts(Map<String, Page> currentPages, String userContextId) {
         // Get all browsing contexts (pages / tabs) already available
         try {
             // Check if a context is already available
             WDBrowsingContextResult.GetTreeResult tree = browsingContextManager.getTree();
             tree.getContexts().forEach(context -> {
                 System.out.println("BrowsingContext: " + context.getContext().value());
-                currentPages.add(new PageImpl(this, null, context.getContext()));
+                currentPages.put(context.getContext().value(),
+                        new PageImpl(this, null, context.getContext()));
             });
         } catch (WDException ignored) {}
     }
@@ -162,7 +161,7 @@ public class BrowserImpl implements Browser {
     @Override
     public Page newPage(NewPageOptions options) {
         PageImpl page = new PageImpl(this);
-        pages.add(page);
+        pages.put(page.getBrowsingContextId(), page);
         return page;
     }
 
@@ -232,11 +231,22 @@ public class BrowserImpl implements Browser {
         return webSocketManager;
     }
 
-    public List<PageImpl> getPages() {
+    public Map<String, Page> getPages() {
         return pages;
     }
 
     public List<UserContextImpl> getUserContextImpls() {
         return userContextImpls;
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static PageImpl getPage(WDBrowsingContext context) {
+        return (PageImpl) BrowserImpl.getBrowsers().stream()
+                .map(browser -> browser.getPages().get(context.value()))  // 🔹 Direkter Map-Access (O(1))
+                .filter(Objects::nonNull) // Falls null, überspringen
+                .findFirst()
+                .orElse(null);
+    }
+
 }

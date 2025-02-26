@@ -38,11 +38,7 @@ public class ConsoleMessageImpl implements ConsoleMessage {
         WDSource source = logEntry.getSource();
         if (source != null && source.getContext() != null) {
             WDBrowsingContext context = source.getContext();
-            this.page = BrowserImpl.getBrowsers().stream()
-                    .flatMap(browser -> browser.getPages().stream())
-                    .filter(page -> page.getBrowsingContextId().equals(context.value()))
-                    .findFirst()
-                    .orElse(null);
+            this.page = BrowserImpl.getPage(context);
         } else {
             this.page = null; // Keine gültige Page gefunden
         }

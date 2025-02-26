@@ -389,8 +389,8 @@ public class MainController {
             Main.browsingContextDropdown.removeAllItems();
             Main.browsingContextDropdown.addItem("All"); // Standardwert
 
-            for (PageImpl page : ((BrowserImpl) browser).getPages()) {
-                Main.browsingContextDropdown.addItem(page.getBrowsingContextId());
+            for (String contextId : ((BrowserImpl) browser).getPages().keySet()) {
+                Main.browsingContextDropdown.addItem(contextId);
             }
         });
     }
@@ -407,18 +407,16 @@ public class MainController {
 
     public void updateSelectedPage() {
         String selectedContextId = (String) Main.browsingContextDropdown.getSelectedItem();
-        if(selectedContextId == null)
-        {
+        if (selectedContextId == null) {
             return;
         }
+
         if (selectedContextId.equals("All")) {
-            selectedPage = null; // Alle Seiten beobachten
+            selectedPage = null; // 🔹 Alle Seiten beobachten
         } else {
-            selectedPage = ((BrowserImpl) browser).getPages().stream()
-                    .filter(page -> page.getBrowsingContextId().equals(selectedContextId))
-                    .findFirst()
-                    .orElse(null);
+            selectedPage = ((BrowserImpl) browser).getPages().get(selectedContextId);
         }
+
         System.out.println("Selected Page updated: " + (selectedPage != null ? ((PageImpl) selectedPage) : "All"));
     }
 
