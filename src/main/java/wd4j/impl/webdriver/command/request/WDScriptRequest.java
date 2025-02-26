@@ -7,6 +7,7 @@ import wd4j.impl.webdriver.type.browser.WDUserContext;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.*;
 
+import java.util.Collections;
 import java.util.List;
 
 public class WDScriptRequest {
@@ -28,6 +29,10 @@ public class WDScriptRequest {
     public static class AddPreloadScript extends WDCommandImpl<AddPreloadScriptParameters> implements WDCommandData {
         public AddPreloadScript(String script) {
             super("script.addPreloadScript", new AddPreloadScriptParameters(script));
+        }
+        public AddPreloadScript(String script, String context) {
+            super("script.addPreloadScript", new AddPreloadScriptParameters(script,
+                    Collections.singletonList(new WDBrowsingContext(context))));
         }
         public AddPreloadScript(String script, List<WDChannelValue> arguments, List<WDBrowsingContext> WDBrowsingContexts, List<WDUserContext> WDUserContexts, String sandbox) {
             super("script.addPreloadScript", new AddPreloadScriptParameters(script, arguments, WDBrowsingContexts, WDUserContexts, sandbox));
@@ -70,11 +75,11 @@ public class WDScriptRequest {
      * true, in which case the resolved value of the promise is returned.
       */
     public static class Evaluate extends WDCommandImpl<EvaluateParameters> implements WDCommandData {
-        public Evaluate(String expression, WDTarget WDTarget, boolean awaitPromise) {
-            super("script.evaluate", new EvaluateParameters(expression, WDTarget, awaitPromise));
+        public Evaluate(String expression, WDTarget target, boolean awaitPromise) {
+            super("script.evaluate", new EvaluateParameters(expression, target, awaitPromise));
         }
-        public Evaluate(String expression, WDTarget WDTarget, boolean awaitPromise, WDResultOwnership WDResultOwnership, WDSerializationOptions WDSerializationOptions, boolean userActivation) {
-            super("script.evaluate", new EvaluateParameters(expression, WDTarget, awaitPromise, WDResultOwnership, WDSerializationOptions, userActivation));
+        public Evaluate(String expression, WDTarget target, boolean awaitPromise, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions, boolean userActivation) {
+            super("script.evaluate", new EvaluateParameters(expression, target, awaitPromise, resultOwnership, serializationOptions, userActivation));
         }
     }
 

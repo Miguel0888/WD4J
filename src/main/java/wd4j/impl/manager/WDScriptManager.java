@@ -43,7 +43,7 @@ public class WDScriptManager implements WDModule {
      */
     public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script, String target) {
         return webSocketManager.sendAndWaitForResponse(
-                new WDScriptRequest.AddPreloadScript(script),
+                new WDScriptRequest.AddPreloadScript(script, target), // ToDo: Improve this
                 WDScriptResult.AddPreloadScriptResult.class
         );
     }
@@ -85,12 +85,12 @@ public class WDScriptManager implements WDModule {
      * Evaluates the given expression in the specified target.
      *
      * @param script    The script to evaluate.
-     * @param WDTarget    The target where the script is evaluated. See {@link WDTarget}.
+     * @param wdTarget    The target where the script is evaluated. See {@link WDTarget}.
      * @throws RuntimeException if the operation fails.
      */
-    public WDEvaluateResult evaluate(String script, WDTarget WDTarget, boolean awaitPromise) {
+    public WDEvaluateResult evaluate(String script, WDTarget wdTarget, boolean awaitPromise) {
         return webSocketManager.sendAndWaitForResponse(
-                new WDScriptRequest.Evaluate(script, WDTarget, awaitPromise),
+                new WDScriptRequest.Evaluate(script, wdTarget, awaitPromise),
                 WDEvaluateResult.class
         );
     }

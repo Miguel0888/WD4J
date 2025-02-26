@@ -3,12 +3,10 @@ package wd4j.impl.support;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.api.ConsoleMessage;
-import wd4j.api.Frame;
 import wd4j.api.Request;
 import wd4j.api.Response;
 import wd4j.impl.manager.WDSessionManager;
 import wd4j.impl.playwright.PageImpl;
-import wd4j.impl.playwright.WebSocketImpl;
 import wd4j.impl.playwright.event.*;
 import wd4j.impl.webdriver.command.response.WDSessionResult;
 import wd4j.impl.webdriver.event.*;
@@ -181,7 +179,7 @@ public class EventDispatcher {
             case FRAGMENT_NAVIGATED:
                 return new FrameImpl(new WDBrowsingContextEvent.FragmentNavigated(json));
             case HISTORY_UPDATED:
-                return new FrameImpl(new WDBrowsingContextEvent.HistoryUodated(json));
+                return new FrameImpl(new WDBrowsingContextEvent.HistoryUpdated(json));
 
             case DOM_CONTENT_LOADED:
                 return new PageImpl(new WDBrowsingContextEvent.DomContentLoaded(json));

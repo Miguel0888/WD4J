@@ -29,6 +29,8 @@ public class Main {
     public static JTextField profilePathField;
     public static JTextField portField;
 
+    public static JCheckBox showSelectors;
+
     private static JButton eventDropdownButton;
     private static JPopupMenu eventMenu;
     public static final Map<String, JCheckBoxMenuItem> eventCheckboxes = new HashMap<>();
@@ -53,23 +55,15 @@ public class Main {
         JFrame frame = new JFrame("Web Testing Dashboard");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        // Erste Toolbar (Browser-Steuerung)
-        JToolBar browserToolBar = createBrowserToolBar();
-
-        // Zweite Toolbar (Navigation)
-        JToolBar navigationToolBar = createNavigationToolBar();
-
-        // Dritte Toolbar (Event-Steuerung)
-        JToolBar eventToolBar = createEventToolBar();
-
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // Toolbar-Panel mit vier Zeilen
         JPanel toolBarPanel = new JPanel();
-        toolBarPanel.setLayout(new GridLayout(4, 1)); // Statt 3 nun 4 Zeilen
+        toolBarPanel.setLayout(new GridLayout(5, 1));
         toolBarPanel.add(createBrowserToolBar());
         toolBarPanel.add(createContextsToolbar());
         toolBarPanel.add(createNavigationToolBar());
         toolBarPanel.add(createEventToolBar());
+        toolBarPanel.add(createScriptToolbar());
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -233,6 +227,20 @@ public class Main {
         eventToolbar.add(clearLogButton);
 
         return eventToolbar;
+    }
+
+    private static JToolBar createScriptToolbar() {
+        JToolBar scriptToolbar = new JToolBar();
+
+        showSelectors = new JCheckBox("Show Selectors");
+
+        showSelectors.addActionListener(e -> {
+            controller.showSelectors(showSelectors.isSelected());
+        });
+
+        scriptToolbar.add(showSelectors);
+
+        return scriptToolbar;
     }
 
     private static JToolBar createContextsToolbar() {

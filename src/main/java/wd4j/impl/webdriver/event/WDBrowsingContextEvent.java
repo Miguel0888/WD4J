@@ -287,10 +287,10 @@ public class WDBrowsingContextEvent implements WDModule {
     }
 
     // ToDo: Check this:
-    public static class HistoryUodated extends WDEvent<HistoryUodated.HistoryUpdatedParameters> {
+    public static class HistoryUpdated extends WDEvent<HistoryUpdated.HistoryUpdatedParameters> {
         private String method = WDEventMapping.HISTORY_UPDATED.getName();
 
-        public HistoryUodated(JsonObject json) {
+        public HistoryUpdated(JsonObject json) {
             super(json, HistoryUpdatedParameters.class);
         }
 

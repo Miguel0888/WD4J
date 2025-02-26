@@ -5,9 +5,12 @@ import wd4j.api.options.AriaRole;
 import wd4j.api.options.FilePayload;
 import wd4j.api.options.LoadState;
 import wd4j.api.options.SelectOption;
+import wd4j.impl.playwright.BrowserImpl;
+import wd4j.impl.playwright.PageImpl;
 import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
@@ -15,42 +18,74 @@ import java.util.regex.Pattern;
 
 public class FrameImpl implements Frame {
 
-    public FrameImpl(WDBrowsingContextEvent wdBrowsingContextEvent) {
-        // ToDo: Implement this constructor
-    }
+    private String frameId;
+    private PageImpl page;
+    private String url;
+    private boolean isDetached;
+    private final List<Frame> childFrames;
 
+    // 🔹 Konstruktor für Fragment-Navigation
     public FrameImpl(WDBrowsingContextEvent.FragmentNavigated fragmentNavigated) {
-        // ToDo: Implement this constructor
+        this.frameId = fragmentNavigated.getParams().getContext().value();
+        this.page = BrowserImpl.getPage(fragmentNavigated.getParams().getContext());
+        this.url = fragmentNavigated.getParams().getUrl();
+        this.isDetached = false;
+        this.childFrames = new ArrayList<>();
     }
 
+    // 🔹 Konstruktor für Abbruch einer Navigation
     public FrameImpl(WDBrowsingContextEvent.NavigationAborted navigationAborted) {
-        // ToDo: Implement this constructor
+        this.frameId = navigationAborted.getParams().getContext().value();
+        this.page = BrowserImpl.getPage(navigationAborted.getParams().getContext());
+        this.url = navigationAborted.getParams().getUrl();
+        this.isDetached = false;
+        this.childFrames = new ArrayList<>();
     }
 
+    // 🔹 Konstruktor für eine fehlgeschlagene Navigation
     public FrameImpl(WDBrowsingContextEvent.NavigationFailed navigationFailed) {
-        // ToDo: Implement this constructor
+        this.frameId = navigationFailed.getParams().getContext().value();
+        this.page = BrowserImpl.getPage(navigationFailed.getParams().getContext());
+        this.url = navigationFailed.getParams().getUrl();
+        this.isDetached = false;
+        this.childFrames = new ArrayList<>();
     }
 
+    // 🔹 Konstruktor für eine gestartete Navigation
     public FrameImpl(WDBrowsingContextEvent.NavigationStarted navigationStarted) {
-        // ToDo: Implement this constructor
+        this.frameId = navigationStarted.getParams().getContext().value();
+        this.page = BrowserImpl.getPage(navigationStarted.getParams().getContext());
+        this.url = navigationStarted.getParams().getUrl();
+        this.isDetached = false;
+        this.childFrames = new ArrayList<>();
     }
 
-    public FrameImpl(WDBrowsingContextEvent.HistoryUodated historyUodated) {
-        // ToDo: Implement this constructor
+    // 🔹 Konstruktor für eine aktualisierte History
+    public FrameImpl(WDBrowsingContextEvent.HistoryUpdated historyUpdated) {
+        this.frameId = historyUpdated.getParams().getContext().value();
+        this.page = BrowserImpl.getPage(historyUpdated.getParams().getContext());
+        this.url = historyUpdated.getParams().getUrl();
+        this.isDetached = false;
+        this.childFrames = new ArrayList<>();
     }
 
+    // 🔹 Konstruktor für eine festgeschriebene Navigation
     public FrameImpl(WDBrowsingContextEvent.NavigationCommitted navigationCommitted) {
-        // ToDo: Implement this constructor
+        this.frameId = navigationCommitted.getParams().getContext().value();
+        this.page = BrowserImpl.getPage(navigationCommitted.getParams().getContext());
+        this.url = navigationCommitted.getParams().getUrl();
+        this.isDetached = false;
+        this.childFrames = new ArrayList<>();
     }
 
     @Override
     public ElementHandle addScriptTag(AddScriptTagOptions options) {
-        return null;
+        throw new UnsupportedOperationException("addScriptTag not implemented yet.");
     }
 
     @Override
     public ElementHandle addStyleTag(AddStyleTagOptions options) {
-        return null;
+        throw new UnsupportedOperationException("addStyleTag not implemented yet.");
     }
 
     @Override
@@ -60,7 +95,7 @@ public class FrameImpl implements Frame {
 
     @Override
     public List<Frame> childFrames() {
-        return Collections.emptyList();
+        return Collections.unmodifiableList(childFrames);
     }
 
     @Override
@@ -230,7 +265,7 @@ public class FrameImpl implements Frame {
 
     @Override
     public boolean isDetached() {
-        return false;
+        return isDetached;
     }
 
     @Override
@@ -270,12 +305,12 @@ public class FrameImpl implements Frame {
 
     @Override
     public Page page() {
-        return null;
+        return this.page;
     }
 
     @Override
     public Frame parentFrame() {
-        return null;
+        return null; // Implementierung erforderlich, um das übergeordnete Frame zu ermitteln.
     }
 
     @Override
@@ -325,101 +360,141 @@ public class FrameImpl implements Frame {
 
     @Override
     public void setChecked(String selector, boolean checked, SetCheckedOptions options) {
-
+        // ToDo: Implementierung erforderlich
     }
 
     @Override
     public void setContent(String html, SetContentOptions options) {
-
+        evaluate("document.documentElement.innerHTML = arguments[0];", html);
     }
 
     @Override
     public void setInputFiles(String selector, Path files, SetInputFilesOptions options) {
-
+        // ToDo: Implementierung erforderlich
     }
 
     @Override
     public void setInputFiles(String selector, Path[] files, SetInputFilesOptions options) {
-
+        // ToDo: Implementierung erforderlich
     }
 
     @Override
     public void setInputFiles(String selector, FilePayload files, SetInputFilesOptions options) {
-
+        // ToDo: Implementierung erforderlich
     }
 
     @Override
     public void setInputFiles(String selector, FilePayload[] files, SetInputFilesOptions options) {
-
+        // ToDo: Implementierung erforderlich
     }
 
     @Override
     public void tap(String selector, TapOptions options) {
-
+        // ToDo: Implementierung erforderlich
     }
 
     @Override
     public String textContent(String selector, TextContentOptions options) {
+        // ToDo: Implementierung erforderlich
         return "";
     }
 
     @Override
     public String title() {
-        return "";
+        return evaluate("document.title").toString();
     }
 
     @Override
     public void type(String selector, String text, TypeOptions options) {
-
+        // ToDo: Implementierung erforderlich
     }
 
     @Override
     public void uncheck(String selector, UncheckOptions options) {
-
+        // ToDo: Implementierung erforderlich
     }
 
     @Override
     public String url() {
-        return "";
+        return url;
     }
 
     @Override
     public JSHandle waitForFunction(String expression, Object arg, WaitForFunctionOptions options) {
-        return null;
+        return evaluateHandle(expression, arg);
     }
 
     @Override
     public void waitForLoadState(LoadState state, WaitForLoadStateOptions options) {
-
+        while (!evaluate("document.readyState").equals(state.name().toLowerCase())) {
+            try {
+                Thread.sleep(50); // Polling alle 50ms
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     @Override
     public Response waitForNavigation(WaitForNavigationOptions options, Runnable callback) {
-        return null;
+        callback.run(); // ToDo: Implementierung erforderlich
+        return null; // Muss später mit echter Navigationslogik ergänzt werden
     }
 
     @Override
     public ElementHandle waitForSelector(String selector, WaitForSelectorOptions options) {
-        return null;
+        return null; // ToDo: Implementierung erforderlich
     }
 
     @Override
     public void waitForTimeout(double timeout) {
-
+        try {
+            Thread.sleep((long) timeout);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Override
     public void waitForURL(String url, WaitForURLOptions options) {
-
+        while (!this.url.equals(url)) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     @Override
     public void waitForURL(Pattern url, WaitForURLOptions options) {
-
+        while (!url.matcher(this.url).matches()) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     @Override
     public void waitForURL(Predicate<String> url, WaitForURLOptions options) {
+        while (!url.test(this.url)) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
 
+
+    // 🔹 Zusätzliche Methoden zur Frame-Verwaltung
+    public String getFrameId() {
+        return frameId;
+    }
+
+    public void detach() {
+        this.isDetached = true;
     }
 }

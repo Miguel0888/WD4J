@@ -12,6 +12,8 @@ import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.script.WDTarget;
 
 public class MainController {
 
@@ -545,4 +547,109 @@ public class MainController {
     private void deregisterPopupEvent() {
         if (selectedPage != null) selectedPage.offPopup(popupHandler);
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public void showSelectors(boolean selected) {
+        if (selectedPage != null) {
+            if (selected) {
+                showSelectors(selectedPage);
+            } else {
+                hideSelectors(selectedPage);
+            }
+        }
+    }
+
+    private void showSelectors(Page selectedPage) {
+        // Working in Firefox Console, but not via WD4J:
+//        String preloadScript = "(function(){ document.body.style.backgroundColor = 'red'; })();";
+
+        //Working via WD4J:
+//        String preloadScript = "(function(){ console.log(1234567890); })";
+
+        // Body NULL error
+//        String preloadScript = "(function(){"
+//                + " var tooltip = document.createElement('div');"
+//                + " tooltip.style.position = 'fixed';"
+//                + " tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';"
+//                + " tooltip.style.color = 'white';"
+//                + " tooltip.style.padding = '5px';"
+//                + " tooltip.style.borderRadius = '3px';"
+//                + " tooltip.style.fontSize = '12px';"
+//                + " tooltip.style.zIndex = '9999';"
+//                + " tooltip.style.pointerEvents = 'none';"
+//                + " document.body.appendChild(tooltip);"
+//
+//                + " function getSelector(element) {"
+//                + "     if (!element) return null;"
+//                + "     if (element.id) return '#' + element.id;"
+//                + "     if (element.className) return '.' + element.className.split(' ').join('.');"
+//                + "     return element.tagName.toLowerCase();"
+//                + " }"
+//
+//                + " document.addEventListener('mouseover', function(event) {"
+//                + "     var el = event.target;"
+//                + "     var selector = getSelector(el);"
+//                + "     tooltip.textContent = selector;"
+//                + "     tooltip.style.top = (event.clientY + 10) + 'px';"
+//                + "     tooltip.style.left = (event.clientX + 10) + 'px';"
+//                + "     tooltip.style.display = 'block';"
+//                + " });"
+//
+//                + " document.addEventListener('mouseout', function() {"
+//                + "     tooltip.style.display = 'none';"
+//                + " });"
+//                + "})";  // ❌ KEINE `()` AM ENDE !!!
+
+        String preloadScript = "(function() {"
+                + " function initializeTooltip() {"
+                + "     if (!document.body) return setTimeout(initializeTooltip, 50);"
+                + "     var tooltip = document.createElement('div');"
+                + "     tooltip.style.position = 'fixed';"
+                + "     tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';"
+                + "     tooltip.style.color = 'white';"
+                + "     tooltip.style.padding = '5px';"
+                + "     tooltip.style.borderRadius = '3px';"
+                + "     tooltip.style.fontSize = '12px';"
+                + "     tooltip.style.zIndex = '9999';"
+                + "     tooltip.style.pointerEvents = 'none';"
+                + "     document.body.appendChild(tooltip);"
+
+                + "     function getSelector(element) {"
+                + "         if (!element) return null;"
+                + "         if (element.id) return '#' + element.id;"
+                + "         if (element.className) return '.' + element.className.split(' ').join('.');"
+                + "         return element.tagName.toLowerCase();"
+                + "     }"
+
+                + "     document.addEventListener('mouseover', function(event) {"
+                + "         var el = event.target;"
+                + "         var selector = getSelector(el);"
+                + "         tooltip.textContent = selector;"
+                + "         tooltip.style.top = (event.clientY + 10) + 'px';"
+                + "         tooltip.style.left = (event.clientX + 10) + 'px';"
+                + "         tooltip.style.display = 'block';"
+                + "     });"
+
+                + "     document.addEventListener('mouseout', function() {"
+                + "         tooltip.style.display = 'none';"
+                + "     });"
+                + " }"
+
+                + " document.addEventListener('DOMContentLoaded', initializeTooltip);"
+                + "})";
+
+
+        ((BrowserImpl) browser).getScriptManager().addPreloadScript(preloadScript, ((PageImpl) selectedPage).getBrowsingContextId());
+    }
+
+    private void hideSelectors(Page selectedPage) {
+        String removeScript = "(function() {" +
+                "    var tooltip = document.getElementById('selector-tooltip');" +
+                "    if (tooltip) tooltip.remove();" +
+                "})();";
+
+        ((BrowserImpl) browser).getScriptManager().evaluate(removeScript, new WDTarget.ContextTarget(new WDBrowsingContext(((PageImpl) selectedPage).getBrowsingContextId())), false);
+    }
+
 }
