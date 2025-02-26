@@ -160,9 +160,11 @@ public class BrowserImpl implements Browser {
      */
     @Override
     public Page newPage(NewPageOptions options) {
-        PageImpl page = new PageImpl(this);
-        pages.put(page.getBrowsingContextId(), page);
-        return page;
+        synchronized (pages) { // Sperrt alle Zugriffe auf pages während der Erzeugung einer neuen ContextId
+            PageImpl page = new PageImpl(this);
+            pages.put(page.getBrowsingContextId(), page);
+            return page;
+        }
     }
 
     @Override
@@ -232,7 +234,9 @@ public class BrowserImpl implements Browser {
     }
 
     public Map<String, Page> getPages() {
-        return pages;
+        synchronized (pages) {
+            return pages;
+        }
     }
 
     public List<UserContextImpl> getUserContextImpls() {
@@ -241,6 +245,7 @@ public class BrowserImpl implements Browser {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    // ToDo: Es ist nicht ganz sicher, dass es hier keine Race-Conditions gibt
     public static PageImpl getPage(WDBrowsingContext context) {
         return (PageImpl) BrowserImpl.getBrowsers().stream()
                 .map(browser -> browser.getPages().get(context.value()))  // 🔹 Direkter Map-Access (O(1))
