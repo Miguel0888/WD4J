@@ -7,8 +7,13 @@ import wd4j.impl.playwright.PageImpl;
 import wd4j.impl.playwright.UserContextImpl;
 
 import javax.swing.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -567,45 +572,46 @@ public class MainController {
 //                + "}); "
 //                + "})"; // ❌ KEINE `()` AM ENDE !!!
 
-        String preloadScript = "(function() {"
-                + " function initializeTooltip() {"
-                + "     if (!document.body) return setTimeout(initializeTooltip, 50);"
-                + "     var tooltip = document.createElement('div');"
-                + "     tooltip.style.position = 'fixed';"
-                + "     tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';"
-                + "     tooltip.style.color = 'white';"
-                + "     tooltip.style.padding = '5px';"
-                + "     tooltip.style.borderRadius = '3px';"
-                + "     tooltip.style.fontSize = '12px';"
-                + "     tooltip.style.zIndex = '9999';"
-                + "     tooltip.style.pointerEvents = 'none';"
-                + "     document.body.appendChild(tooltip);"
+//        String preloadScript = "(function() {"
+//                + " function initializeTooltip() {"
+//                + "     if (!document.body) return setTimeout(initializeTooltip, 50);"
+//                + "     var tooltip = document.createElement('div');"
+//                + "     tooltip.style.position = 'fixed';"
+//                + "     tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';"
+//                + "     tooltip.style.color = 'white';"
+//                + "     tooltip.style.padding = '5px';"
+//                + "     tooltip.style.borderRadius = '3px';"
+//                + "     tooltip.style.fontSize = '12px';"
+//                + "     tooltip.style.zIndex = '9999';"
+//                + "     tooltip.style.pointerEvents = 'none';"
+//                + "     document.body.appendChild(tooltip);"
+//
+//                + "     function getSelector(element) {"
+//                + "         if (!element) return null;"
+//                + "         if (element.id) return '#' + element.id;"
+//                + "         if (element.className) return '.' + element.className.split(' ').join('.');"
+//                + "         return element.tagName.toLowerCase();"
+//                + "     }"
+//
+//                + "     document.addEventListener('mouseover', function(event) {"
+//                + "         var el = event.target;"
+//                + "         var selector = getSelector(el);"
+//                + "         var id = el.id ? ' ID: ' + el.id : '';"
+//                + "         tooltip.textContent = selector + id;"
+//                + "         tooltip.style.top = (event.clientY + 10) + 'px';"
+//                + "         tooltip.style.left = (event.clientX + 10) + 'px';"
+//                + "         tooltip.style.display = 'block';"
+//                + "     });"
+//
+//                + "     document.addEventListener('mouseout', function() {"
+//                + "         tooltip.style.display = 'none';"
+//                + "     });"
+//                + " }"
+//
+//                + " document.addEventListener('DOMContentLoaded', initializeTooltip);"
+//                + "})"; // ❌ KEINE `()` AM ENDE !!!
 
-                + "     function getSelector(element) {"
-                + "         if (!element) return null;"
-                + "         if (element.id) return '#' + element.id;"
-                + "         if (element.className) return '.' + element.className.split(' ').join('.');"
-                + "         return element.tagName.toLowerCase();"
-                + "     }"
-
-                + "     document.addEventListener('mouseover', function(event) {"
-                + "         var el = event.target;"
-                + "         var selector = getSelector(el);"
-                + "         var id = el.id ? ' ID: ' + el.id : '';"
-                + "         tooltip.textContent = selector + id;"
-                + "         tooltip.style.top = (event.clientY + 10) + 'px';"
-                + "         tooltip.style.left = (event.clientX + 10) + 'px';"
-                + "         tooltip.style.display = 'block';"
-                + "     });"
-
-                + "     document.addEventListener('mouseout', function() {"
-                + "         tooltip.style.display = 'none';"
-                + "     });"
-                + " }"
-
-                + " document.addEventListener('DOMContentLoaded', initializeTooltip);"
-                + "})"; // ❌ KEINE `()` AM ENDE !!!
-
+        String preloadScript = loadScript("scripts/tooltip.js");
 
         ((BrowserImpl) browser).getScriptManager().addPreloadScript(preloadScript, ((PageImpl) selectedPage).getBrowsingContextId());
     }
@@ -617,6 +623,20 @@ public class MainController {
                 "})();";
 
         ((BrowserImpl) browser).getScriptManager().evaluate(removeScript, new WDTarget.ContextTarget(new WDBrowsingContext(((PageImpl) selectedPage).getBrowsingContextId())), false);
+    }
+
+    public static String loadScript(String resourcePath) {
+        // ToDo: Move this method to a utility class AND rename MainController.class to DESTINATION_CLASS
+        try (InputStream inputStream = MainController.class.getClassLoader().getResourceAsStream(resourcePath)) {
+            if (inputStream == null) {
+                throw new IllegalArgumentException("Script file not found: " + resourcePath);
+            }
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+                return reader.lines().collect(Collectors.joining("\n"));
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Error loading script file: " + resourcePath, e);
+        }
     }
 
 }
