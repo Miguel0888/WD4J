@@ -26,11 +26,15 @@
             return clickableParent ? getFullSelector(clickableParent) : getFullSelector(element);
         }
 
+        function escapeCSSSelector(value) {
+            return value.replace(/:/g, "\\3A ");
+        }
+
         function getElementInfo(element) {
             if (!element) return "Unbekanntes Element";
 
-            // ID hat höchste Priorität
-            if (element.id) return "#" + element.id;
+            // ID hat höchste Priorität (mit Escaping!)
+            if (element.id) return "#" + escapeCSSSelector(element.id);
 
             // Falls Klassen vorhanden sind, als Selektor zurückgeben
             if (element.className) return "." + element.className.split(/\s+/).join(".");
