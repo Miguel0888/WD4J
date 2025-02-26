@@ -173,13 +173,13 @@ public class EventDispatcher {
             case NAVIGATION_STARTED:
                 return new FrameImpl(new WDBrowsingContextEvent.NavigationStarted(json));
             case NAVIGATION_COMMITTED:
-                return null; // ToDo: How map onto Playwright?
+                return new FrameImpl(new WDBrowsingContextEvent.NavigationCommitted(json)); // ToDo: Correct?
             case NAVIGATION_FAILED:
                 return new FrameImpl(new WDBrowsingContextEvent.NavigationFailed(json));
             case NAVIGATION_ABORTED:
                 return new FrameImpl(new WDBrowsingContextEvent.NavigationAborted(json));
             case FRAGMENT_NAVIGATED:
-                return new FrameImpl(new WDBrowsingContextEvent.FragmentNavigated(json)); // ToDo: Check if correct
+                return new FrameImpl(new WDBrowsingContextEvent.FragmentNavigated(json));
             case HISTORY_UPDATED:
                 return new FrameImpl(new WDBrowsingContextEvent.HistoryUodated(json));
 
@@ -197,8 +197,8 @@ public class EventDispatcher {
                 return new DialogImpl(new WDBrowsingContextEvent.UserPromptClosed(json));
 
             // 🔹 Network Events
-            case AUTH_REQUIRED:
-                return new AuthChallenge(new WDNetworkEvent.AuthRequired(json)); // ToDo: How map onto Playwright?
+            case AUTH_REQUIRED: //
+                return new RequestImpl(new WDNetworkEvent.AuthRequired(json)); // Besser als AuthChallenge // ToDo: Correct?
 
             case BEFORE_REQUEST_SENT:
                 return new RequestImpl(new WDNetworkEvent.BeforeRequestSent(json));
@@ -211,10 +211,6 @@ public class EventDispatcher {
             case RESPONSE_COMPLETED:
                 return new ResponseImpl(new WDNetworkEvent.ResponseCompleted(json), null);
 
-            // 🔹 WebSocket Events
-            case MESSAGE:
-                return new ConsoleMessageImpl(new WDLogEvent.EntryAdded(json));
-
             // 🔹 Script Events
             case REALM_CREATED:
                 return new WorkerImpl(new WDScriptEvent.RealmCreated(json));
@@ -224,6 +220,18 @@ public class EventDispatcher {
             // 🔹 Log Events
             case ENTRY_ADDED:
                 return new ConsoleMessageImpl(new WDLogEvent.EntryAdded(json));
+
+            // 🔹 WebSocket Events
+            case MESSAGE:
+                return new ConsoleMessageImpl(new WDLogEvent.EntryAdded(json));
+//            case WEBSOCKET_CLOSED:
+//                return new WebSocketImpl(new WDNetworkEvent.WebSocketClosed(json));
+//
+//            case WEBSOCKET_FRAME_SENT:
+//                return new WebSocketImpl.WebSocketFrameImpl(new WDNetworkEvent.WebSocketFrameSent(json));
+//
+//            case WEBSOCKET_FRAME_RECEIVED:
+//                return new WebSocketImpl.WebSocketFrameImpl(new WDNetworkEvent.WebSocketFrameReceived(json));
 
             default:
                 return null;

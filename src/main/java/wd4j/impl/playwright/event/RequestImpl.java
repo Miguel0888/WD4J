@@ -17,6 +17,10 @@ public class RequestImpl implements Request {
         // TODO: Implement this
     }
 
+    public RequestImpl(WDNetworkEvent.AuthRequired authRequired) {
+        // TODO: Implement this
+    }
+
     @Override
     public Map<String, String> allHeaders() {
         return Collections.emptyMap();

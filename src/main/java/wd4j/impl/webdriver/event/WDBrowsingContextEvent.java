@@ -334,6 +334,28 @@ public class WDBrowsingContextEvent implements WDModule {
         }
     }
 
+    // ToDo: Check this:
+    public static class NavigationCommitted extends WDEvent<WDNavigationInfo> {
+        private String method = WDEventMapping.NAVIGATION_COMMITTED.getName();
+
+        public NavigationCommitted(JsonObject json) {
+            super(json, WDNavigationInfo.class);
+        }
+
+        @Override
+        public String getMethod() {
+            return method;
+        }
+
+        @Override
+        public String toString() {
+            return "NavigationCommitted{" +
+                    "method='" + method + '\'' +
+                    ", params=" + params +
+                    '}';
+        }
+    }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

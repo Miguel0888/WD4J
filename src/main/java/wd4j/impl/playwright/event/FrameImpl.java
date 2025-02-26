@@ -39,6 +39,10 @@ public class FrameImpl implements Frame {
         // ToDo: Implement this constructor
     }
 
+    public FrameImpl(WDBrowsingContextEvent.NavigationCommitted navigationCommitted) {
+        // ToDo: Implement this constructor
+    }
+
     @Override
     public ElementHandle addScriptTag(AddScriptTagOptions options) {
         return null;
