@@ -14,16 +14,26 @@
 
         function getSelector(element) {
             if (!element) return null;
-            if (element.id) return '#' + element.id;
-            if (element.className) return '.' + element.className.split(' ').join('.');
+
+            if (element.matches("button, a, [onclick], [data-action]")) {
+                return getElementInfo(element);
+            }
+
+            var clickableParent = element.closest("button, a, [onclick], [data-action]");
+            return clickableParent ? getElementInfo(clickableParent) : getElementInfo(element);
+        }
+
+        function getElementInfo(element) {
+            if (!element) return "Unbekanntes Element";
+            if (element.id) return "#" + element.id;
+            if (element.className) return "." + element.className.split(" ").join(".");
             return element.tagName.toLowerCase();
         }
 
         document.addEventListener('mouseover', function(event) {
             var el = event.target;
             var selector = getSelector(el);
-            var id = el.id ? ' ID: ' + el.id : '';
-            tooltip.textContent = selector + id;
+            tooltip.textContent = selector;
             tooltip.style.top = (event.clientY + 10) + 'px';
             tooltip.style.left = (event.clientX + 10) + 'px';
             tooltip.style.display = 'block';
