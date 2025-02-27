@@ -15,6 +15,7 @@ public class Main {
     public static String lastProfilePath = ""; // ToDo: Make this configurable
     public static JLabel imageContainer; // Bildcontainer für Screenshots
     public static JTextArea eventLog; // Textfeld für Events
+    public static JTextArea scriptLog; // Textfeld für Scripting
     public static JCheckBox headlessCheckbox;
     public static JCheckBox disableGpuCheckbox;
     public static JCheckBox noRemoteCheckbox;
@@ -233,12 +234,24 @@ public class Main {
         JToolBar scriptToolbar = new JToolBar();
 
         showSelectors = new JCheckBox("Show Selectors");
-
         showSelectors.addActionListener(e -> {
             controller.showSelectors(showSelectors.isSelected());
         });
 
+        JButton clear = new JButton("Clear");
+        clear.addActionListener(e -> {
+            scriptLog.setText("");
+        });
+
+        JButton runScript = new JButton("Run Script");
+        runScript.addActionListener(e -> {
+            String script = scriptLog.getText();
+            controller.runScript(script);
+        });
+
         scriptToolbar.add(showSelectors);
+        scriptToolbar.add(clear);
+        scriptToolbar.add(runScript);
 
         return scriptToolbar;
     }
@@ -327,6 +340,13 @@ public class Main {
         JScrollPane imageScrollPane = new JScrollPane(imageContainer);
         imageScrollPane.setPreferredSize(new Dimension(1024, 400));
         tabbedPane.addTab("Screenshots", imageScrollPane);
+
+        // Panel für Scripting
+        scriptLog = new JTextArea();
+        scriptLog.setEditable(false);
+        JScrollPane scriptScrollPane = new JScrollPane(scriptLog);
+        tabbedPane.addTab("Scripting", scriptScrollPane);
+
         return tabbedPane;
     }
 

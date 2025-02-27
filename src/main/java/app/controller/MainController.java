@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.WDTarget;
+import wd4j.impl.websocket.ClickWebSocketServer;
 
 public class MainController {
 
@@ -611,9 +612,23 @@ public class MainController {
 //                + " document.addEventListener('DOMContentLoaded', initializeTooltip);"
 //                + "})"; // ❌ KEINE `()` AM ENDE !!!
 
-        String preloadScript = loadScript("scripts/tooltip.js");
+        // Tooltip-Skript laden (zum Anzeigen von Selektoren)
+        String tooltipScript = loadScript("scripts/tooltip.js");
+        ((BrowserImpl) browser).getScriptManager().addPreloadScript(
+                tooltipScript,
+                ((PageImpl) selectedPage).getBrowsingContextId()
+        );
 
-        ((BrowserImpl) browser).getScriptManager().addPreloadScript(preloadScript, ((PageImpl) selectedPage).getBrowsingContextId());
+        ClickWebSocketServer clickWebSocketServer = new ClickWebSocketServer(8080, message ->
+                Main.scriptLog.append(message + System.lineSeparator()));
+        clickWebSocketServer.start();
+
+        // Callback-Skript laden (zum Senden der Selektoren an Java)
+        String callbackScript = loadScript("scripts/callback.js");
+        ((BrowserImpl) browser).getScriptManager().addPreloadScript(
+                callbackScript,
+                ((PageImpl) selectedPage).getBrowsingContextId()
+        );
     }
 
     private void hideSelectors(Page selectedPage) {
@@ -639,4 +654,10 @@ public class MainController {
         }
     }
 
+    public void runScript(String script) {
+        String text = Main.scriptLog.getText();
+
+        // ToDo: Implement this method
+
+    }
 }
