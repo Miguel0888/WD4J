@@ -1,73 +1,74 @@
-(function() {
-    document.addEventListener('DOMContentLoaded', function() {
-        var ws = new WebSocket("ws://localhost:8080");
+window.sendSelector = function(selector) {
+    const WS_URL = "ws://localhost:8080";
+    const MAX_RETRIES = 5; // Maximale Wiederholungen
+    const RETRY_DELAY = 2000; // Wartezeit für Reconnects (2 Sekunden)
+    let retryCount = 0;
+    let messageQueue = []; // Warteschlange für nicht gesendete Nachrichten
 
-        function escapeCSSSelector(value) {
-            return value.replace(/:/g, "\\3A ");
+    function connectWebSocket() {
+        if (window.ws && window.ws.readyState <= 1) {
+            console.log("🔄 WebSocket ist bereits verbunden oder verbindet gerade...");
+            return;
         }
 
-        function getElementInfo(element) {
-            if (!element) return "Unbekanntes Element";
+        console.log(`🔌 Verbinde WebSocket... (Versuch ${retryCount + 1}/${MAX_RETRIES})`);
+        window.ws = new WebSocket(WS_URL);
 
-            // ID hat höchste Priorität (mit Escaping!)
-            if (element.id) return "#" + escapeCSSSelector(element.id);
-
-            // Falls Klassen vorhanden sind, als Selektor zurückgeben
-            if (element.className) return "." + element.className.split(/\s+/).join(".");
-
-            // Standardmäßig das Tag-Element zurückgeben
-            return element.tagName.toLowerCase();
-        }
-
-        function getFullSelector(element) {
-            if (!element) return null;
-            let selectorParts = [];
-
-            while (element.parentElement) {
-                let part = getElementInfo(element);
-                let parent = element.parentElement;
-
-                // Prüfen, ob das Element direkt im Elternteil liegt → dann `>` verwenden
-                if (parent.children.length === 1 || Array.from(parent.children).indexOf(element) !== -1) {
-                    selectorParts.unshift(part);
-                } else {
-                    selectorParts.unshift(" " + part);
-                }
-
-                element = parent;
-
-                // Falls ein eindeutiger Selektor erreicht wurde (eine ID), abbrechen
-                if (part.startsWith("#")) break;
-            }
-
-            return selectorParts.join(" > ");
-        }
-
-        function getSelector(element) {
-            if (!element) return null;
-
-            // Falls das Element ein klickbares Element ist, nimm es direkt
-            if (element.matches("button, a, [onclick], [data-action]")) {
-                return getFullSelector(element);
-            }
-
-            // Falls das Element innerhalb eines klickbaren Elements liegt, nimm den nächsten Elternknoten
-            var clickableParent = element.closest("button, a, [onclick], [data-action]");
-            return clickableParent ? getFullSelector(clickableParent) : getFullSelector(element);
-        }
-
-        ws.onopen = function() {
+        window.ws.onopen = () => {
             console.log("✅ WebSocket verbunden!");
+            retryCount = 0; // Retry-Zähler zurücksetzen
+            sendQueuedMessages(); // 🟢 Wartende Nachrichten sofort senden
         };
 
-        ws.onmessage = function(event) {
-            console.log("🔹 Nachricht vom Server:", event.data);
+        window.ws.onmessage = (event) => console.log("🔹 Nachricht vom Server:", event.data);
+
+        window.ws.onerror = (error) => {
+            console.warn("⚠ WebSocket-Fehler:", error);
+            window.ws.close();
         };
 
-        document.addEventListener('click', function(event) {
-            let clickedSelector = getSelector(event.target);
-            console.log("📌 Geklickt:", clickedSelector);
-            ws.send(clickedSelector);
-        });
-    });
-})
+        window.ws.onclose = () => {
+            console.warn("❌ WebSocket-Verbindung geschlossen.");
+            if (retryCount < MAX_RETRIES) {
+                retryCount++;
+                console.log(`🔄 Erneuter Verbindungsversuch in ${RETRY_DELAY / 1000} Sekunden...`);
+                setTimeout(connectWebSocket, RETRY_DELAY);
+            } else {
+                console.error("🚨 Max. Anzahl an Wiederholungen erreicht. Kein erneuter Versuch.");
+            }
+        };
+    }
+
+    function sendQueuedMessages() {
+        if (!window.ws || window.ws.readyState !== WebSocket.OPEN) return;
+        while (messageQueue.length > 0) {
+            let msg = messageQueue.shift();
+            safeSend(msg);
+        }
+    }
+
+    function safeSend(message) {
+        if (!window.ws || window.ws.readyState !== WebSocket.OPEN) {
+            console.warn("⚠ WebSocket nicht bereit. Nachricht wird gespeichert:", message);
+            messageQueue.push(message);
+            connectWebSocket();
+            return;
+        }
+
+        try {
+            console.log("📤 Sende Nachricht:", message);
+            window.ws.send(message);
+        } catch (error) {
+            console.error("🚨 Fehler beim Senden:", error);
+            messageQueue.push(message);
+        }
+    }
+
+    // Verbindung aufbauen, falls noch nicht verbunden
+    connectWebSocket();
+
+    // Selektor senden oder zwischenspeichern, falls Verbindung noch nicht offen ist
+    if (typeof selector === "string" && selector.trim() !== "") {
+        safeSend(selector);
+    }
+}

@@ -81,20 +81,14 @@
         });
 
         document.addEventListener('click', function(event) {
-            let el = event.target;
-            let clickedSelector = getSelector(el);
-            console.log("Clicked Selector:", clickedSelector);
+            let clickedSelector = getSelector(event.target);
 
-            // Alte Liste aus `localStorage` holen oder leere Liste erstellen
-            let storedSelectors = JSON.parse(localStorage.getItem("clickedSelectors") || "[]");
-
-            // Neuen Selektor hinzufügen
-            storedSelectors.push(clickedSelector);
-
-            // Liste zurück in `localStorage` speichern
-            localStorage.setItem("clickedSelectors", JSON.stringify(storedSelectors));
-
-            console.log("Gespeicherte Selektoren:", storedSelectors);
+            // Falls `sendSelector` existiert, aufrufen
+            if (typeof window.sendSelector === "function") {
+                window.sendSelector(clickedSelector);
+            } else {
+                console.warn("⚠ Kein Callback definiert. Selektor:", clickedSelector);
+            }
         });
     }
 
