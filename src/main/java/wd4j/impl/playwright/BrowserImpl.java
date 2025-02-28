@@ -37,7 +37,7 @@ public class BrowserImpl implements Browser {
         this.browserManager = new WDBrowserManager(webSocketManager);
         this.browsingContextManager = new WDBrowsingContextManager(webSocketManager);
 
-        this.scriptManager = new WDScriptManager(webSocketManager);
+        this.scriptManager = WDScriptManager.getInstance();
         this.networkManager = new WDNetworkManager(webSocketManager);
         this.storageManager = new WDStorageManager(webSocketManager);
         this.webExtensionManager = new WDWebExtensionManager(webSocketManager);

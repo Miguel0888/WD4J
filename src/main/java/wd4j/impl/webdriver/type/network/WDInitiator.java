@@ -4,34 +4,34 @@ import wd4j.impl.webdriver.mapping.EnumWrapper;
 import wd4j.impl.webdriver.type.script.WDStackTrace;
 
 public class WDInitiator {
-    private final Character colomnNumber;
-    private final Character lineNumber;
+    private final Long columnNumber;
+    private final Long lineNumber;
     private final WDRequest request;
     private final WDStackTrace stackTrace;
     private final Type type;
 
     public WDInitiator(Type type) {
         this.type = type;
-        this.colomnNumber = null;
+        this.columnNumber = null;
         this.lineNumber = null;
         this.request = null;
         this.stackTrace = null;
 
     }
 
-    public WDInitiator(Type type, Character colomnNumber, Character lineNumber, WDRequest request, WDStackTrace stackTrace) {
+    public WDInitiator(Type type, Long columnNumber, Long lineNumber, WDRequest request, WDStackTrace stackTrace) {
         this.type = type;
-        this.colomnNumber = colomnNumber;
+        this.columnNumber = columnNumber;
         this.lineNumber = lineNumber;
         this.request = request;
         this.stackTrace = stackTrace;
     }
 
-    public Character getColomnNumber() {
-        return colomnNumber;
+    public Long getColumnNumber() {
+        return columnNumber;
     }
 
-    public Character getLineNumber() {
+    public Long getLineNumber() {
         return lineNumber;
     }
 

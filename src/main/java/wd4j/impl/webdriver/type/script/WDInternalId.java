@@ -2,6 +2,9 @@ package wd4j.impl.webdriver.type.script;
 
 import wd4j.impl.webdriver.mapping.StringWrapper;
 
+/**
+ * The script.InternalId type represents the id of a previously serialized script.RemoteValue during serialization.
+ */
 public class WDInternalId implements StringWrapper {
     private final String value;
 

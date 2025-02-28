@@ -118,7 +118,7 @@ public interface Response {
    *
    * @since v1.8
    */
-  int status();
+  long status();
   /**
    * Contains the status text of the response (e.g. usually an "OK" for a success).
    *

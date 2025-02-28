@@ -22,11 +22,21 @@ public class WebSocketImpl implements WebSocket {
     private final List<Consumer<WebSocketFrame>> onFrameSentListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<String>> onSocketErrorListeners = new CopyOnWriteArrayList<>();
 
-    public WebSocketImpl() { }
+    private static volatile WebSocketImpl instance;
 
-    public WebSocketImpl(URI uri) {
-        createAndConfigureWebSocketClient(uri);
+    private WebSocketImpl() {}
+
+    public static WebSocketImpl getInstance() {
+        if (instance == null) {
+            synchronized (WebSocketImpl.class) {
+                if (instance == null) {
+                    instance = new WebSocketImpl();
+                }
+            }
+        }
+        return instance;
     }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// **WebSocket-Event-Listener**

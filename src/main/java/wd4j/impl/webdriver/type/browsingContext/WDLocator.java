@@ -25,26 +25,26 @@ public interface WDLocator<T> {
 
             switch (type) {
                 case "accessibility":
-                    return context.deserialize(jsonObject, AccessibilityWDLocator.class);
+                    return context.deserialize(jsonObject, AccessibilityLocator.class);
                 case "context":
-                    return context.deserialize(jsonObject, ContextWDLocator.class);
+                    return context.deserialize(jsonObject, ContextLocator.class);
                 case "css":
-                    return context.deserialize(jsonObject, CssWDLocator.class);
+                    return context.deserialize(jsonObject, CssLocator.class);
                 case "innerText":
-                    return context.deserialize(jsonObject, InnerTextWDLocator.class);
+                    return context.deserialize(jsonObject, InnerTextLocator.class);
                 case "xpath":
-                    return context.deserialize(jsonObject, XPathWDLocator.class);
+                    return context.deserialize(jsonObject, XPathLocator.class);
                 default:
                     throw new JsonParseException("Unknown Locator type: " + type);
             }
         }
     }
 
-   class AccessibilityWDLocator implements WDLocator<AccessibilityWDLocator.Value> {
+   class AccessibilityLocator implements WDLocator<AccessibilityLocator.Value> {
        private final String type = "accessibility";
        private final Value value;
 
-       public AccessibilityWDLocator(Value value) {
+       public AccessibilityLocator(Value value) {
            this.value = value;
        }
 
@@ -75,11 +75,11 @@ public interface WDLocator<T> {
        }
    }
 
-   class ContextWDLocator implements WDLocator<ContextWDLocator.Value> {
+   class ContextLocator implements WDLocator<ContextLocator.Value> {
        private final String type = "context";
        private final Value value;
 
-       public ContextWDLocator(Value value) {
+       public ContextLocator(Value value) {
            this.value = value;
        }
 
@@ -106,11 +106,11 @@ public interface WDLocator<T> {
        }
    }
 
-   class CssWDLocator implements WDLocator<String> {
+   class CssLocator implements WDLocator<String> {
        private final String type = "css";
        private final String value;
 
-       public CssWDLocator(String value) {
+       public CssLocator(String value) {
            this.value = value;
        }
 
@@ -126,21 +126,21 @@ public interface WDLocator<T> {
        }
    }
 
-   class InnerTextWDLocator implements WDLocator<String> {
+   class InnerTextLocator implements WDLocator<String> {
        private final String type = "innerText";
        private final String value;
        private final Boolean ignoreCase; // optional
        private final MatchType matchType; // optional
-       private final Character maxDepth; // optional
+       private final Long maxDepth; // optional
 
-       public InnerTextWDLocator(String value) {
+       public InnerTextLocator(String value) {
            this.value = value;
            this.ignoreCase = null;
            this.matchType = null;
            this.maxDepth = null;
        }
 
-       public InnerTextWDLocator(String value, boolean ignoreCase, MatchType matchType, char maxDepth) {
+       public InnerTextLocator(String value, boolean ignoreCase, MatchType matchType, Long maxDepth) {
            this.value = value;
            this.ignoreCase = ignoreCase;
            this.matchType = matchType;
@@ -165,7 +165,7 @@ public interface WDLocator<T> {
            return matchType;
        }
 
-       public Character getMaxDepth() {
+       public Long getMaxDepth() {
            return maxDepth;
        }
 
@@ -186,11 +186,11 @@ public interface WDLocator<T> {
        }
    }
 
-   class XPathWDLocator implements WDLocator<String> {
+   class XPathLocator implements WDLocator<String> {
        private final String type = "xpath";
        private final String value;
 
-       public XPathWDLocator(String value) {
+       public XPathLocator(String value) {
            this.value = value;
        }
 

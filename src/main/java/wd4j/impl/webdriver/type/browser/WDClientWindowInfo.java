@@ -6,13 +6,13 @@ import wd4j.impl.webdriver.mapping.EnumWrapper;
 public class WDClientWindowInfo implements WDType<WDClientWindowInfo> {
     private final boolean active;
     private final WDClientWindow clientWindow;
-    private final char height;
+    private final int height;
     private final State state;
-    private final char width;
+    private final int width;
     private final int x;
     private final int y;
 
-    public WDClientWindowInfo(boolean active, WDClientWindow clientWindow, char height, State state, char width, int x, int y) {
+    public WDClientWindowInfo(boolean active, WDClientWindow clientWindow, int height, State state, int width, int x, int y) {
         this.active = active;
         this.clientWindow = clientWindow;
         this.height = height;
@@ -30,7 +30,7 @@ public class WDClientWindowInfo implements WDType<WDClientWindowInfo> {
         return clientWindow;
     }
 
-    public char getHeight() {
+    public int getHeight() {
         return height;
     }
 
@@ -38,7 +38,7 @@ public class WDClientWindowInfo implements WDType<WDClientWindowInfo> {
         return state;
     }
 
-    public char getWidth() {
+    public int getWidth() {
         return width;
     }
 

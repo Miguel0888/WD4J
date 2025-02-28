@@ -2,6 +2,10 @@ package wd4j.impl.webdriver.type.script;
 
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 
+/**
+ * The script.Source type represents a script.Realm with an optional browsingContext.BrowsingContext in which a script
+ * related event occurred.
+ */
 public class WDSource {
     private final String realm;  // script.Realm
     private final WDBrowsingContext context; // Optional: browsingContext.BrowsingContext

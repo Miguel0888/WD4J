@@ -5,7 +5,7 @@ import java.util.List;
 public class WDResponseData {
     private final String url;
     private final String protocol;
-    private final int status;
+    private final long status;
     private final String statusText;
     private final boolean fromCache;
     private final List<WDHeader> headers;
@@ -31,7 +31,7 @@ public class WDResponseData {
         this.authChallenges = null;
     }
 
-    public WDResponseData(String url, String protocol, char status, String statusText, boolean fromCache, List<WDHeader> headers, String mimeType, char bytesReceived, char headersSize, char bodySize, WDResponseContent content, List<WDAuthChallenge> authChallenges) {
+    public WDResponseData(String url, String protocol, long status, String statusText, boolean fromCache, List<WDHeader> headers, String mimeType, long bytesReceived, long headersSize, long bodySize, WDResponseContent content, List<WDAuthChallenge> authChallenges) {
         this.url = url;
         this.protocol = protocol;
         this.status = status;
@@ -54,7 +54,7 @@ public class WDResponseData {
         return protocol;
     }
 
-    public int getStatus() {
+    public long getStatus() {
         return status;
     }
 

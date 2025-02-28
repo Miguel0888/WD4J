@@ -8,10 +8,10 @@ import java.util.List;
 
 public class SetFilesParameters implements WDCommand.Params {
     public final WDBrowsingContext WDBrowsingContext;
-    public final WDRemoteReference.SharedReferenceWD sharedReference;
+    public final WDRemoteReference.SharedReference sharedReference;
     List<String> files;
 
-    public SetFilesParameters(WDBrowsingContext WDBrowsingContext, WDRemoteReference.SharedReferenceWD sharedReference, List<String> files) {
+    public SetFilesParameters(WDBrowsingContext WDBrowsingContext, WDRemoteReference.SharedReference sharedReference, List<String> files) {
         this.WDBrowsingContext = WDBrowsingContext;
         this.sharedReference = sharedReference;
         this.files = files;
@@ -21,7 +21,7 @@ public class SetFilesParameters implements WDCommand.Params {
         return WDBrowsingContext;
     }
 
-    public WDRemoteReference.SharedReferenceWD getSharedReference() {
+    public WDRemoteReference.SharedReference getSharedReference() {
         return sharedReference;
     }
 

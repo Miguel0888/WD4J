@@ -34,10 +34,10 @@ public class WDInputRequest {
     }
 
     public static class SetFiles extends WDCommandImpl<SetFilesParameters> implements WDCommandData {
-        public SetFiles(String contextId, WDRemoteReference.SharedReferenceWD sharedReference, List<String> files) {
+        public SetFiles(String contextId, WDRemoteReference.SharedReference sharedReference, List<String> files) {
             super("input.setFiles", new SetFilesParameters(new WDBrowsingContext(contextId), sharedReference, files));
         }
-        public SetFiles(WDBrowsingContext context, WDRemoteReference.SharedReferenceWD sharedReference, List<String> files) {
+        public SetFiles(WDBrowsingContext context, WDRemoteReference.SharedReference sharedReference, List<String> files) {
             super("input.setFiles", new SetFilesParameters(context, sharedReference, files));
         }
     }

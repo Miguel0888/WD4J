@@ -26,4 +26,11 @@ public class HttpHeader {
    */
   public String value;
 
+  /**
+   * Konstruktor für HttpHeader-Objekte.
+   */
+  public HttpHeader(String name, String value) {
+    this.name = name;
+    this.value = value;
+  }
 }

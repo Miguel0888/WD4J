@@ -5,9 +5,9 @@ import wd4j.impl.webdriver.type.script.WDRemoteReference;
 public class WDElementOrigin {
 
     private final String type = "element";
-    private final WDRemoteReference.SharedReferenceWD element;
+    private final WDRemoteReference.SharedReference element;
 
-    public WDElementOrigin(WDRemoteReference.SharedReferenceWD element) {
+    public WDElementOrigin(WDRemoteReference.SharedReference element) {
         this.element = element;
     }
 
@@ -15,7 +15,7 @@ public class WDElementOrigin {
         return type;
     }
 
-    public WDRemoteReference.SharedReferenceWD getElement() {
+    public WDRemoteReference.SharedReference getElement() {
         return element;
     }
 

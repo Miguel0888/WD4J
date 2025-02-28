@@ -14,7 +14,7 @@ public class WDRequestData {
     private final String initiatorType;
     private final WDFetchTimingInfo timings;
 
-    public WDRequestData(WDRequest request, String url, String method, List<WDHeader> headers, List<WDCookie> cookies, char headersSize, long bodySize, String destination, String initiatorType, WDFetchTimingInfo timings) {
+    public WDRequestData(WDRequest request, String url, String method, List<WDHeader> headers, List<WDCookie> cookies, long headersSize, long bodySize, String destination, String initiatorType, WDFetchTimingInfo timings) {
         this.request = request;
         this.url = url;
         this.method = method;

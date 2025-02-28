@@ -11,7 +11,7 @@ public class WDCookie {
     private final WDSameSite sameSite;
     private final Long expiry; // optional
 
-    public WDCookie(String name, WDBytesValue value, String domain, String path, char size, boolean httpOnly, boolean secure, WDSameSite sameSite) {
+    public WDCookie(String name, WDBytesValue value, String domain, String path, long size, boolean httpOnly, boolean secure, WDSameSite sameSite) {
         this.name = name;
         this.value = value;
         this.domain = domain;

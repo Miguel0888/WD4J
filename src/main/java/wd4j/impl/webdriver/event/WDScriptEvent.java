@@ -14,10 +14,17 @@ public class WDScriptEvent implements WDModule {
     // Event Types (Classes)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class WebSocketMessage extends WDEvent<WebSocketMessage.MessageParameters> {
+    /**
+     * The Response for an optional Channel Parameter. The Channel is identified by a unique ID.
+     * Thus, Message (Parameters) are some kind of Callbacks. (maybe compared to stdout, stderr, etc.)
+     *
+     * @see WDChannel
+     * @see wd4j.impl.webdriver.command.request.WDScriptRequest.CallFunction
+     */
+    public static class WDMessage extends WDEvent<WDMessage.MessageParameters> {
         private String method = WDEventMapping.MESSAGE.getName();
 
-        public WebSocketMessage(JsonObject json) {
+        public WDMessage(JsonObject json) {
             super(json, MessageParameters.class);
         }
 

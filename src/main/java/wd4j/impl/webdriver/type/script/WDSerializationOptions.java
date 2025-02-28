@@ -1,5 +1,8 @@
 package wd4j.impl.webdriver.type.script;
 
+/**
+ * The script.SerializationOptions allows specifying how ECMAScript objects will be serialized.
+ */
 public class WDSerializationOptions {
     private final Integer maxDomDepth; // Optional, default 0
     private final Integer maxObjectDepth; // Optional, default null

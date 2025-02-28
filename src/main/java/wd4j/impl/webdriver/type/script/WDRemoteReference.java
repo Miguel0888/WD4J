@@ -11,7 +11,7 @@ import java.lang.reflect.Type;
  * reference to a node.
  */
 @JsonAdapter(WDRemoteReference.RemoteReferenceAdapter.class) // 🔥 Automatische JSON-Konvertierung
-public interface WDRemoteReference {
+public interface WDRemoteReference extends WDLocalValue {
     String getType();
 
     // 🔥 **INNERE KLASSE für JSON-Deserialisierung**
@@ -28,24 +28,24 @@ public interface WDRemoteReference {
 
             switch (type) {
                 case "shared-reference":
-                    return context.deserialize(jsonObject, SharedReferenceWD.class);
+                    return context.deserialize(jsonObject, SharedReference.class);
                 case "remote-object-reference":
-                    return context.deserialize(jsonObject, WDRemoteObjectReference.class);
+                    return context.deserialize(jsonObject, RemoteObjectReference.class);
                 default:
                     throw new JsonParseException("Unknown RemoteReference type: " + type);
             }
         }
     }
 
-    class SharedReferenceWD implements WDRemoteReference {
-        private final String sharedId;
-        private final String handle; // Optional
+    class SharedReference implements WDRemoteReference {
+        private final WDSharedId sharedId;
+        private final WDHandle handle; // Optional
 
-        public SharedReferenceWD(String sharedId) {
+        public SharedReference(WDSharedId sharedId) {
             this(sharedId, null);
         }
 
-        public SharedReferenceWD(String sharedId, String handle) {
+        public SharedReference(WDSharedId sharedId, WDHandle handle) {
             this.sharedId = sharedId;
             this.handle = handle;
         }
@@ -55,24 +55,24 @@ public interface WDRemoteReference {
             return "shared-reference";
         }
 
-        public String getSharedId() {
+        public WDSharedId getSharedId() {
             return sharedId;
         }
 
-        public String getHandle() {
+        public WDHandle getHandle() {
             return handle;
         }
     }
 
-    class WDRemoteObjectReference implements WDRemoteReference {
-        private final String handle;
-        private final String sharedId; // Optional
+    class RemoteObjectReference implements WDRemoteReference {
+        private final WDHandle handle;
+        private final WDSharedId sharedId; // Optional
 
-        public WDRemoteObjectReference(String handle) {
+        public RemoteObjectReference(WDHandle handle) {
             this(handle, null);
         }
 
-        public WDRemoteObjectReference(String handle, String sharedId) {
+        public RemoteObjectReference(WDHandle handle, WDSharedId sharedId) {
             this.handle = handle;
             this.sharedId = sharedId;
         }
@@ -82,11 +82,11 @@ public interface WDRemoteReference {
             return "remote-object-reference";
         }
 
-        public String getHandle() {
+        public WDHandle getHandle() {
             return handle;
         }
 
-        public String getSharedId() {
+        public WDSharedId getSharedId() {
             return sharedId;
         }
     }

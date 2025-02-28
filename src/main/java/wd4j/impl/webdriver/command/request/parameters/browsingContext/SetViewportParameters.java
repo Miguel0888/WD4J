@@ -31,19 +31,19 @@ public class SetViewportParameters implements WDCommand.Params {
     }
 
     public static class Viewport {
-        private final char width;
-        private final char height;
+        private final int width;
+        private final int height;
 
-        public Viewport(char width, char height) {
+        public Viewport(int width, int height) {
             this.width = width;
             this.height = height;
         }
 
-        public char getWidth() {
+        public int getWidth() {
             return width;
         }
 
-        public char getHeight() {
+        public int getHeight() {
             return height;
         }
     }

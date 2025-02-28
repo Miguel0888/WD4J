@@ -5,8 +5,8 @@ import com.google.gson.annotations.JsonAdapter;
 import wd4j.impl.webdriver.mapping.EnumWrapper;
 
 @JsonAdapter(WDPrimitiveProtocolValue.PrimitiveProtocolValueAdapter.class) // 🔥 Automatische JSON-Konvertierung
-public interface WDPrimitiveProtocolValue<T> {
-    Type getType();
+public interface WDPrimitiveProtocolValue<T> extends WDLocalValue<T> {
+    String getType();
 
     class PrimitiveProtocolValueAdapter implements JsonDeserializer<WDPrimitiveProtocolValue<?>> {
         @Override
@@ -38,70 +38,26 @@ public interface WDPrimitiveProtocolValue<T> {
         }
     }
 
-    /**
-     * 🔥 Konvertiert PrimitiveProtocolValue in einen String
-     */
-    default String asString() {
-        switch (getType()) {
-            case STRING:
-                return ((StringValue) this).getValue();
-            case NUMBER:
-                return ((NumberValue) this).getValue();
-            case BOOLEAN:
-                return Boolean.toString(((BooleanValue) this).getValue());
-            case BIGINT:
-                return ((BigIntValue) this).getValue();
-            case NULL:
-                return "null";
-            case UNDEFINED:
-                return "undefined";
-            default:
-                throw new UnsupportedOperationException("Cannot convert type " + getType() + " to String.");
-        }
-    }
-
-    /**
-     * 🔥 Gibt den Wert in seinem nativen Typ zurück (String, Number, Boolean, etc.)
-     */
-    default Object asObject() {
-        switch (getType()) {
-            case STRING:
-                return ((StringValue) this).getValue();
-            case NUMBER:
-                return Double.valueOf(((NumberValue) this).getValue());
-            case BOOLEAN:
-                return ((BooleanValue) this).getValue();
-            case BIGINT:
-                return new java.math.BigInteger(((BigIntValue) this).getValue());
-            case NULL:
-                return null;
-            case UNDEFINED:
-                return null; // Kann `undefined` nicht direkt als Java-Typ repräsentieren
-            default:
-                throw new UnsupportedOperationException("Cannot convert type " + getType() + " to Object.");
-        }
-    }
-
     class UndefinedValue implements WDPrimitiveProtocolValue<Void> {
-        private final Type type = Type.UNDEFINED;
+        private final String type = Type.UNDEFINED.value();
 
         @Override
-        public Type getType() {
+        public String getType() {
             return type;
         }
     }
 
     class NullValue implements WDPrimitiveProtocolValue<Void> {
-        private final Type type = Type.NULL;
+        private final String type = Type.NULL.value();
 
         @Override
-        public Type getType() {
+        public String getType() {
             return type;
         }
     }
 
     class StringValue implements WDPrimitiveProtocolValue<String> {
-        private final Type type = Type.STRING;
+        private final String type = Type.STRING.value();
         private final String value;
 
         public StringValue(String value) {
@@ -109,7 +65,7 @@ public interface WDPrimitiveProtocolValue<T> {
         }
 
         @Override
-        public Type getType() {
+        public String getType() {
             return type;
         }
 
@@ -119,7 +75,7 @@ public interface WDPrimitiveProtocolValue<T> {
     }
 
     class BooleanValue implements WDPrimitiveProtocolValue<Boolean> {
-        private final Type type = Type.BOOLEAN;
+        private final String type = Type.BOOLEAN.value();
         private final Boolean value;
 
         public BooleanValue(Boolean value) {
@@ -127,7 +83,7 @@ public interface WDPrimitiveProtocolValue<T> {
         }
 
         @Override
-        public Type getType() {
+        public String getType() {
             return type;
         }
 
@@ -137,7 +93,7 @@ public interface WDPrimitiveProtocolValue<T> {
     }
 
     class BigIntValue implements WDPrimitiveProtocolValue<String> {
-        private final Type type = Type.BIGINT;
+        private final String type = Type.BIGINT.value();
         private final String value;
 
         public BigIntValue(String value) {
@@ -145,7 +101,7 @@ public interface WDPrimitiveProtocolValue<T> {
         }
 
         @Override
-        public Type getType() {
+        public String getType() {
             return type;
         }
 
@@ -154,6 +110,7 @@ public interface WDPrimitiveProtocolValue<T> {
         }
     }
 
+    // ToDo: EnumWrapper might be removed, since enum cannot be used as directly, instead String is used
     enum Type implements EnumWrapper {
         UNDEFINED("undefined"),
         NULL("null"),
@@ -175,7 +132,7 @@ public interface WDPrimitiveProtocolValue<T> {
     }
 
     class NumberValue implements WDPrimitiveProtocolValue<String> {
-        private final Type type = Type.NUMBER;
+        private final String type = Type.NUMBER.value();
         private final String value;
 
         public NumberValue(String value) {
@@ -186,7 +143,7 @@ public interface WDPrimitiveProtocolValue<T> {
         }
 
         @Override
-        public Type getType() {
+        public String getType() {
             return type;
         }
 

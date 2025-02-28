@@ -21,9 +21,28 @@ public class WDScriptManager implements WDModule {
 
     private final WebSocketManager webSocketManager;
 
-    public WDScriptManager(WebSocketManager webSocketManager) {
+    private static volatile WDScriptManager instance;
+
+    private WDScriptManager(WebSocketManager webSocketManager) {
         this.webSocketManager = webSocketManager;
     }
+
+    /**
+     * Gibt die Singleton-Instanz von WDScriptManager zurück.
+     *
+     * @return Singleton-Instanz von WDScriptManager.
+     */
+    public static WDScriptManager getInstance() {
+        if (instance == null) {
+            synchronized (WDScriptManager.class) {
+                if (instance == null) {
+                    instance = new WDScriptManager(WebSocketManager.getInstance());
+                }
+            }
+        }
+        return instance;
+    }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event Handlers

@@ -73,13 +73,13 @@ public class WDBrowsingContextRequest {
         public GetTree() {
             super("browsingContext.getTree", new GetTreeParameters());
         }
-        public GetTree(Character maxDepth) {
+        public GetTree(Long maxDepth) {
             super("browsingContext.getTree", new GetTreeParameters(maxDepth, null));
         }
         public GetTree(WDBrowsingContext root) {
             super("browsingContext.getTree", new GetTreeParameters(null, root));
         }
-        public GetTree(Character maxDepth, WDBrowsingContext root) {
+        public GetTree(Long maxDepth, WDBrowsingContext root) {
             super("browsingContext.getTree", new GetTreeParameters(maxDepth, root));
         }
     }
@@ -110,13 +110,13 @@ public class WDBrowsingContextRequest {
         public LocateNodes(String contextId, WDLocator WDLocator) {
             super("browsingContext.locateNodes", new LocateNodesParameters(new WDBrowsingContext(contextId), WDLocator));
         }
-        public LocateNodes(String contextId, WDLocator WDLocator, Character maxNodeCount, WDSerializationOptions WDSerializationOptions, List<WDRemoteReference.SharedReferenceWD> startNodes) {
+        public LocateNodes(String contextId, WDLocator WDLocator, Long maxNodeCount, WDSerializationOptions WDSerializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
             super("browsingContext.locateNodes", new LocateNodesParameters(new WDBrowsingContext(contextId), WDLocator, maxNodeCount, WDSerializationOptions, startNodes));
         }
         public LocateNodes(WDBrowsingContext context, WDLocator WDLocator) {
             super("browsingContext.locateNodes", new LocateNodesParameters(context, WDLocator));
         }
-        public LocateNodes(WDBrowsingContext context, WDLocator WDLocator, Character maxNodeCount, WDSerializationOptions WDSerializationOptions, List<WDRemoteReference.SharedReferenceWD> startNodes) {
+        public LocateNodes(WDBrowsingContext context, WDLocator WDLocator, Long maxNodeCount, WDSerializationOptions WDSerializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
             super("browsingContext.locateNodes", new LocateNodesParameters(context, WDLocator, maxNodeCount, WDSerializationOptions, startNodes));
         }
     }
@@ -141,13 +141,13 @@ public class WDBrowsingContextRequest {
         public Print(String contextId) {
             super("browsingContext.print", new PrintParameters(new WDBrowsingContext(contextId)));
         }
-        public Print(String contextId, boolean background, PrintParameters.PrintMarginParameters margin, Orientation WDOrientation, PrintParameters.PrintPageParameters page, char pageRanges, float scale, boolean shrinkToFit) {
+        public Print(String contextId, boolean background, PrintParameters.PrintMarginParameters margin, Orientation WDOrientation, PrintParameters.PrintPageParameters page, long pageRanges, float scale, boolean shrinkToFit) {
             super("browsingContext.print", new PrintParameters(new WDBrowsingContext(contextId), background, margin, WDOrientation, page, pageRanges, scale, shrinkToFit));
         }
         public Print(WDBrowsingContext context) {
             super("browsingContext.print", new PrintParameters(context));
         }
-        public Print(WDBrowsingContext context, boolean background, PrintParameters.PrintMarginParameters margin, Orientation WDOrientation, PrintParameters.PrintPageParameters page, char pageRanges, float scale, boolean shrinkToFit) {
+        public Print(WDBrowsingContext context, boolean background, PrintParameters.PrintMarginParameters margin, Orientation WDOrientation, PrintParameters.PrintPageParameters page, long pageRanges, float scale, boolean shrinkToFit) {
             super("browsingContext.print", new PrintParameters(context, background, margin, WDOrientation, page, pageRanges, scale, shrinkToFit));
         }
     }

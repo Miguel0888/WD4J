@@ -133,7 +133,7 @@ public class BrowserTypeImpl implements BrowserType {
     //
     @Override
     public Browser connect(String wsEndpoint, ConnectOptions options) {
-        WebSocketImpl webSocketImpl = new WebSocketImpl();
+        WebSocketImpl webSocketImpl = WebSocketImpl.getInstance(); // ToDo: Has to be improved for multiple browsers!
         webSocketImpl.createAndConfigureWebSocketClient(URI.create(wsEndpoint));
         try {
             webSocketImpl.connect();

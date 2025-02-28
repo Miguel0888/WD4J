@@ -214,14 +214,14 @@ public class EventDispatcher {
                 return new WorkerImpl(new WDScriptEvent.RealmCreated(json));
             case REALM_DESTROYED:
                 return new WorkerImpl(new WDScriptEvent.RealmDestroyed(json));
+            case MESSAGE://ToDo: This is not quite correct, since message is used for "Channels" (they have a ChannelID)
+                return new ConsoleMessageImpl(new WDLogEvent.EntryAdded(json)); // Might not be relevant for PlayWright!
 
             // 🔹 Log Events
             case ENTRY_ADDED:
                 return new ConsoleMessageImpl(new WDLogEvent.EntryAdded(json));
 
             // 🔹 WebSocket Events
-            case MESSAGE:
-                return new ConsoleMessageImpl(new WDLogEvent.EntryAdded(json));
 //            case WEBSOCKET_CLOSED:
 //                return new WebSocketImpl(new WDNetworkEvent.WebSocketClosed(json));
 //

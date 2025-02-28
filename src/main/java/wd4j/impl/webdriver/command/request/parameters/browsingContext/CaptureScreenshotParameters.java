@@ -58,9 +58,9 @@ public class CaptureScreenshotParameters implements WDCommand.Params {
 
         class ElementClipRectangle implements ClipRectangle {
             private final String type = "element";
-            private final WDRemoteReference.SharedReferenceWD element;
+            private final WDRemoteReference.SharedReference element;
 
-            public ElementClipRectangle(WDRemoteReference.SharedReferenceWD element) {
+            public ElementClipRectangle(WDRemoteReference.SharedReference element) {
                 this.element = element;
             }
 
@@ -68,7 +68,7 @@ public class CaptureScreenshotParameters implements WDCommand.Params {
                 return type;
             }
 
-            public WDRemoteReference.SharedReferenceWD getElement() {
+            public WDRemoteReference.SharedReference getElement() {
                 return element;
             }
         }

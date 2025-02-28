@@ -2,6 +2,9 @@ package wd4j.impl.webdriver.type.script;
 
 import wd4j.impl.webdriver.mapping.StringWrapper;
 
+/**
+ * The script.Channel type represents the id of a specific channel used to send custom messages from the remote end to the local end.
+ */
 public class WDChannel implements StringWrapper {
     private final String value;
 

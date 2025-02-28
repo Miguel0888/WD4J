@@ -24,11 +24,26 @@ public class WebSocketManager {
 
     private final EventDispatcher eventDispatcher;
 
-    public WebSocketManager(WebSocketImpl webSocket) {
+    private static volatile WebSocketManager instance;
+
+    private WebSocketManager(WebSocketImpl webSocket) {
         this.webSocket = webSocket;
         this.eventDispatcher = new EventDispatcher();
         registerEventListener(eventDispatcher); // 🔥 Events aktivieren!
     }
+
+    public static WebSocketManager getInstance() {
+        if (instance == null) {
+            synchronized (WebSocketManager.class) {
+                if (instance == null) {
+                    instance = new WebSocketManager(WebSocketImpl.getInstance());
+                }
+            }
+        }
+        return instance;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public EventDispatcher getEventDispatcher() {
         return eventDispatcher;

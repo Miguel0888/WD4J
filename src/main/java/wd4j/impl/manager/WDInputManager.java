@@ -69,7 +69,7 @@ public class WDInputManager implements WDModule {
      *
      * @throws RuntimeException if the operation fails.
      */
-    public void setFiles(String contextId, WDRemoteReference.SharedReferenceWD sharedReference, List<String> files) {
+    public void setFiles(String contextId, WDRemoteReference.SharedReference sharedReference, List<String> files) {
         if (files == null || files.isEmpty()) {
             throw new IllegalArgumentException("File paths list must not be null or empty.");
         }

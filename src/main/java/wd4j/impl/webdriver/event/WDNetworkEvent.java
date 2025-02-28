@@ -33,10 +33,10 @@ public class WDNetworkEvent implements WDModule {
         public static class AuthRequiredParametersWD extends WDBaseParameters {
             private WDResponseData response;
 
-            public AuthRequiredParametersWD(WDBrowsingContext context, boolean isBlocked, WDNavigation WDNavigation, char redirectCount,
-                                            WDRequestData request, long timestamp, List<WDIntercept> WDIntercepts,
+            public AuthRequiredParametersWD(WDBrowsingContext context, boolean isBlocked, WDNavigation navigation, long redirectCount,
+                                            WDRequestData request, long timestamp, List<WDIntercept> intercepts,
                                             WDResponseData response) {
-                super(context, isBlocked, WDNavigation, redirectCount, request, timestamp, WDIntercepts);
+                super(context, isBlocked, navigation, redirectCount, request, timestamp, intercepts);
                 this.response = response;
             }
 
@@ -61,10 +61,10 @@ public class WDNetworkEvent implements WDModule {
         public static class BeforeRequestSentParametersWD extends WDBaseParameters {
             private WDInitiator initiator;
 
-            public BeforeRequestSentParametersWD(WDBrowsingContext context, boolean isBlocked, WDNavigation WDNavigation, char redirectCount,
-                                                 WDRequestData request, long timestamp, List<WDIntercept> WDIntercepts,
+            public BeforeRequestSentParametersWD(WDBrowsingContext context, boolean isBlocked, WDNavigation navigation, long redirectCount,
+                                                 WDRequestData request, long timestamp, List<WDIntercept> intercepts,
                                                  WDInitiator initiator) {
-                super(context, isBlocked, WDNavigation, redirectCount, request, timestamp, WDIntercepts);
+                super(context, isBlocked, navigation, redirectCount, request, timestamp, intercepts);
                 this.initiator = initiator;
             }
 
@@ -100,10 +100,10 @@ public class WDNetworkEvent implements WDModule {
         public static class FetchErrorParametersWD extends WDBaseParameters {
             private String errorText;
 
-            public FetchErrorParametersWD(WDBrowsingContext context, boolean isBlocked, WDNavigation WDNavigation, char redirectCount,
-                                          WDRequestData request, long timestamp, List<WDIntercept> WDIntercepts,
+            public FetchErrorParametersWD(WDBrowsingContext context, boolean isBlocked, WDNavigation navigation, long redirectCount,
+                                          WDRequestData request, long timestamp, List<WDIntercept> intercepts,
                                           String errorText) {
-                super(context, isBlocked, WDNavigation, redirectCount, request, timestamp, WDIntercepts);
+                super(context, isBlocked, navigation, redirectCount, request, timestamp, intercepts);
                 this.errorText = errorText;
             }
 
@@ -139,7 +139,7 @@ public class WDNetworkEvent implements WDModule {
         public static class ResponseCompletedParametersWD extends WDBaseParameters {
             private WDResponseData response;
 
-            public ResponseCompletedParametersWD(WDBrowsingContext context, boolean isBlocked, WDNavigation navigation, char redirectCount,
+            public ResponseCompletedParametersWD(WDBrowsingContext context, boolean isBlocked, WDNavigation navigation, long redirectCount,
                                                  WDRequestData request, long timestamp, List<WDIntercept> intercepts,
                                                  WDResponseData response) {
                 super(context, isBlocked, navigation, redirectCount, request, timestamp, intercepts);
@@ -178,10 +178,10 @@ public class WDNetworkEvent implements WDModule {
         public static class ResponseStartedParametersWD extends WDBaseParameters {
             private WDResponseData response;
 
-            public ResponseStartedParametersWD(WDBrowsingContext context, boolean isBlocked, WDNavigation WDNavigation, char redirectCount,
-                                               WDRequestData request, long timestamp, List<WDIntercept> WDIntercepts,
+            public ResponseStartedParametersWD(WDBrowsingContext context, boolean isBlocked, WDNavigation navigation, long redirectCount,
+                                               WDRequestData request, long timestamp, List<WDIntercept> intercepts,
                                                WDResponseData response) {
-                super(context, isBlocked, WDNavigation, redirectCount, request, timestamp, WDIntercepts);
+                super(context, isBlocked, navigation, redirectCount, request, timestamp, intercepts);
                 this.response = response;
             }
 

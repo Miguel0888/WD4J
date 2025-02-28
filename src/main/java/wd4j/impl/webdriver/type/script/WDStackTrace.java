@@ -2,6 +2,9 @@ package wd4j.impl.webdriver.type.script;
 
 import java.util.List;
 
+/**
+ * The script.StackTrace type represents the javascript stack at a point in script execution.
+ */
 public class WDStackTrace {
     private final List<StackFrame> frames;
 

@@ -1,5 +1,9 @@
 package wd4j.impl.webdriver.type.script;
 
+/**
+ * The script.ChannelValue type represents an ArgumentValue that can be deserialized into a function that sends messages
+ * from the remote end to the local end.
+ */
 public class WDChannelValue {
     private final String type = "channel";
     private final ChannelProperties value;

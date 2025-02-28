@@ -21,6 +21,11 @@ import java.lang.reflect.Type;
 // in Skripten durchaus vorkommen können.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * The script.EvaluateResult type indicates the return value of a command that executes script.
+ * The script.EvaluateResultSuccess variant is used in cases where the script completes normally and the
+ * script.EvaluateResultException variant is used in cases where the script completes with a thrown exception.
+ */
 @JsonAdapter(WDEvaluateResult.EvaluateResultAdapter.class) // 🔥 Direkt hier den Adapter registrieren
 public interface WDEvaluateResult extends WDScriptResult {
     String getType();

@@ -9,12 +9,12 @@ public class WDBaseParameters {
     private final WDBrowsingContext contextId;
     private final boolean isBlocked;
     private final WDNavigation navigation;
-    private final char redirectCount;
+    private final long redirectCount;
     private final WDRequestData request;
     private final long timestamp;
     private final List<WDIntercept> intercepts; // optional
 
-    public WDBaseParameters(WDBrowsingContext contextId, boolean isBlocked, WDNavigation navigation, char redirectCount, WDRequestData request, long timestamp) {
+    public WDBaseParameters(WDBrowsingContext contextId, boolean isBlocked, WDNavigation navigation, long redirectCount, WDRequestData request, long timestamp) {
         this.contextId = contextId;
         this.isBlocked = isBlocked;
         this.navigation = navigation;
@@ -24,7 +24,7 @@ public class WDBaseParameters {
         this.intercepts = null;
     }
 
-    public WDBaseParameters(WDBrowsingContext contextId, boolean isBlocked, WDNavigation navigation, char redirectCount, WDRequestData request, long timestamp, List<WDIntercept> intercepts) {
+    public WDBaseParameters(WDBrowsingContext contextId, boolean isBlocked, WDNavigation navigation, long redirectCount, WDRequestData request, long timestamp, List<WDIntercept> intercepts) {
         this.contextId = contextId;
         this.isBlocked = isBlocked;
         this.navigation = navigation;
@@ -46,7 +46,7 @@ public class WDBaseParameters {
         return navigation;
     }
 
-    public char getRedirectCount() {
+    public long getRedirectCount() {
         return redirectCount;
     }
 

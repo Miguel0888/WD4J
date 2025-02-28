@@ -9,7 +9,7 @@ public class PrintParameters implements WDCommand.Params {
     private final PrintMarginParameters margin; // optional
     private final Orientation orientation; // optional, default PORTRAIT
     private final PrintPageParameters page; // optional
-    private final char pageRanges; // optional
+    private final long pageRanges; // optional
     private final float scale; // optional, default 1.0
     private final boolean shrinkToFit; // optional, default true
 
@@ -24,7 +24,7 @@ public class PrintParameters implements WDCommand.Params {
         this.shrinkToFit = true;
     }
 
-    public PrintParameters(WDBrowsingContext context, boolean background, PrintMarginParameters margin, Orientation orientation, PrintPageParameters page, char pageRanges, float scale, boolean shrinkToFit) {
+    public PrintParameters(WDBrowsingContext context, boolean background, PrintMarginParameters margin, Orientation orientation, PrintPageParameters page, long pageRanges, float scale, boolean shrinkToFit) {
         this.context = context;
         this.background = background;
         this.margin = margin;
@@ -55,7 +55,7 @@ public class PrintParameters implements WDCommand.Params {
         return page;
     }
 
-    public char getPageRanges() {
+    public long getPageRanges() {
         return pageRanges;
     }
 

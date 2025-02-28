@@ -1,7 +1,5 @@
 package wd4j.impl.manager;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
 import wd4j.impl.webdriver.command.request.parameters.browsingContext.CreateType;
@@ -183,7 +181,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @param height    The new height of the viewport in pixels.
      * @throws RuntimeException if setting the viewport size fails.
      */
-    public void setViewport(String contextId, char width, char height) {
+    public void setViewport(String contextId, int width, int height) {
         webSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.SetViewport(
                         contextId,

@@ -106,7 +106,7 @@ public class PlaywrightResponse<T extends WDResultData> implements Response {
     }
 
     @Override
-    public int status() {
+    public long status() {
         return 200; // WebDriver BiDi gibt keinen HTTP-Status zurück, daher Default-Wert
     }
 

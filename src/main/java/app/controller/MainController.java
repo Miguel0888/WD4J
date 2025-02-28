@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.WDTarget;
 import wd4j.impl.websocket.ClickWebSocketServer;
@@ -62,6 +63,7 @@ public class MainController {
 
     // Map mit allen Events und den zugehörigen Methoden
     private final Map<String, EventHandler> eventHandlers = new HashMap<>();
+    private List<WDScriptResult.AddPreloadScriptResult> addPreloadScriptResults = new ArrayList<>();
 
     public MainController() {
         logger.info(" *** MainController gestartet! *** ");
@@ -567,57 +569,12 @@ public class MainController {
     }
 
     private void showSelectors(Page selectedPage) {
-//        String preloadScript = "(function() { "
-//                + "document.addEventListener('DOMContentLoaded', function() { "
-//                + "document.body.style.backgroundColor = 'red'; "
-//                + "}); "
-//                + "})"; // ❌ KEINE `()` AM ENDE !!!
-
-//        String preloadScript = "(function() {"
-//                + " function initializeTooltip() {"
-//                + "     if (!document.body) return setTimeout(initializeTooltip, 50);"
-//                + "     var tooltip = document.createElement('div');"
-//                + "     tooltip.style.position = 'fixed';"
-//                + "     tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';"
-//                + "     tooltip.style.color = 'white';"
-//                + "     tooltip.style.padding = '5px';"
-//                + "     tooltip.style.borderRadius = '3px';"
-//                + "     tooltip.style.fontSize = '12px';"
-//                + "     tooltip.style.zIndex = '9999';"
-//                + "     tooltip.style.pointerEvents = 'none';"
-//                + "     document.body.appendChild(tooltip);"
-//
-//                + "     function getSelector(element) {"
-//                + "         if (!element) return null;"
-//                + "         if (element.id) return '#' + element.id;"
-//                + "         if (element.className) return '.' + element.className.split(' ').join('.');"
-//                + "         return element.tagName.toLowerCase();"
-//                + "     }"
-//
-//                + "     document.addEventListener('mouseover', function(event) {"
-//                + "         var el = event.target;"
-//                + "         var selector = getSelector(el);"
-//                + "         var id = el.id ? ' ID: ' + el.id : '';"
-//                + "         tooltip.textContent = selector + id;"
-//                + "         tooltip.style.top = (event.clientY + 10) + 'px';"
-//                + "         tooltip.style.left = (event.clientX + 10) + 'px';"
-//                + "         tooltip.style.display = 'block';"
-//                + "     });"
-//
-//                + "     document.addEventListener('mouseout', function() {"
-//                + "         tooltip.style.display = 'none';"
-//                + "     });"
-//                + " }"
-//
-//                + " document.addEventListener('DOMContentLoaded', initializeTooltip);"
-//                + "})"; // ❌ KEINE `()` AM ENDE !!!
-
         // Tooltip-Skript laden (zum Anzeigen von Selektoren)
         String tooltipScript = loadScript("scripts/tooltip.js");
-        ((BrowserImpl) browser).getScriptManager().addPreloadScript(
+        addPreloadScriptResults.add(((BrowserImpl) browser).getScriptManager().addPreloadScript(
                 tooltipScript,
                 ((PageImpl) selectedPage).getBrowsingContextId()
-        );
+        ));
 
         ClickWebSocketServer clickWebSocketServer = new ClickWebSocketServer(8080, message ->
                 Main.scriptLog.append(message + System.lineSeparator()));
@@ -625,19 +582,19 @@ public class MainController {
 
         // Callback-Skript laden (zum Senden der Selektoren an Java)
         String callbackScript = loadScript("scripts/callback.js");
-        ((BrowserImpl) browser).getScriptManager().addPreloadScript(
+        addPreloadScriptResults.add(((BrowserImpl) browser).getScriptManager().addPreloadScript(
                 callbackScript,
                 ((PageImpl) selectedPage).getBrowsingContextId()
-        );
+        ));
     }
 
+    // ToDo: Take context / page into account
     private void hideSelectors(Page selectedPage) {
-        String removeScript = "(function() {" +
-                "    var tooltip = document.getElementById('selector-tooltip');" +
-                "    if (tooltip) tooltip.remove();" +
-                "})();";
-
-        ((BrowserImpl) browser).getScriptManager().evaluate(removeScript, new WDTarget.ContextTarget(new WDBrowsingContext(((PageImpl) selectedPage).getBrowsingContextId())), false);
+        // Alle Preload-Skripte entfernen
+        for( WDScriptResult.AddPreloadScriptResult result : addPreloadScriptResults)
+        {
+            ((BrowserImpl) browser).getScriptManager().removePreloadScript(result.getScript().value());
+        }
     }
 
     public static String loadScript(String resourcePath) {

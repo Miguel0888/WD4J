@@ -2,7 +2,6 @@ package wd4j.impl.webdriver.type.script;
 
 import com.google.gson.*;
 import com.google.gson.annotations.JsonAdapter;
-import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
 import wd4j.impl.webdriver.mapping.EnumWrapper;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 
@@ -363,8 +362,8 @@ public abstract class WDRemoteValue {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class NodeProperties {
-        private final char nodeType;
-        private final char childNodeCount;
+        private final long nodeType;
+        private final long childNodeCount;
         private final Map<String, String> attributes; // Optional
         private final List<NodeRemoteValue> children; // Optional
         private final String localName; // Optional
@@ -374,7 +373,7 @@ public abstract class WDRemoteValue {
         private final NodeRemoteValue shadowRoot; // Optional
 
         public NodeProperties(
-                char nodeType, char childNodeCount,
+                long nodeType, long childNodeCount,
                 Map<String, String> attributes, List<NodeRemoteValue> children,
                 String localName, Mode mode, String namespaceURI,
                 String nodeValue, NodeRemoteValue shadowRoot) {
@@ -389,11 +388,11 @@ public abstract class WDRemoteValue {
             this.shadowRoot = shadowRoot;
         }
 
-        public char getNodeType() {
+        public long getNodeType() {
             return nodeType;
         }
 
-        public char getChildNodeCount() {
+        public long getChildNodeCount() {
             return childNodeCount;
         }
 

@@ -7,10 +7,15 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * The script.LocalValue type represents values which can be deserialized into ECMAScript. This includes both primitive
+ * and non-primitive values as well as remote references and channels.
+ *
+ * @param <T>
+ */
 @JsonAdapter(WDLocalValue.LocalValueAdapter.class) // 🔥 Automatische JSON-Konvertierung
 public interface WDLocalValue<T> {
     String getType();
-    T getValue();
 
     // 🔥 **INNERE KLASSE für JSON-Deserialisierung**
     class LocalValueAdapter implements JsonDeserializer<WDLocalValue<?>> {
@@ -37,6 +42,26 @@ public interface WDLocalValue<T> {
                     return context.deserialize(jsonObject, RegExpLocalValue.class);
                 case "set":
                     return context.deserialize(jsonObject, SetLocalValue.class);
+
+                // Further different types of LocalValue, not implemented in this class
+                case "shared-reference":
+                    return context.deserialize(jsonObject, WDRemoteReference.SharedReference.class);
+                case "remote-object-reference":
+                    return context.deserialize(jsonObject, WDRemoteReference.RemoteObjectReference.class);
+
+                case "undefined":
+                    return context.deserialize(jsonObject, WDPrimitiveProtocolValue.UndefinedValue.class);
+                case "null":
+                    return context.deserialize(jsonObject, WDPrimitiveProtocolValue.NullValue.class);
+                case "string":
+                    return context.deserialize(jsonObject, WDPrimitiveProtocolValue.StringValue.class);
+                case "number":
+                    return context.deserialize(jsonObject, WDPrimitiveProtocolValue.NumberValue.class);
+                case "boolean":
+                    return context.deserialize(jsonObject, WDPrimitiveProtocolValue.BooleanValue.class);
+                case "bigint":
+                    return context.deserialize(jsonObject, WDPrimitiveProtocolValue.BigIntValue.class);
+
                 default:
                     throw new JsonParseException("Unknown LocalValue type: " + type);
             }
@@ -56,7 +81,6 @@ public interface WDLocalValue<T> {
             return type;
         }
 
-        @Override
         public List<WDLocalValue<?>> getValue() {
             return value;
         }
@@ -75,7 +99,6 @@ public interface WDLocalValue<T> {
             return type;
         }
 
-        @Override
         public String getValue() {
             return value;
         }
@@ -94,7 +117,6 @@ public interface WDLocalValue<T> {
             return type;
         }
 
-        @Override
         public Map<WDLocalValue<?>, WDLocalValue<?>> getValue() {
             return value;
         }
@@ -113,7 +135,6 @@ public interface WDLocalValue<T> {
             return type;
         }
 
-        @Override
         public Map<WDLocalValue<?>, WDLocalValue<?>> getValue() {
             return value;
         }
@@ -132,7 +153,6 @@ public interface WDLocalValue<T> {
             return type;
         }
 
-        @Override
         public RegExpValue getValue() {
             return value;
         }
@@ -173,7 +193,6 @@ public interface WDLocalValue<T> {
             return type;
         }
 
-        @Override
         public List<WDLocalValue<?>> getValue() {
             return value;
         }
