@@ -12,10 +12,27 @@ import wd4j.impl.websocket.WebSocketManager;
 
 public class WDBrowsingContextManager implements WDModule {
 
+    private static WDBrowsingContextManager instance;
     private final WebSocketManager webSocketManager;
 
-    public WDBrowsingContextManager(WebSocketManager webSocketManager) {
+    private WDBrowsingContextManager(WebSocketManager webSocketManager) {
         this.webSocketManager = webSocketManager;
+    }
+
+    /**
+     * Gibt die Singleton-Instanz von WDBrowsingContextManager zurück.
+     *
+     * @return Singleton-Instanz von WDBrowsingContextManager.
+     */
+    public static WDBrowsingContextManager getInstance() {
+        if (instance == null) {
+            synchronized (WDScriptManager.class) {
+                if (instance == null) {
+                    instance = new WDBrowsingContextManager(WebSocketManager.getInstance());
+                }
+            }
+        }
+        return instance;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

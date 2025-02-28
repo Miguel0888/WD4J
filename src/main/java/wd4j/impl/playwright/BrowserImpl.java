@@ -31,16 +31,16 @@ public class BrowserImpl implements Browser {
     private WDStorageManager storageManager;
     private WDWebExtensionManager webExtensionManager;
 
-    public BrowserImpl(WebSocketManager webSocketManager, BrowserTypeImpl browserType, Process process) throws ExecutionException, InterruptedException {
+    public BrowserImpl(BrowserTypeImpl browserType, Process process) throws ExecutionException, InterruptedException {
         browsers.add(this);
-        this.webSocketManager = webSocketManager;
-        this.browserManager = new WDBrowserManager(webSocketManager);
-        this.browsingContextManager = new WDBrowsingContextManager(webSocketManager);
+        this.webSocketManager = WebSocketManager.getInstance();
+        this.browserManager = WDBrowserManager.getInstance();
+        this.browsingContextManager = WDBrowsingContextManager.getInstance();
 
         this.scriptManager = WDScriptManager.getInstance();
-        this.networkManager = new WDNetworkManager(webSocketManager);
-        this.storageManager = new WDStorageManager(webSocketManager);
-        this.webExtensionManager = new WDWebExtensionManager(webSocketManager);
+        this.networkManager = WDNetworkManager.getInstance();
+        this.storageManager = WDStorageManager.getInstance();
+        this.webExtensionManager = WDWebExtensionManager.getInstance();
         this.browserType = browserType;
         this.process = process;
         this.session = new Session(this); // ToDo: Add PW Options
