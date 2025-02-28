@@ -9,14 +9,20 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 
-@JsonAdapter(WDRemoteValue.WDRemoteValueAdapter.class) // 🔥 Automatische JSON-Serialisierung und -Deserialisierung
-public abstract class WDRemoteValue {
-    private final String type;
-    private final WDHandle handle;
-    private final WDInternalId internalId;
+/**
+ * WDRemoteValue is an interface to represent various types of remote values in WebDriver BiDi.
+ */
+@JsonAdapter(WDRemoteValue.WDRemoteValueAdapter.class)
+public interface WDRemoteValue {
 
-    // 🔥 **JSON Adapter für automatische (De)Serialisierung**
-    public static class WDRemoteValueAdapter implements JsonSerializer<WDRemoteValue>, JsonDeserializer<WDRemoteValue> {
+    String getType();
+
+    default String asString() {
+        return "[Object: " + getType() + "]";
+    }
+
+    // JSON Adapter for automatic serialization/deserialization
+    class WDRemoteValueAdapter implements JsonSerializer<WDRemoteValue>, JsonDeserializer<WDRemoteValue> {
         @Override
         public WDRemoteValue deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             JsonObject jsonObject = json.getAsJsonObject();
@@ -42,9 +48,9 @@ public abstract class WDRemoteValue {
                 case "function":
                     return context.deserialize(jsonObject, FunctionRemoteValue.class);
                 case "regexp":
-                    return mergeWithLocalValue(context.deserialize(jsonObject, WDLocalValue.RegExpLocalValue.class), jsonObject);
+                    return context.deserialize(jsonObject, RegExpRemoteValue.class);
                 case "date":
-                    return mergeWithLocalValue(context.deserialize(jsonObject, WDLocalValue.DateLocalValue.class), jsonObject);
+                    return context.deserialize(jsonObject, DateRemoteValue.class);
                 case "map":
                     return context.deserialize(jsonObject, MapRemoteValue.class);
                 case "set":
@@ -81,18 +87,10 @@ public abstract class WDRemoteValue {
         // ✅ **Serialisierung: Wandelt `WDRemoteValue` in JSON um**
         @Override
         public JsonElement serialize(WDRemoteValue src, Type typeOfSrc, JsonSerializationContext context) {
-            JsonObject jsonObject = (JsonObject) context.serialize(src);
-
-            // Falls `src` ein PrimitiveProtocolValue ist, nutzen wir den anderen Adapter
-            if (src instanceof WDPrimitiveProtocolValue) {
-                return context.serialize(src, WDPrimitiveProtocolValue.class);
+            return context.serialize(src);
             }
 
-            return jsonObject;
-        }
-
-        // ✅ **Hilfsmethode zur Kombination von Remote- und Local-Werten**
-        private WDRemoteValue mergeWithLocalValue(WDLocalValue<?> localValue, JsonObject jsonObject) {
+        private WDRemoteValue mergeWithLocalValue(WDLocalValue localValue, JsonObject jsonObject) {
             WDHandle handle = jsonObject.has("handle") ? new WDHandle(jsonObject.get("handle").getAsString()) : null;
             WDInternalId internalId = jsonObject.has("internalId") ? new WDInternalId(jsonObject.get("internalId").getAsString()) : null;
 
@@ -106,41 +104,38 @@ public abstract class WDRemoteValue {
         }
     }
 
-    protected WDRemoteValue(String type, WDHandle handle, WDInternalId internalId) {
-        if (type == null || type.isEmpty()) {
-            throw new IllegalArgumentException("Type must not be null or empty.");
+     class BaseRemoteValue implements WDRemoteValue {
+        private final String type;
+        private final WDHandle handle;
+        private final WDInternalId internalId;
+
+        protected BaseRemoteValue(String type, WDHandle handle, WDInternalId internalId) {
+            this.type = type;
+            this.handle = handle;
+            this.internalId = internalId;
         }
-        this.type = type;
-        this.handle = handle;
-        this.internalId = internalId;
-    }
 
-    public String getType() {
-        return type;
-    }
+        @Override
+        public String getType() {
+            return type;
+        }
 
-    public WDHandle getHandle() {
+        public WDHandle getHandle() {
         return handle;
     }
 
-    public WDInternalId getInternalId() {
+        public WDInternalId getInternalId() {
         return internalId;
     }
+     }
 
-    // Standard-Implementierung: Nicht unterstützte Typen werfen Exception
-    public String asString() {
-        throw new UnsupportedOperationException(
-                "Cannot convert WDRemoteValue of type '" + type + "' to String."
-        );
-    }
-
-    static class SymbolRemoteValue extends WDRemoteValue {
+    class SymbolRemoteValue extends BaseRemoteValue {
         public SymbolRemoteValue(WDHandle handle, WDInternalId internalId) {
             super("symbol", handle, internalId);
         }
     }
 
-    static class ArrayRemoteValue extends WDRemoteValue {
+    class ArrayRemoteValue extends BaseRemoteValue {
         private final List<WDRemoteValue> value;
 
         public ArrayRemoteValue(WDHandle handle, WDInternalId internalId, List<WDRemoteValue> value) {
@@ -153,7 +148,7 @@ public abstract class WDRemoteValue {
         }
     }
 
-    static class ObjectRemoteValue extends WDRemoteValue {
+    class ObjectRemoteValue extends BaseRemoteValue {
         private final Map<WDRemoteValue, WDRemoteValue> value;
 
         public ObjectRemoteValue(WDHandle handle, WDInternalId internalId, Map<WDRemoteValue, WDRemoteValue> value) {
@@ -166,13 +161,13 @@ public abstract class WDRemoteValue {
         }
     }
 
-    static class FunctionRemoteValue extends WDRemoteValue {
+    class FunctionRemoteValue extends BaseRemoteValue {
         public FunctionRemoteValue(WDHandle handle, WDInternalId internalId) {
             super("function", handle, internalId);
         }
     }
 
-    static class RegExpRemoteValue extends WDRemoteValue {
+    class RegExpRemoteValue extends BaseRemoteValue {
         private final WDLocalValue.RegExpLocalValue.RegExpValue value;
 
         public RegExpRemoteValue(WDHandle handle, WDInternalId internalId, WDLocalValue.RegExpLocalValue.RegExpValue value) {
@@ -183,15 +178,10 @@ public abstract class WDRemoteValue {
         public WDLocalValue.RegExpLocalValue.RegExpValue getValue() {
             return value;
         }
-
-        @Override
-        public String asString() {
-            return "/" + value.getPattern() + "/" + (value.getFlags() != null ? value.getFlags() : "");
-        }
     }
 
-    static class DateRemoteValue extends WDRemoteValue {
-        private final String value; // DateLocalValue's value
+    class DateRemoteValue extends BaseRemoteValue {
+        private final String value;
 
         public DateRemoteValue(WDHandle handle, WDInternalId internalId, String value) {
             super("date", handle, internalId);
@@ -201,14 +191,9 @@ public abstract class WDRemoteValue {
         public String getValue() {
             return value;
         }
-
-        @Override
-        public String asString() {
-            return value;
-        }
     }
 
-    static class MapRemoteValue extends WDRemoteValue {
+    class MapRemoteValue extends BaseRemoteValue {
         private final Map<WDRemoteValue, WDRemoteValue> value;
 
         public MapRemoteValue(WDHandle handle, WDInternalId internalId, Map<WDRemoteValue, WDRemoteValue> value) {
@@ -221,7 +206,7 @@ public abstract class WDRemoteValue {
         }
     }
 
-    static class SetRemoteValue extends WDRemoteValue {
+    class SetRemoteValue extends BaseRemoteValue {
         private final List<WDRemoteValue> value;
 
         public SetRemoteValue(WDHandle handle, WDInternalId internalId, List<WDRemoteValue> value) {
@@ -234,55 +219,55 @@ public abstract class WDRemoteValue {
         }
     }
 
-    static class WeakMapRemoteValue extends WDRemoteValue {
+    class WeakMapRemoteValue extends BaseRemoteValue {
         public WeakMapRemoteValue(WDHandle handle, WDInternalId internalId) {
             super("weakmap", handle, internalId);
         }
     }
 
-    static class WeakSetRemoteValue extends WDRemoteValue {
+    class WeakSetRemoteValue extends BaseRemoteValue {
         public WeakSetRemoteValue(WDHandle handle, WDInternalId internalId) {
             super("weakset", handle, internalId);
         }
     }
 
-    static class GeneratorRemoteValue extends WDRemoteValue {
+    class GeneratorRemoteValue extends BaseRemoteValue {
         public GeneratorRemoteValue(WDHandle handle, WDInternalId internalId) {
             super("generator", handle, internalId);
         }
     }
 
-    static class ErrorRemoteValue extends WDRemoteValue {
+    class ErrorRemoteValue extends BaseRemoteValue {
         public ErrorRemoteValue(WDHandle handle, WDInternalId internalId) {
             super("error", handle, internalId);
         }
     }
 
-    static class ProxyRemoteValue extends WDRemoteValue {
+    class ProxyRemoteValue extends BaseRemoteValue {
         public ProxyRemoteValue(WDHandle handle, WDInternalId internalId) {
             super("proxy", handle, internalId);
         }
     }
 
-    static class PromiseRemoteValue extends WDRemoteValue {
+    class PromiseRemoteValue extends BaseRemoteValue {
         public PromiseRemoteValue(WDHandle handle, WDInternalId internalId) {
             super("promise", handle, internalId);
         }
     }
 
-    static class TypedArrayRemoteValue extends WDRemoteValue {
+    class TypedArrayRemoteValue extends BaseRemoteValue {
         public TypedArrayRemoteValue(WDHandle handle, WDInternalId internalId) {
             super("typedarray", handle, internalId);
         }
     }
 
-    static class ArrayBufferRemoteValue extends WDRemoteValue {
+    class ArrayBufferRemoteValue extends BaseRemoteValue {
         public ArrayBufferRemoteValue(WDHandle handle, WDInternalId internalId) {
             super("arraybuffer", handle, internalId);
         }
     }
 
-    static class NodeListRemoteValue extends WDRemoteValue {
+    class NodeListRemoteValue extends BaseRemoteValue {
         private final List<WDRemoteValue> value;
 
         public NodeListRemoteValue(WDHandle handle, WDInternalId internalId, List<WDRemoteValue> value) {
@@ -302,7 +287,7 @@ public abstract class WDRemoteValue {
         }
     }
 
-    static class HTMLCollectionRemoteValue extends WDRemoteValue {
+    class HTMLCollectionRemoteValue extends BaseRemoteValue {
         private final List<WDRemoteValue> value;
 
         public HTMLCollectionRemoteValue(WDHandle handle, WDInternalId internalId, List<WDRemoteValue> value) {
@@ -322,7 +307,7 @@ public abstract class WDRemoteValue {
         }
     }
 
-    public static class NodeRemoteValue extends WDRemoteValue {
+     class NodeRemoteValue extends BaseRemoteValue {
         private final WDSharedId WDSharedId;
         private final NodeProperties value;
 
@@ -346,7 +331,7 @@ public abstract class WDRemoteValue {
         }
     }
 
-    static class WindowProxyRemoteValue extends WDRemoteValue {
+    class WindowProxyRemoteValue extends BaseRemoteValue {
         WindowProxyProperties value;
 
         public WindowProxyRemoteValue(WDHandle handle, WindowProxyProperties value, WDInternalId internalId) {
@@ -361,7 +346,7 @@ public abstract class WDRemoteValue {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static class NodeProperties {
+    class NodeProperties {
         private final long nodeType;
         private final long childNodeCount;
         private final Map<String, String> attributes; // Optional
@@ -442,7 +427,7 @@ public abstract class WDRemoteValue {
         }
     }
 
-    public static class WindowProxyProperties {
+    class WindowProxyProperties {
         private final WDBrowsingContext browsingContextRequest;
 
         public WindowProxyProperties(WDBrowsingContext browsingContext) {

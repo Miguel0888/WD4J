@@ -1,8 +1,5 @@
 package wd4j.impl.manager;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDScriptRequest;
 import wd4j.impl.webdriver.command.response.WDEmptyResult;
@@ -14,7 +11,6 @@ import wd4j.impl.webdriver.type.script.WDLocalValue;
 import wd4j.impl.webdriver.type.script.WDTarget;
 import wd4j.impl.websocket.WebSocketManager;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class WDScriptManager implements WDModule {
@@ -93,7 +89,7 @@ public class WDScriptManager implements WDModule {
      * @param arguments           The arguments to pass to the function.
      * @throws RuntimeException if the operation fails.
      */
-    public <T> WDEvaluateResult callFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue<T>> arguments) {
+    public <T> WDEvaluateResult callFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue> arguments) {
         return webSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.CallFunction<>(functionDeclaration, awaitPromise, WDTarget, arguments),
                 WDEvaluateResult.class

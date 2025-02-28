@@ -11,16 +11,15 @@ import java.util.Map;
  * The script.LocalValue type represents values which can be deserialized into ECMAScript. This includes both primitive
  * and non-primitive values as well as remote references and channels.
  *
- * @param <T>
  */
 @JsonAdapter(WDLocalValue.LocalValueAdapter.class) // 🔥 Automatische JSON-Konvertierung
-public interface WDLocalValue<T> {
+public interface WDLocalValue {
     String getType();
 
     // 🔥 **INNERE KLASSE für JSON-Deserialisierung**
-    class LocalValueAdapter implements JsonDeserializer<WDLocalValue<?>> {
+    class LocalValueAdapter implements JsonDeserializer<WDLocalValue> {
         @Override
-        public WDLocalValue<?> deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+        public WDLocalValue deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             JsonObject jsonObject = json.getAsJsonObject();
 
             if (!jsonObject.has("type")) {
@@ -68,11 +67,11 @@ public interface WDLocalValue<T> {
         }
     }
 
-    class ArrayLocalValue implements WDLocalValue<List<WDLocalValue<?>>> {
+    class ArrayLocalValue implements WDLocalValue {
         private final String type = "array";
-        private final List<WDLocalValue<?>> value;
+        private final List<WDLocalValue> value;
 
-        public ArrayLocalValue(List<WDLocalValue<?>> value) {
+        public ArrayLocalValue(List<WDLocalValue> value) {
             this.value = value;
         }
 
@@ -81,12 +80,12 @@ public interface WDLocalValue<T> {
             return type;
         }
 
-        public List<WDLocalValue<?>> getValue() {
+        public List<WDLocalValue> getValue() {
             return value;
         }
     }
 
-    class DateLocalValue implements WDLocalValue<String> {
+    class DateLocalValue implements WDLocalValue {
         private final String type = "date";
         private final String value;
 
@@ -104,11 +103,11 @@ public interface WDLocalValue<T> {
         }
     }
 
-    class MapLocalValue implements WDLocalValue<Map<WDLocalValue<?>, WDLocalValue<?>>> {
+    class MapLocalValue implements WDLocalValue {
         private final String type = "map";
-        private final Map<WDLocalValue<?>, WDLocalValue<?>> value;
+        private final Map<WDLocalValue, WDLocalValue> value;
 
-        public MapLocalValue(Map<WDLocalValue<?>, WDLocalValue<?>> value) {
+        public MapLocalValue(Map<WDLocalValue, WDLocalValue> value) {
             this.value = value;
         }
 
@@ -117,16 +116,16 @@ public interface WDLocalValue<T> {
             return type;
         }
 
-        public Map<WDLocalValue<?>, WDLocalValue<?>> getValue() {
+        public Map<WDLocalValue, WDLocalValue> getValue() {
             return value;
         }
     }
 
-    class ObjectLocalValue implements WDLocalValue<Map<WDLocalValue<?>, WDLocalValue<?>>> {
+    class ObjectLocalValue<T> implements WDLocalValue {
         private final String type = "object";
-        private final Map<WDLocalValue<?>, WDLocalValue<?>> value;
+        private final Map<T, WDLocalValue> value; // T may be String or WDLocalValue
 
-        public ObjectLocalValue(Map<WDLocalValue<?>, WDLocalValue<?>> value) {
+        public ObjectLocalValue(Map<T, WDLocalValue> value) {
             this.value = value;
         }
 
@@ -135,12 +134,12 @@ public interface WDLocalValue<T> {
             return type;
         }
 
-        public Map<WDLocalValue<?>, WDLocalValue<?>> getValue() {
+        public Map<T, WDLocalValue> getValue() {
             return value;
         }
     }
 
-    class RegExpLocalValue implements WDLocalValue<RegExpLocalValue.RegExpValue> {
+    class RegExpLocalValue implements WDLocalValue {
         private final String type = "regexp";
         private final RegExpValue value;
 
@@ -180,11 +179,11 @@ public interface WDLocalValue<T> {
         }
     }
 
-    class SetLocalValue implements WDLocalValue<List<WDLocalValue<?>>> {
+    class SetLocalValue implements WDLocalValue {
         private final String type = "set";
-        private final List<WDLocalValue<?>> value;
+        private final List<WDLocalValue> value;
 
-        public SetLocalValue(List<WDLocalValue<?>> value) {
+        public SetLocalValue(List<WDLocalValue> value) {
             this.value = value;
         }
 
@@ -193,7 +192,7 @@ public interface WDLocalValue<T> {
             return type;
         }
 
-        public List<WDLocalValue<?>> getValue() {
+        public List<WDLocalValue> getValue() {
             return value;
         }
     }

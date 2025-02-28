@@ -52,13 +52,14 @@ public class JSHandleImpl implements JSHandle {
 
     @Override
     public JSHandle evaluateHandle(String expression, Object arg) {
-        checkDisposed();
-        WDTarget target = new WDTarget.RealmTarget(realm);
-        List<WDLocalValue<WDRemoteReference.RemoteObjectReference>> args = Collections.singletonList(new WDRemoteReference.RemoteObjectReference(handle));
-        WDEvaluateResult result = scriptManager.callFunction(expression, true, target, args);
-        if(result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            return new JSHandleImpl(new WDHandle(((WDEvaluateResult.WDEvaluateResultSuccess)result).getResult().getHandle().value()), realm);
-        }
+        // ToDo: Implement this
+//        checkDisposed();
+//        WDTarget target = new WDTarget.RealmTarget(realm);
+//        List<WDLocalValue> args = Collections.singletonList(new WDRemoteReference.RemoteObjectReference(handle));
+//        WDEvaluateResult result = scriptManager.callFunction(expression, true, target, args);
+//        if(result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+//            return new JSHandleImpl(new WDHandle(((WDEvaluateResult.WDEvaluateResultSuccess)result).getResult().getHandle().value()), realm);
+//        }
         return null;
     }
 
@@ -132,7 +133,7 @@ public class JSHandleImpl implements JSHandle {
         return properties;
     }
 
-    private Object convertWDLocalValue(WDLocalValue<?> localValue) {
+    private Object convertWDLocalValue(WDLocalValue localValue) {
         if (localValue == null) return null;
 
         // 🔹 Fallunterscheidung für konkrete Implementierungen

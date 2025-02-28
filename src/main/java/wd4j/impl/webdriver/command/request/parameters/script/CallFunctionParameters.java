@@ -11,16 +11,16 @@ public class CallFunctionParameters<T> implements WDCommand.Params {
     private final String functionDeclaration;
     private final boolean awaitPromise;
     private final WDTarget WDTarget;
-    private final List<WDLocalValue<T>> arguments; // Optional
+    private final List<WDLocalValue> arguments; // Optional
     private final WDSerializationOptions WDSerializationOptions; // Optional
-    private final WDLocalValue<T> thisObject; // Optional
+    private final WDLocalValue thisObject; // Optional
     private final boolean userActivation;  // Optional, default false
 
     public CallFunctionParameters(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget) {
         this(functionDeclaration, awaitPromise, WDTarget, null, null, null, false);
     }
 
-    public CallFunctionParameters(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue<T>> arguments, WDSerializationOptions WDSerializationOptions, WDLocalValue<T> thisObject, boolean userActivation) {
+    public CallFunctionParameters(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue> arguments, WDSerializationOptions WDSerializationOptions, WDLocalValue thisObject, boolean userActivation) {
         this.functionDeclaration = functionDeclaration;
         this.awaitPromise = awaitPromise;
         this.WDTarget = WDTarget;
@@ -42,7 +42,7 @@ public class CallFunctionParameters<T> implements WDCommand.Params {
         return WDTarget;
     }
 
-    public List<WDLocalValue<T>> getArguments() {
+    public List<WDLocalValue> getArguments() {
         return arguments;
     }
 
@@ -50,7 +50,7 @@ public class CallFunctionParameters<T> implements WDCommand.Params {
         return WDSerializationOptions;
     }
 
-    public WDLocalValue<T> getThisObject() {
+    public WDLocalValue getThisObject() {
         return thisObject;
     }
 

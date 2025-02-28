@@ -9,7 +9,7 @@ class GsonMapperFactoryTest {
         Gson gson = GsonMapperFactory.getGson();
 
         // Test: Enum (Level)
-        WDLogEntry.Level Level = Level.WARN;
+        WDLogEntry.Level Level = WDLogEntry.Level.WARN;
         String jsonLevel = gson.toJson(Level);
         System.out.println("Serialized Level: " + jsonLevel); // Erwartet: "warn"
 

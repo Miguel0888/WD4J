@@ -18,9 +18,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
-import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
-import wd4j.impl.webdriver.type.script.WDTarget;
-import wd4j.impl.websocket.ClickWebSocketServer;
 
 public class MainController {
 

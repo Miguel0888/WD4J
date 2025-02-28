@@ -1,14 +1,22 @@
 package wd4j.impl.webdriver.command.request.parameters.input.sourceActions;
 
-public class PauseAction extends KeySourceActions implements NoneSourceAction, WheelSourceAction, PointerSourceAction {
-    private final long duration;
+/**
+ * Repräsentiert eine "pause"-Aktion für Tasten, Pointer, Wheel-Input und None-Input.
+ */
+class PauseAction implements KeySourceAction, PointerSourceAction, WheelSourceAction, NoneSourceAction {
+    private final String type = "pause";
+    private final Integer duration; // Optional
 
-    public PauseAction(long duration) {
-        super("pause");
+    public PauseAction(Integer duration) {
         this.duration = duration;
     }
 
-    public long getDuration() {
+    @Override
+    public String getType() {
+        return type;
+    }
+
+    public Integer getDuration() {
         return duration;
     }
 }

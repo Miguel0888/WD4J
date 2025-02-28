@@ -74,18 +74,19 @@ public class WorkerImpl implements Worker {
 
     @Override
     public JSHandle evaluateHandle(String expression, Object arg) {
-        if (isClosed) {
-            throw new IllegalStateException("Cannot evaluate on a closed worker.");
-        }
-        if (scriptManager == null) {
-            throw new IllegalStateException("ScriptManager is not available.");
-        }
-
-        // TODO: Wenn `JSHandle` unterstützt wird, dann entsprechend mappen
-        WDEvaluateResult evaluate = scriptManager.evaluate(expression, new WDTarget.RealmTarget(new WDRealm(realmId)), true);
-        if(evaluate instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            return new JSHandleImpl(((WDEvaluateResult.WDEvaluateResultSuccess) evaluate).getResult().getHandle(), new WDRealm(realmId));
-        }
+        // ToDo: Implement this
+//        if (isClosed) {
+//            throw new IllegalStateException("Cannot evaluate on a closed worker.");
+//        }
+//        if (scriptManager == null) {
+//            throw new IllegalStateException("ScriptManager is not available.");
+//        }
+//
+//        // TODO: Wenn `JSHandle` unterstützt wird, dann entsprechend mappen
+//        WDEvaluateResult evaluate = scriptManager.evaluate(expression, new WDTarget.RealmTarget(new WDRealm(realmId)), true);
+//        if(evaluate instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+//            return new JSHandleImpl(((WDEvaluateResult.WDEvaluateResultSuccess) evaluate).getResult().getHandle(), new WDRealm(realmId));
+//        }
         return null;
     }
 

@@ -59,10 +59,10 @@ public class WDScriptRequest {
         public CallFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget) {
             super("script.callFunction", new CallFunctionParameters(functionDeclaration, awaitPromise, WDTarget));
         }
-        public CallFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue<T>> arguments) {
+        public CallFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue> arguments) {
             super("script.callFunction", new CallFunctionParameters(functionDeclaration, awaitPromise, WDTarget, arguments, null, null, false));
         }
-        public CallFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue<T>> arguments, WDSerializationOptions WDSerializationOptions, WDLocalValue thisObject, boolean userActivation) {
+        public CallFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue> arguments, WDSerializationOptions WDSerializationOptions, WDLocalValue thisObject, boolean userActivation) {
             super("script.callFunction", new CallFunctionParameters(functionDeclaration, awaitPromise, WDTarget, arguments, WDSerializationOptions, thisObject, userActivation));
         }
     }

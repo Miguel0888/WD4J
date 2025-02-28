@@ -5,12 +5,12 @@ import com.google.gson.annotations.JsonAdapter;
 import wd4j.impl.webdriver.mapping.EnumWrapper;
 
 @JsonAdapter(WDPrimitiveProtocolValue.PrimitiveProtocolValueAdapter.class) // 🔥 Automatische JSON-Konvertierung
-public interface WDPrimitiveProtocolValue<T> extends WDLocalValue<T> {
+public interface WDPrimitiveProtocolValue extends WDLocalValue, WDRemoteValue {
     String getType();
 
-    class PrimitiveProtocolValueAdapter implements JsonDeserializer<WDPrimitiveProtocolValue<?>> {
+    class PrimitiveProtocolValueAdapter implements JsonDeserializer<WDPrimitiveProtocolValue> {
         @Override
-        public WDPrimitiveProtocolValue<?> deserialize(JsonElement jsonElement, java.lang.reflect.Type type, JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+        public WDPrimitiveProtocolValue deserialize(JsonElement jsonElement, java.lang.reflect.Type type, JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
             JsonObject jsonObject = jsonElement.getAsJsonObject();
 
             if (!jsonObject.has("type")) {
@@ -38,7 +38,7 @@ public interface WDPrimitiveProtocolValue<T> extends WDLocalValue<T> {
         }
     }
 
-    class UndefinedValue implements WDPrimitiveProtocolValue<Void> {
+    class UndefinedValue implements WDPrimitiveProtocolValue {
         private final String type = Type.UNDEFINED.value();
 
         @Override
@@ -47,7 +47,7 @@ public interface WDPrimitiveProtocolValue<T> extends WDLocalValue<T> {
         }
     }
 
-    class NullValue implements WDPrimitiveProtocolValue<Void> {
+    class NullValue implements WDPrimitiveProtocolValue {
         private final String type = Type.NULL.value();
 
         @Override
@@ -56,7 +56,7 @@ public interface WDPrimitiveProtocolValue<T> extends WDLocalValue<T> {
         }
     }
 
-    class StringValue implements WDPrimitiveProtocolValue<String> {
+    class StringValue implements WDPrimitiveProtocolValue {
         private final String type = Type.STRING.value();
         private final String value;
 
@@ -74,7 +74,7 @@ public interface WDPrimitiveProtocolValue<T> extends WDLocalValue<T> {
         }
     }
 
-    class BooleanValue implements WDPrimitiveProtocolValue<Boolean> {
+    class BooleanValue implements WDPrimitiveProtocolValue {
         private final String type = Type.BOOLEAN.value();
         private final Boolean value;
 
@@ -92,7 +92,7 @@ public interface WDPrimitiveProtocolValue<T> extends WDLocalValue<T> {
         }
     }
 
-    class BigIntValue implements WDPrimitiveProtocolValue<String> {
+    class BigIntValue implements WDPrimitiveProtocolValue {
         private final String type = Type.BIGINT.value();
         private final String value;
 
@@ -131,7 +131,7 @@ public interface WDPrimitiveProtocolValue<T> extends WDLocalValue<T> {
         }
     }
 
-    class NumberValue implements WDPrimitiveProtocolValue<String> {
+    class NumberValue implements WDPrimitiveProtocolValue {
         private final String type = Type.NUMBER.value();
         private final String value;
 

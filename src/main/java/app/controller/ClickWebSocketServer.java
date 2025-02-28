@@ -1,4 +1,4 @@
-package wd4j.impl.websocket;
+package app.controller;
 
 import org.java_websocket.server.WebSocketServer;
 import org.java_websocket.handshake.ClientHandshake;
@@ -6,6 +6,10 @@ import org.java_websocket.WebSocket;
 import java.net.InetSocketAddress;
 import java.util.function.Consumer;
 
+/**
+ * Works as Callback for the Browser. In WebDriverBiDi you could use channels (and messages) alternatively,
+ * but the implementation maybe more complex then.
+ */
 public class ClickWebSocketServer extends WebSocketServer {
     Consumer<String> clickConsumer;
 
