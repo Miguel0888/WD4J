@@ -23,7 +23,7 @@ public class JSHandleImpl implements JSHandle {
     @Override
     public ElementHandle asElement() {
         if (isElementHandle()) {
-            return new ElementHandleImpl(scriptManager, handle, realm);
+            return new ElementHandleImpl(handle, realm);
         }
         return null;
     }

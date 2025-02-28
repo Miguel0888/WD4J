@@ -3,92 +3,102 @@ package wd4j.impl.playwright;
 import wd4j.api.ElementHandle;
 import wd4j.api.Frame;
 import wd4j.api.JSHandle;
-import wd4j.api.options.BoundingBox;
-import wd4j.api.options.ElementState;
-import wd4j.api.options.FilePayload;
-import wd4j.api.options.SelectOption;
+import wd4j.api.options.*;
 import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.webdriver.type.script.WDHandle;
 import wd4j.impl.webdriver.type.script.WDRealm;
+import wd4j.impl.webdriver.type.script.*;
 
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
-public class ElementHandleImpl implements ElementHandle {
-    public ElementHandleImpl(WDScriptManager scriptManager, WDHandle handle, WDRealm realm) {
-        // ToDo: Implement
+public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
+    private final WDScriptManager scriptManager;
+    private final WDHandle handle;
+    private final WDRealm realm;
+
+    public ElementHandleImpl(WDHandle handle, WDRealm realm) {
+        super(handle, realm);
+        this.scriptManager = WDScriptManager.getInstance();
+        this.handle = handle;
+        this.realm = realm;
     }
 
     @Override
     public BoundingBox boundingBox() {
-        return null;
+        return (BoundingBox) evaluate("el => el.getBoundingClientRect()");
     }
 
     @Override
     public void check(CheckOptions options) {
-
+        evaluate("el => el.checked = true");
     }
 
     @Override
     public void click(ClickOptions options) {
-
+        evaluate("el => el.click()");
     }
 
     @Override
     public Frame contentFrame() {
-        return null;
+        return null; // TODO: Implement frame retrieval if needed
     }
 
     @Override
     public void dblclick(DblclickOptions options) {
-
+        evaluate("el => { el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); };");
     }
 
     @Override
     public void dispatchEvent(String type, Object eventInit) {
-
+//        evaluate("(el, eventType, eventInit) => el.dispatchEvent(new Event(eventType, eventInit))", type, eventInit);
+        // ToDo: Implement dispatchEvent method
     }
 
     @Override
     public Object evalOnSelector(String selector, String expression, Object arg) {
-        return null;
+        return evaluate("(el, selector, expr) => el.querySelector(selector).evaluate(expr)", selector, expression);
     }
 
     @Override
     public Object evalOnSelectorAll(String selector, String expression, Object arg) {
-        return null;
+        return evaluate("(el, selector, expr) => [...el.querySelectorAll(selector)].map(e => e.evaluate(expr))", selector, expression);
+    }
+
+    private Object evaluate(String s, String selector, String expression) {
+//        return scriptManager.evaluate();
+        return null; // TODO: Implement evaluate method
     }
 
     @Override
     public void fill(String value, FillOptions options) {
-
+        evaluate("(el, value) => { el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); }", value);
     }
 
     @Override
     public void focus() {
-
+        evaluate("el => el.focus()");
     }
 
     @Override
     public String getAttribute(String name) {
-        return "";
+        return (String) evaluate("(el, name) => el.getAttribute(name)", name);
     }
 
     @Override
     public void hover(HoverOptions options) {
-
+        evaluate("el => el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));");
     }
 
     @Override
     public String innerHTML() {
-        return "";
+        return (String) evaluate("el => el.innerHTML");
     }
 
     @Override
     public String innerText() {
-        return "";
+        return (String) evaluate("el => el.innerText");
     }
 
     @Override
@@ -98,32 +108,32 @@ public class ElementHandleImpl implements ElementHandle {
 
     @Override
     public boolean isChecked() {
-        return false;
+        return (Boolean) evaluate("el => el.checked");
     }
 
     @Override
     public boolean isDisabled() {
-        return false;
+        return (Boolean) evaluate("el => el.disabled");
     }
 
     @Override
     public boolean isEditable() {
-        return false;
+        return (Boolean) evaluate("el => el.isContentEditable");
     }
 
     @Override
     public boolean isEnabled() {
-        return false;
+        return !(Boolean) evaluate("el => el.disabled");
     }
 
     @Override
     public boolean isHidden() {
-        return false;
+        return !(Boolean) evaluate("el => el.offsetWidth > 0 && el.offsetHeight > 0");
     }
 
     @Override
     public boolean isVisible() {
-        return false;
+        return (Boolean) evaluate("el => el.offsetWidth > 0 && el.offsetHeight > 0");
     }
 
     @Override
@@ -137,23 +147,14 @@ public class ElementHandleImpl implements ElementHandle {
     }
 
     @Override
-    public ElementHandle querySelector(String selector) {
-        return null;
-    }
-
-    @Override
-    public List<ElementHandle> querySelectorAll(String selector) {
-        return Collections.emptyList();
-    }
-
-    @Override
     public byte[] screenshot(ScreenshotOptions options) {
+        // TODO: Implement screenshot functionality
         return new byte[0];
     }
 
     @Override
     public void scrollIntoViewIfNeeded(ScrollIntoViewIfNeededOptions options) {
-
+        evaluate("el => el.scrollIntoView()");
     }
 
     @Override
@@ -222,62 +223,47 @@ public class ElementHandleImpl implements ElementHandle {
     }
 
     @Override
+    public ElementHandle querySelector(String selector) {
+        WDEvaluateResult result = scriptManager.evaluate("el => el.querySelector(arguments[0])", new WDTarget.RealmTarget(realm), true);
+        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            return new ElementHandleImpl(new WDHandle(((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult().toString()), realm);
+        }
+        return null;
+    }
+
+    @Override
+    public List<ElementHandle> querySelectorAll(String selector) {
+        WDEvaluateResult result = scriptManager.evaluate("el => Array.from(el.querySelectorAll(arguments[0]))", new WDTarget.RealmTarget(realm), true);
+        if(result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            return ((List<?>) ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult()).stream()
+                    .map(obj -> new ElementHandleImpl(new WDHandle(obj.toString()), realm))
+                    .collect(Collectors.toList());
+        }
+        return Collections.emptyList();
+    }
+
+    @Override
     public String textContent() {
-        return "";
+        return (String) evaluate("el => el.textContent");
     }
 
     @Override
     public void type(String text, TypeOptions options) {
-
+        evaluate("(el, text) => { el.value = text; el.dispatchEvent(new Event('input', { bubbles: true })); }", text);
     }
 
     @Override
     public void uncheck(UncheckOptions options) {
-
+        evaluate("el => el.checked = false");
     }
 
     @Override
     public void waitForElementState(ElementState state, WaitForElementStateOptions options) {
-
+        // TODO: Implement waiting mechanism
     }
 
     @Override
     public ElementHandle waitForSelector(String selector, WaitForSelectorOptions options) {
-        return null;
-    }
-
-    @Override
-    public ElementHandle asElement() {
-        return null;
-    }
-
-    @Override
-    public void dispose() {
-
-    }
-
-    @Override
-    public Object evaluate(String expression, Object arg) {
-        return null;
-    }
-
-    @Override
-    public JSHandle evaluateHandle(String expression, Object arg) {
-        return null;
-    }
-
-    @Override
-    public Map<String, JSHandle> getProperties() {
-        return Collections.emptyMap();
-    }
-
-    @Override
-    public JSHandle getProperty(String propertyName) {
-        return null;
-    }
-
-    @Override
-    public Object jsonValue() {
-        return null;
+        return querySelector(selector);
     }
 }
