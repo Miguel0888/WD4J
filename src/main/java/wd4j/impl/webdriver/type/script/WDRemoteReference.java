@@ -11,13 +11,13 @@ import java.lang.reflect.Type;
  * reference to a node.
  */
 @JsonAdapter(WDRemoteReference.RemoteReferenceAdapter.class) // 🔥 Automatische JSON-Konvertierung
-public interface WDRemoteReference extends WDLocalValue {
+public interface WDRemoteReference<T> extends WDLocalValue<T> {
     String getType();
 
     // 🔥 **INNERE KLASSE für JSON-Deserialisierung**
-    class RemoteReferenceAdapter implements JsonDeserializer<WDRemoteReference> {
+    class RemoteReferenceAdapter<T> implements JsonDeserializer<WDRemoteReference<T>> {
         @Override
-        public WDRemoteReference deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+        public WDRemoteReference<T> deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             JsonObject jsonObject = json.getAsJsonObject();
 
             if (!jsonObject.has("type")) {
@@ -37,7 +37,7 @@ public interface WDRemoteReference extends WDLocalValue {
         }
     }
 
-    class SharedReference implements WDRemoteReference {
+    class SharedReference implements WDRemoteReference<SharedReference> {
         private final WDSharedId sharedId;
         private final WDHandle handle; // Optional
 
@@ -64,7 +64,7 @@ public interface WDRemoteReference extends WDLocalValue {
         }
     }
 
-    class RemoteObjectReference implements WDRemoteReference {
+    class RemoteObjectReference implements WDRemoteReference<RemoteObjectReference> {
         private final WDHandle handle;
         private final WDSharedId sharedId; // Optional
 

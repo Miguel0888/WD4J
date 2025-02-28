@@ -154,7 +154,7 @@ public interface WDPrimitiveProtocolValue<T> extends WDLocalValue<T> {
         /**
          * 🔥 Konvertiert den Wert in `Double`, falls es sich um eine echte Zahl handelt
          */
-        @Override
+//        @Override
         public Object asObject() {
             if (EnumWrapper.contains(SpecialNumber.class, value)) {
                 return value; // SpecialNumber bleibt als String

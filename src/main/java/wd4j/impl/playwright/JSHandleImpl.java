@@ -54,10 +54,12 @@ public class JSHandleImpl implements JSHandle {
     public JSHandle evaluateHandle(String expression, Object arg) {
         checkDisposed();
         WDTarget target = new WDTarget.RealmTarget(realm);
-        List<WDLocalValue<?>> args = Collections.singletonList(new WDRemoteReference.RemoteObjectReference(handle));
-        WDEvaluateResult.WDEvaluateResultSuccess result = scriptManager.callFunction(expression, true, target, args);
-
-        return new JSHandleImpl(new WDHandle(result.getResult().getHandle().value()), realm);
+        List<WDLocalValue<WDRemoteReference.RemoteObjectReference>> args = Collections.singletonList(new WDRemoteReference.RemoteObjectReference(handle));
+        WDEvaluateResult result = scriptManager.callFunction(expression, true, target, args);
+        if(result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            return new JSHandleImpl(new WDHandle(((WDEvaluateResult.WDEvaluateResultSuccess)result).getResult().getHandle().value()), realm);
+        }
+        return null;
     }
 
     @Override
@@ -109,16 +111,24 @@ public class JSHandleImpl implements JSHandle {
 
     private Map<String, JSHandle> extractProperties() {
         Map<String, JSHandle> properties = new HashMap<>();
-        WDLocalValue<?> localValue = scriptManager.evaluate("obj => Object.entries(obj)", new WDTarget.RealmTarget(realm), true).getResult();
-
-        if (localValue instanceof WDLocalValue.ObjectLocalValue) {
-            Map<WDLocalValue<?>, WDLocalValue<?>> values = ((WDLocalValue.ObjectLocalValue) localValue).getValue();
-            for (Map.Entry<WDLocalValue<?>, WDLocalValue<?>> entry : values.entrySet()) {
-                String key = convertWDLocalValue(entry.getKey()).toString();
-                JSHandle valueHandle = new JSHandleImpl(scriptManager, new WDHandle(entry.getValue().toString()), realm);
-                properties.put(key, valueHandle);
-            }
+        WDEvaluateResult evaluate = scriptManager.evaluate("obj => Object.entries(obj)", new WDTarget.RealmTarget(realm), true);
+        WDRemoteValue remoteValue;
+        if(evaluate instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            remoteValue = ((WDEvaluateResult.WDEvaluateResultSuccess) evaluate).getResult();
+        } else {
+            return properties;
         }
+
+//        WDLocalValue<?> localValue; // ToDo: Implement this
+//
+//        if (localValue instanceof WDLocalValue.ObjectLocalValue) {
+//            Map<WDLocalValue<?>, WDLocalValue<?>> values = ((WDLocalValue.ObjectLocalValue) localValue).getValue();
+//            for (Map.Entry<WDLocalValue<?>, WDLocalValue<?>> entry : values.entrySet()) {
+//                String key = convertWDLocalValue(entry.getKey()).toString();
+//                JSHandle valueHandle = new JSHandleImpl(new WDHandle(entry.getValue().toString()), realm);
+//                properties.put(key, valueHandle);
+//            }
+//        }
         return properties;
     }
 
@@ -162,7 +172,7 @@ public class JSHandleImpl implements JSHandle {
             return ((WDLocalValue.RegExpLocalValue) localValue).getValue().getPattern();
         }
         if (localValue instanceof WDRemoteReference.SharedReference || localValue instanceof WDRemoteReference.RemoteObjectReference) {
-            return new JSHandleImpl(scriptManager, new WDHandle(localValue.toString()), realm);
+            return new JSHandleImpl(new WDHandle(localValue.toString()), realm);
         }
 
         throw new IllegalArgumentException("Unsupported WDLocalValue type: " + localValue.getClass().getSimpleName());

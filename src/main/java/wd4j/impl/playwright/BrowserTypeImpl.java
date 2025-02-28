@@ -142,7 +142,7 @@ public class BrowserTypeImpl implements BrowserType {
         }
 
         try {
-            BrowserImpl browser = new BrowserImpl(new WebSocketManager(webSocketImpl), this, process);
+            BrowserImpl browser = new BrowserImpl(WebSocketManager.getInstance(), this, process);
             playwright.addBrowser(browser);
             return browser;
         } catch (ExecutionException | InterruptedException e) {
