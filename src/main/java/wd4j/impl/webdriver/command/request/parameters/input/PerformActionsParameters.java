@@ -1,5 +1,6 @@
 package wd4j.impl.webdriver.command.request.parameters.input;
 
+import wd4j.impl.webdriver.command.request.parameters.input.sourceActions.SourceActions;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.websocket.WDCommand;
 
@@ -18,16 +19,4 @@ public class PerformActionsParameters implements WDCommand.Params {
         return WDBrowsingContext;
     }
 
-    public abstract static class SourceActions {
-        private String type;
-
-        public SourceActions(String type) {
-            this.type = type;
-        }
-
-        public String getType() {
-            return type;
-        }
-
-    }
 }

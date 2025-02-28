@@ -3,6 +3,7 @@ package wd4j.impl.manager;
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDInputRequest;
 import wd4j.impl.webdriver.command.request.parameters.input.PerformActionsParameters;
+import wd4j.impl.webdriver.command.request.parameters.input.sourceActions.SourceActions;
 import wd4j.impl.webdriver.command.response.WDEmptyResult;
 import wd4j.impl.webdriver.type.script.WDRemoteReference;
 import wd4j.impl.websocket.WebSocketManager;
@@ -57,7 +58,7 @@ public class WDInputManager implements WDModule {
      * @param actions   A list of actions to perform.
      * @throws RuntimeException if the action execution fails.
      */
-    public void performActions(String contextId, List<PerformActionsParameters.SourceActions> actions) {
+    public void performActions(String contextId, List<SourceActions> actions) {
         if (actions == null || actions.isEmpty()) {
             throw new IllegalArgumentException("Actions list must not be null or empty.");
         }

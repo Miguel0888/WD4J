@@ -16,10 +16,10 @@ class SourceActionsTest {
 
     @Test
     void testNoneSourceActionsSerialization() {
-        NoneSourceActions original = new NoneSourceActions(Arrays.asList(new PauseAction(150)));
+        SourceActions.NoneSourceActions original = new SourceActions.NoneSourceActions("42", Arrays.asList(new PauseAction(150)));
 
         String json = gson.toJson(original);
-        NoneSourceActions deserialized = gson.fromJson(json, NoneSourceActions.class);
+        SourceActions.NoneSourceActions deserialized = gson.fromJson(json, SourceActions.NoneSourceActions.class);
 
         assertEquals(original.getType(), deserialized.getType());
         assertEquals(((PauseAction) original.getActions().get(0)).getType(), "pause");

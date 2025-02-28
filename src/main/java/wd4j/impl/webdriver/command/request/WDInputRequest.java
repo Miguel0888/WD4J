@@ -5,6 +5,7 @@ import wd4j.impl.webdriver.command.request.helper.WDCommandImpl;
 import wd4j.impl.webdriver.command.request.parameters.input.PerformActionsParameters;
 import wd4j.impl.webdriver.command.request.parameters.input.ReleaseActionsParameters;
 import wd4j.impl.webdriver.command.request.parameters.input.SetFilesParameters;
+import wd4j.impl.webdriver.command.request.parameters.input.sourceActions.SourceActions;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.WDRemoteReference;
 
@@ -16,10 +17,10 @@ public class WDInputRequest {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class PerformActions extends WDCommandImpl<PerformActionsParameters> implements WDCommandData {
-        public PerformActions(String contextId, List<PerformActionsParameters.SourceActions> actions) {
+        public PerformActions(String contextId, List<SourceActions> actions) {
             super("input.performActions", new PerformActionsParameters(new WDBrowsingContext(contextId), actions));
         }
-        public PerformActions(WDBrowsingContext context, List<PerformActionsParameters.SourceActions> actions) {
+        public PerformActions(WDBrowsingContext context, List<SourceActions> actions) {
             super("input.performActions", new PerformActionsParameters(context, actions));
         }
     }
