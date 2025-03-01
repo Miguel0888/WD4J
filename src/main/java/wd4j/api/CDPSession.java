@@ -47,6 +47,7 @@ import com.google.gson.JsonObject;
  * client.send("Animation.setPlaybackRate", params);
  * }</pre>
  */
+@Deprecated
 public interface CDPSession {
   /**
    * Detaches the CDPSession from the target. Once detached, the CDPSession object won't emit any events and can't be used to
