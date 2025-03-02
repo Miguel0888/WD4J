@@ -1,12 +1,16 @@
 package wd4j.impl.playwright;
 
+import app.Main;
+import app.controller.ClickWebSocketServer;
 import com.google.gson.JsonObject;
 import wd4j.impl.manager.WDBrowsingContextManager;
 import wd4j.api.*;
 import wd4j.api.options.*;
 import wd4j.impl.manager.WDSessionManager;
 import wd4j.impl.support.PlaywrightResponse;
+import wd4j.impl.support.ScriptHelper;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
+import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
 import wd4j.impl.webdriver.event.WDEventMapping;
 import wd4j.impl.support.JsonToPlaywrightMapper;
@@ -38,6 +42,8 @@ public class PageImpl implements Page {
 
     // ToDo: Not supported yet, just for testing: Firefox does not remember the id, only accepts event + contextId
     private WDSubscription consoleMessageSubscription;
+
+    private List<WDScriptResult.AddPreloadScriptResult> addPreloadScriptResults = new ArrayList<>();
 
     /**
      * Constructor for a new page.
@@ -446,13 +452,26 @@ public class PageImpl implements Page {
 
     @Override
     public void addInitScript(String script) {
-
+        addPreloadScriptResults.add(((BrowserImpl) browser).getScriptManager().addPreloadScript(
+                script, pageId
+        ));
     }
 
     @Override
-    public void addInitScript(Path script) {
-
+    public void addInitScript(Path scriptPath) {
+        String scriptData = ScriptHelper.loadScript(scriptPath.toString());
+        addPreloadScriptResults.add(((BrowserImpl) browser).getScriptManager().addPreloadScript(
+                scriptData, pageId
+        ));
     }
+
+    public void removeInitScripts() {
+        for (WDScriptResult.AddPreloadScriptResult result : addPreloadScriptResults) {
+            ((BrowserImpl) browser).getScriptManager().removePreloadScript(result.getScript().value());
+        }
+        addPreloadScriptResults.clear();
+    }
+
 
     @Override
     public ElementHandle addScriptTag(AddScriptTagOptions options) {

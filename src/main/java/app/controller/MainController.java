@@ -11,6 +11,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -61,6 +63,7 @@ public class MainController {
     // Map mit allen Events und den zugehörigen Methoden
     private final Map<String, EventHandler> eventHandlers = new HashMap<>();
     private List<WDScriptResult.AddPreloadScriptResult> addPreloadScriptResults = new ArrayList<>();
+    private ClickWebSocketServer clickWebSocketServer;
 
     public MainController() {
         logger.info(" *** MainController gestartet! *** ");
@@ -558,53 +561,20 @@ public class MainController {
     public void showSelectors(boolean selected) {
         if (selectedPage != null) {
             if (selected) {
-                showSelectors(selectedPage);
+                selectedPage.addInitScript(Paths.get("scripts/tooltip.js"));
+                selectedPage.addInitScript(Paths.get("scripts/callback.js"));
+
+                clickWebSocketServer = new ClickWebSocketServer(8080, message ->
+                        Main.scriptLog.append(message + System.lineSeparator()));
+                clickWebSocketServer.start();
             } else {
-                hideSelectors(selectedPage);
+                ((PageImpl) selectedPage).removeInitScripts(); // Not supported by Playwright yet directly
+                try {
+                    clickWebSocketServer.stop();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
-        }
-    }
-
-    private void showSelectors(Page selectedPage) {
-        // Tooltip-Skript laden (zum Anzeigen von Selektoren)
-        String tooltipScript = loadScript("scripts/tooltip.js");
-        addPreloadScriptResults.add(((BrowserImpl) browser).getScriptManager().addPreloadScript(
-                tooltipScript,
-                ((PageImpl) selectedPage).getBrowsingContextId()
-        ));
-
-        ClickWebSocketServer clickWebSocketServer = new ClickWebSocketServer(8080, message ->
-                Main.scriptLog.append(message + System.lineSeparator()));
-        clickWebSocketServer.start();
-
-        // Callback-Skript laden (zum Senden der Selektoren an Java)
-        String callbackScript = loadScript("scripts/callback.js");
-        addPreloadScriptResults.add(((BrowserImpl) browser).getScriptManager().addPreloadScript(
-                callbackScript,
-                ((PageImpl) selectedPage).getBrowsingContextId()
-        ));
-    }
-
-    // ToDo: Take context / page into account
-    private void hideSelectors(Page selectedPage) {
-        // Alle Preload-Skripte entfernen
-        for( WDScriptResult.AddPreloadScriptResult result : addPreloadScriptResults)
-        {
-            ((BrowserImpl) browser).getScriptManager().removePreloadScript(result.getScript().value());
-        }
-    }
-
-    public static String loadScript(String resourcePath) {
-        // ToDo: Move this method to a utility class AND rename MainController.class to DESTINATION_CLASS
-        try (InputStream inputStream = MainController.class.getClassLoader().getResourceAsStream(resourcePath)) {
-            if (inputStream == null) {
-                throw new IllegalArgumentException("Script file not found: " + resourcePath);
-            }
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
-                return reader.lines().collect(Collectors.joining("\n"));
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Error loading script file: " + resourcePath, e);
         }
     }
 

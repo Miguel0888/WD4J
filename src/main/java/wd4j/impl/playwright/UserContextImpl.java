@@ -168,12 +168,16 @@ public class UserContextImpl implements BrowserContext{
 
     @Override
     public void addInitScript(String script) {
-
+        // ToDo: Implement this; you can use the WDScriptManager.addPreloadScript method, see pageImpl
+        //  https://w3c.github.io/webdriver-bidi/#command-script-addPreloadScript
+        //  instead of the browserContext just deliver a userContext
     }
 
     @Override
     public void addInitScript(Path script) {
-
+        // ToDo: Implement this; you can use the WDScriptManager.addPreloadScript method, see pageImpl
+        //  https://w3c.github.io/webdriver-bidi/#command-script-addPreloadScript
+        //  instead of the browserContext just deliver a userContext
     }
 
     @Override
