@@ -28,11 +28,11 @@ public class WDScriptRequest {
      */
     public static class AddPreloadScript extends WDCommandImpl<AddPreloadScriptParameters> implements WDCommandData {
         public AddPreloadScript(String script) {
-            super("script.addPreloadScript", new AddPreloadScriptParameters(script));
+            super("script.addPreloadScript", new AddPreloadScriptParameters(script)); // global script
         }
         public AddPreloadScript(String script, String context) {
             super("script.addPreloadScript", new AddPreloadScriptParameters(script,
-                    Collections.singletonList(new WDBrowsingContext(context))));
+                    Collections.singletonList(new WDBrowsingContext(context)))); // script for a specific context only
         }
         public AddPreloadScript(String script, List<WDChannelValue> arguments, List<WDBrowsingContext> WDBrowsingContexts, List<WDUserContext> WDUserContexts, String sandbox) {
             super("script.addPreloadScript", new AddPreloadScriptParameters(script, arguments, WDBrowsingContexts, WDUserContexts, sandbox));

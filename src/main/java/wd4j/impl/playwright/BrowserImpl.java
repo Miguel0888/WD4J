@@ -2,7 +2,9 @@ package wd4j.impl.playwright;
 
 import wd4j.impl.manager.*;
 import wd4j.api.*;
+import wd4j.impl.support.ScriptHelper;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
+import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.websocket.WDException;
 import wd4j.impl.websocket.WebSocketManager;
@@ -15,6 +17,7 @@ import java.util.function.Consumer;
 
 public class BrowserImpl implements Browser {
     private static final List<BrowserImpl> browsers = new ArrayList<>(); // ToDo: Improve this
+    private final List<WDScriptResult.AddPreloadScriptResult> globalScripts = new ArrayList<>();
     private final Map<String, Page> pages = new ConcurrentHashMap<>(); // aka. BrowsingContexts / Navigables in WebDriver BiDi
 
     private final BrowserTypeImpl browserType;
@@ -45,7 +48,24 @@ public class BrowserImpl implements Browser {
         this.process = process;
         this.session = new Session(this); // ToDo: Add PW Options
         fetchDefaultData();
+
+        loadGlobalScripts(); // load JavaScript code relevant for the working Playwright API
     }
+
+    private void loadGlobalScripts() {
+        globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/tooltip.js")));
+        globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/callback.js")));
+        globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/dragAndDrop.js")));
+    }
+
+    public void removeGlobalScripts() {
+        for (WDScriptResult.AddPreloadScriptResult result : globalScripts) {
+            scriptManager.removePreloadScript(result.getScript().value());
+        }
+        globalScripts.clear();
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static List<BrowserImpl> getBrowsers() {
         return Collections.unmodifiableList(browsers);

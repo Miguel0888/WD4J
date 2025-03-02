@@ -50,15 +50,28 @@ public class WDScriptManager implements WDModule {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
+     * Adds a preload script for the entire session.
+     *
+     * @param script The script to preload.
+     * @throws RuntimeException if the operation fails.
+     */
+    public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.AddPreloadScript(script),
+                WDScriptResult.AddPreloadScriptResult.class
+        );
+    }
+
+    /**
      * Adds a preload script to the specified target.
      *
      * @param script The script to preload.
-     * @param target The target to which the script is added.
+     * @param context The browsing context (aka. page) to which the script is added
      * @throws RuntimeException if the operation fails.
      */
-    public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script, String target) {
+    public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script, String context) {
         return webSocketManager.sendAndWaitForResponse(
-                new WDScriptRequest.AddPreloadScript(script, target), // ToDo: Improve this
+                new WDScriptRequest.AddPreloadScript(script, context), // ToDo: Improve this
                 WDScriptResult.AddPreloadScriptResult.class
         );
     }
