@@ -10,23 +10,23 @@ import java.util.List;
 public class AddPreloadScriptParameters implements WDCommand.Params {
     private final String functionDeclaration;
     private final List<WDChannelValue> arguments; // Optional
-    private final List<WDBrowsingContext> WDBrowsingContexts; // Optional
-    private final List<WDUserContext> WDUserContexts; // Optional
+    private final List<WDBrowsingContext> contexts; // Optional
+    private final List<WDUserContext> userContexts; // Optional
     private final String sandbox; // Optional
 
     public AddPreloadScriptParameters(String functionDeclaration) {
         this(functionDeclaration, null, null, null, null);
     }
 
-    public AddPreloadScriptParameters(String functionDeclaration, List<WDBrowsingContext> browsingContexts) {
-        this(functionDeclaration, null, browsingContexts, null, null);
+    public AddPreloadScriptParameters(String functionDeclaration, List<WDBrowsingContext> contexts) {
+        this(functionDeclaration, null, contexts, null, null);
     }
 
-    public AddPreloadScriptParameters(String functionDeclaration, List<WDChannelValue> arguments, List<WDBrowsingContext> browsingContexts, List<WDUserContext> WDUserContexts, String sandbox) {
+    public AddPreloadScriptParameters(String functionDeclaration, List<WDChannelValue> arguments, List<WDBrowsingContext> contexts, List<WDUserContext> userContexts, String sandbox) {
         this.functionDeclaration = functionDeclaration;
         this.arguments = arguments;
-        this.WDBrowsingContexts = browsingContexts;
-        this.WDUserContexts = WDUserContexts;
+        this.contexts = contexts;
+        this.userContexts = userContexts;
         this.sandbox = sandbox;
     }
 
@@ -38,12 +38,12 @@ public class AddPreloadScriptParameters implements WDCommand.Params {
         return arguments;
     }
 
-    public List<WDBrowsingContext> getBrowsingContexts() {
-        return WDBrowsingContexts;
+    public List<WDBrowsingContext> getContexts() {
+        return contexts;
     }
 
     public List<WDUserContext> getUserContexts() {
-        return WDUserContexts;
+        return userContexts;
     }
 
     public String getSandbox() {
