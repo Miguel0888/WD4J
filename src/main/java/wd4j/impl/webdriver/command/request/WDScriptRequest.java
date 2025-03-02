@@ -55,15 +55,16 @@ public class WDScriptRequest {
      * RealmInfo can be either a realm or a navigable.
      * @param <T>
      */
-    public static class CallFunction<T> extends WDCommandImpl<CallFunctionParameters> implements WDCommandData {
-        public CallFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget) {
-            super("script.callFunction", new CallFunctionParameters(functionDeclaration, awaitPromise, WDTarget));
+    public static class CallFunction extends WDCommandImpl<CallFunctionParameters> implements WDCommandData {
+        public CallFunction(String functionDeclaration, boolean awaitPromise, WDTarget target) {
+            super("script.callFunction", new CallFunctionParameters(functionDeclaration, awaitPromise, target));
         }
-        public CallFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue> arguments) {
-            super("script.callFunction", new CallFunctionParameters(functionDeclaration, awaitPromise, WDTarget, arguments, null, null, false));
+        public CallFunction(String functionDeclaration, boolean awaitPromise, WDTarget target, List<WDLocalValue> arguments) {
+            super("script.callFunction", new CallFunctionParameters(functionDeclaration, awaitPromise, target, arguments));
         }
-        public CallFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue> arguments, WDSerializationOptions WDSerializationOptions, WDLocalValue thisObject, boolean userActivation) {
-            super("script.callFunction", new CallFunctionParameters(functionDeclaration, awaitPromise, WDTarget, arguments, WDSerializationOptions, thisObject, userActivation));
+        public CallFunction(String functionDeclaration, boolean awaitPromise, WDTarget target, List<WDLocalValue> arguments, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions, WDLocalValue thisObject, boolean userActivation) {
+            super("script.callFunction", new CallFunctionParameters(functionDeclaration, awaitPromise, target,
+                    arguments, resultOwnership, serializationOptions, thisObject, userActivation));
         }
     }
 

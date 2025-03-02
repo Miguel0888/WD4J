@@ -98,13 +98,13 @@ public class WDScriptManager implements WDModule {
      * Calls a function on the specified target with the given arguments.
      *
      * @param functionDeclaration The function to call.
-     * @param WDTarget              The target where the function is called.
+     * @param target              The target where the function is called.
      * @param arguments           The arguments to pass to the function.
      * @throws RuntimeException if the operation fails.
      */
-    public <T> WDEvaluateResult callFunction(String functionDeclaration, boolean awaitPromise, WDTarget WDTarget, List<WDLocalValue> arguments) {
+    public <T> WDEvaluateResult callFunction(String functionDeclaration, boolean awaitPromise, WDTarget target, List<WDLocalValue> arguments) {
         return webSocketManager.sendAndWaitForResponse(
-                new WDScriptRequest.CallFunction<>(functionDeclaration, awaitPromise, WDTarget, arguments),
+                new WDScriptRequest.CallFunction(functionDeclaration, awaitPromise, target, arguments),
                 WDEvaluateResult.class
         );
     }

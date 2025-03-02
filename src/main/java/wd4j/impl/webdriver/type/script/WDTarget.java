@@ -1,10 +1,6 @@
 package wd4j.impl.webdriver.type.script;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
+import com.google.gson.*;
 import com.google.gson.annotations.JsonAdapter;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 
@@ -12,15 +8,12 @@ import java.lang.reflect.Type;
 
 /**
  * The script.Target type represents a value that is either a script.Realm or a browsingContext.BrowsingContext.
- *
- * This is useful in cases where a navigable identifier can stand in for the realm associated with the navigable’s
- * active document.
  */
-@JsonAdapter(WDTarget.WDTargetAdapter.class) // 🔥 Automatische JSON-Deserialisierung
-public abstract class WDTarget {
+@JsonAdapter(WDTarget.WDTargetAdapter.class) // 🔥 Automatische JSON-Serialisierung
+public interface WDTarget {
 
-    // 🔥 **JSON Adapter für automatische Deserialisierung**
-    public static class WDTargetAdapter implements JsonDeserializer<WDTarget> {
+    // 🔥 **JSON Adapter für automatische Serialisierung/Deserialisierung**
+    class WDTargetAdapter implements JsonDeserializer<WDTarget>, JsonSerializer<WDTarget> {
         @Override
         public WDTarget deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             JsonObject jsonObject = json.getAsJsonObject();
@@ -33,9 +26,17 @@ public abstract class WDTarget {
                 throw new JsonParseException("Unknown WDTarget type: missing 'realm' or 'context' field");
             }
         }
+
+        @Override
+        public JsonElement serialize(WDTarget src, Type typeOfSrc, JsonSerializationContext context) {
+            return context.serialize(src);
+        }
     }
 
-    public static class RealmTarget extends WDTarget {
+    /**
+     * `script.RealmTarget` = `{ realm: script.Realm }`
+     */
+    class RealmTarget implements WDTarget {
         private final WDRealm realm;
 
         public RealmTarget(WDRealm realm) {
@@ -47,8 +48,11 @@ public abstract class WDTarget {
         }
     }
 
-    public static class ContextTarget extends WDTarget {
-        private final WDBrowsingContext context;
+    /**
+     * `script.ContextTarget` = `{ context: browsingContext.BrowsingContext, ?sandbox: text }`
+     */
+    class ContextTarget implements WDTarget {
+        private final WDBrowsingContext context; // 🔥 Jetzt korrekt als WDBrowsingContext gespeichert!
         private final String sandbox; // Optional
 
         public ContextTarget(WDBrowsingContext context) {
@@ -69,5 +73,3 @@ public abstract class WDTarget {
         }
     }
 }
-
-

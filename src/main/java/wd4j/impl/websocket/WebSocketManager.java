@@ -52,27 +52,27 @@ public class WebSocketManager {
     /**
      * Sendet einen Befehl über den WebSocket.
      *
-     * @param WDCommand Das Command-Objekt, das gesendet werden soll.
+     * @param command Das Command-Objekt, das gesendet werden soll.
      */
-    public void send(WDCommand WDCommand) {
-        String jsonCommand = gson.toJson(WDCommand);
+    public void send(WDCommand command) {
+        String jsonCommand = gson.toJson(command);
         webSocket.send(jsonCommand); // Nachricht senden
     }
 
     /**
      * Sendet einen Befehl und wartet auf die Antwort. Die Antwort wird direkt als DTO des Typs `T` zurückgegeben.
      *
-     * @param WDCommand   Der Befehl, der gesendet wird.
+     * @param command   Der Befehl, der gesendet wird.
      * @param responseType Die Klasse des erwarteten DTOs.
      * @param <T> Der Typ der Antwort. Falls String.class gewählt wird, wird die Antwort als JSON-String zurückgegeben.
      * @return Ein deserialisiertes DTO der Klasse `T`.
      */
-    public <T> T sendAndWaitForResponse(WDCommand WDCommand, Type responseType) {
+    public <T> T sendAndWaitForResponse(WDCommand command, Type responseType) {
         // Antwort vorbereiten (Listener registrieren)
         Predicate<WebSocketFrame> predicate = frame -> {
             try {
                 JsonObject json = gson.fromJson(frame.text(), JsonObject.class);
-                return json.has("id") && json.get("id").getAsInt() == WDCommand.getId();
+                return json.has("id") && json.get("id").getAsInt() == command.getId();
             } catch (JsonSyntaxException e) {
                 return false;
             }
@@ -80,7 +80,7 @@ public class WebSocketManager {
         CompletableFuture<String> receive = receive(predicate, String.class, true);
 
         // Befehl senden und auf Antwort warten
-        send(WDCommand); // ✅ 1️⃣ Befehl senden
+        send(command); // ✅ 1️⃣ Befehl senden
         try {
             String jsonString = receive.get(30, TimeUnit.SECONDS);
             // ✅ Direkt auf JSON-Objekt parsen

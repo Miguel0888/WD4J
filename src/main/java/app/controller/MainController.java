@@ -2,6 +2,7 @@ package app.controller;
 
 import app.Main;
 import wd4j.api.*;
+import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.PageImpl;
 import wd4j.impl.playwright.UserContextImpl;
@@ -20,6 +21,10 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.script.WDLocalValue;
+import wd4j.impl.webdriver.type.script.WDPrimitiveProtocolValue;
+import wd4j.impl.webdriver.type.script.WDTarget;
 
 public class MainController {
 
@@ -560,15 +565,21 @@ public class MainController {
 
     public void showSelectors(boolean selected) {
         if (selectedPage != null) {
-            if (selected) {
-                selectedPage.addInitScript(Paths.get("scripts/tooltip.js"));
-                selectedPage.addInitScript(Paths.get("scripts/callback.js"));
+            List<WDLocalValue> args = new ArrayList<>();
+            args.add(new WDPrimitiveProtocolValue.BooleanValue(selected)); // true oder false übergeben
 
+            WDScriptManager.getInstance().callFunction(
+                    "toggleTooltip",
+                    false, // awaitPromise=false
+                    new WDTarget.ContextTarget(new WDBrowsingContext(((PageImpl) selectedPage).getBrowsingContextId())), // Ziel: aktuelle Seite
+                    args
+            );
+
+            if (selected) {
                 clickWebSocketServer = new ClickWebSocketServer(8080, message ->
                         Main.scriptLog.append(message + System.lineSeparator()));
                 clickWebSocketServer.start();
             } else {
-                ((PageImpl) selectedPage).removeInitScripts(); // Not supported by Playwright yet directly
                 try {
                     clickWebSocketServer.stop();
                 } catch (InterruptedException e) {
@@ -577,6 +588,7 @@ public class MainController {
             }
         }
     }
+
 
     public void runScript(String script) {
         String text = Main.scriptLog.getText();

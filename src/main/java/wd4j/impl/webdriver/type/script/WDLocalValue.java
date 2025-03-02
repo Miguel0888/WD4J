@@ -17,7 +17,7 @@ public interface WDLocalValue {
     String getType();
 
     // 🔥 **INNERE KLASSE für JSON-Deserialisierung**
-    class LocalValueAdapter implements JsonDeserializer<WDLocalValue> {
+    class LocalValueAdapter implements JsonDeserializer<WDLocalValue>, JsonSerializer<WDLocalValue>  {
         @Override
         public WDLocalValue deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             JsonObject jsonObject = json.getAsJsonObject();
@@ -64,6 +64,11 @@ public interface WDLocalValue {
                 default:
                     throw new JsonParseException("Unknown LocalValue type: " + type);
             }
+        }
+
+        @Override
+        public JsonElement serialize(WDLocalValue src, Type typeOfSrc, JsonSerializationContext context) {
+            return context.serialize(src);
         }
     }
 
