@@ -16,7 +16,7 @@ public interface WDRealmInfo {
     String getOrigin();
 
     // 🔥 **INNERE KLASSE für JSON-Deserialisierung**
-    class RealmInfoAdapter implements JsonDeserializer<WDRealmInfo> {
+    class RealmInfoAdapter implements JsonDeserializer<WDRealmInfo>, JsonSerializer<WDRealmInfo> {
         @Override
         public WDRealmInfo deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             JsonObject jsonObject = json.getAsJsonObject();
@@ -47,6 +47,11 @@ public interface WDRealmInfo {
                 default:
                     throw new JsonParseException("Unknown RealmInfo type: " + type);
             }
+        }
+
+        @Override
+        public JsonElement serialize(WDRealmInfo src, Type typeOfSrc, JsonSerializationContext context) {
+            return context.serialize(src);
         }
     }
 

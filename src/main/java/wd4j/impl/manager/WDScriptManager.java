@@ -2,13 +2,12 @@ package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDScriptRequest;
+import wd4j.impl.webdriver.command.request.parameters.script.AddPreloadScriptParameters;
 import wd4j.impl.webdriver.command.response.WDEmptyResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
+import wd4j.impl.webdriver.type.browser.WDUserContext;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
-import wd4j.impl.webdriver.type.script.WDEvaluateResult;
-import wd4j.impl.webdriver.type.script.WDHandle;
-import wd4j.impl.webdriver.type.script.WDLocalValue;
-import wd4j.impl.webdriver.type.script.WDTarget;
+import wd4j.impl.webdriver.type.script.*;
 import wd4j.impl.websocket.WebSocketManager;
 
 import java.util.List;
@@ -58,6 +57,38 @@ public class WDScriptManager implements WDModule {
     public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script) {
         return webSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.AddPreloadScript(script),
+                WDScriptResult.AddPreloadScriptResult.class
+        );
+    }
+
+    /**
+     * Adds a preload script for the entire session.
+     *
+     * @param script The script to preload.
+     * @param arguments Contains only the ChannelValues that are passed to the script used for callback events.
+     * @throws RuntimeException if the operation fails.
+     */
+    public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script, List<WDChannelValue> arguments) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.AddPreloadScript(script),
+                WDScriptResult.AddPreloadScriptResult.class
+        );
+    }
+
+    /**
+     * Adds a preload script to the specified target.
+     *
+     * @param script The script to preload.
+     * @param arguments Contains only the ChannelValues that are passed to the script used for callback events.
+     * @param WDBrowsingContexts The browsing contexts (aka. pages) to which the script is added
+     * @param WDUserContexts The user contexts to which the script is added
+     * @param sandbox The sandbox in which the script is executed
+
+     * @throws RuntimeException if the operation fails.
+     */
+    public WDScriptResult.AddPreloadScriptResult addPreloadScriptString(String script, List<WDChannelValue> arguments, List<WDBrowsingContext> WDBrowsingContexts, List<WDUserContext> WDUserContexts, String sandbox) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.AddPreloadScript(script, arguments, WDBrowsingContexts, WDUserContexts, sandbox),
                 WDScriptResult.AddPreloadScriptResult.class
         );
     }
@@ -120,6 +151,19 @@ public class WDScriptManager implements WDModule {
         return webSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.Evaluate(script, wdTarget, awaitPromise),
                 WDEvaluateResult.class
+        );
+    }
+
+    /**
+     * Retrieves all available realms (= JavaScript Threads) for the current session.
+     *
+     * @return A list of realm IDs.
+     * @throws RuntimeException if the operation fails.
+     */
+    public WDScriptResult.GetRealmsResult getRealms() {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.GetRealms(),
+                WDScriptResult.GetRealmsResult.class
         );
     }
 

@@ -22,9 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
-import wd4j.impl.webdriver.type.script.WDLocalValue;
-import wd4j.impl.webdriver.type.script.WDPrimitiveProtocolValue;
-import wd4j.impl.webdriver.type.script.WDTarget;
+import wd4j.impl.webdriver.type.script.*;
 
 public class MainController {
 
@@ -564,6 +562,43 @@ public class MainController {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public void showSelectors(boolean selected) {
+        // 1. Alle Realms abrufen
+        WDScriptManager scriptManager = WDScriptManager.getInstance();
+        WDScriptResult.GetRealmsResult realmsResult = scriptManager.getRealms(); // Hol alle existierenden Realms
+
+        // 2. Für jeden Context toggleTooltip aktivieren
+        for (WDRealmInfo realm : realmsResult.getRealms()) {
+            List<WDLocalValue> args = new ArrayList<>();
+            args.add(new WDPrimitiveProtocolValue.BooleanValue(selected)); // aktivieren oder deaktivieren
+
+            scriptManager.callFunction(
+                    "toggleTooltip",
+                    false, // awaitPromise=false
+                    new WDTarget.RealmTarget(new WDRealm(realm.getRealm())), // Kontext: Aktueller Realm
+                    args
+            );
+        }
+
+        activateCallbackServer(selected);
+    }
+
+    @Deprecated // since script.ChannelValue might be used for Callbacks (will lead to Message Events)
+    private void activateCallbackServer(boolean selected) {
+        if (selected) {
+            clickWebSocketServer = new ClickWebSocketServer(8080, message ->
+                    Main.scriptLog.append(message + System.lineSeparator()));
+            clickWebSocketServer.start();
+        } else {
+            try {
+                clickWebSocketServer.stop();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    @Deprecated // since it does not activate the tooltip for all pages
+    public void showSelectors(boolean selected, Page selectedPage) {
         if (selectedPage != null) {
             List<WDLocalValue> args = new ArrayList<>();
             args.add(new WDPrimitiveProtocolValue.BooleanValue(selected)); // true oder false übergeben
@@ -575,20 +610,9 @@ public class MainController {
                     args
             );
 
-            if (selected) {
-                clickWebSocketServer = new ClickWebSocketServer(8080, message ->
-                        Main.scriptLog.append(message + System.lineSeparator()));
-                clickWebSocketServer.start();
-            } else {
-                try {
-                    clickWebSocketServer.stop();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
+            activateCallbackServer(selected);
         }
     }
-
 
     public void runScript(String script) {
         String text = Main.scriptLog.getText();

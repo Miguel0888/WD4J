@@ -6,6 +6,8 @@ import wd4j.impl.support.ScriptHelper;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.script.WDChannel;
+import wd4j.impl.webdriver.type.script.WDChannelValue;
 import wd4j.impl.websocket.WDException;
 import wd4j.impl.websocket.WebSocketManager;
 
@@ -53,6 +55,15 @@ public class BrowserImpl implements Browser {
     }
 
     private void loadGlobalScripts() {
+//        // Channel für Callback anlegen
+//        String channelId = UUID.randomUUID().toString(); // Zufällige ID für den Channel
+//        WDChannelValue channel = new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(channelId)));
+//        String callbackScript = ScriptHelper.loadScript("scripts/callback.js")
+//                .replace("<CHANNEL_ID>", channelId);
+//        // Callback-Script für die Kommunikation mit dem Playwright-Server (über Message Events)
+//        globalScripts.add(scriptManager.addPreloadScript(callbackScript, Collections.singletonList(channel)));
+
+        // Alle weiteren globalen Scripts
         globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/tooltip.js")));
         globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/callback.js")));
         globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/dragAndDrop.js")));

@@ -10,6 +10,7 @@ import java.util.function.Consumer;
  * Works as Callback for the Browser. In WebDriverBiDi you could use channels (and messages) alternatively,
  * but the implementation maybe more complex then.
  */
+@Deprecated // since script.ChannelValue might be used for Callbacks (will lead to Message Events)
 public class ClickWebSocketServer extends WebSocketServer {
     Consumer<String> clickConsumer;
 
