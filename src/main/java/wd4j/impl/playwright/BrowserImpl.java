@@ -64,7 +64,7 @@ public class BrowserImpl implements Browser {
 //        globalScripts.add(scriptManager.addPreloadScript(callbackScript, Collections.singletonList(channel)));
 
         // Alle weiteren globalen Scripts
-        globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/tooltip.js")));
+        globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/events.js")));
         globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/callback.js")));
         globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/dragAndDrop.js")));
     }
