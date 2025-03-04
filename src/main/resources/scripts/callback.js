@@ -1,4 +1,9 @@
-window.sendSelector = function(eventData) {
+window.sendSelector = function(eventDataArray) {
+    if (!Array.isArray(eventDataArray)) {
+        console.error("🚨 sendSelector erwartet ein JSON-Array!");
+        return;
+    }
+
     const WS_URL = "ws://localhost:8080";
     const MAX_RETRIES = 5;
     const RETRY_DELAY = 2000;
@@ -41,32 +46,30 @@ window.sendSelector = function(eventData) {
 
     function sendQueuedMessages() {
         if (!window.ws || window.ws.readyState !== WebSocket.OPEN) return;
-        while (messageQueue.length > 0) {
-            let msg = messageQueue.shift();
-            safeSend(msg);
+        if (messageQueue.length === 0) return;
+
+        try {
+            console.log(`📤 Sende Nachrichten-Array (${messageQueue.length} Einträge)`);
+            window.ws.send(JSON.stringify(messageQueue));
+            messageQueue = []; // Warteschlange leeren nach erfolgreichem Senden
+        } catch (error) {
+            console.error("🚨 Fehler beim Senden des Arrays:", error);
         }
     }
 
-    function safeSend(message) {
+    function safeSend(eventDataArray) {
         if (!window.ws || window.ws.readyState !== WebSocket.OPEN) {
-            console.warn("⚠ WebSocket nicht bereit. Nachricht wird gespeichert:", message);
-            messageQueue.push(message);
+            console.warn("⚠ WebSocket nicht bereit. Nachrichten werden gespeichert:", eventDataArray);
+            messageQueue = messageQueue.concat(eventDataArray);
             connectWebSocket();
             return;
         }
 
-        try {
-            console.log("📤 Sende Nachricht:", message);
-            window.ws.send(message);
-        } catch (error) {
-            console.error("🚨 Fehler beim Senden:", error);
-            messageQueue.push(message);
-        }
+        messageQueue = messageQueue.concat(eventDataArray);
+        sendQueuedMessages();
     }
 
     connectWebSocket();
 
-    // JSON senden
-    const message = JSON.stringify(eventData);
-    safeSend(message);
+    safeSend(eventDataArray);
 }

@@ -1,15 +1,11 @@
 (() => {
-    const recordedEvents = [];
-
     function getStableSelector(element) {
         if (!element) return null;
 
-        // 1️⃣ Falls das Element eine ID hat, aber die ID generisch aussieht, ignorieren
         if (element.id && !isGeneratedId(element.id)) {
             return `#${element.id}`;
         }
 
-        // 2️⃣ Falls das Element eine spezifische Klasse hat, benutzen
         if (element.className && typeof element.className === "string") {
             const classList = element.className.trim().split(/\s+/).filter(cls => !isGeneratedClass(cls));
             if (classList.length > 0) {
@@ -17,16 +13,15 @@
             }
         }
 
-        // 3️⃣ Falls kein guter Selektor gefunden wurde, den allgemeinen Tag mit Index nutzen
         return getElementPath(element);
     }
 
     function isGeneratedId(id) {
-        return /^([A-Za-z0-9]{8,})$/.test(id); // IDs mit zufälliger Struktur ignorieren
+        return /^([A-Za-z0-9]{8,})$/.test(id);
     }
 
     function isGeneratedClass(cls) {
-        return /^ns-[a-z0-9\-]+$/.test(cls) || /^[A-Za-z0-9]{8,}$/.test(cls); // Generierte Klassen vermeiden
+        return /^ns-[a-z0-9\-]+$/.test(cls) || /^[A-Za-z0-9]{8,}$/.test(cls);
     }
 
     function getElementPath(element) {
@@ -54,11 +49,9 @@
 
     function recordEvent(event) {
         const selector = getStableSelector(event.target);
-        if (!selector) return; // Keine unnötigen null-Werte
+        if (!selector) return;
 
-        let eventData = {
-            selector: selector
-        };
+        let eventData = { selector };
 
         if (event.type === "input" || event.type === "change") {
             eventData.action = "input";
@@ -70,11 +63,10 @@
             eventData.action = "click";
         }
 
+        // Sendet **immer ein Array** an `sendSelector`
         if (typeof window.sendSelector === "function") {
-            window.sendSelector(eventData);
+            window.sendSelector([eventData]);
         }
-
-        recordedEvents.push(eventData);
     }
 
     function rebindEventListeners() {
@@ -108,13 +100,11 @@
         }
     }
 
-    // Initial Listener setzen
     document.addEventListener("DOMContentLoaded", () => {
         watchPrimeFacesAjax();
         rebindEventListeners();
     });
 
-    // MutationObserver für DOM-Änderungen (z. B. PrimeFaces AJAX)
     const observer = new MutationObserver(mutations => {
         mutations.forEach(mutation => {
             if (mutation.addedNodes.length > 0) {
@@ -124,6 +114,4 @@
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
-
-    window.getRecordedEvents = () => recordedEvents;
 })
