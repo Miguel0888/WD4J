@@ -1,9 +1,9 @@
-window.sendSelector = function(selector) {
+window.sendSelector = function(eventData) {
     const WS_URL = "ws://localhost:8080";
-    const MAX_RETRIES = 5; // Maximale Wiederholungen
-    const RETRY_DELAY = 2000; // Wartezeit für Reconnects (2 Sekunden)
+    const MAX_RETRIES = 5;
+    const RETRY_DELAY = 2000;
     let retryCount = 0;
-    let messageQueue = []; // Warteschlange für nicht gesendete Nachrichten
+    let messageQueue = [];
 
     function connectWebSocket() {
         if (window.ws && window.ws.readyState <= 1) {
@@ -16,8 +16,8 @@ window.sendSelector = function(selector) {
 
         window.ws.onopen = () => {
             console.log("✅ WebSocket verbunden!");
-            retryCount = 0; // Retry-Zähler zurücksetzen
-            sendQueuedMessages(); // 🟢 Wartende Nachrichten sofort senden
+            retryCount = 0;
+            sendQueuedMessages();
         };
 
         window.ws.onmessage = (event) => console.log("🔹 Nachricht vom Server:", event.data);
@@ -64,11 +64,9 @@ window.sendSelector = function(selector) {
         }
     }
 
-    // Verbindung aufbauen, falls noch nicht verbunden
     connectWebSocket();
 
-    // Selektor senden oder zwischenspeichern, falls Verbindung noch nicht offen ist
-    if (typeof selector === "string" && selector.trim() !== "") {
-        safeSend(selector);
-    }
+    // JSON senden
+    const message = JSON.stringify(eventData);
+    safeSend(message);
 }
