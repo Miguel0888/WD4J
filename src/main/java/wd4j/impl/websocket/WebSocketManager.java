@@ -1,5 +1,7 @@
 package wd4j.impl.websocket;
 
+import app.Main;
+import app.controller.CallbackWebSocketServer;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -26,10 +28,30 @@ public class WebSocketManager {
 
     private static volatile WebSocketManager instance;
 
+    @Deprecated // since JSON Data might be received via Message Events (see WebDriverBiDi ChannelValue)
+    private CallbackWebSocketServer callbackWebSocketServer;
+
     private WebSocketManager(WebSocketImpl webSocket) {
         this.webSocket = webSocket;
         this.eventDispatcher = new EventDispatcher();
         registerEventListener(eventDispatcher); // 🔥 Events aktivieren!
+
+        toggleCallbackServer(true); // ✅ Callback-Server aktivieren
+    }
+
+    @Deprecated // since script.ChannelValue might be used for Callbacks (will lead to Message Events)
+    private void toggleCallbackServer(boolean activate) {
+        if (activate) {
+            callbackWebSocketServer = new CallbackWebSocketServer(8080, message ->
+                    Main.scriptLog.append(message + System.lineSeparator()));
+            callbackWebSocketServer.start();
+        } else {
+            try {
+                callbackWebSocketServer.stop();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     public static WebSocketManager getInstance() {

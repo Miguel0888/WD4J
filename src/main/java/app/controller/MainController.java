@@ -8,15 +8,8 @@ import wd4j.impl.playwright.PageImpl;
 import wd4j.impl.playwright.UserContextImpl;
 
 import javax.swing.*;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,12 +54,9 @@ public class MainController {
     private final Consumer<Page> downloadHandler = p -> logEvent("File downloaded!");
     private final Consumer<Video> videoHandler = video -> logEvent("Video started recording: " + video.path());
 
-
-
     // Map mit allen Events und den zugehörigen Methoden
     private final Map<String, EventHandler> eventHandlers = new HashMap<>();
     private List<WDScriptResult.AddPreloadScriptResult> addPreloadScriptResults = new ArrayList<>();
-    private ClickWebSocketServer clickWebSocketServer;
 
     public MainController() {
         logger.info(" *** MainController gestartet! *** ");
@@ -578,23 +568,6 @@ public class MainController {
                     args
             );
         }
-
-        activateCallbackServer(selected);
-    }
-
-    @Deprecated // since script.ChannelValue might be used for Callbacks (will lead to Message Events)
-    private void activateCallbackServer(boolean selected) {
-        if (selected) {
-            clickWebSocketServer = new ClickWebSocketServer(8080, message ->
-                    Main.scriptLog.append(message + System.lineSeparator()));
-            clickWebSocketServer.start();
-        } else {
-            try {
-                clickWebSocketServer.stop();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
     }
 
     @Deprecated // since it does not activate the tooltip for all pages
@@ -609,8 +582,6 @@ public class MainController {
                     new WDTarget.ContextTarget(new WDBrowsingContext(((PageImpl) selectedPage).getBrowsingContextId())), // Ziel: aktuelle Seite
                     args
             );
-
-            activateCallbackServer(selected);
         }
     }
 

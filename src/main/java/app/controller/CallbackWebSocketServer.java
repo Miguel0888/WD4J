@@ -11,10 +11,10 @@ import java.util.function.Consumer;
  * but the implementation maybe more complex then.
  */
 @Deprecated // since script.ChannelValue might be used for Callbacks (will lead to Message Events)
-public class ClickWebSocketServer extends WebSocketServer {
+public class CallbackWebSocketServer extends WebSocketServer {
     Consumer<String> clickConsumer;
 
-    public ClickWebSocketServer(int port, Consumer<String> clickConsumer) {
+    public CallbackWebSocketServer(int port, Consumer<String> clickConsumer) {
         super(new InetSocketAddress(port));
         this.clickConsumer = clickConsumer;
     }

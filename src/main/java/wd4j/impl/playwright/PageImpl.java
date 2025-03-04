@@ -1,12 +1,8 @@
 package wd4j.impl.playwright;
 
-import app.Main;
-import app.controller.ClickWebSocketServer;
 import com.google.gson.JsonObject;
-import wd4j.impl.manager.WDBrowsingContextManager;
 import wd4j.api.*;
 import wd4j.api.options.*;
-import wd4j.impl.manager.WDSessionManager;
 import wd4j.impl.support.PlaywrightResponse;
 import wd4j.impl.support.ScriptHelper;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
@@ -20,7 +16,6 @@ import wd4j.impl.webdriver.type.script.WDEvaluateResult;
 import wd4j.impl.webdriver.type.script.WDTarget;
 import wd4j.impl.webdriver.type.session.WDSubscription;
 import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
-import wd4j.impl.websocket.WebSocketManager;
 
 import java.nio.file.Path;
 import java.util.*;
