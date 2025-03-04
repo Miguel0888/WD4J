@@ -64,8 +64,8 @@
         }
 
         // Sendet **immer ein Array** an `sendSelector`
-        if (typeof window.sendSelector === "function") {
-            window.sendSelector([eventData]);
+        if (typeof window.sendJsonDataAsArray === "function") {
+            window.sendJsonDataAsArray([eventData]);
         }
     }
 

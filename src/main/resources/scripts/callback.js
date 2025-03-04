@@ -1,4 +1,4 @@
-window.sendSelector = function(eventDataArray) {
+window.sendJsonDataAsArray = function(eventDataArray) {
     if (!Array.isArray(eventDataArray)) {
         console.error("🚨 sendSelector erwartet ein JSON-Array!");
         return;
