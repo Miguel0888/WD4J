@@ -154,20 +154,73 @@
     document.addEventListener('mouseover', onMouseOver)
     document.addEventListener('mouseout', onMouseOut)
 
-    // Example: Start the observer when the DOM is ready
     function startObserver() {
-        // Define the observer callback
         const observer = new MutationObserver(mutations => {
+            let recordedMutations = [];
+
             mutations.forEach(mutation => {
-                if (mutation.addedNodes.length > 0) {
-                    rebindEventListeners();
+                if (mutation.type === "childList") {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === 1) { // Element-Node
+                            const selector = getStableSelector(node);
+                            if (selector) {
+                                recordedMutations.push({ action: "added", selector });
+                            }
+                        }
+                    });
+
+                    mutation.removedNodes.forEach(node => {
+                        if (node.nodeType === 1) { // Element-Node
+                            const selector = getStableSelector(node);
+                            if (selector) {
+                                recordedMutations.push({ action: "removed", selector });
+                            }
+                        }
+                    });
+
+                    // Falls Elemente hinzugefügt wurden, binde Events erneut
+                    if (mutation.addedNodes.length > 0) {
+                        rebindEventListeners();
+                    }
+                }
+
+                if (mutation.type === "attributes") {
+                    const selector = getStableSelector(mutation.target);
+                    if (selector) {
+                        recordedMutations.push({
+                            action: "attributeChanged",
+                            selector,
+                            attribute: mutation.attributeName,
+                            newValue: mutation.target.getAttribute(mutation.attributeName),
+                        });
+                    }
+                }
+
+                if (mutation.type === "characterData") {
+                    const selector = getStableSelector(mutation.target.parentElement);
+                    if (selector) {
+                        recordedMutations.push({
+                            action: "textChanged",
+                            selector,
+                            newValue: mutation.target.nodeValue,
+                        });
+                    }
                 }
             });
+
+            if (recordedMutations.length > 0 && typeof window.sendJsonDataAsArray === "function") {
+                window.sendJsonDataAsArray(recordedMutations);
+            }
         });
 
         try {
-            observer.observe(document.body, { childList: true, subtree: true });
-            console.log("🔍 MutationObserver started.");
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                characterData: true
+            });
+            console.log("🔍 MutationObserver gestartet und überwacht DOM-Änderungen.");
         } catch (e) {
             console.error("🚨 MutationObserver konnte nicht gestartet werden:", e);
         }
