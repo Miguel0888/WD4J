@@ -51,7 +51,7 @@
         let target = event.target;
 
         // Prüfen, ob innerhalb eines Buttons, Links, Inputs oder Dropdowns geklickt wurde
-        let interactiveElement = target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], tr.ui-selectonemenu-item');
+        let interactiveElement = target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], tr.ui-selectonemenu-item, [role="navigation"] a');
 
         if (!interactiveElement) {
             interactiveElement = target; // Falls kein übergeordnetes interaktives Element gefunden wird, das ursprüngliche Element nutzen
@@ -73,18 +73,26 @@
             eventData.key = event.key;
         }
 
-        // Falls das Element ein Button ist, speichere den Text
-        if (interactiveElement.tagName === 'BUTTON' || interactiveElement.getAttribute('role') === 'button') {
-            eventData.buttonText = interactiveElement.textContent.trim();
+        // Falls das Element ein Button oder ein Paginierungs-Link ist, speichere wichtige Daten
+        if (interactiveElement.tagName === 'BUTTON' || interactiveElement.getAttribute('role') === 'button' || interactiveElement.matches('.ui-paginator a')) {
+            eventData.buttonText = interactiveElement.textContent.trim() || null;
+            eventData.ariaLabel = interactiveElement.getAttribute('aria-label') || null;
         }
 
-        // Falls das Element ein Menü-Item ist, speichere den sichtbaren Text
+        // Falls ein Paginierungs-Element angeklickt wurde, speichere weitere Infos
+        if (interactiveElement.matches('.ui-paginator a')) {
+            eventData.pagination = interactiveElement.closest('[role="navigation"]')?.getAttribute('aria-label') || "Unbekannte Paginierung";
+            eventData.pageNumber = interactiveElement.textContent.trim() || null; // Die sichtbare Seitenzahl
+        }
+
+        // Falls das Element ein Menü-Item oder ein Dropdown-Eintrag ist
         let menuItem = interactiveElement.closest('.ui-menuitem, tr.ui-selectonemenu-item');
         if (menuItem) {
             eventData.menuText = Array.from(menuItem.querySelectorAll('td'))
                 .map(td => td.textContent.trim())
                 .filter(text => text.length > 0)
-                .join(' | '); // Verketten der `td`-Inhalte mit `|`
+                .join(' | ');
+            eventData.ariaLabel = menuItem.getAttribute('aria-label') || null;
         }
 
         // Zusätzliche Metadaten für besseres Wiederfinden
@@ -96,6 +104,7 @@
             window.sendJsonDataAsArray([eventData]);
         }
     }
+
 
     function rebindEventListeners() {
         console.log('🔄 PrimeFaces AJAX-Update erkannt – Event-Listener werden neu gebunden');
