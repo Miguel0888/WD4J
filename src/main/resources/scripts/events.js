@@ -70,6 +70,22 @@
         return path.join(' > ');
     }
 
+    function getElementXPath(element) {
+        if (!element || element.nodeType !== 1) return '';
+        if (element.id) return `//*[@id='${element.id}']`;
+        let path = [];
+        while (element.nodeType === 1) {
+            let index = 1;
+            let sibling = element;
+            while ((sibling = sibling.previousElementSibling) !== null) {
+                if (sibling.nodeType === 1 && sibling.tagName === element.tagName) index++;
+            }
+            path.unshift(`${element.tagName.toLowerCase()}[${index}]`);
+            element = element.parentNode;
+        }
+        return '/' + path.join('/');
+    }
+
     function recordEvent(event) {
         const selector = getStableSelector(event.target);
         if (!selector) return;
@@ -84,6 +100,15 @@
             eventData.key = event.key;
         } else {
             eventData.action = 'click';
+
+            // Prüfen, ob ein Menü-Item geklickt wurde
+            let menuItem = event.target.closest('.ui-menuitem');
+            if (menuItem) {
+                eventData.menuText = menuItem.querySelector('.ui-menuitem-text')?.textContent.trim() || "Unbekannt";
+                eventData.xpath = getElementXPath(menuItem);
+                eventData.elementId = menuItem.id || null;
+                eventData.classes = menuItem.className || null;
+            }
         }
 
         if (typeof window.sendJsonDataAsArray === 'function') {
@@ -126,9 +151,9 @@
         initializeTooltip();
         watchPrimeFacesAjax();
         rebindEventListeners();
-        startObserver(); // Startet den MutationObserver
+        startObserver();
 
-        // **Capture-Phase-Listener für Clicks und Tastaturanschläge hinzufügen**
+        // Capture-Phase-Listener für Clicks und Tastaturanschläge
         document.body.addEventListener('click', recordEvent, true);
         document.body.addEventListener('keydown', recordEvent, true);
     });
