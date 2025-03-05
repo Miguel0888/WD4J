@@ -14,7 +14,7 @@ import java.util.Vector;
 public class Main {
     public static String lastProfilePath = ""; // ToDo: Make this configurable
     public static JLabel imageContainer; // Bildcontainer für Screenshots
-    public static JTextArea eventLog; // Textfeld für Events
+    public static JTextArea console; // Textfeld für Events
     public static JTextArea scriptLog; // Textfeld für Scripting
     public static JCheckBox headlessCheckbox;
     public static JCheckBox disableGpuCheckbox;
@@ -31,6 +31,7 @@ public class Main {
     public static JTextField portField;
 
     public static JCheckBox showSelectors;
+    public static JCheckBox showDomEvents;
 
     private static JButton eventDropdownButton;
     private static JPopupMenu eventMenu;
@@ -63,7 +64,7 @@ public class Main {
         toolBarPanel.add(createBrowserToolBar());
         toolBarPanel.add(createContextsToolbar());
         toolBarPanel.add(createNavigationToolBar());
-        toolBarPanel.add(createEventToolBar());
+        toolBarPanel.add(createDebugToolBar());
         toolBarPanel.add(createScriptToolbar());
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -188,7 +189,7 @@ public class Main {
         return navigationToolBar;
     }
 
-    private static JToolBar createEventToolBar() {
+    private static JToolBar createDebugToolBar() {
         JToolBar eventToolbar = new JToolBar();
 
         // Play/Pause Toggle Button
@@ -223,7 +224,7 @@ public class Main {
         eventToolbar.add(Box.createHorizontalGlue());
 
         // "Clear Log"-Button rechtsbündig hinzufügen
-        JButton clearLogButton = new JButton("Clear Log");
+        JButton clearLogButton = new JButton("Clear Console");
         clearLogButton.addActionListener(e -> controller.clearLog());
         eventToolbar.add(clearLogButton);
 
@@ -233,25 +234,37 @@ public class Main {
     private static JToolBar createScriptToolbar() {
         JToolBar scriptToolbar = new JToolBar();
 
+        JButton runScript = new JButton("Run Script");
+        runScript.addActionListener(e -> {
+            String script = scriptLog.getText();
+            // show notification if script is empty
+            if (script.isEmpty()) { // ToDo
+                JOptionPane.showMessageDialog(null, "Script is empty!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            controller.runScript(script);
+        });
+
         showSelectors = new JCheckBox("Show Selectors");
         showSelectors.addActionListener(e -> {
             controller.showSelectors(showSelectors.isSelected());
         });
 
-        JButton clear = new JButton("Clear");
+        showDomEvents = new JCheckBox("Show DOM Events");
+        showDomEvents.addActionListener(e -> {
+            controller.showDomEvents(showDomEvents.isSelected());
+        });
+
+        JButton clear = new JButton("Clear Events");
         clear.addActionListener(e -> {
             scriptLog.setText("");
         });
 
-        JButton runScript = new JButton("Run Script");
-        runScript.addActionListener(e -> {
-            String script = scriptLog.getText();
-            controller.runScript(script);
-        });
-
-        scriptToolbar.add(showSelectors);
-        scriptToolbar.add(clear);
         scriptToolbar.add(runScript);
+        scriptToolbar.add(showSelectors);
+        scriptToolbar.add(showDomEvents);
+        scriptToolbar.add(Box.createHorizontalGlue()); // Abstandshalter für rechtsbündige Elemente
+        scriptToolbar.add(clear);
 
         return scriptToolbar;
     }
@@ -328,10 +341,10 @@ public class Main {
         JTabbedPane tabbedPane = new JTabbedPane();
 
         // Panel für Events
-        eventLog = new JTextArea();
-        eventLog.setEditable(false);
-        JScrollPane eventScrollPane = new JScrollPane(eventLog);
-        tabbedPane.addTab("Events", eventScrollPane);
+        console = new JTextArea();
+        console.setEditable(false);
+        JScrollPane console = new JScrollPane(Main.console);
+        tabbedPane.addTab("Console", console);
 
         // Panel für Screenshots
         imageContainer = new JLabel();

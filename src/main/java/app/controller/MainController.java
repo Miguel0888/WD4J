@@ -357,7 +357,7 @@ public class MainController {
      * Fügt eine Nachricht zum Event-Log hinzu.
      */
     private void logEvent(String message) {
-        SwingUtilities.invokeLater(() -> Main.eventLog.append(message + "\n"));
+        SwingUtilities.invokeLater(() -> Main.console.append(message + "\n"));
     }
 
 
@@ -384,7 +384,7 @@ public class MainController {
     }
 
     public void clearLog() {
-        SwingUtilities.invokeLater(() -> Main.eventLog.setText(""));
+        SwingUtilities.invokeLater(() -> Main.console.setText(""));
     }
 
     public void updateBrowsingContextDropdown() {
@@ -551,25 +551,6 @@ public class MainController {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public void showSelectors(boolean selected) {
-        // 1. Alle Realms abrufen
-        WDScriptManager scriptManager = WDScriptManager.getInstance();
-        WDScriptResult.GetRealmsResult realmsResult = scriptManager.getRealms(); // Hol alle existierenden Realms
-
-        // 2. Für jeden Context toggleTooltip aktivieren
-        for (WDRealmInfo realm : realmsResult.getRealms()) {
-            List<WDLocalValue> args = new ArrayList<>();
-            args.add(new WDPrimitiveProtocolValue.BooleanValue(selected)); // aktivieren oder deaktivieren
-
-            scriptManager.callFunction(
-                    "toggleTooltip",
-                    false, // awaitPromise=false
-                    new WDTarget.RealmTarget(new WDRealm(realm.getRealm())), // Kontext: Aktueller Realm
-                    args
-            );
-        }
-    }
-
     @Deprecated // since it does not activate the tooltip for all pages
     public void showSelectors(boolean selected, Page selectedPage) {
         if (selectedPage != null) {
@@ -590,5 +571,45 @@ public class MainController {
 
         // ToDo: Implement this method
 
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public void showSelectors(boolean selected) {
+        // 1. Alle Realms abrufen
+        WDScriptManager scriptManager = WDScriptManager.getInstance();
+        WDScriptResult.GetRealmsResult realmsResult = scriptManager.getRealms(); // Hol alle existierenden Realms
+
+        // 2. Für jeden Context toggleTooltip aktivieren
+        for (WDRealmInfo realm : realmsResult.getRealms()) {
+            List<WDLocalValue> args = new ArrayList<>();
+            args.add(new WDPrimitiveProtocolValue.BooleanValue(selected)); // aktivieren oder deaktivieren
+
+            scriptManager.callFunction(
+                    "toggleTooltip",
+                    false, // awaitPromise=false
+                    new WDTarget.RealmTarget(new WDRealm(realm.getRealm())), // Kontext: Aktueller Realm
+                    args
+            );
+        }
+    }
+
+    public void showDomEvents(boolean selected) {
+        // 1. Alle Realms abrufen
+        WDScriptManager scriptManager = WDScriptManager.getInstance();
+        WDScriptResult.GetRealmsResult realmsResult = scriptManager.getRealms(); // Hol alle existierenden Realms
+
+        // 2. Für jeden Context toggleTooltip aktivieren
+        for (WDRealmInfo realm : realmsResult.getRealms()) {
+            List<WDLocalValue> args = new ArrayList<>();
+            args.add(new WDPrimitiveProtocolValue.BooleanValue(selected)); // aktivieren oder deaktivieren
+
+            scriptManager.callFunction(
+                    "toggleDomObserver",
+                    false, // awaitPromise=false
+                    new WDTarget.RealmTarget(new WDRealm(realm.getRealm())), // Kontext: Aktueller Realm
+                    args
+            );
+        }
     }
 }

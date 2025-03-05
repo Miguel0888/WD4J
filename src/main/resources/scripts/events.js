@@ -285,6 +285,8 @@
 
     function startObserver() {
         const observer = new MutationObserver(mutations => {
+        if (!isDomObserverEnabled) return; // ❗ DOM-Events unterdrücken, wenn deaktiviert
+
             let recordedMutations = [];
 
             mutations.forEach(mutation => {
