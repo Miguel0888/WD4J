@@ -48,30 +48,49 @@
     }
 
     function recordEvent(event) {
-        const selector = getStableSelector(event.target);
+        let target = event.target;
+
+        // Prüfen, ob innerhalb eines Buttons, Links, Inputs oder Dropdowns geklickt wurde
+        let interactiveElement = target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], tr.ui-selectonemenu-item');
+
+        if (!interactiveElement) {
+            interactiveElement = target; // Falls kein übergeordnetes interaktives Element gefunden wird, das ursprüngliche Element nutzen
+        }
+
+        const selector = getStableSelector(interactiveElement);
         if (!selector) return;
 
-        let eventData = { selector };
+        let eventData = {
+            selector,
+            action: event.type === 'input' || event.type === 'change' ? 'input' :
+                event.type === 'keydown' ? 'press' : 'click'
+        };
 
-        if (event.type === 'input' || event.type === 'change') {
-            eventData.action = 'input';
-            eventData.value = event.target.value;
-        } else if (event.type === 'keydown') {
-            eventData.action = 'press';
+        // Falls ein Input-Event, speichere den Wert
+        if (eventData.action === 'input') {
+            eventData.value = interactiveElement.value;
+        } else if (eventData.action === 'press') {
             eventData.key = event.key;
-        } else {
-            eventData.action = 'click';
-
-        // Prüfen, ob ein Menü-Item oder eine Dropdown-Zeile (`tr`) geklickt wurde
-        let menuItem = event.target.closest('.ui-menuitem, tr.ui-selectonemenu-item');
-
-            if (menuItem) {
-                eventData.menuText = getElementText(menuItem);
-                eventData.xpath = getElementXPath(menuItem);
-                eventData.elementId = menuItem.id || null;
-                eventData.classes = menuItem.className || null;
-            }
         }
+
+        // Falls das Element ein Button ist, speichere den Text
+        if (interactiveElement.tagName === 'BUTTON' || interactiveElement.getAttribute('role') === 'button') {
+            eventData.buttonText = interactiveElement.textContent.trim();
+        }
+
+        // Falls das Element ein Menü-Item ist, speichere den sichtbaren Text
+        let menuItem = interactiveElement.closest('.ui-menuitem, tr.ui-selectonemenu-item');
+        if (menuItem) {
+            eventData.menuText = Array.from(menuItem.querySelectorAll('td'))
+                .map(td => td.textContent.trim())
+                .filter(text => text.length > 0)
+                .join(' | '); // Verketten der `td`-Inhalte mit `|`
+        }
+
+        // Zusätzliche Metadaten für besseres Wiederfinden
+        eventData.xpath = getElementXPath(interactiveElement);
+        eventData.elementId = interactiveElement.id || null;
+        eventData.classes = interactiveElement.className || null;
 
         if (typeof window.sendJsonDataAsArray === 'function') {
             window.sendJsonDataAsArray([eventData]);
