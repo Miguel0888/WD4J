@@ -1,6 +1,7 @@
 (() => {
     let tooltip;
     let isTooltipEnabled = false;
+    let isDomObserverEnabled = false;
 
     function initializeTooltip() {
         if (!document.body) return setTimeout(initializeTooltip, 50);
@@ -21,6 +22,8 @@
             document.body.appendChild(tooltip);
         }
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     function getStableSelector(element) {
         if (!element) return null;
@@ -47,108 +50,175 @@
         return /^ns-[a-z0-9\-]+$/.test(cls) || /^[A-Za-z0-9]{8,}$/.test(cls);
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    const createEventDTO = () => ({
+        selector: null,       // CSS-Selektor
+        action: null,         // Aktion (click, input, press etc.)
+        value: null,          // Falls ein Input-Event -> Eingabewert
+        key: null,            // Falls eine Taste gedrückt wurde
+        extractedText: null,  // Extrahierter Text (z. B. aus Menüs oder Buttons)
+        extractedColumns: null, // JSON-Array für Spalten in Tabellen
+        inputName: null,      // Falls ein Formularfeld geklickt wurde -> Name des Inputs
+        buttonText: null,     // Falls ein Button geklickt wurde -> Button-Text
+        pagination: null,     // Falls ein Paginierungs-Link geklickt wurde -> Paginierungsbereich
+        elementId: null,      // Falls vorhanden -> ID des Elements
+        classes: null,        // Falls vorhanden -> Klassen des Elements
+        xpath: null,          // XPath des Elements
+        aria: null,           // JSON-Objekt mit allen `aria-*`-Attributen
+        attributes: null,     // JSON-Objekt mit relevanten Attributen (type, maxlength, data-*, etc.)
+        test: null            // JSON-Objekt mit allen `test-*` Attributen
+    });
+
     function recordEvent(event) {
         let target = event.target;
-
-        // Prüfen, ob das geklickte Element innerhalb eines interaktiven Bereichs liegt
-        let interactiveElement = target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], tr, td, li, [role="navigation"] a');
+        let interactiveElement = findInteractiveElement(target);
 
         if (!interactiveElement) {
-            interactiveElement = target; // Falls kein übergeordnetes interaktives Element gefunden wird, das ursprüngliche Element nutzen
+            interactiveElement = target;
         }
 
         const selector = getStableSelector(interactiveElement);
         if (!selector) return;
 
-        let eventData = {
-            selector,
-            action: event.type === 'input' || event.type === 'change' ? 'input' :
-                event.type === 'keydown' ? 'press' : 'click'
-        };
+        let eventData = createEventDTO();
+        eventData.selector = selector;
+        eventData.action = determineAction(event);
 
-        // Falls ein Input-Event, speichere den Wert
         if (eventData.action === 'input') {
-            eventData.value = interactiveElement.value;
+            eventData.value = interactiveElement.value || null;
         } else if (eventData.action === 'press') {
-            eventData.key = event.key;
+            eventData.key = event.key || null;
         }
 
-        // **🔹 JSON-Array für Spalten in Tabellen**
-        let tableRow = interactiveElement.closest('tr');
+        extractButtonOrMenuInfo(interactiveElement, eventData);
+        extractTableData(interactiveElement, eventData);
+        extractFormFieldInfo(interactiveElement, eventData);
+        extractNavigationInfo(interactiveElement, eventData);
+        extractAriaAttributes(interactiveElement, eventData);
+        extractOtherAttributes(interactiveElement, eventData);
+        extractTestAttributes(interactiveElement, eventData);
+
+        eventData.xpath = getElementXPath(interactiveElement);
+        eventData.elementId = interactiveElement.id || null;
+        eventData.classes = interactiveElement.className || null;
+
+        sendSanitizedData(eventData);
+    }
+
+    /** 🔹 Entfernt alle `null`-Werte und sendet die Daten */
+    function sendSanitizedData(eventData) {
+        try {
+            let sanitizedData = Object.fromEntries(
+                Object.entries(eventData).filter(([_, value]) => value !== null)
+            );
+
+            if (typeof window.sendJsonDataAsArray === 'function') {
+                window.sendJsonDataAsArray([sanitizedData]);
+            }
+        } catch (error) {
+            console.error("Fehler in sendSanitizedData:", error);
+            return null; // Alternativ: leeres Array `[]` oder ein Standardwert zurückgeben
+        }
+    }
+
+    /** 🔹 Findet interaktive Elemente wie Buttons, Links, Inputs oder Menüpunkte */
+    function findInteractiveElement(target) {
+        return target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], tr, td, li, [role="navigation"] a');
+    }
+
+    /** 🔹 Bestimmt die Aktion basierend auf dem Event-Typ */
+    function determineAction(event) {
+        if (event.type === 'input' || event.type === 'change') return 'input';
+        if (event.type === 'keydown') return 'press';
+        return 'click';
+    }
+
+    /** 🔹 Extrahiert Button- oder Menüinformationen */
+    function extractButtonOrMenuInfo(element, eventData) {
+        if (element.tagName === 'BUTTON' || element.getAttribute('role') === 'button' || element.matches('[role="navigation"] a')) {
+            eventData.buttonText = element.textContent.trim() || null;
+        }
+
+        let menuItem = element.closest('[role="menuitem"], [role="tab"], li');
+        if (menuItem) {
+            let linkInside = menuItem.querySelector('a');
+            eventData.extractedText = (linkInside ? linkInside.textContent.trim() : menuItem.textContent.trim()) || null;
+        }
+    }
+
+    /** 🔹 Extrahiert Tabellendaten, falls innerhalb einer Tabelle */
+    function extractTableData(element, eventData) {
+        let tableRow = element.closest('tr');
         if (tableRow) {
             let columnData = Array.from(tableRow.querySelectorAll('td'))
                 .map(td => td.textContent.trim())
                 .filter(text => text.length > 0);
 
-            if (columnData.length > 0) {
-                eventData.extractedColumns = columnData; // JSON-Array der Spalten
-            }
+            eventData.extractedColumns = columnData.length > 0 ? columnData : null;
         }
+    }
 
-        // **🔹 Menü- oder Navigationspunkt-Text extrahieren**
-        let menuItem = interactiveElement.closest('[role="menuitem"], [role="tab"], li');
-        if (menuItem) {
-            let linkInside = menuItem.querySelector('a');
-            eventData.extractedText = linkInside ? linkInside.textContent.trim() : menuItem.textContent.trim();
+    /** 🔹 Extrahiert Formularfeld-Informationen */
+    function extractFormFieldInfo(element, eventData) {
+        if (element.tagName === 'INPUT' || element.tagName === 'SELECT' || element.tagName === 'TEXTAREA') {
+            eventData.inputName = element.name || null;
         }
+    }
 
-        // Falls das Element ein Button oder Paginierungs-Link ist, speichere den Button-Text
-        if (interactiveElement.tagName === 'BUTTON' || interactiveElement.getAttribute('role') === 'button' || interactiveElement.matches('[role="navigation"] a')) {
-            eventData.buttonText = interactiveElement.textContent.trim() || null;
+    /** 🔹 Extrahiert Informationen zur Navigation (Paginierung) */
+    function extractNavigationInfo(element, eventData) {
+        let navigation = element.closest('[role="navigation"]');
+        if (navigation) {
+            eventData.pagination = navigation.getAttribute('aria-label') || "Unbekannte Navigation";
         }
+    }
 
-        // Falls das Element ein Input- oder Select-Feld ist, speichere den Namen
-        if (interactiveElement.tagName === 'INPUT' || interactiveElement.tagName === 'SELECT' || interactiveElement.tagName === 'TEXTAREA') {
-            eventData.inputName = interactiveElement.name || null;
-        }
-
-        // **🔹 Alle `aria-*` Attribute in ein gemeinsames JSON-Objekt speichern**
+    /** 🔹 Extrahiert alle `aria-*` Attribute als JSON */
+    function extractAriaAttributes(element, eventData) {
         let ariaAttributes = {};
-        Array.from(interactiveElement.attributes).forEach(attr => {
+        Array.from(element.attributes).forEach(attr => {
             if (attr.name.startsWith("aria-")) {
                 ariaAttributes[attr.name] = attr.value;
             }
         });
-        if (Object.keys(ariaAttributes).length > 0) {
-            eventData.aria = ariaAttributes;
-        }
+        eventData.aria = Object.keys(ariaAttributes).length > 0 ? ariaAttributes : null;
+    }
 
-        // **🔹 Andere relevante Attribute in ein Key-Value-Objekt speichern**
+    /** 🔹 Extrahiert andere relevante Attribute */
+    function extractOtherAttributes(element, eventData) {
         let attributeList = ["type", "maxlength", "autocomplete"];
         let attributes = {};
         attributeList.forEach(attr => {
-            let value = interactiveElement.getAttribute(attr);
+            let value = element.getAttribute(attr);
             if (value !== null) {
                 attributes[attr] = value;
             }
         });
 
         // Auch `data-*` Attribute speichern
-        Array.from(interactiveElement.attributes).forEach(attr => {
+        Array.from(element.attributes).forEach(attr => {
             if (attr.name.startsWith("data-")) {
                 attributes[attr.name] = attr.value;
             }
         });
 
-        if (Object.keys(attributes).length > 0) {
-            eventData.attributes = attributes;
-        }
-
-        // Falls das Element innerhalb einer Navigation (Paginierung) liegt
-        let navigation = interactiveElement.closest('[role="navigation"]');
-        if (navigation) {
-            eventData.pagination = navigation.getAttribute('aria-label') || "Unbekannte Navigation";
-        }
-
-        // Zusätzliche Metadaten für besseres Wiederfinden
-        eventData.xpath = getElementXPath(interactiveElement);
-        eventData.elementId = interactiveElement.id || null;
-        eventData.classes = interactiveElement.className || null;
-
-        if (typeof window.sendJsonDataAsArray === 'function') {
-            window.sendJsonDataAsArray([eventData]);
-        }
+        eventData.attributes = Object.keys(attributes).length > 0 ? attributes : null;
     }
+
+    /** 🔹 Extrahiert alle `test-*` Attribute für automatisierte Tests */
+    function extractTestAttributes(element, eventData) {
+        let testAttributes = {};
+        Array.from(element.attributes).forEach(attr => {
+            if (attr.name.startsWith("test-")) {
+                testAttributes[attr.name] = attr.value;
+            }
+        });
+
+        eventData.test = Object.keys(testAttributes).length > 0 ? testAttributes : null;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     function rebindEventListeners() {
         console.log('🔄 PrimeFaces AJAX-Update erkannt – Event-Listener werden neu gebunden');
@@ -192,27 +262,52 @@
         document.body.addEventListener('keydown', recordEvent, true);
     });
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /////////////////////////////////////////// MutationObserver ///////////////////////////////////////////
+
+    const createMutationDTO = () => ({
+        action: null,       // Typ der Mutation (added, removed, attributeChanged, textChanged)
+        selector: null,     // CSS-Selektor des betroffenen Elements
+        attribute: null,    // Falls `attributeChanged` -> Name des geänderten Attributs
+        oldValue: null,     // Falls `attributeChanged` -> Alter Wert des Attributs
+        newValue: null,     // Falls `attributeChanged` -> Neuer Wert des Attributs
+        extractedText: null,// Falls `textChanged` -> Neuer Text-Inhalt
+        elementId: null,    // Falls vorhanden -> ID des Elements
+        classes: null,      // Falls vorhanden -> Klassen des Elements
+        attributes: null,   // Falls vorhanden -> JSON-Objekt mit weiteren relevanten Attributen
+        aria: null,         // Falls vorhanden -> JSON-Objekt mit `aria-*` Attributen
+        test: null          // Falls vorhanden -> JSON-Objekt mit `test-*` Attributen
+    });
+
     function startObserver() {
         const observer = new MutationObserver(mutations => {
             let recordedMutations = [];
 
             mutations.forEach(mutation => {
+                let mutationData = createMutationDTO();
+
                 if (mutation.type === "childList") {
                     mutation.addedNodes.forEach(node => {
                         if (node.nodeType === 1) { // Element-Node
-                            const selector = getStableSelector(node);
-                            if (selector) {
-                                recordedMutations.push({ action: "added", selector });
-                            }
+                            mutationData.action = "added";
+                            mutationData.selector = getStableSelector(node);
+                            mutationData.elementId = node.id || null;
+                            mutationData.classes = node.className || null;
+
+                            extractAriaAttributes(node, mutationData);
+                            extractTestAttributes(node, mutationData);
+                            extractOtherAttributes(node, mutationData);
+
+                            recordedMutations.push(sanitizeMutationData(mutationData));
                         }
                     });
 
                     mutation.removedNodes.forEach(node => {
-                        if (node.nodeType === 1) { // Element-Node
-                            const selector = getStableSelector(node);
-                            if (selector) {
-                                recordedMutations.push({ action: "removed", selector });
-                            }
+                        if (node.nodeType === 1) {
+                            mutationData.action = "removed";
+                            mutationData.selector = getStableSelector(node);
+                            recordedMutations.push(sanitizeMutationData(mutationData));
                         }
                     });
 
@@ -222,26 +317,19 @@
                 }
 
                 if (mutation.type === "attributes") {
-                    const selector = getStableSelector(mutation.target);
-                    if (selector) {
-                        recordedMutations.push({
-                            action: "attributeChanged",
-                            selector,
-                            attribute: mutation.attributeName,
-                            newValue: mutation.target.getAttribute(mutation.attributeName),
-                        });
-                    }
+                    mutationData.action = "attributeChanged";
+                    mutationData.selector = getStableSelector(mutation.target);
+                    mutationData.attribute = mutation.attributeName;
+                    mutationData.newValue = mutation.target.getAttribute(mutation.attributeName);
+                    mutationData.oldValue = mutation.oldValue || null;
+                    recordedMutations.push(sanitizeMutationData(mutationData));
                 }
 
                 if (mutation.type === "characterData") {
-                    const selector = getStableSelector(mutation.target.parentElement);
-                    if (selector) {
-                        recordedMutations.push({
-                            action: "textChanged",
-                            selector,
-                            newValue: mutation.target.nodeValue,
-                        });
-                    }
+                    mutationData.action = "textChanged";
+                    mutationData.selector = getStableSelector(mutation.target.parentElement);
+                    mutationData.extractedText = mutation.target.nodeValue;
+                    recordedMutations.push(sanitizeMutationData(mutationData));
                 }
             });
 
@@ -255,11 +343,23 @@
                 childList: true,
                 subtree: true,
                 attributes: true,
+                attributeOldValue: true,
                 characterData: true
             });
-            console.log("🔍 MutationObserver gestartet und überwacht DOM-Änderungen.");
+            console.log("🔍 MutationObserver mit einheitlichem DTO gestartet.");
         } catch (e) {
             console.error("🚨 MutationObserver konnte nicht gestartet werden:", e);
+        }
+    }
+
+    function sanitizeMutationData(mutationData) {
+        try {
+            return Object.fromEntries(
+                Object.entries(mutationData).filter(([_, value]) => value !== null)
+            );
+        } catch (error) {
+            console.error("Fehler in sanitizeMutationData:", error);
+            return null; // Alternativ: leeres Array `[]` oder ein Standardwert zurückgeben
         }
     }
 
@@ -304,39 +404,18 @@
         return '/' + path.join('/');
     }
 
-    function getElementText(element) {
-        if (!element) return null;
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        // Falls es sich um eine `<tr>`-Zeile handelt, alle `<td>`-Zellen auslesen
-        if (element.tagName.toLowerCase() === "tr") {
-            let cells = Array.from(element.querySelectorAll("td"));
-            let text = cells.map(td => td.textContent.trim()).join(" | ");
-            if (text) return text;
-        }
-
-        // Normaler Textinhalt für andere Elemente
-        let text = element.textContent.trim();
-        if (text) return text;
-
-        // Falls kein Text gefunden wurde, prüfe auf verschachtelte `span` oder `td`
-        let subElement = element.querySelector("span, td");
-        if (subElement) return subElement.textContent.trim();
-
-        // Falls immer noch nichts gefunden wurde, prüfe auf `aria-labelledby`
-        let ariaLabelledBy = element.getAttribute("aria-labelledby");
-        if (ariaLabelledBy) {
-            let labelledElement = document.getElementById(ariaLabelledBy);
-            if (labelledElement) return labelledElement.textContent.trim();
-        }
-
-        return "Unbekannt";
-    }
-
+    /////////////////////////////////////////// Toggles ///////////////////////////////////////////
 
     window.toggleTooltip = function(enable) {
         isTooltipEnabled = enable;
         if (!enable && tooltip) {
             tooltip.style.display = 'none';
         }
+    };
+
+    window.toggleDomObserver = function(enable) {
+        isDomObserverEnabled = enable;
     };
 })
