@@ -50,8 +50,8 @@
     function recordEvent(event) {
         let target = event.target;
 
-        // Prüfen, ob innerhalb eines Buttons, Links, Inputs oder Dropdowns geklickt wurde
-        let interactiveElement = target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], tr.ui-selectonemenu-item, [role="navigation"] a');
+        // Prüfen, ob das geklickte Element innerhalb eines interaktiven Bereichs liegt (Button, Link, Input, Menüpunkt, Navigation)
+        let interactiveElement = target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], tr, td, li, [role="navigation"] a');
 
         if (!interactiveElement) {
             interactiveElement = target; // Falls kein übergeordnetes interaktives Element gefunden wird, das ursprüngliche Element nutzen
@@ -73,26 +73,29 @@
             eventData.key = event.key;
         }
 
-        // Falls das Element ein Button oder ein Paginierungs-Link ist, speichere wichtige Daten
-        if (interactiveElement.tagName === 'BUTTON' || interactiveElement.getAttribute('role') === 'button' || interactiveElement.matches('.ui-paginator a')) {
+        // Prüfen, ob das Element in einer Tabelle oder einer Liste steht (generisch für Menüs, Dropdowns, Tabellenreihen)
+        let relevantTextContainer = interactiveElement.closest('td, th, tr, li, [role="menuitem"], [role="option"]');
+
+        if (relevantTextContainer) {
+            let extractedText = Array.from(relevantTextContainer.querySelectorAll('*:not(script):not(style)'))
+                .filter(el => el.childElementCount === 0) // Nur reine Text-Elemente extrahieren
+                .map(el => el.textContent.trim())
+                .filter(text => text.length > 0)
+                .join(' | ');
+
+            eventData.extractedText = extractedText || interactiveElement.textContent.trim();
+        }
+
+        // Falls das Element ein Button ist, speichere den Text und das aria-label
+        if (interactiveElement.tagName === 'BUTTON' || interactiveElement.getAttribute('role') === 'button' || interactiveElement.matches('[role="navigation"] a')) {
             eventData.buttonText = interactiveElement.textContent.trim() || null;
             eventData.ariaLabel = interactiveElement.getAttribute('aria-label') || null;
         }
 
-        // Falls ein Paginierungs-Element angeklickt wurde, speichere weitere Infos
-        if (interactiveElement.matches('.ui-paginator a')) {
-            eventData.pagination = interactiveElement.closest('[role="navigation"]')?.getAttribute('aria-label') || "Unbekannte Paginierung";
-            eventData.pageNumber = interactiveElement.textContent.trim() || null; // Die sichtbare Seitenzahl
-        }
-
-        // Falls das Element ein Menü-Item oder ein Dropdown-Eintrag ist
-        let menuItem = interactiveElement.closest('.ui-menuitem, tr.ui-selectonemenu-item');
-        if (menuItem) {
-            eventData.menuText = Array.from(menuItem.querySelectorAll('td'))
-                .map(td => td.textContent.trim())
-                .filter(text => text.length > 0)
-                .join(' | ');
-            eventData.ariaLabel = menuItem.getAttribute('aria-label') || null;
+        // Falls das Element innerhalb einer Navigation (Paginierung) liegt
+        let navigation = interactiveElement.closest('[role="navigation"]');
+        if (navigation) {
+            eventData.pagination = navigation.getAttribute('aria-label') || "Unbekannte Navigation";
         }
 
         // Zusätzliche Metadaten für besseres Wiederfinden
@@ -104,7 +107,6 @@
             window.sendJsonDataAsArray([eventData]);
         }
     }
-
 
     function rebindEventListeners() {
         console.log('🔄 PrimeFaces AJAX-Update erkannt – Event-Listener werden neu gebunden');
