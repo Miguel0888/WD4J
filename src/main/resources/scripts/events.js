@@ -50,7 +50,7 @@
     function recordEvent(event) {
         let target = event.target;
 
-        // Prüfen, ob das geklickte Element innerhalb eines interaktiven Bereichs liegt (Button, Link, Input, Menüpunkt, Navigation)
+        // Prüfen, ob das geklickte Element innerhalb eines interaktiven Bereichs liegt
         let interactiveElement = target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], tr, td, li, [role="navigation"] a');
 
         if (!interactiveElement) {
@@ -92,10 +92,46 @@
             eventData.extractedText = linkInside ? linkInside.textContent.trim() : menuItem.textContent.trim();
         }
 
-        // Falls das Element ein Button oder Paginierungs-Link ist, speichere den Button-Text und das aria-label
+        // Falls das Element ein Button oder Paginierungs-Link ist, speichere den Button-Text
         if (interactiveElement.tagName === 'BUTTON' || interactiveElement.getAttribute('role') === 'button' || interactiveElement.matches('[role="navigation"] a')) {
             eventData.buttonText = interactiveElement.textContent.trim() || null;
-            eventData.ariaLabel = interactiveElement.getAttribute('aria-label') || null;
+        }
+
+        // Falls das Element ein Input- oder Select-Feld ist, speichere den Namen
+        if (interactiveElement.tagName === 'INPUT' || interactiveElement.tagName === 'SELECT' || interactiveElement.tagName === 'TEXTAREA') {
+            eventData.inputName = interactiveElement.name || null;
+        }
+
+        // **🔹 Alle `aria-*` Attribute in ein gemeinsames JSON-Objekt speichern**
+        let ariaAttributes = {};
+        Array.from(interactiveElement.attributes).forEach(attr => {
+            if (attr.name.startsWith("aria-")) {
+                ariaAttributes[attr.name] = attr.value;
+            }
+        });
+        if (Object.keys(ariaAttributes).length > 0) {
+            eventData.aria = ariaAttributes;
+        }
+
+        // **🔹 Andere relevante Attribute in ein Key-Value-Objekt speichern**
+        let attributeList = ["type", "maxlength", "autocomplete"];
+        let attributes = {};
+        attributeList.forEach(attr => {
+            let value = interactiveElement.getAttribute(attr);
+            if (value !== null) {
+                attributes[attr] = value;
+            }
+        });
+
+        // Auch `data-*` Attribute speichern
+        Array.from(interactiveElement.attributes).forEach(attr => {
+            if (attr.name.startsWith("data-")) {
+                attributes[attr.name] = attr.value;
+            }
+        });
+
+        if (Object.keys(attributes).length > 0) {
+            eventData.attributes = attributes;
         }
 
         // Falls das Element innerhalb einer Navigation (Paginierung) liegt
