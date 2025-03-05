@@ -73,20 +73,26 @@
             eventData.key = event.key;
         }
 
-        // Prüfen, ob das Element in einer Tabelle oder einer Liste steht (generisch für Menüs, Dropdowns, Tabellenreihen)
-        let relevantTextContainer = interactiveElement.closest('td, th, tr, li, [role="menuitem"], [role="option"]');
+        // **🔹 JSON-Array für Spalten in Tabellen**
+        let tableRow = interactiveElement.closest('tr');
+        if (tableRow) {
+            let columnData = Array.from(tableRow.querySelectorAll('td'))
+                .map(td => td.textContent.trim())
+                .filter(text => text.length > 0);
 
-        if (relevantTextContainer) {
-            let extractedText = Array.from(relevantTextContainer.querySelectorAll('*:not(script):not(style)'))
-                .filter(el => el.childElementCount === 0) // Nur reine Text-Elemente extrahieren
-                .map(el => el.textContent.trim())
-                .filter(text => text.length > 0)
-                .join(' | ');
-
-            eventData.extractedText = extractedText || interactiveElement.textContent.trim();
+            if (columnData.length > 0) {
+                eventData.extractedColumns = columnData; // JSON-Array der Spalten
+            }
         }
 
-        // Falls das Element ein Button ist, speichere den Text und das aria-label
+        // **🔹 Menü- oder Navigationspunkt-Text extrahieren**
+        let menuItem = interactiveElement.closest('[role="menuitem"], [role="tab"], li');
+        if (menuItem) {
+            let linkInside = menuItem.querySelector('a');
+            eventData.extractedText = linkInside ? linkInside.textContent.trim() : menuItem.textContent.trim();
+        }
+
+        // Falls das Element ein Button oder Paginierungs-Link ist, speichere den Button-Text und das aria-label
         if (interactiveElement.tagName === 'BUTTON' || interactiveElement.getAttribute('role') === 'button' || interactiveElement.matches('[role="navigation"] a')) {
             eventData.buttonText = interactiveElement.textContent.trim() || null;
             eventData.ariaLabel = interactiveElement.getAttribute('aria-label') || null;
