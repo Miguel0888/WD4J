@@ -104,6 +104,9 @@
         eventData.classes = interactiveElement.className || null;
 
         sendSanitizedData(eventData);
+
+        // Tooltip anzeigen, falls aktiviert
+        showTooltip(eventData, event);
     }
 
     /** 🔹 Entfernt alle `null`-Werte und sendet die Daten */
@@ -405,6 +408,25 @@
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    function showTooltip(eventData, event) {
+        if (!isTooltipEnabled || !eventData) return;
+
+        if (!tooltip) initializeTooltip();
+
+        // JSON hübsch formatieren
+        const formattedData = JSON.stringify(eventData, null, 2)
+            .replace(/\n/g, "<br>")
+            .replace(/\s/g, "&nbsp;");
+
+        // Tooltip-Inhalt setzen
+        tooltip.innerHTML = `<strong>Selektor:</strong> ${eventData.selector}<br><pre>${formattedData}</pre>`;
+
+        // Tooltip-Position setzen
+        tooltip.style.left = `${event.pageX + 10}px`;
+        tooltip.style.top = `${event.pageY + 10}px`;
+        tooltip.style.display = 'block';
+    }
 
     /////////////////////////////////////////// Toggles ///////////////////////////////////////////
 
