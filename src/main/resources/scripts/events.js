@@ -17,7 +17,7 @@
                 zIndex: '9999',
                 pointerEvents: 'none',
                 display: 'none'
-            });
+            })
             document.body.appendChild(tooltip)
         }
     }
@@ -112,7 +112,7 @@
             window.sendJsonDataAsArray([eventData])
         }
     }
-    //
+
     function rebindEventListeners() {
         console.log('🔄 PrimeFaces AJAX-Update erkannt – Event-Listener werden neu gebunden')
 
@@ -130,7 +130,7 @@
             el.addEventListener('submit', recordEvent)
         })
     }
-    //
+
     function watchPrimeFacesAjax() {
         if (window.PrimeFaces) {
             console.log('✅ PrimeFaces erkannt – AJAX-Events werden überwacht')
@@ -143,9 +143,11 @@
             }
         }
     }
-    //
+
     document.addEventListener('DOMContentLoaded', () => {
         initializeTooltip()
+        watchPrimeFacesAjax()
+        rebindEventListeners()
     })
 
     document.addEventListener('mouseover', onMouseOver)
@@ -161,25 +163,11 @@
 
     // observer.observe(document.body, { childList: true, subtree: true })
 
-    // Expose toggleTooltip in the global scope
+    // **Expose `toggleTooltip` global, damit du es aktivieren/deaktivieren kannst**
     window.toggleTooltip = function(enable) {
-        // Store enable/disable flag
-        isTooltipEnabled = enable;
-
-        // Hide tooltip if disabled
+        isTooltipEnabled = enable
         if (!enable && tooltip) {
-            tooltip.style.display = 'none';
+            tooltip.style.display = 'none'
         }
-
-        // Show tooltip if enabled (optional example behavior)
-        if (enable && tooltip) {
-            tooltip.textContent = 'Tooltip active';
-            tooltip.style.display = 'block';
-            tooltip.style.top = '50px';
-            tooltip.style.left = '50px';
-        }
-    };
-
-    // Initialize tooltip on DOM ready
-    document.addEventListener('DOMContentLoaded', initializeTooltip);
+    }
 })
