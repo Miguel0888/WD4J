@@ -148,20 +148,30 @@
         initializeTooltip()
         watchPrimeFacesAjax()
         rebindEventListeners()
+        startObserver(); // <-- Observer is started only when DOM is there
     })
 
     document.addEventListener('mouseover', onMouseOver)
     document.addEventListener('mouseout', onMouseOut)
 
-    const observer = new MutationObserver(mutations => {
-        mutations.forEach(mutation => {
-            if (mutation.addedNodes.length > 0) {
-                rebindEventListeners()
-            }
-        })
-    })
+    // Example: Start the observer when the DOM is ready
+    function startObserver() {
+        // Define the observer callback
+        const observer = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+                if (mutation.addedNodes.length > 0) {
+                    rebindEventListeners();
+                }
+            });
+        });
 
-    // observer.observe(document.body, { childList: true, subtree: true })
+        try {
+            observer.observe(document.body, { childList: true, subtree: true });
+            console.log("🔍 MutationObserver started.");
+        } catch (e) {
+            console.error("🚨 MutationObserver konnte nicht gestartet werden:", e);
+        }
+    }
 
     // **Expose `toggleTooltip` global, damit du es aktivieren/deaktivieren kannst**
     window.toggleTooltip = function(enable) {
