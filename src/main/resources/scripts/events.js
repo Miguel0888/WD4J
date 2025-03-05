@@ -47,45 +47,6 @@
         return /^ns-[a-z0-9\-]+$/.test(cls) || /^[A-Za-z0-9]{8,}$/.test(cls);
     }
 
-    function getElementPath(element) {
-        if (!element) return 'Unknown';
-        let path = [];
-        while (element.parentElement) {
-            let selector = element.tagName.toLowerCase();
-            if (element.id && !isGeneratedId(element.id)) {
-                selector += `#${element.id}`;
-                path.unshift(selector);
-                break;
-            } else {
-                let siblingIndex = 1;
-                let sibling = element;
-                while ((sibling = sibling.previousElementSibling) !== null) {
-                    if (sibling.tagName === element.tagName) siblingIndex++;
-                }
-                if (siblingIndex > 1) selector += `:nth-of-type(${siblingIndex})`;
-            }
-            path.unshift(selector);
-            element = element.parentElement;
-        }
-        return path.join(' > ');
-    }
-
-    function getElementXPath(element) {
-        if (!element || element.nodeType !== 1) return '';
-        if (element.id) return `//*[@id='${element.id}']`;
-        let path = [];
-        while (element.nodeType === 1) {
-            let index = 1;
-            let sibling = element;
-            while ((sibling = sibling.previousElementSibling) !== null) {
-                if (sibling.nodeType === 1 && sibling.tagName === element.tagName) index++;
-            }
-            path.unshift(`${element.tagName.toLowerCase()}[${index}]`);
-            element = element.parentNode;
-        }
-        return '/' + path.join('/');
-    }
-
     function recordEvent(event) {
         const selector = getStableSelector(event.target);
         if (!selector) return;
@@ -101,10 +62,11 @@
         } else {
             eventData.action = 'click';
 
-            // Prüfen, ob ein Menü-Item geklickt wurde
-            let menuItem = event.target.closest('.ui-menuitem');
+        // Prüfen, ob ein Menü-Item oder eine Dropdown-Zeile (`tr`) geklickt wurde
+        let menuItem = event.target.closest('.ui-menuitem, tr.ui-selectonemenu-item');
+
             if (menuItem) {
-                eventData.menuText = menuItem.querySelector('.ui-menuitem-text')?.textContent.trim() || "Unbekannt";
+                eventData.menuText = getElementText(menuItem);
                 eventData.xpath = getElementXPath(menuItem);
                 eventData.elementId = menuItem.id || null;
                 eventData.classes = menuItem.className || null;
@@ -228,6 +190,76 @@
             console.error("🚨 MutationObserver konnte nicht gestartet werden:", e);
         }
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    function getElementPath(element) {
+        if (!element) return 'Unknown';
+        let path = [];
+        while (element.parentElement) {
+            let selector = element.tagName.toLowerCase();
+            if (element.id && !isGeneratedId(element.id)) {
+                selector += `#${element.id}`;
+                path.unshift(selector);
+                break;
+            } else {
+                let siblingIndex = 1;
+                let sibling = element;
+                while ((sibling = sibling.previousElementSibling) !== null) {
+                    if (sibling.tagName === element.tagName) siblingIndex++;
+                }
+                if (siblingIndex > 1) selector += `:nth-of-type(${siblingIndex})`;
+            }
+            path.unshift(selector);
+            element = element.parentElement;
+        }
+        return path.join(' > ');
+    }
+
+    function getElementXPath(element) {
+        if (!element || element.nodeType !== 1) return '';
+        if (element.id) return `//*[@id='${element.id}']`;
+        let path = [];
+        while (element.nodeType === 1) {
+            let index = 1;
+            let sibling = element;
+            while ((sibling = sibling.previousElementSibling) !== null) {
+                if (sibling.nodeType === 1 && sibling.tagName === element.tagName) index++;
+            }
+            path.unshift(`${element.tagName.toLowerCase()}[${index}]`);
+            element = element.parentNode;
+        }
+        return '/' + path.join('/');
+    }
+
+    function getElementText(element) {
+        if (!element) return null;
+
+        // Falls es sich um eine `<tr>`-Zeile handelt, alle `<td>`-Zellen auslesen
+        if (element.tagName.toLowerCase() === "tr") {
+            let cells = Array.from(element.querySelectorAll("td"));
+            let text = cells.map(td => td.textContent.trim()).join(" | ");
+            if (text) return text;
+        }
+
+        // Normaler Textinhalt für andere Elemente
+        let text = element.textContent.trim();
+        if (text) return text;
+
+        // Falls kein Text gefunden wurde, prüfe auf verschachtelte `span` oder `td`
+        let subElement = element.querySelector("span, td");
+        if (subElement) return subElement.textContent.trim();
+
+        // Falls immer noch nichts gefunden wurde, prüfe auf `aria-labelledby`
+        let ariaLabelledBy = element.getAttribute("aria-labelledby");
+        if (ariaLabelledBy) {
+            let labelledElement = document.getElementById(ariaLabelledBy);
+            if (labelledElement) return labelledElement.textContent.trim();
+        }
+
+        return "Unbekannt";
+    }
+
 
     window.toggleTooltip = function(enable) {
         isTooltipEnabled = enable;
