@@ -2,9 +2,6 @@ package wd4j.impl.support;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import wd4j.api.ConsoleMessage;
-import wd4j.api.Request;
-import wd4j.api.Response;
 import wd4j.impl.manager.WDSessionManager;
 import wd4j.impl.playwright.PageImpl;
 import wd4j.impl.playwright.event.*;
@@ -37,13 +34,7 @@ public class EventDispatcher {
         String eventType = jsonMessage.get("method").getAsString();
         JsonObject params = jsonMessage.has("params") ? jsonMessage.getAsJsonObject("params") : new JsonObject();
 
-        WDEventMapping event = WDEventMapping.fromName(eventType);
-        if (event != null) {
-            System.out.println("[DEBUG] Dispatched event: " + eventType + " with params: " + params);
-            dispatchEvent(eventType, params, event.getAssociatedClass());
-        } else {
-            System.out.println("[INFO] Unrecognized event: " + eventType);
-        }
+        dispatchEvent(eventType, params);
     }
 
     /**
@@ -51,26 +42,19 @@ public class EventDispatcher {
      *
      * @param eventType
      * @param params
-     * @param eventTypeClass
-     * @param <T>
      */
-    private <T> void dispatchEvent(String eventType, JsonObject params, Class<T> eventTypeClass) {
-        System.out.println("[DEBUG] dispatchEvent() aufgerufen (EventDispatcher Instanz: " + this + ") für eventType=" + eventType);
+    private void dispatchEvent(String eventType, JsonObject params) {
+        WDEventMapping eventEnum = WDEventMapping.fromName(eventType);
 
-        System.out.println("[DEBUG] Dispatching event '" + eventType + "' to class: " + eventTypeClass);
-
-        if (eventTypeClass == null) {
-            System.err.println("[WARN] No associated class for event: " + eventType);
+        if (eventEnum == null) {
+            System.err.println("[WARN] No event mapping found for event: " + eventType);
             return;
         }
 
         // Nutze mapEvent() für Mapping in die korrekte Impl-Klasse
         Object event = mapEvent(eventType, params);
-
-        // Falls kein Mapping in eine Impl-Klasse möglich war, nutze die alte Mapper-Methode
-        if (event == null) {
-            event = JsonToPlaywrightMapper.mapToInterface(params, eventTypeClass);
-        }
+        // Fallback:
+//        event = mapToPlaywrightInterface(eventType, params, event);
 
         if (eventListeners.containsKey(eventType)) {
             for (Consumer<Object> listener : eventListeners.get(eventType)) {
@@ -80,6 +64,24 @@ public class EventDispatcher {
         } else {
             System.out.println("[INFO] No listener registered for event: " + eventType);
         }
+    }
+
+    @Deprecated // since field values are not available & direct mapping to playwright is not working in all cases
+    private Object mapToPlaywrightInterface(String eventType, JsonObject params, Object event) {
+        // Falls kein Mapping in eine Impl-Klasse möglich war, nutze die alte Mapper-Methode
+        if (event == null) {
+            WDEventMapping eventEnum = WDEventMapping.fromName(eventType);
+            Class<?> eventTypeClass = eventEnum.getAssociatedClass();
+
+            if (eventTypeClass == null) {
+                System.err.println("[WARN] No associated class for event: " + eventType);
+                return null;
+            }
+
+            event = JsonToPlaywrightMapper.mapToInterface(params, eventTypeClass);
+            System.out.println("[DEBUG] Mapped event to interface as fallback: " + event);
+        }
+        return event;
     }
 
     public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> listener, WDSessionManager sessionManager) {

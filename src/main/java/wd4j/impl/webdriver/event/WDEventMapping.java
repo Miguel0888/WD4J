@@ -51,6 +51,7 @@ public enum WDEventMapping {
         return name;
     }
 
+    @Deprecated // since direct mapping to playwright is not working in all cases
     public Class<?> getAssociatedClass() {
         return associatedClass;
     }
