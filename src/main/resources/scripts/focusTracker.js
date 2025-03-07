@@ -18,4 +18,4 @@
         });
     });
 
-})(arguments[0]); // Der Channel wird als Funktionsargument übergeben
+})(arguments[0])

@@ -70,7 +70,7 @@ public class BrowserImpl implements Browser {
 
         // 🔹 2️⃣ Fokus-Tracking PreloadScript registrieren
         globalScripts.add(scriptManager.addPreloadScript(
-                ScriptHelper.loadScript("scripts/focus-tracker.js"),
+                ScriptHelper.loadScript("scripts/focusTracker.js"),
                 Collections.singletonList(focusChannel)  // Channel mit übergeben
         ));
 
