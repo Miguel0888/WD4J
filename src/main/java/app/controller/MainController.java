@@ -28,7 +28,7 @@ public class MainController {
     private UserContextImpl selectedUserContext;
     private Page selectedPage;
 
-    private boolean loggingActive = false; // Status für Play/Pause
+    private boolean isEventLoggingEnabled = true; // Status für Play/Pause
 
     private final Consumer<ConsoleMessage> consoleMessageHandler = msg -> logEvent("Console: " + msg.text());
     private final Consumer<Response> responseHandler = response -> logEvent("Response: " + response.url());
@@ -297,67 +297,18 @@ public class MainController {
 
     ////////////////////////////////////////////////////////////////////////////
 
-    /**
-     * Aktiviert das Event-Logging
-     */
-    public void startLogging() {
-        if (selectedPage == null) {
-            JOptionPane.showMessageDialog(null, "Browser ist nicht gestartet.");
-            return;
-        }
-
-
-
-        if (!loggingActive) {
-            loggingActive = true;
-            logEvent("📢 Event-Logging gestartet...");
-
-            //ToDo
-//            // Event: Console message ✅
-//            page.onConsoleMessage(consoleMessageHandler);
-//
-//            // Event: Response received ✅
-//            page.onResponse(responseHandler);
-//
-//            // Event: Page loaded ✅
-//            page.onLoad(loadHandler);
-//
-////            // Event: Klick auf ein Element ✅
-////            page.onClick(event -> logEvent("Click on: " + event.target()));
-////
-////            // Event: Tastatureingabe ✅
-////            page.onKeyPress(event -> logEvent("Key Pressed: " + event.key()));
-        }
-    }
-
-    /**
-     * Deaktiviert das Event-Logging
-     */
-    public void stopLogging() {
-        if (selectedPage == null) {
-            JOptionPane.showMessageDialog(null, "Browser ist nicht gestartet.");
-            return;
-        }
-
-        if (loggingActive) {
-            loggingActive = false;
-            logEvent("⏹️ Event-Logging gestoppt.");
-
-            // ToDo
-//            // Event-Listener entfernen
-//            page.offConsoleMessage(consoleMessageHandler);
-//            page.offResponse(responseHandler);
-//            page.offLoad(loadHandler);
-//            //            page.offClick();
-//            //            page.offKeyPress();
-        }
+    public void setEventLoggingEnabled(boolean enabled) {
+        isEventLoggingEnabled = enabled;
     }
 
     /**
      * Fügt eine Nachricht zum Event-Log hinzu.
      */
     private void logEvent(String message) {
-        SwingUtilities.invokeLater(() -> Main.console.append(message + "\n"));
+       if(isEventLoggingEnabled)
+       {
+           SwingUtilities.invokeLater(() -> Main.console.append(message + "\n"));
+       }
     }
 
 

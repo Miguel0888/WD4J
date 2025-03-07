@@ -26,6 +26,16 @@ public class WebSocketImpl implements WebSocket {
 
     private WebSocketImpl() {}
 
+    public static WebSocketImpl getNewInstance() {
+        synchronized (WebSocketImpl.class) {
+            if (instance != null) {
+                instance.close(); // Close the existing WebSocket for cleanup, if any!
+            }
+            instance = new WebSocketImpl();
+        }
+        return instance;
+    }
+
     public static WebSocketImpl getInstance() {
         if (instance == null) {
             synchronized (WebSocketImpl.class) {

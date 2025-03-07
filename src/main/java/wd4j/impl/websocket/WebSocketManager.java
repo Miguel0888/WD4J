@@ -21,7 +21,6 @@ import java.util.function.Predicate;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class WebSocketManager {
-    private final WebSocketImpl webSocket;
     private final Gson gson = GsonMapperFactory.getGson(); // ✅ Nutzt zentrale Fabrik
 
     private final EventDispatcher eventDispatcher;
@@ -31,8 +30,7 @@ public class WebSocketManager {
     @Deprecated // since JSON Data might be received via Message Events (see WebDriverBiDi ChannelValue)
     private CallbackWebSocketServer callbackWebSocketServer;
 
-    private WebSocketManager(WebSocketImpl webSocket) {
-        this.webSocket = webSocket;
+    private WebSocketManager() {
         this.eventDispatcher = new EventDispatcher();
         registerEventListener(eventDispatcher); // 🔥 Events aktivieren!
 
@@ -58,7 +56,7 @@ public class WebSocketManager {
         if (instance == null) {
             synchronized (WebSocketManager.class) {
                 if (instance == null) {
-                    instance = new WebSocketManager(WebSocketImpl.getInstance());
+                    instance = new WebSocketManager();
                 }
             }
         }
@@ -78,7 +76,7 @@ public class WebSocketManager {
      */
     public void send(WDCommand command) {
         String jsonCommand = gson.toJson(command);
-        webSocket.send(jsonCommand); // Nachricht senden
+        WebSocketImpl.getInstance().send(jsonCommand); // Nachricht senden
     }
 
     /**
@@ -177,7 +175,7 @@ public class WebSocketManager {
                     } else {
                         future.complete(responseType.cast(WDErrorResponse)); // ✅ Gib `ErrorResponse` als DTO zurück
                     }
-                    webSocket.offFrameReceived(listenerRef.get()); // Listener entfernen
+                    WebSocketImpl.getInstance().offFrameReceived(listenerRef.get()); // Listener entfernen
                     return;
                 }
 
@@ -193,7 +191,7 @@ public class WebSocketManager {
 
                     if (response != null) {
                         future.complete(response);
-                        webSocket.offFrameReceived(listenerRef.get()); // Listener entfernen
+                        WebSocketImpl.getInstance().offFrameReceived(listenerRef.get()); // Listener entfernen
                     }
                 } else {
                     System.out.println("[DEBUG] Frame erfüllt Predicate NICHT! Ignoriert.");
@@ -204,7 +202,7 @@ public class WebSocketManager {
         };
 
         listenerRef.set(listener); // 🛠 Hier wird die Variable gesetzt!
-        webSocket.onFrameReceived(listenerRef.get()); // ✅ Sicherstellen, dass `listener` registriert ist
+        WebSocketImpl.getInstance().onFrameReceived(listenerRef.get()); // ✅ Sicherstellen, dass `listener` registriert ist
 
         return future;
     }
@@ -215,7 +213,7 @@ public class WebSocketManager {
      * @param eventDispatcher Der EventDispatcher, der die Events verarbeitet.
      */
     public void registerEventListener(EventDispatcher eventDispatcher) {
-        webSocket.onFrameReceived(frame -> {
+        WebSocketImpl.getInstance().onFrameReceived(frame -> {
             try {
                 JsonObject json = gson.fromJson(frame.text(), JsonObject.class);
 
@@ -231,6 +229,6 @@ public class WebSocketManager {
     }
 
     public boolean isConnected() {
-        return webSocket.isConnected();
+        return WebSocketImpl.getInstance().isConnected();
     }
 }

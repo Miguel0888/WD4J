@@ -42,6 +42,8 @@ public class Main {
     public static JComboBox<Object> userContextDropdown;
     private static JToggleButton togglePlayPauseButton;
 
+    private static boolean keepEventDropDownOpen = false; // Schalter, der festlegt, ob das Menü sich schließen darf
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Main::createAndShowGUI);
 //        runAppMapServer();
@@ -154,9 +156,6 @@ public class Main {
 
         launchButton = new JButton("Launch Browser");
         terminateButton = new JButton("Terminate Browser");
-        // Kamera-Symbol
-        screenshotButton = new JButton("\uD83D\uDCF8");
-        screenshotButton.setToolTipText("Take Screenshot");
 
         browserToolBar.add(new JLabel("Browser:"));
         browserToolBar.add(browserSelector);
@@ -171,7 +170,6 @@ public class Main {
         browserToolBar.add(startMaximizedCheckbox);
         browserToolBar.add(launchButton);
         browserToolBar.add(terminateButton);
-        browserToolBar.add(screenshotButton);
         return browserToolBar;
     }
 
@@ -183,8 +181,13 @@ public class Main {
         addressBar = new JTextField("https://www.google.com", 30);
         navigateButton = new JButton("Navigate");
 
+        // Kamera-Symbol
+        screenshotButton = new JButton("\uD83D\uDCF8");
+        screenshotButton.setToolTipText("Take Screenshot");
+
         navigationToolBar.add(new JLabel("URL:"));
         navigationToolBar.add(addressBar);
+        navigationToolBar.add(screenshotButton);
         navigationToolBar.add(navigateButton);
         return navigationToolBar;
     }
@@ -192,29 +195,33 @@ public class Main {
     private static JToolBar createDebugToolBar() {
         JToolBar eventToolbar = new JToolBar();
 
-        // Play/Pause Toggle Button
-        togglePlayPauseButton = new JToggleButton("Play");
-        togglePlayPauseButton.addItemListener(e -> {
-            if (togglePlayPauseButton.isSelected()) {
-                togglePlayPauseButton.setText("Pause");
-                registerSelectedEvents();
-            } else {
-                togglePlayPauseButton.setText("Play");
-                deregisterAllEvents();
-            }
-        });
-        eventToolbar.add(togglePlayPauseButton);
-
-        // Multi-Select Dropdown für Events
+        // Erzeuge ein JPopupMenu, das sich nicht mehr automatisch schließt
         eventDropdownButton = new JButton("Select Events");
-        eventMenu = new JPopupMenu();
-        eventMenu.setLightWeightPopupEnabled(false); // Verhindert, dass sich das Menü schließt
+        eventMenu = new JPopupMenu() {
+            @Override
+            public void setVisible(boolean visible) {
+                // Prüfe, ob jemand versucht, das Menü zu schließen
+                if (!visible) {
+                    // Schließen ist nur erlaubt, wenn der Schalter "allowCloseManually" true ist
+                    if (keepEventDropDownOpen) {
+                        // Abbrechen -> Menü bleibt offen
+                        return;
+                    }
+                }
+                super.setVisible(visible);
+            }
+        };
 
+        // Optional: Leichtgewichtige Popups deaktivieren, falls dein Look & Feel
+        // sonst das Menü bei Item-Klick schließt
+        eventMenu.setLightWeightPopupEnabled(false);
+
+        // Füge die Checkboxen hinzu
         for (String event : controller.getEventHandlers().keySet()) {
             JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(event);
             eventCheckboxes.put(event, menuItem);
 
-            // 🆕 Listener direkt beim Klicken registrieren oder entfernen
+            // Direkt beim Klicken registrieren oder entfernen
             menuItem.addActionListener(e -> {
                 if (menuItem.isSelected()) {
                     controller.registerEvent(event);
@@ -227,35 +234,43 @@ public class Main {
             eventMenu.add(menuItem);
         }
 
-        // Dropdown-Button soll das Menü anzeigen
+        // Button toggelt Menü an/aus
         eventDropdownButton.addActionListener(e -> {
-            eventMenu.show(eventDropdownButton, 0, eventDropdownButton.getHeight());
-        });
-
-        // Verhindert das automatische Schließen des Menüs
-        eventMenu.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
-            @Override
-            public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent e) {
-                SwingUtilities.invokeLater(() -> eventMenu.setVisible(true));
-            }
-
-            @Override
-            public void popupMenuCanceled(javax.swing.event.PopupMenuEvent e) {
-                // Nichts tun
-            }
-
-            @Override
-            public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) {
-                // Nichts tun
+            if (eventMenu.isVisible()) {
+                keepEventDropDownOpen = false;
+                eventMenu.setVisible(false); // Manuell schließen
+            } else {
+                keepEventDropDownOpen = true;
+                eventMenu.show(eventDropdownButton, 0, eventDropdownButton.getHeight());
             }
         });
 
+        // Erzeugtes Menü & Button in die Toolbar
         eventToolbar.add(eventDropdownButton);
-        eventToolbar.add(Box.createHorizontalGlue()); // Rechtsbündige Elemente
+        eventToolbar.add(Box.createHorizontalGlue());
 
-        // "Clear Log"-Button
+        togglePlayPauseButton = new JToggleButton("Stop");
+        togglePlayPauseButton.addItemListener(e -> {
+            if (togglePlayPauseButton.isSelected()) {
+                togglePlayPauseButton.setText("Play");
+                controller.setEventLoggingEnabled(false);
+                console.setEnabled(false);
+            } else {
+                togglePlayPauseButton.setText("Stop");
+                controller.setEventLoggingEnabled(true);
+                console.setEnabled(true);
+            }
+        });
+        eventToolbar.add(togglePlayPauseButton);
+
         JButton clearLogButton = new JButton("Clear Console");
-        clearLogButton.addActionListener(e -> controller.clearLog());
+        clearLogButton.addActionListener(e -> {
+            // Ask for confirmation
+            int result = JOptionPane.showConfirmDialog(null, "Do you really want to clear the console?", "Clear Console", JOptionPane.YES_NO_OPTION);
+            if (result == JOptionPane.YES_OPTION) {
+                console.setText("");
+            }
+        });
         eventToolbar.add(clearLogButton);
 
         return eventToolbar;
@@ -287,13 +302,17 @@ public class Main {
 
         JButton clear = new JButton("Clear Events");
         clear.addActionListener(e -> {
-            scriptLog.setText("");
+            // Ask for confirmation
+            int result = JOptionPane.showConfirmDialog(null, "Do you really want to clear the console?", "Clear Console", JOptionPane.YES_NO_OPTION);
+            if (result == JOptionPane.YES_OPTION) {
+                scriptLog.setText("");
+            }
         });
 
-        scriptToolbar.add(runScript);
         scriptToolbar.add(showSelectors);
         scriptToolbar.add(showDomEvents);
         scriptToolbar.add(Box.createHorizontalGlue()); // Abstandshalter für rechtsbündige Elemente
+        scriptToolbar.add(runScript);
         scriptToolbar.add(clear);
 
         return scriptToolbar;
