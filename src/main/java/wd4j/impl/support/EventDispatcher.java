@@ -85,17 +85,17 @@ public class EventDispatcher {
     }
 
     public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> listener, WDSessionManager sessionManager) {
-        // Hole oder erzeuge die Liste der Listener für das Event
-        ConcurrentLinkedQueue<Consumer<Object>> listeners = eventListeners.computeIfAbsent(subscriptionRequest.getEvents().get(0), k -> {
-            return new ConcurrentLinkedQueue<>();
-        });
-
         // Registriere das Event in WebDriver BiDi und speichere die Subscription-ID
         WDSessionResult.SubscribeResult result = sessionManager.subscribe(subscriptionRequest);
         WDSubscription subscription = (result != null) ? result.getSubscription() : null;
 
-        // Listener zur Liste hinzufügen
-        listeners.add((Consumer<Object>) listener);
+        // Hole oder erzeuge die Liste der Listener für alle Events
+        subscriptionRequest.getEvents().forEach(event -> {
+            ConcurrentLinkedQueue<Consumer<Object>> listeners = eventListeners.computeIfAbsent(event, k -> new ConcurrentLinkedQueue<>());
+
+            // Listener zur Liste hinzufügen
+            listeners.add((Consumer<Object>) listener);
+        });
 
         return subscription;
     }
