@@ -43,16 +43,16 @@ public class WDSessionManager implements WDModule {
     /**
      * Ruft den Status der WebDriver BiDi Session ab.
      */
-    public WDSessionResult.StatusSessionResult status() {
-        return webSocketManager.sendAndWaitForResponse(new WDSessionRequest.Status(), WDSessionResult.StatusSessionResult.class);
+    public WDSessionResult.StatusResult status() {
+        return webSocketManager.sendAndWaitForResponse(new WDSessionRequest.Status(), WDSessionResult.StatusResult.class);
     }
 
     // new() - Since plain "new" is a reserved word in Java!
     /**
      * Erstellt eine neue Session mit dem gegebenen Browser.
      */
-    public WDSessionResult.NewSessionResult newSession(String browserName) {
-        return webSocketManager.sendAndWaitForResponse(new WDSessionRequest.New(browserName), WDSessionResult.NewSessionResult.class);
+    public WDSessionResult.NewResult newSession(String browserName) {
+        return webSocketManager.sendAndWaitForResponse(new WDSessionRequest.New(browserName), WDSessionResult.NewResult.class);
     }
 
 
@@ -68,7 +68,7 @@ public class WDSessionManager implements WDModule {
      * Abonniert WebDriver BiDi Events.
      * Falls bereits abonniert, wird das Event nicht erneut angefordert.
      */
-    public WDSessionResult.SubscribeSessionResult subscribe(WDSubscriptionRequest subscriptionRequest) {
+    public WDSessionResult.SubscribeResult subscribe(WDSubscriptionRequest subscriptionRequest) {
         if (subscriptionRequest == null || subscriptionRequest.getEvents().isEmpty()) {
             throw new IllegalArgumentException("Subscription request must not be null or empty.");
         }
@@ -86,13 +86,13 @@ public class WDSessionManager implements WDModule {
         String subscriptionId = subscribeCommand.getId().toString();
 
         // Sende den Subscribe-Command
-        WDSessionResult.SubscribeSessionResult result = webSocketManager.sendAndWaitForResponse(
-                subscribeCommand, WDSessionResult.SubscribeSessionResult.class);
+        WDSessionResult.SubscribeResult result = webSocketManager.sendAndWaitForResponse(
+                subscribeCommand, WDSessionResult.SubscribeResult.class);
 
         // Bug fix: Falls die Antwort leer ist, erstelle ein Fallback-Result mit der ID
         if (result == null || result.getSubscription() == null) {
             System.out.println("Warning: No Subscription-ID returned. Using command ID as fallback.");
-            result = new WDSessionResult.SubscribeSessionResult(new WDSubscription(subscriptionId));
+            result = new WDSessionResult.SubscribeResult(new WDSubscription(subscriptionId));
         }
         // End Bug fix (ToDo: Remove when fixed in WebDriver BiDi!)
 

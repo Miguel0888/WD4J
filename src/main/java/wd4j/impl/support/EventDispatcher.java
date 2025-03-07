@@ -24,18 +24,9 @@ import java.util.function.Consumer;
 public class EventDispatcher {
     private final Gson gson = GsonMapperFactory.getGson(); // ToDo: Maybe removed
 
-    // Event-Typen von WebDriver BiDi als Schlüssel verwenden
-    private final Map<String, Consumer<JsonObject>> eventHandlers = new ConcurrentHashMap<>();
     private final Map<String, ConcurrentLinkedQueue<Consumer<Object>>> eventListeners = new ConcurrentHashMap<>();
 
-    public EventDispatcher() {
-        // 🔹 WebDriver BiDi Event-Typen zu passenden Methoden mappen
-        eventHandlers.put("log.entryAdded", json -> dispatchEvent("log.entryAdded", json, ConsoleMessage.class));
-        eventHandlers.put("network.beforeRequestSent", json -> dispatchEvent("network.beforeRequestSent", json, Request.class));
-        eventHandlers.put("network.responseStarted", json -> dispatchEvent("network.responseStarted", json, Response.class));
-        eventHandlers.put("network.responseCompleted", json -> dispatchEvent("network.responseCompleted", json, Response.class));
-        eventHandlers.put("network.requestFailed", json -> dispatchEvent("network.requestFailed", json, Request.class));
-    }
+    public EventDispatcher() {}
 
     public void processEvent(JsonObject jsonMessage) {
         if (!jsonMessage.has("method")) {
@@ -98,7 +89,7 @@ public class EventDispatcher {
         });
 
         // Registriere das Event in WebDriver BiDi und speichere die Subscription-ID
-        WDSessionResult.SubscribeSessionResult result = sessionManager.subscribe(subscriptionRequest);
+        WDSessionResult.SubscribeResult result = sessionManager.subscribe(subscriptionRequest);
         WDSubscription subscription = (result != null) ? result.getSubscription() : null;
 
         // Listener zur Liste hinzufügen
@@ -115,7 +106,7 @@ public class EventDispatcher {
         });
 
         // Registriere das Event in WebDriver BiDi und speichere die Subscription-ID
-        WDSessionResult.SubscribeSessionResult result = sessionManager.subscribe(subscriptionRequest);
+        WDSessionResult.SubscribeResult result = sessionManager.subscribe(subscriptionRequest);
         WDSubscription subscription = (result != null) ? result.getSubscription() : null;
 
         // Listener zur Liste hinzufügen

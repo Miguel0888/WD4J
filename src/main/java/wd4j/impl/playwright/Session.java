@@ -1,6 +1,5 @@
 package wd4j.impl.playwright;
 
-import wd4j.api.*;
 import wd4j.impl.manager.WDSessionManager;
 import wd4j.impl.support.EventDispatcher;
 import wd4j.impl.webdriver.command.response.WDSessionResult;
@@ -9,7 +8,6 @@ import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 import wd4j.impl.websocket.WDException;
 import wd4j.impl.websocket.WebSocketManager;
 
-import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
@@ -30,7 +28,7 @@ import java.util.function.Consumer;
 public class Session {
     private String sessionId;
     private final WebSocketManager webSocketManager;
-    private final WDSessionManager WDSessionManager;
+    private final WDSessionManager sessionManager;
     private final BrowserImpl browser;
     private final EventDispatcher dispatcher;
 
@@ -52,12 +50,12 @@ public class Session {
     public Session(BrowserImpl browser, String sessionId) throws WDException {
         this.webSocketManager = browser.getWebSocketManager();
         this.browser = browser;
-        this.dispatcher = webSocketManager.getEventDispatcher();
+        this.dispatcher = webSocketManager.getEventDispatcher(); // ToDo: Remove this
 
         String browserName = browser.browserType().name();
 
         try {
-            this.WDSessionManager = new WDSessionManager(webSocketManager);
+            this.sessionManager = new WDSessionManager(webSocketManager);
             if (sessionId != null) {
                 this.sessionId = sessionId;
             } else {
@@ -77,32 +75,32 @@ public class Session {
     }
 
     public WDSessionManager getSessionManager() {
-        return WDSessionManager;
+        return sessionManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> handler) {
-        return dispatcher.addEventListener(subscriptionRequest, handler, WDSessionManager);
+        return dispatcher.addEventListener(subscriptionRequest, handler, sessionManager);
     }
 
     @Deprecated // Since the Class is derived from the JSON response via "type"
     public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> handler, Class<T> eventClass) {
-        return dispatcher.addEventListener(subscriptionRequest, handler, eventClass, WDSessionManager);
+        return dispatcher.addEventListener(subscriptionRequest, handler, eventClass, sessionManager);
     }
 
     public <T> void removeEventListener(String eventType, String browsingContextId, Consumer<T> listener) {
-        dispatcher.removeEventListener(eventType, browsingContextId, listener, WDSessionManager);
+        dispatcher.removeEventListener(eventType, browsingContextId, listener, sessionManager);
     }
 
     // ToDo: Not supported yet
     public <T> void removeEventListener(WDSubscription subscription, Consumer<T> listener) {
-        dispatcher.removeEventListener(subscription, listener, WDSessionManager);
+        dispatcher.removeEventListener(subscription, listener, sessionManager);
     }
 
     @Deprecated // Since it does neither use the subscription id nor the browsing context id, thus terminating all listeners for the event type
     public <T> void removeEventListener(String eventType, Consumer<T> listener) {
-        dispatcher.removeEventListener(eventType, listener, WDSessionManager);
+        dispatcher.removeEventListener(eventType, listener, sessionManager);
     }
 
     /**
@@ -114,7 +112,7 @@ public class Session {
      */
     private void createSession(String browserName) throws InterruptedException, ExecutionException {
         // Create a new session
-        WDSessionResult.NewSessionResult sessionResponse = WDSessionManager.newSession(browserName); // ToDo: Does not work with Chrome!
+        WDSessionResult.NewResult sessionResponse = sessionManager.newSession(browserName); // ToDo: Does not work with Chrome!
 
         // Kontext-ID extrahieren oder neuen Kontext erstellen
         if (sessionResponse == null) {

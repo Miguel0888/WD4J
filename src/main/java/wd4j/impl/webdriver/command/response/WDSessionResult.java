@@ -5,12 +5,12 @@ import wd4j.impl.webdriver.type.session.WDProxyConfiguration;
 import wd4j.impl.webdriver.type.session.WDSubscription;
 
 public interface WDSessionResult extends WDResultData {
-    public static class NewSessionResult implements WDSessionResult {
+    public static class NewResult implements WDSessionResult {
         private String sessionId;
         private Capabilities capabilities;
 
         // 🔥 WICHTIG: Gson braucht diesen Konstruktor!
-        public NewSessionResult() {}
+        public NewResult() {}
 
         public String getSessionId() {
             return sessionId;
@@ -95,11 +95,11 @@ public interface WDSessionResult extends WDResultData {
         }
     }
 
-    class StatusSessionResult implements WDSessionResult {
+    class StatusResult implements WDSessionResult {
         private final boolean ready;
         private final String message;
 
-        public StatusSessionResult(boolean ready, String message) {
+        public StatusResult(boolean ready, String message) {
             this.ready = ready;
             this.message = message;
         }
@@ -121,10 +121,10 @@ public interface WDSessionResult extends WDResultData {
         }
     }
 
-    class SubscribeSessionResult implements WDSessionResult {
+    class SubscribeResult implements WDSessionResult {
         private final WDSubscription WDSubscription;
 
-        public SubscribeSessionResult(WDSubscription WDSubscription) {
+        public SubscribeResult(WDSubscription WDSubscription) {
             this.WDSubscription = WDSubscription;
         }
 

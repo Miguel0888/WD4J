@@ -6,6 +6,7 @@ import wd4j.impl.websocket.WDCommand;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 public class WDSubscriptionRequest implements WDCommand.Params {
     private final List<String> events;
@@ -54,5 +55,24 @@ public class WDSubscriptionRequest implements WDCommand.Params {
 
     public List<WDUserContext> getUserContexts() {
         return userContexts;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Workaround, since Implementation of Subscribe & Unsubscribe by ID is not fully functional
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        WDSubscriptionRequest that = (WDSubscriptionRequest) o;
+        return Objects.equals(events, that.events) &&
+                Objects.equals(contexts, that.contexts) &&
+                Objects.equals(userContexts, that.userContexts);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(events, contexts, userContexts);
     }
 }
