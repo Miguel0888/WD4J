@@ -205,25 +205,55 @@ public class Main {
         });
         eventToolbar.add(togglePlayPauseButton);
 
-        // Multi-Select Dropdown für Events (links)
+        // Multi-Select Dropdown für Events
         eventDropdownButton = new JButton("Select Events");
         eventMenu = new JPopupMenu();
+        eventMenu.setLightWeightPopupEnabled(false); // Verhindert, dass sich das Menü schließt
 
         for (String event : controller.getEventHandlers().keySet()) {
             JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(event);
             eventCheckboxes.put(event, menuItem);
-            menuItem.addActionListener(e -> updateEventDropdownLabel());
+
+            // 🆕 Listener direkt beim Klicken registrieren oder entfernen
+            menuItem.addActionListener(e -> {
+                if (menuItem.isSelected()) {
+                    controller.registerEvent(event);
+                } else {
+                    controller.deregisterEvent(event);
+                }
+                updateEventDropdownLabel();
+            });
+
             eventMenu.add(menuItem);
         }
 
-        eventDropdownButton.addActionListener(e -> eventMenu.show(eventDropdownButton, 0, eventDropdownButton.getHeight()));
+        // Dropdown-Button soll das Menü anzeigen
+        eventDropdownButton.addActionListener(e -> {
+            eventMenu.show(eventDropdownButton, 0, eventDropdownButton.getHeight());
+        });
+
+        // Verhindert das automatische Schließen des Menüs
+        eventMenu.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
+            @Override
+            public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent e) {
+                SwingUtilities.invokeLater(() -> eventMenu.setVisible(true));
+            }
+
+            @Override
+            public void popupMenuCanceled(javax.swing.event.PopupMenuEvent e) {
+                // Nichts tun
+            }
+
+            @Override
+            public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) {
+                // Nichts tun
+            }
+        });
 
         eventToolbar.add(eventDropdownButton);
+        eventToolbar.add(Box.createHorizontalGlue()); // Rechtsbündige Elemente
 
-        // Abstandshalter für rechtsbündige Elemente (damit Dropdown & Play links bleiben)
-        eventToolbar.add(Box.createHorizontalGlue());
-
-        // "Clear Log"-Button rechtsbündig hinzufügen
+        // "Clear Log"-Button
         JButton clearLogButton = new JButton("Clear Console");
         clearLogButton.addActionListener(e -> controller.clearLog());
         eventToolbar.add(clearLogButton);
@@ -304,7 +334,7 @@ public class Main {
             }
         }
 
-        if (selectedEvents.toString().equals("Selected: ")) {
+        if (selectedEvents.toString().equals("Selected Events: ")) {
             eventDropdownButton.setText("Select Events");
         } else {
             eventDropdownButton.setText(selectedEvents.toString());

@@ -146,7 +146,7 @@ public class PageImpl implements Page {
     public void onClose(Consumer<Page> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.CONTEXT_DESTROYED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler, Page.class);
+            session.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
@@ -161,7 +161,7 @@ public class PageImpl implements Page {
     public void onConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.ENTRY_ADDED.getName(), this.getBrowsingContextId(), null);
-            consoleMessageSubscription = session.addEventListener(wdSubscriptionRequest, handler, ConsoleMessage.class);
+            consoleMessageSubscription = session.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
@@ -186,7 +186,7 @@ public class PageImpl implements Page {
     public void onCrash(Consumer<Page> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.NAVIGATION_FAILED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler, Page.class);
+            session.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
@@ -201,7 +201,7 @@ public class PageImpl implements Page {
     public void onDialog(Consumer<Dialog> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.USER_PROMPT_OPENED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler, Dialog.class);
+            session.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
@@ -216,7 +216,7 @@ public class PageImpl implements Page {
     public void onDOMContentLoaded(Consumer<Page> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.DOM_CONTENT_LOADED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler, Page.class);
+            session.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
@@ -231,7 +231,7 @@ public class PageImpl implements Page {
     public void onLoad(Consumer<Page> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.LOAD.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler, Page.class);
+            session.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
@@ -246,7 +246,7 @@ public class PageImpl implements Page {
     public void onRequest(Consumer<Request> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.BEFORE_REQUEST_SENT.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler, Request.class);
+            session.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
@@ -261,7 +261,7 @@ public class PageImpl implements Page {
     public void onRequestFailed(Consumer<Request> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.FETCH_ERROR.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler, Request.class);
+            session.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
@@ -276,7 +276,7 @@ public class PageImpl implements Page {
     public void onRequestFinished(Consumer<Request> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.RESPONSE_COMPLETED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler, Request.class);
+            session.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
@@ -291,7 +291,7 @@ public class PageImpl implements Page {
     public void onResponse(Consumer<Response> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.RESPONSE_STARTED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler, Response.class);
+            session.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
@@ -306,7 +306,7 @@ public class PageImpl implements Page {
     public void onWebSocket(Consumer<WebSocket> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.CONTEXT_CREATED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler, WebSocket.class);
+            session.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
@@ -321,7 +321,7 @@ public class PageImpl implements Page {
     public void onWorker(Consumer<Worker> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.REALM_CREATED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler, Worker.class);
+            session.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
@@ -425,7 +425,7 @@ public class PageImpl implements Page {
                 // Stelle sicher, dass jsonObject tatsächlich ein JsonObject ist
                 Page popupPage = JsonToPlaywrightMapper.mapToInterface((JsonObject) jsonObject, Page.class);
                 handler.accept(popupPage);
-            }, JsonObject.class);
+            });
         }
     }
 
