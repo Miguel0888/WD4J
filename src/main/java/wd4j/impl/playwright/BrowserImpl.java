@@ -63,6 +63,18 @@ public class BrowserImpl implements Browser {
 //        // Callback-Script für die Kommunikation mit dem Playwright-Server (über Message Events)
 //        globalScripts.add(scriptManager.addPreloadScript(callbackScript, Collections.singletonList(channel)));
 
+
+        // 🔹 1️⃣ Channel für das Fokus-Tracking anlegen
+        String focusChannelId = "focus-events-channel";  // Feste ID für Fokus-Events
+        WDChannelValue focusChannel = new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(focusChannelId)));
+
+        // 🔹 2️⃣ Fokus-Tracking PreloadScript registrieren
+        globalScripts.add(scriptManager.addPreloadScript(
+                ScriptHelper.loadScript("scripts/focus-tracker.js"),
+                Collections.singletonList(focusChannel)  // Channel mit übergeben
+        ));
+
+
         // Alle weiteren globalen Scripts
         globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/events.js")));
         globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/callback.js")));
