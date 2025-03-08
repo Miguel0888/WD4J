@@ -24,6 +24,7 @@ public class WebSocketManager {
     private final Gson gson = GsonMapperFactory.getGson(); // ✅ Nutzt zentrale Fabrik
 
     private final EventDispatcher eventDispatcher;
+    private WebSocketImpl webSocket; // ToDo: Remove this, since it is a workaround to reorganize if connection is closed
 
     private static volatile WebSocketManager instance;
 
@@ -31,6 +32,7 @@ public class WebSocketManager {
     private CallbackWebSocketServer callbackWebSocketServer;
 
     private WebSocketManager() {
+        this.webSocket = WebSocketImpl.getInstance();
         this.eventDispatcher = new EventDispatcher();
         registerEventListener(eventDispatcher); // 🔥 Events aktivieren!
 
@@ -75,6 +77,11 @@ public class WebSocketManager {
      * @param command Das Command-Objekt, das gesendet werden soll.
      */
     public void send(WDCommand command) {
+        if(webSocket.isClosed())
+        { // ToDo: Find a better solution, the problem is a new connection removes all listeners
+            this.webSocket = WebSocketImpl.getInstance();
+            registerEventListener(eventDispatcher);
+        }
         String jsonCommand = gson.toJson(command);
         WebSocketImpl.getInstance().send(jsonCommand); // Nachricht senden
     }

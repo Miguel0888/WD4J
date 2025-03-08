@@ -5,9 +5,13 @@ import wd4j.api.*;
 import wd4j.impl.support.ScriptHelper;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
+import wd4j.impl.webdriver.event.WDEventMapping;
+import wd4j.impl.webdriver.event.WDScriptEvent;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.WDChannel;
 import wd4j.impl.webdriver.type.script.WDChannelValue;
+import wd4j.impl.webdriver.type.session.WDSubscription;
+import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 import wd4j.impl.websocket.WDException;
 import wd4j.impl.websocket.WebSocketManager;
 
@@ -48,6 +52,8 @@ public class BrowserImpl implements Browser {
         this.webExtensionManager = WDWebExtensionManager.getInstance();
         this.browserType = browserType;
         this.process = process;
+
+
         this.session = new Session(this); // ToDo: Add PW Options
         fetchDefaultData();
 

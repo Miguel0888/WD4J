@@ -16,7 +16,6 @@ public abstract class WDEvent<T> implements WebSocketMessage {
 
     public WDEvent(JsonObject json, Class<T> paramsClass) {
         // **Generischen Typ `T` zur Laufzeit ermitteln**
-        Type eventType = new TypeToken<T>() {}.getType();
         this.params = gson.fromJson(json, paramsClass);
     }
 

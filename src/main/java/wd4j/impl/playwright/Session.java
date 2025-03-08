@@ -3,6 +3,8 @@ package wd4j.impl.playwright;
 import wd4j.impl.manager.WDSessionManager;
 import wd4j.impl.support.EventDispatcher;
 import wd4j.impl.webdriver.command.response.WDSessionResult;
+import wd4j.impl.webdriver.event.WDEventMapping;
+import wd4j.impl.webdriver.event.WDScriptEvent;
 import wd4j.impl.webdriver.type.session.WDSubscription;
 import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 import wd4j.impl.websocket.WDException;
@@ -63,6 +65,28 @@ public class Session {
             }
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException(e);
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Start WebDriver BiDi's Event Extension to receive JavaScript Events
+        // ToDo: DTO-Mapping
+        onMessage(message -> {
+            System.out.println("******************** Message: " + message.getType());
+        });
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    }
+
+    private void onMessage(Consumer<WDScriptEvent.Message> handler) {
+        if (handler != null) {
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.MESSAGE.getName(), null, null);
+            WDSubscription tmp = this.addEventListener(wdSubscriptionRequest, handler);
+        }
+    }
+
+    private void offMessage(Consumer<WDScriptEvent.Message> handler) {
+        // ToDo: Will not work without the browsingContextId, thus it has to use the SubscriptionId, in future!
+        if (handler != null) {
+            this.removeEventListener(WDEventMapping.MESSAGE.getName(), null, handler);
         }
     }
 

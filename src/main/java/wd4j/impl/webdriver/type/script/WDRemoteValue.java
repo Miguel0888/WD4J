@@ -6,6 +6,7 @@ import wd4j.impl.webdriver.mapping.EnumWrapper;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 
 import java.lang.reflect.Type;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -44,7 +45,20 @@ public interface WDRemoteValue {
                 case "array":
                     return context.deserialize(jsonObject, ArrayRemoteValue.class);
                 case "object":
-                    return context.deserialize(jsonObject, ObjectRemoteValue.class);
+                    JsonArray valueArray = jsonObject.getAsJsonArray("value");
+                    Map<WDRemoteValue, WDRemoteValue> objectMap = new HashMap<>();
+                    for (JsonElement entry : valueArray) {
+                        JsonArray keyValuePair = entry.getAsJsonArray();
+                        if (keyValuePair.size() != 2) {
+                            throw new JsonParseException("Invalid object entry: Expected key-value pair.");
+                        }
+                        // ✅ Key als WDRemoteValue (String-Wert) umwandeln
+                        WDRemoteValue key = new WDPrimitiveProtocolValue.StringValue(keyValuePair.get(0).getAsString());
+                        // ✅ Value als WDRemoteValue parsen
+                        WDRemoteValue value = context.deserialize(keyValuePair.get(1), WDRemoteValue.class);
+                        objectMap.put(key, value);
+                    }
+                    return new ObjectRemoteValue(null, null, objectMap);
                 case "function":
                     return context.deserialize(jsonObject, FunctionRemoteValue.class);
                 case "regexp":
