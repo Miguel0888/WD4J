@@ -30,7 +30,7 @@ public enum WDEventMapping {
     RESPONSE_STARTED("network.responseStarted", Response.class),
 
     // 🔹 Script Events
-    MESSAGE("script.message", ConsoleMessage.class),
+    MESSAGE("script.message", ConsoleMessage.class), // ToDo: Check if this is the correct class in PlayWright
     REALM_CREATED("script.realmCreated", Worker.class),
     REALM_DESTROYED("script.realmDestroyed", Worker.class),
 

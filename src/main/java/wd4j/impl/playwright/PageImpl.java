@@ -172,6 +172,22 @@ public class PageImpl implements Page {
         }
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ToDo: Where to move?
+    public void onMessage(Consumer<ConsoleMessage> handler) {
+        if (handler != null) {
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.MESSAGE.getName(), this.getBrowsingContextId(), null);
+            WDSubscription tmp = session.addEventListener(wdSubscriptionRequest, handler);
+        }
+    }
+
+    public void offMessage(Consumer<ConsoleMessage> handler) {
+        if (handler != null) {
+            session.removeEventListener(WDEventMapping.MESSAGE.getName(), getBrowsingContextId(), handler);
+        }
+    }
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     // ToDo: Not supported yet
 //    @Override
 //    public void offConsoleMessage(Consumer<ConsoleMessage> handler) {

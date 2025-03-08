@@ -208,7 +208,7 @@ public class EventDispatcher {
             case REALM_DESTROYED:
                 return new WorkerImpl(new WDScriptEvent.RealmDestroyed(json));
             case MESSAGE://ToDo: This is not quite correct, since message is used for "Channels" (they have a ChannelID)
-                return new ConsoleMessageImpl(new WDLogEvent.EntryAdded(json)); // Might not be relevant for PlayWright!
+                return new ConsoleMessageImpl(new WDScriptEvent.Message(json)); // Might not be relevant for PlayWright!
 
             // 🔹 Log Events
             case ENTRY_ADDED:

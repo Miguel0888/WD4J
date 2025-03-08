@@ -8,6 +8,7 @@ import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.PageImpl;
 import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
 import wd4j.impl.webdriver.event.WDLogEvent;
+import wd4j.impl.webdriver.event.WDScriptEvent;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.log.WDLogEntry;
 import wd4j.impl.webdriver.type.log.WDLogEntry.BaseWDLogEntry;
@@ -42,6 +43,12 @@ public class ConsoleMessageImpl implements ConsoleMessage {
         } else {
             this.page = null; // Keine gültige Page gefunden
         }
+    }
+
+    // TODO: Implementierung für `WDScriptEvent.Message` hinzufügen oder verschieben
+    public ConsoleMessageImpl(WDScriptEvent.Message message) {
+        this.logEntry = null;
+        this.page = null; // Keine Page verfügbar
     }
 
     @Override

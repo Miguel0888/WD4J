@@ -61,6 +61,11 @@ public class MainController {
     public MainController() {
         logger.info(" *** MainController gestartet! *** ");
 
+        eventHandlers.put("WebDriver Message", new EventHandler(
+                () -> registerMessageEvent(),
+                () -> deregisterMessageEvent()
+        ));
+
         eventHandlers.put("Console Log", new EventHandler(
                 () -> registerConsoleLogEvent(),
                 () -> deregisterConsoleLogEvent()
@@ -392,9 +397,20 @@ public class MainController {
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // ToDo: Improve this part:
 
+
+    //ToDo: Make this right
     /** Registrierungs-Methoden */
+    private void registerMessageEvent() {
+        if (selectedPage != null) ((PageImpl) selectedPage).onMessage(consoleMessageHandler);
+    }
+
+    private void deregisterMessageEvent() {
+        if (selectedPage != null) ((PageImpl) selectedPage).offMessage(consoleMessageHandler);
+    }
+
+    ///
+    // ToDo: Improve this part:
     private void registerConsoleLogEvent() {
         if (selectedPage != null) selectedPage.onConsoleMessage(consoleMessageHandler);
     }

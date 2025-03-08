@@ -21,10 +21,10 @@ public class WDScriptEvent implements WDModule {
      * @see WDChannel
      * @see wd4j.impl.webdriver.command.request.WDScriptRequest.CallFunction
      */
-    public static class WDMessage extends WDEvent<WDMessage.MessageParameters> {
+    public static class Message extends WDEvent<Message.MessageParameters> {
         private String method = WDEventMapping.MESSAGE.getName();
 
-        public WDMessage(JsonObject json) {
+        public Message(JsonObject json) {
             super(json, MessageParameters.class);
         }
 
