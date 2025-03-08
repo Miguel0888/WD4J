@@ -70,7 +70,7 @@ public class WDScriptManager implements WDModule {
      */
     public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script, List<WDChannelValue> arguments) {
         return webSocketManager.sendAndWaitForResponse(
-                new WDScriptRequest.AddPreloadScript(script),
+                new WDScriptRequest.AddPreloadScript(script, arguments),
                 WDScriptResult.AddPreloadScriptResult.class
         );
     }
