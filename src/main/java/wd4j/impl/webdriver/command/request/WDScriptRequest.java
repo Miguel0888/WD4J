@@ -33,12 +33,15 @@ public class WDScriptRequest {
         public AddPreloadScript(String script, List<WDChannelValue> arguments) {
             super("script.addPreloadScript", new AddPreloadScriptParameters(script, arguments));
         }
+        public AddPreloadScript(String script, List<WDChannelValue> arguments, List<WDBrowsingContext> browsingContexts) {
+            super("script.addPreloadScript", new AddPreloadScriptParameters(script, arguments, browsingContexts));
+        }
         public AddPreloadScript(String script, String context) {
             super("script.addPreloadScript", new AddPreloadScriptParameters(script, null,
                     Collections.singletonList(new WDBrowsingContext(context)))); // script for a specific context only
         }
-        public AddPreloadScript(String script, List<WDChannelValue> arguments, List<WDBrowsingContext> WDBrowsingContexts, List<WDUserContext> WDUserContexts, String sandbox) {
-            super("script.addPreloadScript", new AddPreloadScriptParameters(script, arguments, WDBrowsingContexts, WDUserContexts, sandbox));
+        public AddPreloadScript(String script, List<WDChannelValue> arguments, List<WDBrowsingContext> browsingContexts, List<WDUserContext> userContexts, String sandbox) {
+            super("script.addPreloadScript", new AddPreloadScriptParameters(script, arguments, browsingContexts, userContexts, sandbox));
         }
     }
 

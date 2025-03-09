@@ -180,13 +180,15 @@ public class MainController {
                             throw new IllegalArgumentException("Unsupported browser: " + selectedBrowser);
                     }
 
-                    // ToDo:
-//                    browserContext = browser.newContext();
-//                    page = browserContext.newPage();
-                    selectedPage = browser.newPage();
                     updateUserContextDropdown();
-                    updateBrowsingContextDropdown();
+                    updateBrowsingContextDropdown(null);
 
+                    // Setzt das BrowsingContext-Dropdown automatisch auf den aktiven Context
+                    ((BrowserImpl)browser).onContextSwitch(contextId -> {
+                        SwingUtilities.invokeLater(() -> {
+                            updateBrowsingContextDropdown(contextId);
+                        });
+                    });
 
 
                     ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -338,13 +340,18 @@ public class MainController {
         SwingUtilities.invokeLater(() -> Main.console.setText(""));
     }
 
-    public void updateBrowsingContextDropdown() {
+    public void updateBrowsingContextDropdown(String selectedContextId) {
         SwingUtilities.invokeLater(() -> {
             Main.browsingContextDropdown.removeAllItems();
             Main.browsingContextDropdown.addItem("All"); // Standardwert
 
             for (String contextId : ((BrowserImpl) browser).getPages().keySet()) {
                 Main.browsingContextDropdown.addItem(contextId);
+            }
+
+            if(selectedContextId != null)
+            {
+                Main.browsingContextDropdown.setSelectedItem(selectedContextId);
             }
         });
     }
@@ -562,5 +569,9 @@ public class MainController {
                     args
             );
         }
+    }
+
+    public void createBrowsingContext() {
+        selectedPage = browser.newPage();
     }
 }

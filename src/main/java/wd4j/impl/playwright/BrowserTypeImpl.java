@@ -170,6 +170,7 @@ public class BrowserTypeImpl implements BrowserType {
         ProcessBuilder builder = new ProcessBuilder(commandLineArgs);
 
         builder.redirectErrorStream(true);
+//        builder.inheritIO(); // Vererbt die IO-Streams des Elternprozesses
         process = builder.start();
 
         // Log-Ausgabe asynchron in einem separaten Thread

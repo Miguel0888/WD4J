@@ -110,7 +110,6 @@ public class Main {
             }
         });
 
-
         // ToDo: Implement this additional features (optional, not part of playwright, except of the headless mode)
         // Disable als UI-Options
         useProfileCheckbox.setEnabled(true);
@@ -331,11 +330,15 @@ public class Main {
         browsingContextDropdown.addItem("All"); // Standardwert
         browsingContextDropdown.addActionListener(e -> controller.updateSelectedPage());
 
+        JButton newContext = new JButton("+");
+        newContext.addActionListener(e -> controller.createBrowsingContext());
+
         // Labels & Dropdowns hinzufügen
         contextToolbar.add(new JLabel("User Context:"));
         contextToolbar.add(userContextDropdown);
         contextToolbar.add(new JLabel("Browsing Context:"));
         contextToolbar.add(browsingContextDropdown);
+        contextToolbar.add(newContext);
 
         return contextToolbar;
     }

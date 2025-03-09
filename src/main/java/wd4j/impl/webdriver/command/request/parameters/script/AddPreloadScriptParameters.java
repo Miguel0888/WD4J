@@ -23,7 +23,7 @@ public class AddPreloadScriptParameters implements WDCommand.Params {
     }
 
     public AddPreloadScriptParameters(String functionDeclaration, List<WDChannelValue> arguments, List<WDBrowsingContext> contexts) {
-        this(functionDeclaration, null, contexts, null, null);
+        this(functionDeclaration, arguments, contexts, null, null);
     }
 
     public AddPreloadScriptParameters(String functionDeclaration, List<WDChannelValue> arguments, List<WDBrowsingContext> contexts, List<WDUserContext> userContexts, String sandbox) {

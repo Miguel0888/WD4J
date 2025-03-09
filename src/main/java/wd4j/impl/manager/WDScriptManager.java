@@ -80,13 +80,29 @@ public class WDScriptManager implements WDModule {
      *
      * @param script The script to preload.
      * @param arguments Contains only the ChannelValues that are passed to the script used for callback events.
+     * @param browsingContexts The browsing contexts (aka. pages) to which the script is added
+
+     * @throws RuntimeException if the operation fails.
+     */
+    public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script, List<WDChannelValue> arguments, List<WDBrowsingContext> browsingContexts) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.AddPreloadScript(script, arguments, browsingContexts),
+                WDScriptResult.AddPreloadScriptResult.class
+        );
+    }
+
+    /**
+     * Adds a preload script to the specified target.
+     *
+     * @param script The script to preload.
+     * @param arguments Contains only the ChannelValues that are passed to the script used for callback events.
      * @param WDBrowsingContexts The browsing contexts (aka. pages) to which the script is added
      * @param WDUserContexts The user contexts to which the script is added
      * @param sandbox The sandbox in which the script is executed
 
      * @throws RuntimeException if the operation fails.
      */
-    public WDScriptResult.AddPreloadScriptResult addPreloadScriptString(String script, List<WDChannelValue> arguments, List<WDBrowsingContext> WDBrowsingContexts, List<WDUserContext> WDUserContexts, String sandbox) {
+    public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script, List<WDChannelValue> arguments, List<WDBrowsingContext> WDBrowsingContexts, List<WDUserContext> WDUserContexts, String sandbox) {
         return webSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.AddPreloadScript(script, arguments, WDBrowsingContexts, WDUserContexts, sandbox),
                 WDScriptResult.AddPreloadScriptResult.class

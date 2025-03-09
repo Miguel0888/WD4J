@@ -10,6 +10,8 @@ import wd4j.impl.webdriver.event.WDScriptEvent;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.WDChannel;
 import wd4j.impl.webdriver.type.script.WDChannelValue;
+import wd4j.impl.webdriver.type.script.WDPrimitiveProtocolValue;
+import wd4j.impl.webdriver.type.script.WDRemoteValue;
 import wd4j.impl.webdriver.type.session.WDSubscription;
 import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 import wd4j.impl.websocket.WDException;
@@ -133,6 +135,19 @@ public class BrowserImpl implements Browser {
                 System.out.println("BrowsingContext: " + context.getContext().value());
                 currentPages.put(context.getContext().value(),
                         new PageImpl(this, null, context.getContext()));
+
+                // NOT WORKING
+//                // ToDo: Find a solution for all preloaded scripts, without duplicated code
+//                // 🔹 Falls der Tab existierte, muss das Preload-Skript nachträglich gesetzt werden
+//                // 🔹 1️⃣ Channel für das Fokus-Tracking anlegen
+//                String focusChannelId = "focus-events-channel";  // Feste ID für Fokus-Events
+//                WDChannelValue focusChannel = new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(focusChannelId)));
+//                // 🔹 2️⃣ Fokus-Tracking PreloadScript registrieren
+//                scriptManager.addPreloadScript(
+//                        ScriptHelper.loadScript("scripts/focusTracker.js"),
+//                        Collections.singletonList(focusChannel),  // Channel mit übergeben
+//                        Collections.singletonList(context.getContext())
+//                );
             });
         } catch (WDException ignored) {}
     }
@@ -302,5 +317,32 @@ public class BrowserImpl implements Browser {
                 .findFirst()
                 .orElse(null);
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public void onContextSwitch(Consumer<String> handler) {
+        if (handler != null) {
+            session.onMessage(message -> {
+                if ("focus-events-channel".equals(message.getParams().getChannel().value())) {
+                    WDRemoteValue.ObjectRemoteValue remoteValue = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
+
+                    boolean isFocusEvent = remoteValue.getValue().entrySet().stream()
+                            .filter(entry -> entry.getKey() instanceof WDPrimitiveProtocolValue.StringValue)
+                            .filter(entry -> "type".equals(((WDPrimitiveProtocolValue.StringValue) entry.getKey()).getValue()))
+                            .map(Map.Entry::getValue)
+                            .filter(value -> value instanceof WDPrimitiveProtocolValue.StringValue)
+                            .map(value -> ((WDPrimitiveProtocolValue.StringValue) value).getValue())
+                            .anyMatch("focus"::equals); // 🔹 Prüft, ob der Wert "focus" ist
+
+                    if (isFocusEvent) {
+                        String contextId = message.getParams().getSource().getContext().value();
+                        handler.accept(contextId);
+                    }
+                }
+            });
+        }
+    }
+
+
 
 }
