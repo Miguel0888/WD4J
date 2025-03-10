@@ -343,10 +343,14 @@ public class Main {
         // Browsing Context Combobox (leere Liste)
         browsingContextDropdown = new JComboBox<>(new DefaultComboBoxModel<>(new Vector<>()));
         browsingContextDropdown.addItem("All"); // Standardwert
-        browsingContextDropdown.addActionListener(e -> controller.updateSelectedPage());
+        browsingContextDropdown.addActionListener(e -> controller.switchSelectedPage());
 
         JButton newContext = new JButton("+");
+        newContext.setToolTipText("Create new browsing context");
         newContext.addActionListener(e -> controller.createBrowsingContext());
+        JButton closeContext = new JButton("-");
+        closeContext.setToolTipText("Close browsing context");
+        closeContext.addActionListener(e -> controller.closeBrowsingContext());
 
         // Labels & Dropdowns hinzufügen
         contextToolbar.add(new JLabel("User Context:"));
@@ -354,6 +358,7 @@ public class Main {
         contextToolbar.add(new JLabel("Browsing Context:"));
         contextToolbar.add(browsingContextDropdown);
         contextToolbar.add(newContext);
+        contextToolbar.add(closeContext);
 
         return contextToolbar;
     }

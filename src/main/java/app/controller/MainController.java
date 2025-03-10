@@ -13,6 +13,7 @@ import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import wd4j.impl.support.Pages;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.*;
@@ -23,10 +24,9 @@ public class MainController {
     private static final Logger logger = LoggerFactory.getLogger(MainController.class);
 
     private Playwright playwright;
-    private Browser browser;
+    private BrowserImpl browser;
     private BrowserContext browserContext;
     private UserContextImpl selectedUserContext;
-    private Page selectedPage;
 
     private boolean isEventLoggingEnabled = true; // Status für Play/Pause
 
@@ -168,27 +168,28 @@ public class MainController {
 
                     switch (selectedBrowser.toLowerCase()) {
                         case "chromium":
-                            browser = playwright.chromium().launch(options);
+                            browser = (BrowserImpl) playwright.chromium().launch(options);
                             break;
                         case "firefox":
-                            browser = playwright.firefox().launch(options);
+                            browser = (BrowserImpl) playwright.firefox().launch(options);
                             break;
                         case "webkit":
-                            browser = playwright.webkit().launch(options);
+                            browser = (BrowserImpl) playwright.webkit().launch(options);
                             break;
                         default:
                             throw new IllegalArgumentException("Unsupported browser: " + selectedBrowser);
                     }
 
+                    setupPageListeners();  // sorgt dafür, dass neue Seiten automatisch hinzugefügt oder entfernt werden
                     updateUserContextDropdown();
-                    updateBrowsingContextDropdown(null);
+                    updateBrowsingContextDropdown();
 
                     // Setzt das BrowsingContext-Dropdown automatisch auf den aktiven Context
-                    ((BrowserImpl)browser).onContextSwitch(contextId -> {
-                        SwingUtilities.invokeLater(() -> {
-                            updateBrowsingContextDropdown(contextId);
-                        });
-                    });
+//                    browser.onContextSwitch(page -> {
+//                        SwingUtilities.invokeLater(() -> {
+//                            updateSelectedBrowsingContext(page.getBrowsingContextId());
+//                        });
+//                    });
 
 
                     ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -218,7 +219,7 @@ public class MainController {
             String url = addressBar.getText();
             if (!url.isEmpty()) {
                 try {
-                    selectedPage.navigate(url);
+                    browser.getPages().getActivePage().navigate(url);
 //                    JOptionPane.showMessageDialog(null, "Navigiere zu: " + url);
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(null, "Fehler beim Navigieren: " + ex.getMessage());
@@ -294,7 +295,7 @@ public class MainController {
 
 
     public byte[] captureScreenshot() {
-        return selectedPage.screenshot();
+        return browser.getPages().getActivePage().screenshot();
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -340,18 +341,13 @@ public class MainController {
         SwingUtilities.invokeLater(() -> Main.console.setText(""));
     }
 
-    public void updateBrowsingContextDropdown(String selectedContextId) {
+    public void updateBrowsingContextDropdown() {
         SwingUtilities.invokeLater(() -> {
             Main.browsingContextDropdown.removeAllItems();
             Main.browsingContextDropdown.addItem("All"); // Standardwert
 
-            for (String contextId : ((BrowserImpl) browser).getPages().keySet()) {
+            for (String contextId : browser.getPages().keySet()) {
                 Main.browsingContextDropdown.addItem(contextId);
-            }
-
-            if(selectedContextId != null)
-            {
-                Main.browsingContextDropdown.setSelectedItem(selectedContextId);
             }
         });
     }
@@ -366,19 +362,21 @@ public class MainController {
         });
     }
 
-    public void updateSelectedPage() {
-        String selectedContextId = (String) Main.browsingContextDropdown.getSelectedItem();
-        if (selectedContextId == null) {
-            return;
-        }
-
-        if (selectedContextId.equals("All")) {
-            selectedPage = null; // 🔹 Alle Seiten beobachten
-        } else {
-            selectedPage = ((BrowserImpl) browser).getPages().get(selectedContextId);
-        }
-
-        System.out.println("Selected Page updated: " + (selectedPage != null ? ((PageImpl) selectedPage) : "All"));
+    public void switchSelectedPage() {
+        System.out.println( "##################   ");
+//        String selectedContextId = (String) Main.browsingContextDropdown.getSelectedItem();
+//        if (selectedContextId == null) {
+//            System.out.println( "##################   NULL");
+//            return;
+//        }
+//
+//        if (selectedContextId.equals("All")) {
+//            System.out.println( "##################   ALL");
+//            browser.setPage(null); // 🔹 Alle Seiten beobachten
+//        } else {
+//            System.out.println( "##################   " + selectedContextId);
+//            browser.setPage(selectedContextId);
+//        }
     }
 
     public void updateSelectedUserContext() {
@@ -403,108 +401,108 @@ public class MainController {
     ///
     // ToDo: Improve this part:
     private void registerConsoleLogEvent() {
-        if (selectedPage != null) selectedPage.onConsoleMessage(consoleMessageHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().onConsoleMessage(consoleMessageHandler);
     }
 
     private void deregisterConsoleLogEvent() {
-        if (selectedPage != null) selectedPage.offConsoleMessage(consoleMessageHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offConsoleMessage(consoleMessageHandler);
     }
 
     private void registerNetworkResponseEvent() {
-        if (selectedPage != null) selectedPage.onResponse(responseHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().onResponse(responseHandler);
     }
 
     private void deregisterNetworkResponseEvent() {
-        if (selectedPage != null) selectedPage.offResponse(responseHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offResponse(responseHandler);
     }
 
     private void registerPageLoadEvent() {
-        if (selectedPage != null) selectedPage.onLoad(loadHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().onLoad(loadHandler);
     }
 
     private void deregisterPageLoadEvent() {
-        if (selectedPage != null) selectedPage.offLoad(loadHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offLoad(loadHandler);
     }
 
     /** Neue Registrierungs-Methoden */
     private void registerCloseEvent() {
-        if (selectedPage != null) selectedPage.onClose(closeHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().onClose(closeHandler);
     }
 
     private void deregisterCloseEvent() {
-        if (selectedPage != null) selectedPage.offClose(closeHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offClose(closeHandler);
     }
 
     private void registerCrashEvent() {
-        if (selectedPage != null) selectedPage.onCrash(crashHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().onCrash(crashHandler);
     }
 
     private void deregisterCrashEvent() {
-        if (selectedPage != null) selectedPage.offCrash(crashHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offCrash(crashHandler);
     }
 
     private void registerDialogEvent() {
-        if (selectedPage != null) selectedPage.onDialog(dialogHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().onDialog(dialogHandler);
     }
 
     private void deregisterDialogEvent() {
-        if (selectedPage != null) selectedPage.offDialog(dialogHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offDialog(dialogHandler);
     }
 
     private void registerDOMContentLoadedEvent() {
-        if (selectedPage != null) selectedPage.onDOMContentLoaded(domContentLoadedHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().onDOMContentLoaded(domContentLoadedHandler);
     }
 
     private void deregisterDOMContentLoadedEvent() {
-        if (selectedPage != null) selectedPage.offDOMContentLoaded(domContentLoadedHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offDOMContentLoaded(domContentLoadedHandler);
     }
 
     private void registerRequestEvent() {
-        if (selectedPage != null) selectedPage.onRequest(requestHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().onRequest(requestHandler);
     }
 
     private void deregisterRequestEvent() {
-        if (selectedPage != null) selectedPage.offRequest(requestHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offRequest(requestHandler);
     }
 
     private void registerRequestFailedEvent() {
-        if (selectedPage != null) selectedPage.onRequestFailed(requestFailedHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().onRequestFailed(requestFailedHandler);
     }
 
     private void deregisterRequestFailedEvent() {
-        if (selectedPage != null) selectedPage.offRequestFailed(requestFailedHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offRequestFailed(requestFailedHandler);
     }
 
     private void registerRequestFinishedEvent() {
-        if (selectedPage != null) selectedPage.onRequestFinished(requestFinishedHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().onRequestFinished(requestFinishedHandler);
     }
 
     private void deregisterRequestFinishedEvent() {
-        if (selectedPage != null) selectedPage.offRequestFinished(requestFinishedHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offRequestFinished(requestFinishedHandler);
     }
 
     private void registerWebSocketEvent() {
-        if (selectedPage != null) selectedPage.onWebSocket(webSocketHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().onWebSocket(webSocketHandler);
     }
 
     private void deregisterWebSocketEvent() {
-        if (selectedPage != null) selectedPage.offWebSocket(webSocketHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offWebSocket(webSocketHandler);
     }
 
     private void registerWorkerEvent() {
-        if (selectedPage != null) selectedPage.onWorker(workerHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().onWorker(workerHandler);
     }
 
     private void deregisterWorkerEvent() {
-        if (selectedPage != null) selectedPage.offWorker(workerHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offWorker(workerHandler);
     }
 
     private void registerPopupEvent() {
-        if (selectedPage != null) selectedPage.onPopup(popupHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().onPopup(popupHandler);
     }
 
     private void deregisterPopupEvent() {
-        if (selectedPage != null) selectedPage.offPopup(popupHandler);
+        if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offPopup(popupHandler);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -572,18 +570,59 @@ public class MainController {
     }
 
     public void createBrowsingContext() {
-        selectedPage = browser.newPage();
+        browser.getPages().setActivePage(((PageImpl) browser.newPage()).getBrowsingContextId());
     }
 
     public void goBack() {
-        selectedPage.goBack();
+        browser.getPages().getActivePage().goBack();
     }
 
     public void goForward() {
-        selectedPage.goForward();
+        browser.getPages().getActivePage().goForward();
     }
 
     public void reload() {
-        selectedPage.reload();
+        browser.getPages().getActivePage().reload();
     }
+
+    public void closePage() {
+        browser.getPages().getActivePage().close();
+    }
+
+    public void closeBrowsingContext() {
+        // Ask for confirmation
+        int result = JOptionPane.showConfirmDialog(null,
+                "Möchten Sie den aktuellen Browsing Context wirklich schließen?",
+                "Browsing Context schließen",
+                JOptionPane.YES_NO_OPTION);
+        if (result == JOptionPane.YES_OPTION) {
+            browser.getPages().getActivePage().close();
+        }
+    }
+
+    private void setupPageListeners() {
+        Pages pages = ((BrowserImpl) browser).getPages();
+
+        // 🔥 1. Event: BrowsingContext-Update (Liste neu laden)
+        pages.addListener(evt -> {
+            System.out.println("####### Event: " + evt.getPropertyName());
+            if (Pages.EventType.BROWSING_CONTEXT.name().equals(evt.getPropertyName())) {
+                SwingUtilities.invokeLater(this::updateBrowsingContextDropdown);
+            }
+        });
+
+        // 🔥 2. Event: Aktive Seite setzen (Dropdown aktualisieren)
+        pages.addListener(evt -> {
+            System.out.println("########## Event: " + evt.getPropertyName());
+            if (Pages.EventType.ACTIVE_PAGE.name().equals(evt.getPropertyName())) {
+                SwingUtilities.invokeLater(() -> {
+                    PageImpl activePage = (PageImpl) evt.getNewValue();
+                    if (activePage != null) {
+                        Main.browsingContextDropdown.setSelectedItem(activePage.getBrowsingContextId());
+                    }
+                });
+            }
+        });
+    }
+
 }

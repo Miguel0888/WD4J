@@ -128,7 +128,21 @@ public class WDBrowsingContextManager implements WDModule {
      */
     public void close(String contextId) {
         webSocketManager.sendAndWaitForResponse(
-                new WDBrowsingContextRequest.Close(contextId),
+                new WDBrowsingContextRequest.Close(contextId, null),
+                WDEmptyResult.class
+        );
+    }
+
+    /**
+     * Closes the given browsing context.
+     *
+     * @param contextId The ID of the context to close.
+     * @param prompt Whether to prompt the user before closing the context.
+     * @throws RuntimeException if the close operation fails.
+     */
+    public void close(String contextId, Boolean prompt) {
+        webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.Close(contextId, prompt),
                 WDEmptyResult.class
         );
     }

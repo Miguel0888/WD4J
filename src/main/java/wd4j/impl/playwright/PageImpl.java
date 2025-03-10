@@ -145,8 +145,8 @@ public class PageImpl implements Page {
     @Override
     public void onClose(Consumer<Page> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.CONTEXT_DESTROYED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler);
+            WDSubscriptionRequest subscriptionRequest = new WDSubscriptionRequest(WDEventMapping.CONTEXT_DESTROYED.getName(), this.getBrowsingContextId(), null);
+            session.addEventListener(subscriptionRequest, handler);
         }
     }
 
@@ -503,7 +503,7 @@ public class PageImpl implements Page {
 
     @Override
     public void close(CloseOptions options) {
-
+        throw new UnsupportedOperationException("Reasons and before Unload Handlers are not supported by WebDriver BiDi");
     }
 
     @Override

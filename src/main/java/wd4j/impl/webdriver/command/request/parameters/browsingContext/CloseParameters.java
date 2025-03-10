@@ -7,7 +7,7 @@ public class CloseParameters implements WDCommand.Params {
     private final WDBrowsingContext context;
     private final Boolean promptUnload; // Optional
 
-    public CloseParameters(WDBrowsingContext context, boolean promptUnload) {
+    public CloseParameters(WDBrowsingContext context, Boolean promptUnload) {
         this.context = context;
         this.promptUnload = promptUnload;
     }

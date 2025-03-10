@@ -2,23 +2,19 @@ package wd4j.impl.playwright;
 
 import wd4j.impl.manager.*;
 import wd4j.api.*;
+import wd4j.impl.support.Pages;
 import wd4j.impl.support.ScriptHelper;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
-import wd4j.impl.webdriver.event.WDEventMapping;
-import wd4j.impl.webdriver.event.WDScriptEvent;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.WDChannel;
 import wd4j.impl.webdriver.type.script.WDChannelValue;
 import wd4j.impl.webdriver.type.script.WDPrimitiveProtocolValue;
 import wd4j.impl.webdriver.type.script.WDRemoteValue;
-import wd4j.impl.webdriver.type.session.WDSubscription;
-import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 import wd4j.impl.websocket.WDException;
 import wd4j.impl.websocket.WebSocketManager;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -26,7 +22,7 @@ import java.util.function.Consumer;
 public class BrowserImpl implements Browser {
     private static final List<BrowserImpl> browsers = new ArrayList<>(); // ToDo: Improve this
     private final List<WDScriptResult.AddPreloadScriptResult> globalScripts = new ArrayList<>();
-    private final Map<String, Page> pages = new ConcurrentHashMap<>(); // aka. BrowsingContexts / Navigables in WebDriver BiDi
+    private final Pages pages = new Pages(); // aka. BrowsingContexts / Navigables in WebDriver BiDi
 
     private final BrowserTypeImpl browserType;
     private final Session session;
@@ -55,8 +51,8 @@ public class BrowserImpl implements Browser {
         this.browserType = browserType;
         this.process = process;
 
-
         this.session = new Session(this); // ToDo: Add PW Options
+        onContextSwitch(pages::setActivePage);
         fetchDefaultData();
 
         loadGlobalScripts(); // load JavaScript code relevant for the working Playwright API
@@ -126,7 +122,7 @@ public class BrowserImpl implements Browser {
         } catch (WDException ignored) {}
     }
 
-    private void fetchDefaultBrowsingContexts(Map<String, Page> currentPages, String userContextId) {
+    private void fetchDefaultBrowsingContexts(Pages currentPages, String userContextId) {
         // Get all browsing contexts (pages / tabs) already available
         try {
             // Check if a context is already available
@@ -226,6 +222,11 @@ public class BrowserImpl implements Browser {
     public Page newPage(NewPageOptions options) {
         synchronized (pages) { // Sperrt alle Zugriffe auf pages während der Erzeugung einer neuen ContextId
             PageImpl page = new PageImpl(this);
+            page.onClose((e) -> {
+                synchronized (pages) {
+                    pages.remove(page.getBrowsingContextId());
+                }
+            });
             pages.put(page.getBrowsingContextId(), page);
             return page;
         }
@@ -297,7 +298,7 @@ public class BrowserImpl implements Browser {
         return webSocketManager;
     }
 
-    public Map<String, Page> getPages() {
+    public Pages getPages() {
         synchronized (pages) {
             return pages;
         }
@@ -342,7 +343,4 @@ public class BrowserImpl implements Browser {
             });
         }
     }
-
-
-
 }

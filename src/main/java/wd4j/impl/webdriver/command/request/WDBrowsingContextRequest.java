@@ -48,13 +48,13 @@ public class WDBrowsingContextRequest {
         public Close(String contextId) {
             super("browsingContext.close", new CloseParameters(new WDBrowsingContext(contextId)));
         }
-        public Close(String contextId, boolean promptUnload) {
+        public Close(String contextId, Boolean promptUnload) {
             super("browsingContext.close", new CloseParameters(new WDBrowsingContext(contextId), promptUnload));
         }
         public Close(WDBrowsingContext context) {
             super("browsingContext.close", new CloseParameters(context));
         }
-        public Close(WDBrowsingContext context, boolean promptUnload) {
+        public Close(WDBrowsingContext context, Boolean promptUnload) {
             super("browsingContext.close", new CloseParameters(context, promptUnload));
         }
     }
