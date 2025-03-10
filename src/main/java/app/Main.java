@@ -342,7 +342,6 @@ public class Main {
 
         // Browsing Context Combobox (leere Liste)
         browsingContextDropdown = new JComboBox<>(new DefaultComboBoxModel<>(new Vector<>()));
-        browsingContextDropdown.addItem("All"); // Standardwert
         browsingContextDropdown.addActionListener(e -> controller.switchSelectedPage());
 
         JButton newContext = new JButton("+");

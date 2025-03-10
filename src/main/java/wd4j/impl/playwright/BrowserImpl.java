@@ -52,7 +52,7 @@ public class BrowserImpl implements Browser {
         this.process = process;
 
         this.session = new Session(this); // ToDo: Add PW Options
-        onContextSwitch(pages::setActivePage);
+        onContextSwitch(pages::setActivePageId);
         fetchDefaultData();
 
         loadGlobalScripts(); // load JavaScript code relevant for the working Playwright API
@@ -223,9 +223,7 @@ public class BrowserImpl implements Browser {
         synchronized (pages) { // Sperrt alle Zugriffe auf pages während der Erzeugung einer neuen ContextId
             PageImpl page = new PageImpl(this);
             page.onClose((e) -> {
-                synchronized (pages) {
-                    pages.remove(page.getBrowsingContextId());
-                }
+                pages.remove(page.getBrowsingContextId());
             });
             pages.put(page.getBrowsingContextId(), page);
             return page;
@@ -299,9 +297,7 @@ public class BrowserImpl implements Browser {
     }
 
     public Pages getPages() {
-        synchronized (pages) {
             return pages;
-        }
     }
 
     public List<UserContextImpl> getUserContextImpls() {
@@ -312,7 +308,7 @@ public class BrowserImpl implements Browser {
 
     // ToDo: Es ist nicht ganz sicher, dass es hier keine Race-Conditions gibt
     public static PageImpl getPage(WDBrowsingContext context) {
-        return (PageImpl) BrowserImpl.getBrowsers().stream()
+        return BrowserImpl.getBrowsers().stream()
                 .map(browser -> browser.getPages().get(context.value()))  // 🔹 Direkter Map-Access (O(1))
                 .filter(Objects::nonNull) // Falls null, überspringen
                 .findFirst()

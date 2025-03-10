@@ -495,10 +495,9 @@ public class PageImpl implements Page {
 
     @Override
     public void close() {
-        if (!isClosed) {
-            isClosed = true;
-            browser.getBrowsingContextManager().close(pageId);
-        }
+        isClosed = true;
+        browser.getBrowsingContextManager().close(pageId);
+//        browser.getPages().remove(pageId);
     }
 
     @Override

@@ -343,14 +343,36 @@ public class MainController {
 
     public void updateBrowsingContextDropdown() {
         SwingUtilities.invokeLater(() -> {
-            Main.browsingContextDropdown.removeAllItems();
-            Main.browsingContextDropdown.addItem("All"); // Standardwert
+            JComboBox<Object> dropdown = Main.browsingContextDropdown;
+            DefaultComboBoxModel<Object> model = (DefaultComboBoxModel<Object>) dropdown.getModel();
 
-            for (String contextId : browser.getPages().keySet()) {
-                Main.browsingContextDropdown.addItem(contextId);
+            Set<String> newItems = browser.getPages().keySet();
+            Set<String> currentItems = new HashSet<>();
+
+            // 🔹 1️⃣ Bestehende Elemente sammeln
+            for (int i = 0; i < model.getSize(); i++) {
+                System.out.println("Element: " + model.getElementAt(i));
+                currentItems.add(model.getElementAt(i).toString());
+            }
+
+            // 🔹 2️⃣ Fehlende Elemente hinzufügen
+            for (String contextId : newItems) {
+                if (!currentItems.contains(contextId)) {
+                    System.out.println("Adding new context: " + contextId);
+                    model.addElement(contextId);
+                }
+            }
+
+            // 🔹 3️⃣ Überflüssige Elemente entfernen
+            for (String existingItem : new HashSet<>(currentItems)) {
+                if (!newItems.contains(existingItem)) {
+                    System.out.println("Removing context: " + existingItem);
+                    model.removeElement(existingItem);
+                }
             }
         });
     }
+
 
     public void updateUserContextDropdown() {
         SwingUtilities.invokeLater(() -> {
@@ -363,20 +385,12 @@ public class MainController {
     }
 
     public void switchSelectedPage() {
-        System.out.println( "##################   ");
-//        String selectedContextId = (String) Main.browsingContextDropdown.getSelectedItem();
-//        if (selectedContextId == null) {
-//            System.out.println( "##################   NULL");
-//            return;
-//        }
-//
-//        if (selectedContextId.equals("All")) {
-//            System.out.println( "##################   ALL");
-//            browser.setPage(null); // 🔹 Alle Seiten beobachten
-//        } else {
-//            System.out.println( "##################   " + selectedContextId);
-//            browser.setPage(selectedContextId);
-//        }
+        System.out.println( "##################  " + Main.browsingContextDropdown.getSelectedItem() + "  ##################");
+        String selectedContextId = (String) Main.browsingContextDropdown.getSelectedItem();
+        if(!Objects.equals(selectedContextId, browser.getPages().getActivePageId()))
+        { // avoid infinite event loop
+            browser.getPages().setActivePageId(selectedContextId, false);
+        }
     }
 
     public void updateSelectedUserContext() {
@@ -570,7 +584,8 @@ public class MainController {
     }
 
     public void createBrowsingContext() {
-        browser.getPages().setActivePage(((PageImpl) browser.newPage()).getBrowsingContextId());
+        browser.newPage();
+        // ToDo: activate new page
     }
 
     public void goBack() {
@@ -596,7 +611,10 @@ public class MainController {
                 "Browsing Context schließen",
                 JOptionPane.YES_NO_OPTION);
         if (result == JOptionPane.YES_OPTION) {
-            browser.getPages().getActivePage().close();
+            PageImpl activePage = browser.getPages().getActivePage();
+            if(activePage != null) {
+                activePage.close();
+            }
         }
     }
 
@@ -605,20 +623,55 @@ public class MainController {
 
         // 🔥 1. Event: BrowsingContext-Update (Liste neu laden)
         pages.addListener(evt -> {
-            System.out.println("####### Event: " + evt.getPropertyName());
-            if (Pages.EventType.BROWSING_CONTEXT.name().equals(evt.getPropertyName())) {
-                SwingUtilities.invokeLater(this::updateBrowsingContextDropdown);
+            if (Pages.EventType.BROWSING_CONTEXT_ADDED.name().equals(evt.getPropertyName())) {
+                SwingUtilities.invokeLater(() -> {
+                    String newContextId = (String) evt.getNewValue();
+                    Main.browsingContextDropdown.addItem(newContextId);
+                });
             }
         });
 
-        // 🔥 2. Event: Aktive Seite setzen (Dropdown aktualisieren)
+        // 🔥 2. Event: BrowsingContext-Update (Liste neu laden)
         pages.addListener(evt -> {
-            System.out.println("########## Event: " + evt.getPropertyName());
-            if (Pages.EventType.ACTIVE_PAGE.name().equals(evt.getPropertyName())) {
+            if (Pages.EventType.BROWSING_CONTEXT_REMOVED.name().equals(evt.getPropertyName())) {
                 SwingUtilities.invokeLater(() -> {
-                    PageImpl activePage = (PageImpl) evt.getNewValue();
-                    if (activePage != null) {
-                        Main.browsingContextDropdown.setSelectedItem(activePage.getBrowsingContextId());
+                    String removedContextId = (String) evt.getNewValue();
+                    Main.browsingContextDropdown.removeItem(removedContextId);
+//                    updateBrowsingContextDropdown();
+                });
+            }
+        });
+
+        // 🔥 3. Event: Aktive Seite setzen (Dropdown aktualisieren)
+        pages.addListener(evt -> {
+            if (Pages.EventType.ACTIVE_PAGE_CHANGED.name().equals(evt.getPropertyName())) {
+                SwingUtilities.invokeLater(() -> {
+                    String newContextId = (String) evt.getNewValue();
+
+                    JComboBox<Object> dropdown = Main.browsingContextDropdown;
+                    DefaultComboBoxModel<Object> model = (DefaultComboBoxModel<Object>) dropdown.getModel();
+
+                    if (newContextId != null) {
+
+                        boolean exists = false;
+
+                        // 🔹 1️⃣ Prüfen, ob `newContextId` bereits im Dropdown existiert
+                        for (int i = 0; i < model.getSize(); i++) {
+                            if (newContextId.equals(model.getElementAt(i))) {
+                                exists = true;
+                                break;
+                            }
+                        }
+
+                        // 🔹 2️⃣ Falls nicht vorhanden, zuerst hinzufügen
+                        if (!exists) {
+                            model.addElement(newContextId);
+                        }
+
+                        System.out.println("-------> Aktive Seite geändert: " + newContextId);
+
+                        // 🔹 3️⃣ Dann auswählen
+                        dropdown.setSelectedItem(newContextId);
                     }
                 });
             }
