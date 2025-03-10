@@ -7,16 +7,16 @@ import wd4j.impl.websocket.WDCommand;
  * The browsingContext.traverseHistory command traverses the history of a given navigable by a delta.
  */
 public class TraverseHistoryParameters implements WDCommand.Params {
-    private final WDBrowsingContext WDBrowsingContext;
+    private final WDBrowsingContext context;
     private final long delta;
 
-    public TraverseHistoryParameters(WDBrowsingContext WDBrowsingContext, long delta) {
-        this.WDBrowsingContext = WDBrowsingContext;
+    public TraverseHistoryParameters(WDBrowsingContext browsingContext, long delta) {
+        this.context = browsingContext;
         this.delta = delta;
     }
 
     public WDBrowsingContext getBrowsingContext() {
-        return WDBrowsingContext;
+        return context;
     }
 
     public long getDelta() {

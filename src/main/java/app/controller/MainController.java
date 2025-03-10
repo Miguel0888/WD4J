@@ -574,4 +574,16 @@ public class MainController {
     public void createBrowsingContext() {
         selectedPage = browser.newPage();
     }
+
+    public void goBack() {
+        selectedPage.goBack();
+    }
+
+    public void goForward() {
+        selectedPage.goForward();
+    }
+
+    public void reload() {
+        selectedPage.reload();
+    }
 }
