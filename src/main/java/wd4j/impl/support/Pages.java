@@ -1,5 +1,6 @@
 package wd4j.impl.support;
 
+import wd4j.impl.manager.WDBrowsingContextManager;
 import wd4j.impl.playwright.PageImpl;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
@@ -69,19 +70,23 @@ public class Pages {
     }
 
     public void setActivePageId(String contextId) {
-        setActivePageId(contextId, true);
+        setActivePageId(contextId, false);
     }
 
-    public void setActivePageId(String contextId, boolean fireEvent) {
+    public void setActivePageId(String contextId, boolean isUiInitiated) {
         if(contextId == null)
         {
             return;
         }
         String oldPage = this.activePageId;
         this.activePageId = contextId;
-        if(!Objects.equals(oldPage, contextId) && fireEvent)
+        if(!Objects.equals(oldPage, contextId) && !isUiInitiated)
         {
             fireEvent(EventType.ACTIVE_PAGE_CHANGED, oldPage, contextId);
+        }
+        if(isUiInitiated)
+        {
+            WDBrowsingContextManager.getInstance().activate(contextId);
         }
     }
 

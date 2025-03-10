@@ -349,7 +349,7 @@ public class Main {
         newContext.addActionListener(e -> controller.createBrowsingContext());
         JButton closeContext = new JButton("-");
         closeContext.setToolTipText("Close browsing context");
-        closeContext.addActionListener(e -> controller.closeBrowsingContext());
+        closeContext.addActionListener(e -> controller.closePage());
 
         // Labels & Dropdowns hinzufügen
         contextToolbar.add(new JLabel("User Context:"));

@@ -389,7 +389,7 @@ public class MainController {
         String selectedContextId = (String) Main.browsingContextDropdown.getSelectedItem();
         if(!Objects.equals(selectedContextId, browser.getPages().getActivePageId()))
         { // avoid infinite event loop
-            browser.getPages().setActivePageId(selectedContextId, false);
+            browser.getPages().setActivePageId(selectedContextId, true);
         }
     }
 
@@ -601,10 +601,6 @@ public class MainController {
     }
 
     public void closePage() {
-        browser.getPages().getActivePage().close();
-    }
-
-    public void closeBrowsingContext() {
         // Ask for confirmation
         int result = JOptionPane.showConfirmDialog(null,
                 "Möchten Sie den aktuellen Browsing Context wirklich schließen?",
