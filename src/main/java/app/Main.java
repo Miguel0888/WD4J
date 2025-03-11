@@ -71,11 +71,22 @@ public class Main {
                                     element.getClassName().startsWith("javax.accessibility.AccessibleBundle") ||
 
                                     element.getClassName().startsWith("javax.swing.") ||
-                                    element.getClassName().startsWith("java.security.") ||
                                     element.getClassName().startsWith("java.awt.") ||
+                                    element.getClassName().startsWith("java.security.") ||
                                     element.getClassName().startsWith("java.lang.") ||
+                                    element.getClassName().startsWith("java.beans.") ||
                                     element.getClassName().startsWith("java.text.") ||
                                     element.getClassName().startsWith("java.util.") ||
+                                    element.getClassName().startsWith("java.io.") ||
+                                    element.getClassName().startsWith("java.nio.") ||
+                                    element.getClassName().startsWith("java.net.") ||
+                                    element.getClassName().startsWith("sun.reflect.") ||
+                                    element.getClassName().startsWith("sun.swing.") ||
+                                    element.getClassName().startsWith("sun.font.") ||
+                                    element.getClassName().startsWith("sun.nio.") ||
+                                    element.getClassName().startsWith("sun.awt.") ||
+                                    element.getClassName().startsWith("sun.security.") ||
+                                    element.getClassName().startsWith("sun.net.") ||
                                     element.getClassName().startsWith("sun.util."))
                             {
                                 continue;
@@ -120,15 +131,19 @@ public class Main {
                             { // Erlaubt java.lang.Thread
                                 if(element.getClassName().startsWith("com.azul.tooling") ||
                                         element.getClassName().startsWith("org.slf4j") ||
-                                        element.getClassName().startsWith("ch.qos.logback"))
+                                        element.getClassName().startsWith("ch.qos.logback") ||
+                                        element.getClassName().startsWith("org.reflections.") ||
+                                        element.getClassName().startsWith("com.google.gson") ||
+                                        element.getClassName().startsWith("org.java_websocket."))
                                 { // Erlaubt azul
                                     continue; // ToDo: check this!
                                 }
                                 if(!element.getClassName().startsWith("wd4j.api") &&
                                         !element.getClassName().startsWith("app.Main") &&
-                                        !element.getClassName().startsWith("app.controller"))
+                                        !element.getClassName().startsWith("app.controller") &&
+                                        !element.getClassName().startsWith("wd4j.impl."))
                                 { // Erlaubt wd4j.api und app.Main
-                                    throw new SecurityException("Reflection is blocked!");
+                                    throw new SecurityException("Reflection is blocked for "  + element.getClassName() + "!");
                                 }
                             }
                         }
@@ -150,14 +165,34 @@ public class Main {
                                     element.getClassName().startsWith("java.awt.Toolkit") ||
                                     element.getClassName().startsWith("java.awt.EventQueue") ||
                                     element.getClassName().startsWith("javax.swing.SwingUtilities") ||
-                                    element.getClassName().startsWith("java.lang.SecurityManager"))
+                                    element.getClassName().startsWith("java.lang.SecurityManager") ||
+
+                                    element.getClassName().startsWith("sun.reflect.") ||
+                                    element.getClassName().startsWith("javax.swing.") ||
+                                    element.getClassName().startsWith("sun.swing.") ||
+                                    element.getClassName().startsWith("java.awt.") ||
+                                    element.getClassName().startsWith("java.lang.") ||
+                                    element.getClassName().startsWith("java.util.") ||
+                                    element.getClassName().startsWith("java.beans.") ||
+                                    element.getClassName().startsWith("java.security."))
                             {
                                 continue;
                             }
+                            if(element.getClassName().startsWith("com.azul.tooling") ||
+                                    element.getClassName().startsWith("org.slf4j") ||
+                                    element.getClassName().startsWith("ch.qos.logback") ||
+                                    element.getClassName().startsWith("org.reflections.") ||
+                                    element.getClassName().startsWith("com.google.gson") ||
+                                    element.getClassName().startsWith("org.java_websocket."))
+                            { // Erlaubt azul
+                                continue; // ToDo: check this!
+                            }
                             if (!element.getClassName().startsWith("wd4j.api") &&
-                                    !element.getClassName().startsWith("app.Main"))
+                                    !element.getClassName().startsWith("app.Main") &&
+                                    !element.getClassName().startsWith("app.controller.") &&
+                                    !element.getClassName().startsWith("wd4j.impl."))
                             {
-                                throw new SecurityException("Class loading is blocked!");
+                                throw new SecurityException("Class loading is blocked for " + element.getClassName() + "!");
                             }
                         }
                     }
@@ -167,7 +202,8 @@ public class Main {
                 {
                     StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
                     for(StackTraceElement element : stackTrace) {
-                        if(element.getClassName().startsWith("app.controller"))
+                        if(element.getClassName().startsWith("app.controller") ||
+                                element.getClassName().startsWith("app.Main"))
                         {
                             return;
                         }
