@@ -79,6 +79,8 @@ public class Main {
                                     element.getClassName().startsWith("java.util.") ||
                                     element.getClassName().startsWith("java.io.") ||
                                     element.getClassName().startsWith("java.nio.") ||
+                                    element.getClassName().startsWith("javax.imageio.") ||
+                                    element.getClassName().startsWith("com.sun.imageio.") ||
                                     element.getClassName().startsWith("java.net.") ||
                                     element.getClassName().startsWith("sun.reflect.") ||
                                     element.getClassName().startsWith("sun.swing.") ||
@@ -174,6 +176,9 @@ public class Main {
                                     element.getClassName().startsWith("java.lang.") ||
                                     element.getClassName().startsWith("java.util.") ||
                                     element.getClassName().startsWith("java.beans.") ||
+                                    element.getClassName().startsWith("java.nio.") ||
+                                    element.getClassName().startsWith("javax.imageio.") ||
+                                    element.getClassName().startsWith("com.sun.imageio.") ||
                                     element.getClassName().startsWith("java.security."))
                             {
                                 continue;
