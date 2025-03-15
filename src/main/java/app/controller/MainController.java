@@ -310,7 +310,7 @@ public class MainController {
     private void logEvent(String message) {
        if(isEventLoggingEnabled)
        {
-           SwingUtilities.invokeLater(() -> Main.console.append(message + "\n"));
+           SwingUtilities.invokeLater(() -> Main.getConsoleTab().appendLog(message + "\n"));
        }
     }
 
@@ -338,12 +338,12 @@ public class MainController {
     }
 
     public void clearLog() {
-        SwingUtilities.invokeLater(() -> Main.console.setText(""));
+        Main.getConsoleTab().clearLog();
     }
 
     public void updateBrowsingContextDropdown() {
         SwingUtilities.invokeLater(() -> {
-            JComboBox<Object> dropdown = Main.browsingContextDropdown;
+            JComboBox<Object> dropdown = Main.getSettingsTab().getBrowsingContextDropdown();
             DefaultComboBoxModel<Object> model = (DefaultComboBoxModel<Object>) dropdown.getModel();
 
             Set<String> newItems = browser.getPages().keySet();
@@ -376,17 +376,16 @@ public class MainController {
 
     public void updateUserContextDropdown() {
         SwingUtilities.invokeLater(() -> {
-            Main.userContextDropdown.removeAllItems();
-            // Der Standardwert ist in der Liste enthalten und muss nicht extra hinzugefügt werden
-            for (UserContextImpl userContext : ((BrowserImpl) browser).getUserContextImpls()) {
-                Main.userContextDropdown.addItem(userContext.getUserContextId());
+            JComboBox<Object> userDropdown = Main.getSettingsTab().getUserContextDropdown();
+            userDropdown.removeAllItems();
+            for (UserContextImpl userContext : browser.getUserContextImpls()) {
+                userDropdown.addItem(userContext.getUserContextId());
             }
         });
     }
 
     public void switchSelectedPage() {
-        System.out.println( "##################  " + Main.browsingContextDropdown.getSelectedItem() + "  ##################");
-        String selectedContextId = (String) Main.browsingContextDropdown.getSelectedItem();
+        String selectedContextId = (String) Main.getSettingsTab().getBrowsingContextDropdown().getSelectedItem();
         if(!Objects.equals(selectedContextId, browser.getPages().getActivePageId()))
         { // avoid infinite event loop
             browser.getPages().setActivePageId(selectedContextId, true);
@@ -394,7 +393,7 @@ public class MainController {
     }
 
     public void updateSelectedUserContext() {
-        String selectedContextId = (String) Main.userContextDropdown.getSelectedItem();
+        String selectedContextId = (String) Main.getSettingsTab().getUserContextDropdown().getSelectedItem();
         if(selectedContextId == null)
         {
             return;
@@ -537,11 +536,25 @@ public class MainController {
     }
 
     public void runScript(String script) {
-        String text = Main.scriptLog.getText();
+        String text = Main.getScriptTab().getScriptLog();
 
-        // ToDo: Implement this method
+        if (text.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Script is empty!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
 
+        try {
+            // ToDo: Implement script execution (gedacht waren webdriver bidi scripts nicht nur JS Scripts)
+            // Beispiel: Ein einfaches JavaScript-Snippet ausführen
+            browser.getPages().getActivePage().evaluate(script);
+
+            // Log-Eintrag aktualisieren
+            SwingUtilities.invokeLater(() -> Main.getScriptTab().appendLog("Executed script: \n" + script + "\n"));
+        } catch (Exception ex) {
+            SwingUtilities.invokeLater(() -> Main.getScriptTab().appendLog("Error executing script: " + ex.getMessage() + "\n"));
+        }
     }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -622,7 +635,7 @@ public class MainController {
             if (Pages.EventType.BROWSING_CONTEXT_ADDED.name().equals(evt.getPropertyName())) {
                 SwingUtilities.invokeLater(() -> {
                     String newContextId = (String) evt.getNewValue();
-                    Main.browsingContextDropdown.addItem(newContextId);
+                    Main.getSettingsTab().getBrowsingContextDropdown().addItem(newContextId);
                 });
             }
         });
@@ -632,7 +645,7 @@ public class MainController {
             if (Pages.EventType.BROWSING_CONTEXT_REMOVED.name().equals(evt.getPropertyName())) {
                 SwingUtilities.invokeLater(() -> {
                     String removedContextId = (String) evt.getNewValue();
-                    Main.browsingContextDropdown.removeItem(removedContextId);
+                    Main.getSettingsTab().getBrowsingContextDropdown().removeItem(removedContextId);
 //                    updateBrowsingContextDropdown();
                 });
             }
@@ -644,7 +657,7 @@ public class MainController {
                 SwingUtilities.invokeLater(() -> {
                     String newContextId = (String) evt.getNewValue();
 
-                    JComboBox<Object> dropdown = Main.browsingContextDropdown;
+                    JComboBox<Object> dropdown = Main.getSettingsTab().getBrowsingContextDropdown();
                     DefaultComboBoxModel<Object> model = (DefaultComboBoxModel<Object>) dropdown.getModel();
 
                     if (newContextId != null) {

@@ -1,19 +1,24 @@
 package app.ui;
 
 import javax.swing.*;
+import java.awt.*;
 
 public class ConsoleTab {
     private JPanel panel;
     private JTextArea console;
+    private JButton clearConsoleButton;
 
     public ConsoleTab() {
+        panel = new JPanel(new BorderLayout());
+
         console = new JTextArea();
         console.setEditable(false);
+        JScrollPane consoleScrollPane = new JScrollPane(console);
 
-        JScrollPane scrollPane = new JScrollPane(console);
-        panel = new JPanel();
-        panel.setLayout(new java.awt.BorderLayout());
-        panel.add(scrollPane, java.awt.BorderLayout.CENTER);
+        clearConsoleButton = new JButton("Clear Console");
+        clearConsoleButton.addActionListener(e -> console.setText(""));
+
+        panel.add(consoleScrollPane, BorderLayout.CENTER);
     }
 
     public JPanel getPanel() {
@@ -22,5 +27,13 @@ public class ConsoleTab {
 
     public JTextArea getConsole() {
         return console;
+    }
+
+    public void appendLog(String message) {
+        SwingUtilities.invokeLater(() -> console.append(message + "\n"));
+    }
+
+    public void clearLog() {
+        SwingUtilities.invokeLater(() -> console.setText(""));
     }
 }

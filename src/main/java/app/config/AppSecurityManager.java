@@ -10,29 +10,14 @@ public class AppSecurityManager extends SecurityManager {
     private static final Set<String> ALLOWED_CLASSES = new HashSet<>();
 
     static {
-        // Erlaubte Packages
-        ALLOWED_PACKAGES.add("javax.swing.");
-        ALLOWED_PACKAGES.add("java.awt.");
-        ALLOWED_PACKAGES.add("java.security.");
-        ALLOWED_PACKAGES.add("java.lang.");
-        ALLOWED_PACKAGES.add("java.beans.");
-        ALLOWED_PACKAGES.add("java.text.");
-        ALLOWED_PACKAGES.add("java.util.");
-        ALLOWED_PACKAGES.add("java.io.");
-        ALLOWED_PACKAGES.add("java.nio.");
-        ALLOWED_PACKAGES.add("javax.imageio.");
-        ALLOWED_PACKAGES.add("com.sun.imageio.");
-        ALLOWED_PACKAGES.add("java.net.");
-        ALLOWED_PACKAGES.add("sun.reflect.");
-        ALLOWED_PACKAGES.add("sun.swing.");
-        ALLOWED_PACKAGES.add("sun.font.");
-        ALLOWED_PACKAGES.add("sun.nio.");
-        ALLOWED_PACKAGES.add("sun.awt.");
-        ALLOWED_PACKAGES.add("sun.security.");
-        ALLOWED_PACKAGES.add("sun.net.");
-        ALLOWED_PACKAGES.add("sun.util.");
+        // 🔹 Standard-Java-Pakete
+        ALLOWED_PACKAGES.add("java.");        // Erlaubt ALLE Java-Standardpakete
+        ALLOWED_PACKAGES.add("javax.");
+        ALLOWED_PACKAGES.add("sun.");
+        ALLOWED_PACKAGES.add("com.sun.");
+        ALLOWED_PACKAGES.add("org.xml.sax."); // Erlaubt Logback-Zugriff auf XML-Konfiguration
 
-        // Erlaubte externe Libraries
+        // 🔹 Externe Bibliotheken
         ALLOWED_PACKAGES.add("com.azul.tooling");
         ALLOWED_PACKAGES.add("org.slf4j");
         ALLOWED_PACKAGES.add("ch.qos.logback");
@@ -40,11 +25,14 @@ public class AppSecurityManager extends SecurityManager {
         ALLOWED_PACKAGES.add("com.google.gson");
         ALLOWED_PACKAGES.add("org.java_websocket.");
 
-        // Erlaubte eigene Klassen
-        ALLOWED_CLASSES.add("wd4j.api");
-        ALLOWED_CLASSES.add("app.Main");
-        ALLOWED_CLASSES.add("app.controller");
-        ALLOWED_CLASSES.add("wd4j.impl.");
+        // 🔹 Eigene Klassen
+        ALLOWED_PACKAGES.add("app.");  // Erlaubt alle `app.*` Pakete
+        ALLOWED_PACKAGES.add("wd4j.api");
+        ALLOWED_PACKAGES.add("wd4j.impl.");
+
+        // 🔹 Falls spezifische `app.*` Pakete gesperrt bleiben sollen, stattdessen:
+        // ALLOWED_PACKAGES.add("app.controller.");
+        // ALLOWED_PACKAGES.add("app.ui.");
     }
 
     @Override
@@ -60,8 +48,8 @@ public class AppSecurityManager extends SecurityManager {
 
     @Override
     public void checkPackageAccess(String pkg) {
-        if (!pkg.equals("java.io") && isAllowed(pkg)) {
-            return;
+        if (isAllowed(pkg)) {
+            return; // Erlaubt den Zugriff
         }
         throw new SecurityException("Access to package " + pkg + " is blocked!");
     }

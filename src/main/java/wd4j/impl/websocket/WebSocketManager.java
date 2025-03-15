@@ -43,7 +43,7 @@ public class WebSocketManager {
     private void toggleCallbackServer(boolean activate) {
         if (activate) {
             callbackWebSocketServer = new CallbackWebSocketServer(8080, message ->
-                    Main.scriptLog.append(message + System.lineSeparator()));
+                    Main.getScriptTab().appendLog(message + System.lineSeparator()));
             callbackWebSocketServer.start();
         } else {
             try {
