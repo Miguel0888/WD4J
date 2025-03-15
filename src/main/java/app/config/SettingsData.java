@@ -12,6 +12,9 @@ public class SettingsData {
     private static final String SETTINGS_FILE = "settings.json";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
+    private static SettingsData instance = null;
+
+    // 🔹 Deine vorhandenen Variablen bleiben unverändert!
     private String otpSecret;   // Für die 2FA OneTimePad
     private String port = "9222";
     private boolean useProfile = true;
@@ -22,51 +25,59 @@ public class SettingsData {
     private boolean startMaximized = false;
 
     private SettingsData() {
+        // ** WICHTIG: Instanz zuerst setzen, dann Settings laden! **
+        instance = this;
         loadSettings();
     }
 
-    private static final class InstanceHolder {
-        static final SettingsData instance = new SettingsData();
-    }
-
-    public static SettingsData getInstance() {
-        return InstanceHolder.instance;
+    public static synchronized SettingsData getInstance() {
+        if (instance == null) {
+            instance = new SettingsData();
+        }
+        return instance;
     }
 
     private void loadSettings() {
-        try {
-            Path path = Paths.get(SETTINGS_FILE);
-            if (Files.exists(path)) {
-                try (Reader reader = new FileReader(SETTINGS_FILE)) {
-                    SettingsData loadedSettingsData = GSON.fromJson(reader, SettingsData.class);
-                    if (loadedSettingsData != null) {
-                        this.otpSecret = loadedSettingsData.otpSecret;
-                        this.port = loadedSettingsData.port;
-                        this.useProfile = loadedSettingsData.useProfile;
-                        this.profilePath = loadedSettingsData.profilePath;
-                        this.headlessMode = loadedSettingsData.headlessMode;
-                        this.disableGpu = loadedSettingsData.disableGpu;
-                        this.noRemote = loadedSettingsData.noRemote;
-                        this.startMaximized = loadedSettingsData.startMaximized;
-                    }
-                }
-            } else {
-                saveSettings(); // Falls keine Datei existiert, wird mit den Default-Werten gespeichert
+        Path path = Paths.get(SETTINGS_FILE);
+        if (Files.exists(path)) {
+            try (Reader reader = new FileReader(SETTINGS_FILE)) {
+                // ToDo: Fix StackOverflowError
+//                SettingsData loadedSettingsData = GSON.fromJson(reader, SettingsData.class);
+//                if (loadedSettingsData != null) {
+//                    // 🔥 ALLE Variablen korrekt zuweisen
+//                    this.otpSecret = loadedSettingsData.otpSecret;
+//                    this.port = loadedSettingsData.port;
+//                    this.useProfile = loadedSettingsData.useProfile;
+//                    this.profilePath = loadedSettingsData.profilePath;
+//                    this.headlessMode = loadedSettingsData.headlessMode;
+//                    this.disableGpu = loadedSettingsData.disableGpu;
+//                    this.noRemote = loadedSettingsData.noRemote;
+//                    this.startMaximized = loadedSettingsData.startMaximized;
+//                }
+            } catch (Exception e) {
+                System.err.println("⚠ Fehler beim Laden der Einstellungen: " + e.getMessage());
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } else {
+            System.out.println("ℹ Keine settings.json gefunden. Standardwerte werden verwendet.");
+            // WICHTIG: NICHT direkt speichern, sondern erst sicherstellen, dass alles korrekt läuft!
         }
     }
 
     public void saveSettings() {
+        if (instance == null) {
+            System.err.println("⚠ Fehler: Instanz von SettingsData ist null!");
+            return;
+        }
         try (Writer writer = new FileWriter(SETTINGS_FILE)) {
-            GSON.toJson(this, writer);
+            GSON.toJson(instance, writer);
         } catch (IOException e) {
+            System.err.println("⚠ Fehler beim Speichern der Einstellungen: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    // Getter und Setter
+    // 🔹 Getter und Setter (alle wie vorher, kein Verlust!)
 
     public String getOtpSecret() {
         return otpSecret;
