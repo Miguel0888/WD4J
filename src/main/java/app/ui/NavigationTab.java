@@ -5,22 +5,50 @@ import app.controller.MainController;
 import javax.swing.*;
 
 public class NavigationTab {
+    private final MainController controller;
     private JToolBar toolbar;
     private JTextField addressBar;
-    private JButton navigateButton, screenshotButton;
 
     public NavigationTab(MainController controller) {
-        toolbar = new JToolBar();
-        toolbar.setFloatable(false);
+        this.controller = controller;
+        toolbar = createNavigationToolBar();
+    }
+
+    private JToolBar createNavigationToolBar()
+    {
+        JToolBar navigationToolBar = new JToolBar();
+        navigationToolBar.setFloatable(false);
+
+        JButton goBackButton = new JButton("\u21A9");
+        goBackButton.setToolTipText("Back");
+        JButton goForwardButton = new JButton("\u21AA");
+        goForwardButton.setToolTipText("Forward");
+        JButton reloadButton = new JButton("\uD83D\uDD04");
+        reloadButton.setToolTipText("Reload");
 
         addressBar = new JTextField("https://www.google.com", 30);
-        navigateButton = new JButton("Navigate");
-        screenshotButton = new JButton("\uD83D\uDCF8");
+        JButton navigateButton = new JButton("Navigate");
 
-        toolbar.add(new JLabel("URL:"));
-        toolbar.add(addressBar);
-        toolbar.add(screenshotButton);
-        toolbar.add(navigateButton);
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Event Listeners
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        navigateButton.addActionListener(controller::onNavigate);
+        goBackButton.addActionListener(e -> controller.goBack());
+        goForwardButton.addActionListener(e -> controller.goForward());
+        reloadButton.addActionListener(e -> controller.reload());
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Toolbar
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        navigationToolBar.add(goBackButton);
+        navigationToolBar.add(goForwardButton);
+        navigationToolBar.add(reloadButton);
+        navigationToolBar.add(new JLabel("URL:"));
+        navigationToolBar.add(addressBar);
+        navigationToolBar.add(navigateButton);
+        return navigationToolBar;
     }
 
     public JToolBar getToolbar() {

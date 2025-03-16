@@ -8,12 +8,16 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 
-public class ScreenshotTab {
+public class TestToolsTab {
+    private final MainController controller;
     private JPanel panel;
     private JLabel imageContainer;
     private JButton screenshotButton;
+    private JToolBar toolbar;
 
-    public ScreenshotTab(MainController controller) {
+    public TestToolsTab(MainController controller) {
+        this.controller = controller;
+        toolbar = createToolbar();
         panel = new JPanel(new BorderLayout());
 
         imageContainer = new JLabel();
@@ -21,10 +25,6 @@ public class ScreenshotTab {
         imageContainer.setVerticalAlignment(SwingConstants.CENTER);
         JScrollPane imageScrollPane = new JScrollPane(imageContainer);
         imageScrollPane.setPreferredSize(new Dimension(1024, 400));
-
-        screenshotButton = new JButton("\uD83D\uDCF8"); // Kamera-Symbol
-        screenshotButton.setToolTipText("Take Screenshot");
-        screenshotButton.addActionListener(e -> captureScreenshot(controller));
 
         panel.add(imageScrollPane, BorderLayout.CENTER);
     }
@@ -66,8 +66,18 @@ public class ScreenshotTab {
      * Falls ein separater Screenshot-Toolbar benötigt wird (optional).
      */
     public JToolBar getToolbar() {
-        JToolBar toolbar = new JToolBar();
+        return toolbar;
+    }
+
+    private JToolBar createToolbar() {
+        toolbar = new JToolBar();
         toolbar.setFloatable(false);
+
+        screenshotButton = new JButton("\uD83D\uDCF8"); // Kamera-Symbol
+        screenshotButton.setToolTipText("Take Screenshot");
+        screenshotButton.addActionListener(e -> captureScreenshot(controller));
+
+        toolbar.add(new JLabel("Test Tools: "));
         toolbar.add(screenshotButton);
         return toolbar;
     }

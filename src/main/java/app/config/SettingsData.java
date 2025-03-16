@@ -37,7 +37,7 @@ public class SettingsData {
         return instance;
     }
 
-    private void loadSettings() {
+    public void loadSettings() {
         Path path = Paths.get(SETTINGS_FILE);
         if (Files.exists(path)) {
             try (Reader reader = new FileReader(SETTINGS_FILE)) {

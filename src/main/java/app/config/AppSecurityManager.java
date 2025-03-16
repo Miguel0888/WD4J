@@ -10,29 +10,45 @@ public class AppSecurityManager extends SecurityManager {
     private static final Set<String> ALLOWED_CLASSES = new HashSet<>();
 
     static {
-        // 🔹 Standard-Java-Pakete
-        ALLOWED_PACKAGES.add("java.");        // Erlaubt ALLE Java-Standardpakete
+        // ✅ Standard-Java-Pakete (ALLE aus deiner ursprünglichen Version!)
+        ALLOWED_PACKAGES.add("java.");
         ALLOWED_PACKAGES.add("javax.");
         ALLOWED_PACKAGES.add("sun.");
         ALLOWED_PACKAGES.add("com.sun.");
-        ALLOWED_PACKAGES.add("org.xml.sax."); // Erlaubt Logback-Zugriff auf XML-Konfiguration
+        ALLOWED_PACKAGES.add("org.xml.sax");
+        ALLOWED_PACKAGES.add("org.w3c.dom");
 
-        // 🔹 Externe Bibliotheken
+        // ✅ Externe Bibliotheken (ALLE aus deiner ursprünglichen Version!)
         ALLOWED_PACKAGES.add("com.azul.tooling");
         ALLOWED_PACKAGES.add("org.slf4j");
         ALLOWED_PACKAGES.add("ch.qos.logback");
+        ALLOWED_PACKAGES.add("groovy.lang");
+        ALLOWED_PACKAGES.add("org.reflections");
         ALLOWED_PACKAGES.add("org.reflections.");
+        ALLOWED_PACKAGES.add("javassist");
         ALLOWED_PACKAGES.add("com.google.gson");
-        ALLOWED_PACKAGES.add("org.java_websocket.");
+        ALLOWED_PACKAGES.add("org.java_websocket");  // 🔥 FIX: Entferne den Punkt!
 
-        // 🔹 Eigene Klassen
-        ALLOWED_PACKAGES.add("app.");  // Erlaubt alle `app.*` Pakete
+        // ✅ Eigene Klassen & Pakete
+        ALLOWED_PACKAGES.add("app");
+        ALLOWED_PACKAGES.add("app.");
         ALLOWED_PACKAGES.add("wd4j.api");
         ALLOWED_PACKAGES.add("wd4j.impl.");
 
-        // 🔹 Falls spezifische `app.*` Pakete gesperrt bleiben sollen, stattdessen:
-        // ALLOWED_PACKAGES.add("app.controller.");
-        // ALLOWED_PACKAGES.add("app.ui.");
+        // ✅ Einzelne erlaubte Klassen
+        ALLOWED_CLASSES.add("java.lang.Thread");
+        ALLOWED_CLASSES.add("java.lang.Class");
+        ALLOWED_CLASSES.add("java.security.AccessController");
+        ALLOWED_CLASSES.add("java.util.ResourceBundle");
+        ALLOWED_CLASSES.add("java.awt.Toolkit");
+        ALLOWED_CLASSES.add("java.awt.EventQueue");
+        ALLOWED_CLASSES.add("javax.swing.SwingUtilities");
+        ALLOWED_CLASSES.add("sun.reflect.NativeMethodAccessorImpl");
+        ALLOWED_CLASSES.add("sun.reflect.DelegatingMethodAccessorImpl");
+        ALLOWED_CLASSES.add("sun.reflect.NativeConstructorAccessorImpl");
+        ALLOWED_CLASSES.add("sun.reflect.DelegatingConstructorAccessorImpl");
+        ALLOWED_CLASSES.add("app.Main");
+        ALLOWED_CLASSES.add("app.controller.MainController");
     }
 
     @Override
@@ -49,8 +65,12 @@ public class AppSecurityManager extends SecurityManager {
     @Override
     public void checkPackageAccess(String pkg) {
         if (isAllowed(pkg)) {
-            return; // Erlaubt den Zugriff
+            return; // Zugriff erlaubt
         }
+
+        // 🔥 DEBUG: Logge blockierte Pakete für bessere Fehlersuche
+        System.err.println("🔴 BLOCKED PACKAGE: " + pkg);
+
         throw new SecurityException("Access to package " + pkg + " is blocked!");
     }
 
@@ -65,7 +85,24 @@ public class AppSecurityManager extends SecurityManager {
     }
 
     private boolean isAllowed(String className) {
-        return ALLOWED_PACKAGES.stream().anyMatch(className::startsWith) ||
-                ALLOWED_CLASSES.stream().anyMatch(className::startsWith);
+        if (className == null) {
+            return false;
+        }
+
+        // 🔥 1️⃣ Prüfe ALLOWED_PACKAGES (fix für checkPackageAccess)
+        for (String allowedPackage : ALLOWED_PACKAGES) {
+            if (className.startsWith(allowedPackage)) {
+                return true;
+            }
+        }
+
+        // 🔥 2️⃣ Prüfe ALLOWED_CLASSES (fix für einzelne Klassen)
+        for (String allowedClass : ALLOWED_CLASSES) {
+            if (className.equals(allowedClass)) {
+                return true;
+            }
+        }
+
+        return false; // Blockieren
     }
 }

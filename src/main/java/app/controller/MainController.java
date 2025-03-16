@@ -139,8 +139,8 @@ public class MainController {
     }
 
     public void onLaunch(ActionEvent actionEvent) {
-        String selectedBrowser = (String) Main.getSettingsTab().getBrowserSelector().getSelectedItem();
-        boolean headless = Main.getSettingsTab().getHeadlessCheckbox().isSelected();
+        String selectedBrowser = (String) Main.getBrowserTab().getBrowserSelector().getSelectedItem();
+        boolean headless = Main.getBrowserTab().getHeadlessCheckbox().isSelected();
 
         if (selectedBrowser != null) {
             try {
@@ -148,12 +148,12 @@ public class MainController {
                 BrowserType.LaunchOptions options = new BrowserType.LaunchOptions().setHeadless(headless);
 
                 // UI-Parameter setzen
-                JTextField portField = Main.getSettingsTab().getPortField();
-                JCheckBox useProfileCheckbox = Main.getSettingsTab().getUseProfileCheckbox();
-                JTextField profilePathField = Main.getSettingsTab().getProfilePathField();
-                JCheckBox disableGpuCheckbox = Main.getSettingsTab().getDisableGpuCheckbox();
-                JCheckBox noRemoteCheckbox = Main.getSettingsTab().getNoRemoteCheckbox();
-                JCheckBox startMaximizedCheckbox = Main.getSettingsTab().getStartMaximizedCheckbox();
+                JTextField portField = Main.getBrowserTab().getPortField();
+                JCheckBox useProfileCheckbox = Main.getBrowserTab().getUseProfileCheckbox();
+                JTextField profilePathField = Main.getBrowserTab().getProfilePathField();
+                JCheckBox disableGpuCheckbox = Main.getBrowserTab().getDisableGpuCheckbox();
+                JCheckBox noRemoteCheckbox = Main.getBrowserTab().getNoRemoteCheckbox();
+                JCheckBox startMaximizedCheckbox = Main.getBrowserTab().getStartMaximizedCheckbox();
 
                 setBrowserOptions(selectedBrowser, options, portField, useProfileCheckbox, profilePathField, disableGpuCheckbox, noRemoteCheckbox, startMaximizedCheckbox);
 
@@ -331,7 +331,7 @@ public class MainController {
 
     public void updateBrowsingContextDropdown() {
         SwingUtilities.invokeLater(() -> {
-            JComboBox<Object> dropdown = Main.getSettingsTab().getBrowsingContextDropdown();
+            JComboBox<Object> dropdown = Main.getContextTab().getBrowsingContextDropdown();
             DefaultComboBoxModel<Object> model = (DefaultComboBoxModel<Object>) dropdown.getModel();
 
             Set<String> newItems = browser.getPages().keySet();
@@ -364,7 +364,7 @@ public class MainController {
 
     public void updateUserContextDropdown() {
         SwingUtilities.invokeLater(() -> {
-            JComboBox<Object> userDropdown = Main.getSettingsTab().getUserContextDropdown();
+            JComboBox<Object> userDropdown = Main.getContextTab().getUserContextDropdown();
             userDropdown.removeAllItems();
             for (UserContextImpl userContext : browser.getUserContextImpls()) {
                 userDropdown.addItem(userContext.getUserContextId());
@@ -373,7 +373,7 @@ public class MainController {
     }
 
     public void switchSelectedPage() {
-        String selectedContextId = (String) Main.getSettingsTab().getBrowsingContextDropdown().getSelectedItem();
+        String selectedContextId = (String) Main.getContextTab().getBrowsingContextDropdown().getSelectedItem();
         if(!Objects.equals(selectedContextId, browser.getPages().getActivePageId()))
         { // avoid infinite event loop
             browser.getPages().setActivePageId(selectedContextId, true);
@@ -381,7 +381,7 @@ public class MainController {
     }
 
     public void updateSelectedUserContext() {
-        String selectedContextId = (String) Main.getSettingsTab().getUserContextDropdown().getSelectedItem();
+        String selectedContextId = (String) Main.getContextTab().getUserContextDropdown().getSelectedItem();
         if(selectedContextId == null)
         {
             return;
@@ -623,7 +623,7 @@ public class MainController {
             if (Pages.EventType.BROWSING_CONTEXT_ADDED.name().equals(evt.getPropertyName())) {
                 SwingUtilities.invokeLater(() -> {
                     String newContextId = (String) evt.getNewValue();
-                    Main.getSettingsTab().getBrowsingContextDropdown().addItem(newContextId);
+                    Main.getContextTab().getBrowsingContextDropdown().addItem(newContextId);
                 });
             }
         });
@@ -633,7 +633,7 @@ public class MainController {
             if (Pages.EventType.BROWSING_CONTEXT_REMOVED.name().equals(evt.getPropertyName())) {
                 SwingUtilities.invokeLater(() -> {
                     String removedContextId = (String) evt.getNewValue();
-                    Main.getSettingsTab().getBrowsingContextDropdown().removeItem(removedContextId);
+                    Main.getContextTab().getBrowsingContextDropdown().removeItem(removedContextId);
 //                    updateBrowsingContextDropdown();
                 });
             }
@@ -645,7 +645,7 @@ public class MainController {
                 SwingUtilities.invokeLater(() -> {
                     String newContextId = (String) evt.getNewValue();
 
-                    JComboBox<Object> dropdown = Main.getSettingsTab().getBrowsingContextDropdown();
+                    JComboBox<Object> dropdown = Main.getContextTab().getBrowsingContextDropdown();
                     DefaultComboBoxModel<Object> model = (DefaultComboBoxModel<Object>) dropdown.getModel();
 
                     if (newContextId != null) {

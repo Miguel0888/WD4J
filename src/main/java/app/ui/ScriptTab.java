@@ -24,6 +24,7 @@ public class ScriptTab {
         scriptLog = new JTextArea();
         scriptLog.setEditable(false);
         JScrollPane scriptScrollPane = new JScrollPane(scriptLog);
+        panel.add(scriptScrollPane, BorderLayout.CENTER);
 
         // Toolbar initialisieren
         toolbar = new JToolBar();

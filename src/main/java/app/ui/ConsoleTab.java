@@ -1,5 +1,7 @@
 package app.ui;
 
+import app.controller.MainController;
+
 import javax.swing.*;
 import java.awt.*;
 
@@ -8,7 +10,7 @@ public class ConsoleTab {
     private JTextArea console;
     private JButton clearConsoleButton;
 
-    public ConsoleTab() {
+    public ConsoleTab(MainController controller) {
         panel = new JPanel(new BorderLayout());
 
         console = new JTextArea();
