@@ -6,7 +6,7 @@ import app.controller.MainController;
 import javax.swing.*;
 import java.awt.*;
 
-public class SettingsTab {
+public class SettingsTab implements UIComponent {
     private JPanel panel;
     private JButton saveSettingsButton, loadSettingsButton;
     private final SettingsData settingsData;
@@ -34,16 +34,26 @@ public class SettingsTab {
         return panel;
     }
 
-    public JToolBar getSettingsToolbar() {
-        JToolBar settingsToolbar = new JToolBar();
-        settingsToolbar.setFloatable(false);
-        settingsToolbar.add(saveSettingsButton);
-        settingsToolbar.add(loadSettingsButton);
-        return settingsToolbar;
+    @Override
+    public String getComponentTitle() {
+        return "Settings";
     }
 
-    public JToolBar getToolbar() {
-        return getSettingsToolbar();
+    @Override
+    public JMenuItem getMenuItem() {
+        // Erstelle ein Untermenü für die Settings-Optionen
+        JMenu settingsMenu = new JMenu("Settings");
+
+        JMenuItem saveItem = new JMenuItem("Save Settings");
+        saveItem.addActionListener(e -> saveSettings());
+
+        JMenuItem loadItem = new JMenuItem("Load Settings");
+        loadItem.addActionListener(e -> loadSettings());
+
+        settingsMenu.add(saveItem);
+        settingsMenu.add(loadItem);
+
+        return settingsMenu;  // Das Menü wird dem Hauptmenü hinzugefügt
     }
 
     private void saveSettings() {

@@ -8,7 +8,7 @@ import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
 
-public class DebugTab {
+public class DebugTab implements UIComponent {
     private final MainController controller;
     private final JPanel panel;
     private JToolBar toolbar;
@@ -146,6 +146,11 @@ public class DebugTab {
 
     public JPanel getPanel() {
         return panel;
+    }
+
+    @Override
+    public String getComponentTitle() {
+        return "Debug";
     }
 
     public JTextArea getConsole() {

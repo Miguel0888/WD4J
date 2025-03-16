@@ -4,7 +4,7 @@ import app.controller.MainController;
 
 import javax.swing.*;
 
-public class NavigationTab {
+public class NavigationTab implements UIComponent {
     private final MainController controller;
     private JToolBar toolbar;
     private JTextField addressBar;
@@ -53,6 +53,11 @@ public class NavigationTab {
 
     public JToolBar getToolbar() {
         return toolbar;
+    }
+
+    @Override
+    public String getComponentTitle() {
+        return "Navigation";
     }
 
     public JTextField getAddressBar() {

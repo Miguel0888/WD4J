@@ -6,18 +6,15 @@ import app.ui.*;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class Main {
     public static MainController controller;
 
-    // Tabs als Felder
-    private static BrowserTab browserTab;
-    private static NavigationTab navigationTab;
-    private static ContextTab contextTab;
-    private static DebugTab debugTab;
-    private static ScriptTab scriptTab;
-    private static TestToolsTab testToolsTab;
-    private static SettingsTab settingsTab;
+    // 🔹 Map für die UI-Komponenten
+    private static final Map<String, UIComponent> componentsMap = new LinkedHashMap<>();
 
     public static void main(String[] args) {
         System.setSecurityManager(new AppSecurityManager()); // Setzt den Security Manager
@@ -27,30 +24,57 @@ public class Main {
     private static void createAndShowGUI() {
         controller = new MainController();
 
-        // Tabs initialisieren
-        browserTab = new BrowserTab(controller);
-        navigationTab = new NavigationTab(controller);
-        contextTab = new ContextTab(controller);
-        debugTab = new DebugTab(controller);
-        scriptTab = new ScriptTab(controller);
-        testToolsTab = new TestToolsTab(controller);
-        settingsTab = new SettingsTab(controller); // Settings mit JSON-Speicherung
+        // 🔹 UI-Komponenten initialisieren und in die HashMap speichern
+        componentsMap.put("Browser", new BrowserTab(controller));
+        componentsMap.put("Context", new ContextTab(controller));
+        componentsMap.put("Navigation", new NavigationTab(controller));
+        componentsMap.put("Script", new ScriptTab(controller));
+        componentsMap.put("TestTools", new TestToolsTab(controller));
+        componentsMap.put("Debug", new DebugTab(controller));
+        componentsMap.put("Settings", new SettingsTab(controller));
 
-        // Toolbars hinzufügen
-        JPanel toolBarPanel = new JPanel(new GridLayout(7, 1));
-        toolBarPanel.add(browserTab.getToolbar());
-        toolBarPanel.add(contextTab.getToolbar());
-        toolBarPanel.add(navigationTab.getToolbar());
-        toolBarPanel.add(testToolsTab.getToolbar());
-        toolBarPanel.add(scriptTab.getToolbar());
-        toolBarPanel.add(debugTab.getToolbar());
-        toolBarPanel.add(settingsTab.getToolbar());
+        // 🔹 Anzahl der tatsächlich vorhandenen Toolbars ermitteln
+        int toolbarCount = 0;
+        for (UIComponent component : componentsMap.values()) {
+            if (component.getToolbar() != null) {
+                toolbarCount++;
+            }
+        }
 
-        // Tabs erstellen
-        JTabbedPane tabbedPane = createTabs();
+        // 🔹 Toolbars automatisch hinzufügen (falls vorhanden)
+        JPanel toolBarPanel = new JPanel(new GridLayout(toolbarCount, 1));
+        for (UIComponent component : componentsMap.values()) {
+            JToolBar toolbar = component.getToolbar();
+            if (toolbar != null) {
+                toolBarPanel.add(toolbar);
+            }
+        }
 
-        // Hauptfenster erstellen
+        // 🔹 Tabs automatisch erstellen (falls vorhanden)
+        JTabbedPane tabbedPane = new JTabbedPane();
+        for (UIComponent component : componentsMap.values()) {
+            JPanel panel = component.getPanel();
+            if (panel != null) {
+                tabbedPane.addTab(component.getComponentTitle(), panel);
+            }
+        }
+
+        // 🔹 Menü generieren (falls vorhanden)
+        JMenuBar menuBar = new JMenuBar();
+        for (UIComponent component : componentsMap.values()) {
+            JMenuItem menuItem = component.getMenuItem();
+            if (menuItem instanceof JMenu) {  // Falls es ein ganzes Menü ist, direkt hinzufügen
+                menuBar.add((JMenu) menuItem);
+            } else if (menuItem != null) {  // Falls es nur ein einzelner Menüpunkt ist
+                JMenu dynamicMenu = new JMenu(component.getComponentTitle());
+                dynamicMenu.add(menuItem);
+                menuBar.add(dynamicMenu);
+            }
+        }
+
+        // 🔥 Hauptfenster erstellen
         JFrame frame = new JFrame("Web Testing Dashboard");
+        frame.setJMenuBar(menuBar);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
         frame.add(toolBarPanel, BorderLayout.NORTH);
@@ -67,34 +91,33 @@ public class Main {
         });
     }
 
-    private static JTabbedPane createTabs() {
-        JTabbedPane tabbedPane = new JTabbedPane();
-
-        tabbedPane.addTab("Scripting", scriptTab.getPanel());
-        tabbedPane.addTab("Debug", debugTab.getPanel());
-        tabbedPane.addTab("Screenshots", testToolsTab.getPanel());
-        tabbedPane.addTab("Settings", settingsTab.getPanel());
-
-        return tabbedPane;
-    }
-
-    public static ScriptTab getScriptTab() {
-        return scriptTab;
-    }
-
-    public static DebugTab getDebugTab() {
-        return debugTab;
-    }
-
+    // ToDo: Refactor this section...
+    // 🔹 Getter für die Tabs (vorübergehend, bis Map genutzt wird)
     public static BrowserTab getBrowserTab() {
-        return browserTab;
+        return (BrowserTab) componentsMap.get("Browser");
     }
 
     public static NavigationTab getNavigationTab() {
-        return navigationTab;
+        return (NavigationTab) componentsMap.get("Navigation");
     }
 
     public static ContextTab getContextTab() {
-        return contextTab;
+        return (ContextTab) componentsMap.get("Context");
+    }
+
+    public static DebugTab getDebugTab() {
+        return (DebugTab) componentsMap.get("Debug");
+    }
+
+    public static ScriptTab getScriptTab() {
+        return (ScriptTab) componentsMap.get("Script");
+    }
+
+    public static TestToolsTab getTestToolsTab() {
+        return (TestToolsTab) componentsMap.get("TestTools");
+    }
+
+    public static SettingsTab getSettingsTab() {
+        return (SettingsTab) componentsMap.get("Settings");
     }
 }

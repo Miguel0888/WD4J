@@ -8,7 +8,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 
-public class TestToolsTab {
+public class TestToolsTab implements UIComponent {
     private final MainController controller;
     private JPanel panel;
     private JLabel imageContainer;
@@ -31,6 +31,11 @@ public class TestToolsTab {
 
     public JPanel getPanel() {
         return panel;
+    }
+
+    @Override
+    public String getComponentTitle() {
+        return "Test Tools";
     }
 
     private void captureScreenshot(MainController controller) {

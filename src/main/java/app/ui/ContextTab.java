@@ -3,10 +3,9 @@ package app.ui;
 import app.controller.MainController;
 
 import javax.swing.*;
-import java.awt.*;
 import java.util.Vector;
 
-public class ContextTab {
+public class ContextTab implements UIComponent {
     public final MainController controller;
     public final JToolBar contextToolbar;
     private JComboBox<Object> userContextDropdown;
@@ -55,7 +54,12 @@ public class ContextTab {
         return userContextDropdown;
     }
 
-    public Component getToolbar() {
+    public JToolBar getToolbar() {
         return contextToolbar;
+    }
+
+    @Override
+    public String getComponentTitle() {
+        return "Contexts";
     }
 }

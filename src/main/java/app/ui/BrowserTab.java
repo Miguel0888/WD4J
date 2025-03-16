@@ -5,7 +5,7 @@ import app.controller.MainController;
 
 import javax.swing.*;
 
-public class BrowserTab {
+public class BrowserTab implements UIComponent {
     private final MainController controller;
     private final JToolBar browserToolbar;
     private JComboBox<String> browserSelector;
@@ -73,6 +73,11 @@ public class BrowserTab {
 
     public JToolBar getToolbar() {
         return browserToolbar;
+    }
+
+    @Override
+    public String getComponentTitle() {
+        return "Browser";
     }
 
     public JComboBox<String> getBrowserSelector() {

@@ -6,7 +6,7 @@ import wd4j.impl.webdriver.type.script.WDExceptionDetails;
 import javax.swing.*;
 import java.awt.*;
 
-public class ScriptTab {
+public class ScriptTab implements UIComponent {
     private JPanel panel;
     private JToolBar toolbar;
     private JCheckBox showSelectorsCheckbox, showDomEventsCheckbox;
@@ -76,6 +76,11 @@ public class ScriptTab {
 
     public JPanel getPanel() {
         return panel;
+    }
+
+    @Override
+    public String getComponentTitle() {
+        return "Script";
     }
 
     public JToolBar getToolbar() {
