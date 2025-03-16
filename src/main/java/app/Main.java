@@ -78,4 +78,8 @@ public class Main {
     public static SettingsTab getSettingsTab() {
         return settingsTab;
     }
+
+    public static NavigationTab getNavigationTab() {
+        return navigationTab;
+    }
 }

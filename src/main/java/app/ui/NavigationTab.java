@@ -26,4 +26,8 @@ public class NavigationTab {
     public JToolBar getToolbar() {
         return toolbar;
     }
+
+    public JTextField getAddressBar() {
+        return addressBar;
+    }
 }

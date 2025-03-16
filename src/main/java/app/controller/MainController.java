@@ -8,6 +8,7 @@ import wd4j.impl.playwright.PageImpl;
 import wd4j.impl.playwright.UserContextImpl;
 
 import javax.swing.*;
+import java.awt.event.ActionEvent;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -137,54 +138,44 @@ public class MainController {
         }
     }
 
-    // Listener-Setup
-    public void setupListeners(
-            JTextField portField,
-            JCheckBox useProfileCheckbox,
-            JTextField profilePathField,
-            JCheckBox headlessCheckbox,
-            JCheckBox disableGpuCheckbox,
-            JCheckBox noRemoteCheckbox,
-            JCheckBox startMaximizedCheckbox,
-            JComboBox<String> browserSelector,
-            JButton launchButton,
-            JButton terminateButton,
-            JButton navigateButton,
-            JTextField addressBar) {
+    public void onLaunch(ActionEvent actionEvent) {
+        String selectedBrowser = (String) Main.getSettingsTab().getBrowserSelector().getSelectedItem();
+        boolean headless = Main.getSettingsTab().getHeadlessCheckbox().isSelected();
 
+        if (selectedBrowser != null) {
+            try {
+                playwright = Playwright.create();
+                BrowserType.LaunchOptions options = new BrowserType.LaunchOptions().setHeadless(headless);
 
-        // Browser starten
-        launchButton.addActionListener(e -> {
-            String selectedBrowser = (String) browserSelector.getSelectedItem();
-            boolean headless = headlessCheckbox.isSelected();
+                // UI-Parameter setzen
+                JTextField portField = Main.getSettingsTab().getPortField();
+                JCheckBox useProfileCheckbox = Main.getSettingsTab().getUseProfileCheckbox();
+                JTextField profilePathField = Main.getSettingsTab().getProfilePathField();
+                JCheckBox disableGpuCheckbox = Main.getSettingsTab().getDisableGpuCheckbox();
+                JCheckBox noRemoteCheckbox = Main.getSettingsTab().getNoRemoteCheckbox();
+                JCheckBox startMaximizedCheckbox = Main.getSettingsTab().getStartMaximizedCheckbox();
 
-            if (selectedBrowser != null) {
-                try {
-                    playwright = Playwright.create();
-                    BrowserType.LaunchOptions options = new BrowserType.LaunchOptions().setHeadless(headless);
+                setBrowserOptions(selectedBrowser, options, portField, useProfileCheckbox, profilePathField, disableGpuCheckbox, noRemoteCheckbox, startMaximizedCheckbox);
 
-                    // UI-Parameter setzen
-                    setBrowserOptions(selectedBrowser, options, portField, useProfileCheckbox, profilePathField, disableGpuCheckbox, noRemoteCheckbox, startMaximizedCheckbox);
+                switch (selectedBrowser.toLowerCase()) {
+                    case "chromium":
+                        browser = (BrowserImpl) playwright.chromium().launch(options);
+                        break;
+                    case "firefox":
+                        browser = (BrowserImpl) playwright.firefox().launch(options);
+                        break;
+                    case "webkit":
+                        browser = (BrowserImpl) playwright.webkit().launch(options);
+                        break;
+                    default:
+                        throw new IllegalArgumentException("Unsupported browser: " + selectedBrowser);
+                }
 
-                    switch (selectedBrowser.toLowerCase()) {
-                        case "chromium":
-                            browser = (BrowserImpl) playwright.chromium().launch(options);
-                            break;
-                        case "firefox":
-                            browser = (BrowserImpl) playwright.firefox().launch(options);
-                            break;
-                        case "webkit":
-                            browser = (BrowserImpl) playwright.webkit().launch(options);
-                            break;
-                        default:
-                            throw new IllegalArgumentException("Unsupported browser: " + selectedBrowser);
-                    }
+                setupPageListeners();  // sorgt dafür, dass neue Seiten automatisch hinzugefügt oder entfernt werden
+                updateUserContextDropdown();
+                updateBrowsingContextDropdown();
 
-                    setupPageListeners();  // sorgt dafür, dass neue Seiten automatisch hinzugefügt oder entfernt werden
-                    updateUserContextDropdown();
-                    updateBrowsingContextDropdown();
-
-                    // Setzt das BrowsingContext-Dropdown automatisch auf den aktiven Context
+                // Setzt das BrowsingContext-Dropdown automatisch auf den aktiven Context
 //                    browser.onContextSwitch(page -> {
 //                        SwingUtilities.invokeLater(() -> {
 //                            updateSelectedBrowsingContext(page.getBrowsingContextId());
@@ -192,42 +183,39 @@ public class MainController {
 //                    });
 
 
-                    ////////////////////////////////////////////////////////////////////////////////////////////////////
+                ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //                    JOptionPane.showMessageDialog(null, selectedBrowser + " erfolgreich gestartet.");
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(null, "Fehler beim Starten des Browsers: " + ex.getMessage());
-                }
-            } else {
-                JOptionPane.showMessageDialog(null, "Bitte einen Browser auswählen.");
-            }
-        });
-
-        // Browser beenden
-        terminateButton.addActionListener(e -> {
-            try {
-                onCloseBrowser();
-//                JOptionPane.showMessageDialog(null, "Browser wurde beendet.");
-                System.out.println(" --- Browser wurde beendet ---");
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(null, "Fehler beim Beenden des Browsers: " + ex.getMessage());
+                JOptionPane.showMessageDialog(null, "Fehler beim Starten des Browsers: " + ex.getMessage());
             }
-        });
+        } else {
+            JOptionPane.showMessageDialog(null, "Bitte einen Browser auswählen.");
+        }
+    }
 
-        // URL navigieren
-        navigateButton.addActionListener(e -> {
-            String url = addressBar.getText();
-            if (!url.isEmpty()) {
-                try {
-                    browser.getPages().getActivePage().navigate(url);
+    public void onTerminate(ActionEvent actionEvent) {
+        try {
+            onCloseBrowser();
+//                JOptionPane.showMessageDialog(null, "Browser wurde beendet.");
+            System.out.println(" --- Browser wurde beendet ---");
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(null, "Fehler beim Beenden des Browsers: " + ex.getMessage());
+        }
+    }
+
+    public void onNavigate(ActionEvent actionEvent) {
+        String url = Main.getNavigationTab().getAddressBar().getText();
+        if (!url.isEmpty()) {
+            try {
+                browser.getPages().getActivePage().navigate(url);
 //                    JOptionPane.showMessageDialog(null, "Navigiere zu: " + url);
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(null, "Fehler beim Navigieren: " + ex.getMessage());
-                }
-            } else {
-                JOptionPane.showMessageDialog(null, "Bitte eine gültige URL eingeben.");
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(null, "Fehler beim Navigieren: " + ex.getMessage());
             }
-        });
+        } else {
+            JOptionPane.showMessageDialog(null, "Bitte eine gültige URL eingeben.");
+        }
     }
 
     private void setBrowserOptions(
@@ -686,5 +674,4 @@ public class MainController {
             }
         });
     }
-
 }

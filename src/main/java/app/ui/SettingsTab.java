@@ -1,5 +1,6 @@
 package app.ui;
 
+import app.Main;
 import app.config.SettingsData;
 
 import javax.swing.*;
@@ -49,6 +50,11 @@ public class SettingsTab {
 
         saveSettingsButton.addActionListener(e -> saveSettings());
         loadSettingsButton.addActionListener(e -> loadSettings());
+
+        // Event Listener
+        launchButton.addActionListener(Main.controller::onLaunch);
+        terminateButton.addActionListener(Main.controller::onTerminate);
+        navigateButton.addActionListener(Main.controller::onNavigate);
 
         // Layout für den Settings-Tab
         JPanel settingsPanel = new JPanel(new GridLayout(4, 2, 10, 10));
