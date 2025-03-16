@@ -4,11 +4,13 @@ import app.Main;
 import app.controller.MainController;
 
 import javax.swing.*;
+import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
 
 public class DebugTab {
     private final MainController controller;
+    private final JPanel panel;
     private JToolBar toolbar;
 
     private final JTextArea console; // Textfeld für Events
@@ -24,13 +26,18 @@ public class DebugTab {
         toolbar = createDebugToolBar();
 
         // Panel für Events
+        panel = new JPanel(new BorderLayout());
         console = new JTextArea();
         console.setEditable(false);
         consoleScrollable = new JScrollPane(console);
+        panel.add(consoleScrollable, BorderLayout.CENTER);
     }
 
     private JToolBar createDebugToolBar() {
         JToolBar eventToolbar = new JToolBar();
+
+        JButton clearConsoleButton = new JButton("Clear Console");
+        clearConsoleButton.addActionListener(e -> console.setText(""));
 
         // Erzeuge ein JPopupMenu, das sich nicht mehr automatisch schließt
         eventDropdownButton = new JButton("Select Events");
@@ -135,5 +142,21 @@ public class DebugTab {
         } else {
             eventDropdownButton.setText(selectedEvents.toString());
         }
+    }
+
+    public JPanel getPanel() {
+        return panel;
+    }
+
+    public JTextArea getConsole() {
+        return console;
+    }
+
+    public void appendLog(String message) {
+        SwingUtilities.invokeLater(() -> console.append(message + "\n"));
+    }
+
+    public void clearLog() {
+        SwingUtilities.invokeLater(() -> console.setText(""));
     }
 }

@@ -16,7 +16,6 @@ public class Main {
     private static ContextTab contextTab;
     private static DebugTab debugTab;
     private static ScriptTab scriptTab;
-    private static ConsoleTab consoleTab;
     private static TestToolsTab testToolsTab;
     private static SettingsTab settingsTab;
 
@@ -34,7 +33,6 @@ public class Main {
         contextTab = new ContextTab(controller);
         debugTab = new DebugTab(controller);
         scriptTab = new ScriptTab(controller);
-        consoleTab = new ConsoleTab(controller);
         testToolsTab = new TestToolsTab(controller);
         settingsTab = new SettingsTab(controller); // Settings mit JSON-Speicherung
 
@@ -73,7 +71,7 @@ public class Main {
         JTabbedPane tabbedPane = new JTabbedPane();
 
         tabbedPane.addTab("Scripting", scriptTab.getPanel());
-        tabbedPane.addTab("Debug", consoleTab.getPanel());
+        tabbedPane.addTab("Debug", debugTab.getPanel());
         tabbedPane.addTab("Screenshots", testToolsTab.getPanel());
         tabbedPane.addTab("Settings", settingsTab.getPanel());
 
@@ -84,8 +82,8 @@ public class Main {
         return scriptTab;
     }
 
-    public static ConsoleTab getConsoleTab() {
-        return consoleTab;
+    public static DebugTab getDebugTab() {
+        return debugTab;
     }
 
     public static BrowserTab getBrowserTab() {

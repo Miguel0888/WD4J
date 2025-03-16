@@ -298,7 +298,7 @@ public class MainController {
     private void logEvent(String message) {
        if(isEventLoggingEnabled)
        {
-           SwingUtilities.invokeLater(() -> Main.getConsoleTab().appendLog(message + "\n"));
+           SwingUtilities.invokeLater(() -> Main.getDebugTab().appendLog(message + "\n"));
        }
     }
 
@@ -326,7 +326,7 @@ public class MainController {
     }
 
     public void clearLog() {
-        Main.getConsoleTab().clearLog();
+        Main.getDebugTab().clearLog();
     }
 
     public void updateBrowsingContextDropdown() {
