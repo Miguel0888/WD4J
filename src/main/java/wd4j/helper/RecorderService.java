@@ -11,7 +11,7 @@ import java.util.List;
 
 public class RecorderService {
     private static RecorderService instance;
-    private final List<RecordedEvent> recordedEvents = new ArrayList<>();
+    private List<RecordedEvent> recordedEvents = new ArrayList<>();
     private final Gson gson = new Gson();
 
     private RecorderService() {}
@@ -59,4 +59,41 @@ public class RecorderService {
     public void clearRecordedEvents() {
         recordedEvents.clear();
     }
+
+    public void mergeInputEvents() {
+        if (recordedEvents.isEmpty()) return;
+
+        List<RecordedEvent> mergedEvents = new ArrayList<>();
+        RecordedEvent lastInputEvent = null;
+
+        for (RecordedEvent event : recordedEvents) {
+            if ("input".equals(event.getAction())) {
+                // Falls vorheriges Input-Event existiert und der gleiche Selektor benutzt wird, Wert aktualisieren
+                if (lastInputEvent != null && lastInputEvent.getSelector().equals(event.getSelector())) {
+                    lastInputEvent.setValue(event.getValue());
+                } else {
+                    // Neues Input-Event speichern
+                    lastInputEvent = event;
+                }
+            } else if ("press".equals(event.getAction())) {
+                // Ignoriere `press`, wenn es kein anderes Event außer input gab
+                continue;
+            } else {
+                // Anderes Event → vorherigen Input speichern, falls vorhanden
+                if (lastInputEvent != null) {
+                    mergedEvents.add(lastInputEvent);
+                    lastInputEvent = null;
+                }
+                mergedEvents.add(event);
+            }
+        }
+
+        // Letztes Input-Event hinzufügen, falls am Ende der Liste
+        if (lastInputEvent != null) {
+            mergedEvents.add(lastInputEvent);
+        }
+
+        recordedEvents = mergedEvents; // Alte Liste durch bereinigte ersetzen
+    }
+
 }

@@ -91,17 +91,17 @@ public class TestRecorderTab implements UIComponent {
     }
 
     private JTable createActionTable() {
-        tableModel = new DefaultTableModel(new Object[]{"Aktion", "Locator-Typ", "Selektor/Text", "Timeout"}, 0) {
+        tableModel = new DefaultTableModel(new Object[]{"Aktion", "Locator-Typ", "Selektor/Text", "Timeout", "Wert"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return true; // Alle Zellen sind editierbar
+                return true;
             }
         };
 
         actionTable = new JTable(tableModel);
         setUpComboBoxes();
 
-        // TableModelListener fügt Änderungen in die TestCase-Objekte ein
+        // Listener für Änderungen in der Tabelle
         tableModel.addTableModelListener(e -> {
             int row = e.getFirstRow();
             int column = e.getColumn();
@@ -127,7 +127,7 @@ public class TestRecorderTab implements UIComponent {
 
             TestAction action = testCase.getWhen().get(row);
 
-            // Je nach Spalte den passenden Wert setzen (ohne enhanced switch)
+            // Passenden Wert setzen (ohne enhanced switch)
             if (column == 0) {
                 action.setAction((String) tableModel.getValueAt(row, column));
             } else if (column == 1) {
@@ -142,14 +142,17 @@ public class TestRecorderTab implements UIComponent {
                     try {
                         action.setTimeout(Integer.parseInt(timeoutValue.toString()));
                     } catch (NumberFormatException ex) {
-                        action.setTimeout(3000); // Fallback-Wert
+                        action.setTimeout(3000);
                     }
                 }
+            } else if (column == 4) {  // 🔥 Hier wird `value` gespeichert!
+                action.setValue((String) tableModel.getValueAt(row, column));
             }
         });
 
         return actionTable;
     }
+
 
     private void setUpComboBoxes() {
         String[] actions = {"click", "input", "screenshot"};
@@ -419,6 +422,7 @@ public class TestRecorderTab implements UIComponent {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private void importRecordedActions() {
+        RecorderService.getInstance().mergeInputEvents(); // 🔥 Bereinigung vor Import
         List<RecordedEvent> recordedEvents = RecorderService.getInstance().getRecordedEvents();
 
         if (recordedEvents.isEmpty()) {
@@ -444,13 +448,15 @@ public class TestRecorderTab implements UIComponent {
                     action.getAction(),
                     action.getLocatorType(),
                     action.getSelectedSelector(),
-                    action.getTimeout()
+                    action.getTimeout(),
+                    action.getValue()  // 🔥 `value` wird jetzt sichtbar
             });
             testCase.getWhen().add(action);
         }
 
         RecorderService.getInstance().clearRecordedEvents();
     }
+
 
 
 }
