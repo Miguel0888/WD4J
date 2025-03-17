@@ -4,8 +4,10 @@ import app.dto.TestAction;
 import wd4j.helper.RecorderService;
 
 import javax.swing.*;
-import javax.swing.table.AbstractTableModel;
-import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.List;
 
 public class ActionTableModel extends AbstractTableModel {
@@ -118,6 +120,54 @@ public class ActionTableModel extends AbstractTableModel {
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
         table.getColumnModel().getColumn(4).setCellRenderer(centerRenderer);
+
+        // 🟢 Button im Header der ersten Spalte setzen
+        TableColumnModel columnModel = table.getColumnModel();
+        columnModel.getColumn(0).setHeaderRenderer(new ButtonHeaderRenderer());
+
+        // 🛠️ MouseListener für Klicks im Header hinzufügen
+        JTableHeader header = table.getTableHeader();
+        header.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                int column = table.columnAtPoint(evt.getPoint());
+                if (column == 0) { // Falls der Button-Header geklickt wurde
+                    JLabel headerLabel = (JLabel) table.getColumnModel().getColumn(0).getHeaderRenderer().getTableCellRendererComponent(table, null, false, false, 0, 0);
+
+                    // 🔥 Temporär Button-Effekt simulieren
+                    headerLabel.setBackground(Color.LIGHT_GRAY);
+                    Timer timer = new Timer(100, e -> {
+                        headerLabel.setBackground(new Color(230, 230, 230)); // Zurücksetzen
+                        table.getTableHeader().repaint();
+                    });
+                    timer.setRepeats(false);
+                    timer.start();
+
+                    // 🎯 Aktion ausführen (Einstellungsmenü öffnen)
+                    JOptionPane.showMessageDialog(null, "Einstellungs-Button wurde geklickt!", "Info", JOptionPane.INFORMATION_MESSAGE);
+                }
+            }
+        });
+
+    }
+
+    /** 🔥 Custom Renderer für den Header mit einem Label */
+    static class ButtonHeaderRenderer extends JLabel implements TableCellRenderer {
+        public ButtonHeaderRenderer() {
+//            setText("\u26ED"); // Unicode für Zahnrad-Symbol
+            setText("\uD83D\uDD27"); // Unicode für Schraubeschlüssel-Symbol
+            setFont(new Font("SansSerif", Font.BOLD, 12));
+            setHorizontalAlignment(SwingConstants.CENTER);
+            setOpaque(true);
+            setBackground(new Color(230, 230, 230)); // Heller Hintergrund für Button-Optik
+            setBorder(BorderFactory.createLineBorder(Color.GRAY)); // Simulierter Button-Rahmen
+            setToolTipText("Einstellungen öffnen");
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            return this;
+        }
     }
 
     public void setRowData(List<TestAction> when) {
