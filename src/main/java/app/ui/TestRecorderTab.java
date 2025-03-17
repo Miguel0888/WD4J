@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 public class TestRecorderTab implements UIComponent {
+    public static final String SELECT_ON_CREATE = "@When"; // Alternatives: "@Given", "@When", "@Then"
     private final JPanel panel;
     private final ActionTableModel tableModel;
     private final JTree testCaseTree;
@@ -66,6 +67,16 @@ public class TestRecorderTab implements UIComponent {
 
         // Baum-Klick-Listener
         testCaseTree.addTreeSelectionListener(e -> updateContentForSelection());
+
+        // Doppelklick zum Umbenennen eines Testfalls ermöglichen
+        testCaseTree.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                if (evt.getClickCount() == 2) { // Doppelklick erkannt
+                    renameTestCase();
+                }
+            }
+        });
+
     }
 
     private JPanel createGivenPanel() {
@@ -151,13 +162,43 @@ public class TestRecorderTab implements UIComponent {
     }
 
     private void addTestCase() {
-        String testName = JOptionPane.showInputDialog(panel, "Testfall-Name eingeben:");
-        if (testName != null && !testName.trim().isEmpty()) {
+        int counter = 1;
+        String defaultName;
+
+        // Suche nach einem freien Namen (Testfall_1, Testfall_2, ...)
+        do {
+            defaultName = "Testfall_" + counter++;
+        } while (testCasesMap.containsKey(defaultName));
+
+        // Erstelle ein Textfeld mit Vorausfüllung
+        JTextField textField = new JTextField(defaultName);
+
+        // Timer, um Fokus & Selektion sicher zu setzen
+        Timer focusTimer = new Timer(100, e -> {
+            textField.requestFocusInWindow(); // Setzt den Fokus ins Eingabefeld
+            textField.selectAll(); // Markiert den gesamten Text zum direkten Überschreiben
+        });
+        focusTimer.setRepeats(false);
+        focusTimer.start();
+
+        // Dialog für Testfallnamen
+        int option = JOptionPane.showConfirmDialog(
+                panel,
+                textField,
+                "Testfall-Name eingeben:",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE
+        );
+
+        // Falls der Benutzer OK drückt und das Feld nicht leer ist
+        String testName = textField.getText().trim();
+        if (option == JOptionPane.OK_OPTION && !testName.isEmpty()) {
             if (testCasesMap.containsKey(testName)) {
                 JOptionPane.showMessageDialog(panel, "Ein Testfall mit diesem Namen existiert bereits!", "Fehler", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
+            // Neuen Testfall erstellen
             TestCase testCase = new TestCase();
             testCase.setName(testName);
             testCase.setGiven(new ArrayList<>());
@@ -166,12 +207,40 @@ public class TestRecorderTab implements UIComponent {
 
             testCasesMap.put(testName, testCase);
 
+            // Dem Baum hinzufügen
             DefaultMutableTreeNode testCaseNode = new DefaultMutableTreeNode(testName);
-            testCaseNode.add(new DefaultMutableTreeNode("@Given"));
-            testCaseNode.add(new DefaultMutableTreeNode("@When"));
-            testCaseNode.add(new DefaultMutableTreeNode("@Then"));
+            DefaultMutableTreeNode givenNode = new DefaultMutableTreeNode("@Given");
+            DefaultMutableTreeNode whenNode = new DefaultMutableTreeNode("@When");
+            DefaultMutableTreeNode thenNode = new DefaultMutableTreeNode("@Then");
+
+            testCaseNode.add(givenNode);
+            testCaseNode.add(whenNode);
+            testCaseNode.add(thenNode);
             rootNode.add(testCaseNode);
             treeModel.reload();
+
+            DefaultMutableTreeNode jumpTo;
+            switch (SELECT_ON_CREATE) {
+                case "@Given":
+                    jumpTo = givenNode;
+                    break;
+                case "@When":
+                    jumpTo = whenNode;
+                    break;
+                case "@Then":
+                    jumpTo = thenNode;
+                    break;
+                default:
+                    jumpTo = whenNode;
+            }
+
+            // 🟢 Den neuen Testfall in der Baumstruktur auswählen
+            TreePath thenPath = new TreePath(new Object[]{rootNode, testCaseNode, jumpTo});
+            testCaseTree.setSelectionPath(thenPath);
+            testCaseTree.scrollPathToVisible(thenPath);
+
+            // 🟢 Direkt zu einem bestimmten Element im CardLayout springen
+            cardLayout.show(contentPanel, SELECT_ON_CREATE);
         }
     }
 
@@ -179,10 +248,18 @@ public class TestRecorderTab implements UIComponent {
         TreePath selectedPath = testCaseTree.getSelectionPath();
         if (selectedPath != null) {
             DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) selectedPath.getLastPathComponent();
-            if (selectedNode.getParent() != null) {
+            DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) selectedNode.getParent();
+
+            if (parentNode == null) return; // 🔴 Kein übergeordnetes Element? -> Abbruch
+
+            // 🛑 Nur komplette Testfälle entfernen (direkte Kinder von rootNode)
+            if (parentNode == rootNode) {
                 String testName = selectedNode.toString();
                 testCasesMap.remove(testName);
                 treeModel.removeNodeFromParent(selectedNode);
+            } else {
+                // ❌ Falls `@Given`, `@When`, `@Then` ausgewählt ist -> Keine Aktion
+                JOptionPane.showMessageDialog(panel, "Nur komplette Testfälle können entfernt werden!", "Fehler", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -404,6 +481,57 @@ public class TestRecorderTab implements UIComponent {
         }
 
         RecorderService.getInstance().clearRecordedEvents();
+    }
+
+    private void renameTestCase() {
+        TreePath selectedPath = testCaseTree.getSelectionPath();
+        if (selectedPath == null) return;
+
+        DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) selectedPath.getLastPathComponent();
+        if (selectedNode.getParent() == null) return; // Verhindert Umbenennung der Wurzel "Testfälle"
+
+        String oldName = selectedNode.toString();
+        TestCase testCase = testCasesMap.get(oldName);
+        if (testCase == null) return; // Falls kein Testfall existiert
+
+        // 📝 Eingabefeld für neuen Namen
+        JTextField textField = new JTextField(oldName);
+
+        // 🔥 Timer, um Fokus & Selektion sicher zu setzen
+        Timer focusTimer = new Timer(100, e -> {
+            textField.requestFocusInWindow();
+            textField.selectAll();
+        });
+        focusTimer.setRepeats(false);
+        focusTimer.start();
+
+        int option = JOptionPane.showConfirmDialog(
+                panel,
+                textField,
+                "Testfall umbenennen:",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE
+        );
+
+        String newName = textField.getText().trim();
+
+        // 🛑 Falls Benutzer abbricht oder leer lässt, nichts tun
+        if (option != JOptionPane.OK_OPTION || newName.isEmpty()) return;
+
+        // 🛑 Falls Name bereits existiert, Fehler anzeigen
+        if (testCasesMap.containsKey(newName)) {
+            JOptionPane.showMessageDialog(panel, "Ein Testfall mit diesem Namen existiert bereits!", "Fehler", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // ✅ Namen in der Map aktualisieren
+        testCasesMap.remove(oldName);
+        testCase.setName(newName);
+        testCasesMap.put(newName, testCase);
+
+        // ✅ Namen im JTree aktualisieren
+        selectedNode.setUserObject(newName);
+        treeModel.nodeChanged(selectedNode);
     }
 
 }
