@@ -265,7 +265,8 @@ public class TestRecorderTab implements UIComponent {
                                 action.getAction(),
                                 action.getLocatorType(),
                                 action.getSelectedSelector(),
-                                action.getTimeout()
+                                action.getTimeout(),
+                                action.getValue()
                         });
                     }
 
