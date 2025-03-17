@@ -8,6 +8,7 @@ import wd4j.helper.dto.RecordedEvent;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class RecorderService {
     private static RecorderService instance;
@@ -68,15 +69,18 @@ public class RecorderService {
 
         for (RecordedEvent event : recordedEvents) {
             if ("input".equals(event.getAction())) {
-                // Falls vorheriges Input-Event existiert und der gleiche Selektor benutzt wird, Wert aktualisieren
-                if (lastInputEvent != null && lastInputEvent.getSelector().equals(event.getSelector())) {
+                if (lastInputEvent != null && isSameExceptValue(lastInputEvent, event)) {
+                    // Falls nur der Text unterschiedlich ist → Wert aktualisieren
                     lastInputEvent.setValue(event.getValue());
                 } else {
-                    // Neues Input-Event speichern
+                    // Anderes Feld oder komplett neues Input-Event → speichern
+                    if (lastInputEvent != null) {
+                        mergedEvents.add(lastInputEvent);
+                    }
                     lastInputEvent = event;
                 }
             } else if ("press".equals(event.getAction())) {
-                // Ignoriere `press`, wenn es kein anderes Event außer input gab
+                // Ignoriere `press`, wenn es nur zwischen `input`-Events passiert
                 continue;
             } else {
                 // Anderes Event → vorherigen Input speichern, falls vorhanden
@@ -95,5 +99,20 @@ public class RecorderService {
 
         recordedEvents = mergedEvents; // Alte Liste durch bereinigte ersetzen
     }
+
+    /**
+     * Vergleicht zwei RecordedEvent-Objekte, ob sie identisch sind – außer beim `value`.
+     */
+    private boolean isSameExceptValue(RecordedEvent a, RecordedEvent b) {
+        return a.getSelector().equals(b.getSelector()) &&
+                a.getAction().equals(b.getAction()) &&
+                Objects.equals(a.getElementId(), b.getElementId()) &&
+                Objects.equals(a.getClasses(), b.getClasses()) &&
+                Objects.equals(a.getXpath(), b.getXpath()) &&
+                Objects.equals(a.getAria(), b.getAria()) &&
+                Objects.equals(a.getAttributes(), b.getAttributes()) &&
+                Objects.equals(a.getTest(), b.getTest());
+    }
+
 
 }
