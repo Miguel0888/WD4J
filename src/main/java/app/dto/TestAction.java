@@ -5,6 +5,7 @@ import wd4j.api.options.AriaRole;
 import java.util.List;
 
 public class TestAction {
+    private boolean selected;
     private String action;
     private String selectedSelector;  // Der tatsächlich verwendete Selektor
     private String locatorType; // "css", "xpath", "id", "text", "role", "label", "placeholder", "altText"
@@ -34,6 +35,14 @@ public class TestAction {
 
     public TestAction() {
         // ToDo: Correct?
+    }
+
+    public boolean isSelected() {
+        return selected;
+    }
+
+    public void setSelected(boolean selected) {
+        this.selected = selected;
     }
 
     public String getSelectedSelector() {

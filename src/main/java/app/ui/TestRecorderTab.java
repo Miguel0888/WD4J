@@ -129,42 +129,17 @@ public class TestRecorderTab implements UIComponent {
 
     private JTable createActionTable() {
         actionTable = new JTable(tableModel);
-        setUpComboBoxes();
+
+        // 🟢 Checkbox-Spalte als erste Spalte hinzufügen
+        TableColumn checkBoxColumn = actionTable.getColumnModel().getColumn(0);
+        checkBoxColumn.setCellEditor(new DefaultCellEditor(new JCheckBox()));
+        checkBoxColumn.setCellRenderer(actionTable.getDefaultRenderer(Boolean.class));
+        checkBoxColumn.setPreferredWidth(30); // ✔ Feste Breite für die Checkbox-Spalte
+
+        // 🟢 Spalteneditoren setzen
+        tableModel.setUpEditors(actionTable);
 
         return actionTable;
-    }
-
-
-
-    private void setUpComboBoxes() {
-        // Aktionen DropDown
-        String[] actions = {"click", "input", "screenshot"};
-        JComboBox<String> actionComboBox = new JComboBox<>(actions);
-        actionTable.getColumnModel().getColumn(0).setCellEditor(new DefaultCellEditor(actionComboBox));
-
-        // Locator-Typen DropDown
-        String[] locatorTypes = {"css", "xpath", "id", "text", "role", "label", "placeholder", "altText"};
-        JComboBox<String> locatorTypeComboBox = new JComboBox<>(locatorTypes);
-        actionTable.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(locatorTypeComboBox));
-
-        // 🟢 Selektor/Text DropDown dynamisch befüllen
-        JComboBox<String> selectorComboBox = new JComboBox<>();
-        actionTable.getColumnModel().getColumn(2).setCellEditor(new DefaultCellEditor(selectorComboBox));
-
-        actionTable.getSelectionModel().addListSelectionListener(e -> {
-            int row = actionTable.getSelectedRow();
-            if (row >= 0) {
-                ActionTableModel model = (ActionTableModel) actionTable.getModel();
-                TestAction action = model.getActions().get(row);
-
-                // 🟢 Vorschläge aus dem Recorder-Service holen
-                List<String> suggestions = RecorderService.getInstance().getSelectorAlternatives(action.getSelectedSelector());
-                selectorComboBox.removeAllItems();
-                for (String suggestion : suggestions) {
-                    selectorComboBox.addItem(suggestion);
-                }
-            }
-        });
     }
 
     private JPanel createControlPanel() {
@@ -340,8 +315,6 @@ public class TestRecorderTab implements UIComponent {
                 case "@When":
                     cardLayout.show(contentPanel, "@When");
                     tableModel.setRowData(testCase.getWhen());
-
-                    setUpComboBoxes();
 
                     JButton addActionButton = new JButton("Aktion hinzufügen");
                     addActionButton.addActionListener(e -> {
