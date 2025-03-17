@@ -38,6 +38,9 @@ public class TestRecorderTab implements UIComponent {
 
     private LinkedHashMap<String, TestCase> testCasesMap = new LinkedHashMap<>();
 
+    private JButton addTestCaseButton;
+    private JButton removeTestCaseButton;
+
     public TestRecorderTab(MainController controller) {
         panel = new JPanel(new BorderLayout());
         tableModel = new ActionTableModel(new ArrayList<>());
@@ -69,14 +72,35 @@ public class TestRecorderTab implements UIComponent {
         testCaseTree.addTreeSelectionListener(e -> updateContentForSelection());
 
         // Doppelklick zum Umbenennen eines Testfalls ermöglichen
+        // Baum-Klick-Listener für Selektion und Interaktionen
         testCaseTree.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
             public void mousePressed(java.awt.event.MouseEvent evt) {
-                if (evt.getClickCount() == 2) { // Doppelklick erkannt
+                TreePath path = testCaseTree.getPathForLocation(evt.getX(), evt.getY());
+                if (path == null) return;
+
+                DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) path.getLastPathComponent();
+
+                if (evt.getClickCount() == 1) {
+                    // 🔥 Einfacher Klick = Auf- oder Zuklappen
+                    toggleTreeNode(selectedNode);
+                } else if (evt.getClickCount() == 2) {
+                    // 🔥 Doppelklick = Testfall umbenennen
                     renameTestCase();
                 }
             }
         });
+    }
 
+    private void toggleTreeNode(DefaultMutableTreeNode node) {
+        if (node == null) return;
+
+        TreePath path = new TreePath(node.getPath());
+        if (testCaseTree.isExpanded(path)) {
+            testCaseTree.collapsePath(path); // 🔽 Zuklappen
+        } else {
+            testCaseTree.expandPath(path); // 🔼 Aufklappen
+        }
     }
 
     private JPanel createGivenPanel() {
@@ -145,8 +169,9 @@ public class TestRecorderTab implements UIComponent {
 
     private JPanel createControlPanel() {
         JPanel panel = new JPanel();
-        JButton addTestCaseButton = new JButton("Testfall hinzufügen");
-        JButton removeTestCaseButton = new JButton("Testfall entfernen");
+
+        addTestCaseButton = new JButton("Testfall hinzufügen");
+        removeTestCaseButton = new JButton("Testfall entfernen");
 
         addTestCaseButton.addActionListener(e -> addTestCase());
         removeTestCaseButton.addActionListener(e -> removeTestCase());
@@ -268,8 +293,24 @@ public class TestRecorderTab implements UIComponent {
         DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) testCaseTree.getLastSelectedPathComponent();
         dynamicButtonPanel.removeAll();
 
+        boolean isTestCaseSelected = false;
+
         if (selectedNode != null) {
             DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) selectedNode.getParent();
+
+            // 🛑 Prüfen, ob die ausgewählte Node eine Testfall-Node ist
+            isTestCaseSelected = (parentNode == rootNode);
+
+            // Falls eine Unterkategorie (@Given, @When, @Then) gewählt wurde, Buttons ausblenden
+            addTestCaseButton.setVisible(isTestCaseSelected || rootNode.getChildCount() == 0);
+            removeTestCaseButton.setVisible(isTestCaseSelected);
+
+            // Falls kein Testfall existiert, muss der "Testfall hinzufügen"-Button immer sichtbar sein
+            if (rootNode.getChildCount() == 0) {
+                addTestCaseButton.setVisible(true);
+                removeTestCaseButton.setVisible(false);
+            }
+
             String testName = (parentNode != null) ? parentNode.toString() : selectedNode.toString();
             TestCase testCase = testCasesMap.get(testName);
 
@@ -282,7 +323,7 @@ public class TestRecorderTab implements UIComponent {
                     cardLayout.show(contentPanel, "@Given");
                     givenListModel.clear();
                     for (TestAction action : testCase.getGiven()) {
-                        givenListModel.addElement(action.getAction()); // Falls du weitere Infos brauchst, erweitere hier
+                        givenListModel.addElement(action.getAction());
                     }
 
                     JButton addGivenButton = new JButton("Vorbedingung hinzufügen");
@@ -324,7 +365,6 @@ public class TestRecorderTab implements UIComponent {
                     dynamicButtonPanel.add(importRecordedButton);
                     break;
 
-
                 case "@Then":
                     cardLayout.show(contentPanel, "@Then");
                     thenListModel.clear();
@@ -344,10 +384,17 @@ public class TestRecorderTab implements UIComponent {
                     dynamicButtonPanel.add(addThenButton);
                     break;
             }
+        } else {
+            // 🛑 Falls kein Testfall existiert, nur "Hinzufügen" sichtbar lassen
+            addTestCaseButton.setVisible(true);
+            removeTestCaseButton.setVisible(false);
         }
-        dynamicButtonPanel.revalidate();
-        dynamicButtonPanel.repaint();
+
+        // UI aktualisieren
+        panel.revalidate();
+        panel.repaint();
     }
+
 
     @Override
     public JPanel getPanel() {
