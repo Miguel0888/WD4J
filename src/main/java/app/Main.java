@@ -30,6 +30,7 @@ public class Main {
         componentsMap.put("Navigation", new NavigationTab(controller));
         componentsMap.put("Script", new ScriptTab(controller));
         componentsMap.put("TestTools", new TestToolsTab(controller));
+        componentsMap.put("Recorder", new TestRecorderTab(controller));
         componentsMap.put("Debug", new DebugTab(controller));
         componentsMap.put("Settings", new SettingsTab(controller));
 

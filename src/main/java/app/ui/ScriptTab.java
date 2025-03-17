@@ -74,6 +74,7 @@ public class ScriptTab implements UIComponent {
         });
     }
 
+    @Override
     public JPanel getPanel() {
         return panel;
     }
@@ -83,6 +84,7 @@ public class ScriptTab implements UIComponent {
         return "Script";
     }
 
+    @Override
     public JToolBar getToolbar() {
         return toolbar;
     }
