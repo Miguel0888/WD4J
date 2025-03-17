@@ -22,14 +22,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 public class TestRecorderTab implements UIComponent {
-    private JPanel panel;
-    private JTree testCaseTree;
-    private DefaultMutableTreeNode rootNode;
-    private DefaultTreeModel treeModel;
-    private JPanel contentPanel;
-    private CardLayout cardLayout;
+    private final JPanel panel;
+    private final ActionTableModel tableModel;
+    private final JTree testCaseTree;
+    private final DefaultMutableTreeNode rootNode;
+    private final DefaultTreeModel treeModel;
+    private final JPanel contentPanel;
+    private final CardLayout cardLayout;
     private JTable actionTable;
-    private ActionTableModel tableModel;
+
     private JList<String> givenList, thenList;
     private DefaultListModel<String> givenListModel, thenListModel;
     private JPanel dynamicButtonPanel;
@@ -38,6 +39,7 @@ public class TestRecorderTab implements UIComponent {
 
     public TestRecorderTab(MainController controller) {
         panel = new JPanel(new BorderLayout());
+        tableModel = new ActionTableModel(new ArrayList<>());
 
         // Testfall-Hierarchie (JTree)
         rootNode = new DefaultMutableTreeNode("Testfälle");
@@ -91,7 +93,6 @@ public class TestRecorderTab implements UIComponent {
     }
 
     private JTable createActionTable() {
-        tableModel = new ActionTableModel(new ArrayList<>());
         actionTable = new JTable(tableModel);
         setUpComboBoxes();
 
@@ -220,22 +221,21 @@ public class TestRecorderTab implements UIComponent {
 
                 case "@When":
                     cardLayout.show(contentPanel, "@When");
+                    tableModel.setRowData(testCase.getWhen());
 
-                    // 🟢 Neue TableModel-Klasse setzen
-                    ActionTableModel model = new ActionTableModel(testCase.getWhen());
-                    actionTable.setModel(model);
+                    setUpComboBoxes();
 
                     JButton addActionButton = new JButton("Aktion hinzufügen");
                     addActionButton.addActionListener(e -> {
                         TestAction newAction = new TestAction("click", "css", "", 3000);
-                        model.addAction(newAction);
+                        tableModel.addAction(newAction);
                     });
 
                     JButton removeActionButton = new JButton("Aktion entfernen");
                     removeActionButton.addActionListener(e -> {
                         int selectedRow = actionTable.getSelectedRow();
                         if (selectedRow != -1) {
-                            model.removeAction(selectedRow);
+                            tableModel.removeAction(selectedRow);
                         }
                     });
 
@@ -399,13 +399,11 @@ public class TestRecorderTab implements UIComponent {
 
         for (RecordedEvent event : recordedEvents) {
             TestAction action = RecorderService.getInstance().convertToTestAction(event);
-            tableModel.addAction(action);
+            tableModel.addAction(action); // ✅ Jetzt auf dem **richtigen** Model!
             testCase.getWhen().add(action);
         }
 
         RecorderService.getInstance().clearRecordedEvents();
     }
-
-
 
 }

@@ -80,4 +80,11 @@ public class ActionTableModel extends AbstractTableModel {
     public List<TestAction> getActions() {
         return actions;
     }
+
+    public void setRowData(List<TestAction> newActions) {
+        this.actions.clear();
+        this.actions.addAll(newActions);
+        fireTableDataChanged(); // 🔄 Tabelle aktualisieren!
+    }
+
 }
