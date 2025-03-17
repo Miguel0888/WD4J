@@ -7,6 +7,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import wd4j.api.WebSocketFrame;
+import wd4j.helper.RecorderService;
 import wd4j.impl.playwright.WebSocketImpl;
 import wd4j.impl.support.EventDispatcher;
 import wd4j.impl.webdriver.mapping.GsonMapperFactory;
@@ -42,8 +43,10 @@ public class WebSocketManager {
     @Deprecated // since script.ChannelValue might be used for Callbacks (will lead to Message Events)
     private void toggleCallbackServer(boolean activate) {
         if (activate) {
-            callbackWebSocketServer = new CallbackWebSocketServer(8080, message ->
-                    Main.getScriptTab().appendLog(message + System.lineSeparator()));
+            callbackWebSocketServer = new CallbackWebSocketServer(8080, message -> {
+                    Main.getScriptTab().appendLog(message);  // UI-Log aktualisieren
+                    RecorderService.getInstance().recordAction(message); // Aktion im Recorder speichern
+            });
             callbackWebSocketServer.start();
         } else {
             try {

@@ -1,4 +1,0 @@
-# PlayWright initially was not developed with WebDriver BiDi in mind!
-Instead, they used Chrome DevTools. Therefore the interfaces had to be changed to fit the WebDriver BiDi API naming convention. It is just a hint to avoid confusion. It has not functional impact: You still have to call context() instead of session() for example.
-
-The original PlayWright API is located in the com.microsoft.playwright package. The API is a subproject of the main project. The API contains the original Playwright Java interfaces. They might be moved to a  (gradle) subproject in the future. The implementation classes from PlayWright are left out for purpose. They are the basis of the adapter library found in the wd4j package.

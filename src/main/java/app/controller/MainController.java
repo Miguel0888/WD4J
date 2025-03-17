@@ -531,16 +531,16 @@ public class MainController {
             return;
         }
 
-        try {
-            // ToDo: Implement script execution (gedacht waren webdriver bidi scripts nicht nur JS Scripts)
-            // Beispiel: Ein einfaches JavaScript-Snippet ausführen
-            browser.getPages().getActivePage().evaluate(script);
-
-            // Log-Eintrag aktualisieren
-            SwingUtilities.invokeLater(() -> Main.getScriptTab().appendLog("Executed script: \n" + script + "\n"));
-        } catch (Exception ex) {
-            SwingUtilities.invokeLater(() -> Main.getScriptTab().appendLog("Error executing script: " + ex.getMessage() + "\n"));
-        }
+//        try {
+//            // ToDo: Implement script execution (gedacht waren webdriver bidi scripts nicht nur JS Scripts)
+//            // Beispiel: Ein einfaches JavaScript-Snippet ausführen
+//            browser.getPages().getActivePage().evaluate(script);
+//
+//            // Log-Eintrag aktualisieren
+//            SwingUtilities.invokeLater(() -> Main.getScriptTab().appendLog("Executed script: \n" + script + "\n"));
+//        } catch (Exception ex) {
+//            SwingUtilities.invokeLater(() -> Main.getScriptTab().appendLog("Error executing script: " + ex.getMessage() + "\n"));
+//        }
     }
 
 

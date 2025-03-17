@@ -12,11 +12,11 @@ import java.util.function.Consumer;
  */
 @Deprecated // since script.ChannelValue might be used for Callbacks (will lead to Message Events)
 public class CallbackWebSocketServer extends WebSocketServer {
-    Consumer<String> clickConsumer;
+    Consumer<String> eventConsumer;
 
-    public CallbackWebSocketServer(int port, Consumer<String> clickConsumer) {
+    public CallbackWebSocketServer(int port, Consumer<String> eventConsumer) {
         super(new InetSocketAddress(port));
-        this.clickConsumer = clickConsumer;
+        this.eventConsumer = eventConsumer;
     }
 
     @Override
@@ -33,7 +33,7 @@ public class CallbackWebSocketServer extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, String message) {
         System.out.println("📌 Geklickter Selektor: " + message);
-        clickConsumer.accept(message);
+        eventConsumer.accept(message);
     }
 
     @Override

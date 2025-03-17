@@ -7,6 +7,8 @@ import app.dto.TestSuite;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import wd4j.helper.RecorderService;
+import wd4j.helper.dto.RecordedEvent;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -280,8 +282,12 @@ public class TestRecorderTab implements UIComponent {
                         }
                     });
 
+                    JButton importRecordedButton = new JButton("Letzte Aktionen importieren");
+                    importRecordedButton.addActionListener(e -> importRecordedActions());
+
                     dynamicButtonPanel.add(addActionButton);
                     dynamicButtonPanel.add(removeActionButton);
+                    dynamicButtonPanel.add(importRecordedButton);
                     break;
 
                 case "@Then":
@@ -409,5 +415,42 @@ public class TestRecorderTab implements UIComponent {
 
         treeModel.reload();
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private void importRecordedActions() {
+        List<RecordedEvent> recordedEvents = RecorderService.getInstance().getRecordedEvents();
+
+        if (recordedEvents.isEmpty()) {
+            JOptionPane.showMessageDialog(panel, "Keine neuen Aktionen zum Importieren!", "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) testCaseTree.getLastSelectedPathComponent();
+        if (selectedNode == null || !selectedNode.toString().equals("@When")) {
+            JOptionPane.showMessageDialog(panel, "Wähle zuerst einen Testfall in @When!", "Fehler", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) selectedNode.getParent();
+        if (parentNode == null) return;
+
+        TestCase testCase = testCasesMap.get(parentNode.toString());
+        if (testCase == null) return;
+
+        for (RecordedEvent event : recordedEvents) {
+            TestAction action = RecorderService.getInstance().convertToTestAction(event);
+            tableModel.addRow(new Object[]{
+                    action.getAction(),
+                    action.getLocatorType(),
+                    action.getSelectedSelector(),
+                    action.getTimeout()
+            });
+            testCase.getWhen().add(action);
+        }
+
+        RecorderService.getInstance().clearRecordedEvents();
+    }
+
 
 }

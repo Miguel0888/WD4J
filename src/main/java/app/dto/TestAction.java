@@ -32,6 +32,10 @@ public class TestAction {
         this.action = action;
     }
 
+    public TestAction() {
+        // ToDo: Correct?
+    }
+
     public String getSelectedSelector() {
         return selectedSelector;
     }
@@ -102,5 +106,9 @@ public class TestAction {
 
     public void setTimeout(int valueAt) {
         this.timeout = valueAt;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
     }
 }

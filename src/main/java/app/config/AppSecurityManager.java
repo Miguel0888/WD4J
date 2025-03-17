@@ -34,6 +34,9 @@ public class AppSecurityManager extends SecurityManager {
         ALLOWED_PACKAGES.add("app.");
         ALLOWED_PACKAGES.add("wd4j.api");
         ALLOWED_PACKAGES.add("wd4j.impl.");
+        ALLOWED_PACKAGES.add("wd4j.helper");
+        ALLOWED_PACKAGES.add("wd4j.helper.");
+        ALLOWED_PACKAGES.add("wd4j.helper.dto");
 
         // ✅ Einzelne erlaubte Klassen
         ALLOWED_CLASSES.add("java.lang.Thread");
