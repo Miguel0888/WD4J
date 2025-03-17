@@ -20,6 +20,18 @@ public class TestAction {
     private String placeholder; // Falls getByPlaceholder verwendet wird
     private String altText; // Falls getByAltText verwendet wird
 
+    public TestAction(String action, String locatorType, String selectedSelector, int timeout) {
+        this.action = action;
+        this.locatorType = locatorType;
+        this.selectedSelector = selectedSelector;
+        this.timeout = timeout;
+    }
+
+    // Falls nur ein Action-Name übergeben wird (für @Given / @Then)
+    public TestAction(String action) {
+        this.action = action;
+    }
+
     public String getSelectedSelector() {
         return selectedSelector;
     }

@@ -16,6 +16,7 @@ import java.awt.*;
 import java.io.*;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 public class TestRecorderTab implements UIComponent {
@@ -30,6 +31,8 @@ public class TestRecorderTab implements UIComponent {
     private JList<String> givenList, thenList;
     private DefaultListModel<String> givenListModel, thenListModel;
     private JPanel dynamicButtonPanel;
+
+    private LinkedHashMap<String, TestCase> testCasesMap = new LinkedHashMap<>();
 
     public TestRecorderTab(MainController controller) {
         panel = new JPanel(new BorderLayout());
@@ -133,6 +136,19 @@ public class TestRecorderTab implements UIComponent {
     private void addTestCase() {
         String testName = JOptionPane.showInputDialog(panel, "Testfall-Name eingeben:");
         if (testName != null && !testName.trim().isEmpty()) {
+            if (testCasesMap.containsKey(testName)) {
+                JOptionPane.showMessageDialog(panel, "Ein Testfall mit diesem Namen existiert bereits!", "Fehler", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            TestCase testCase = new TestCase();
+            testCase.setName(testName);
+            testCase.setGiven(new ArrayList<>());
+            testCase.setWhen(new ArrayList<>());
+            testCase.setThen(new ArrayList<>());
+
+            testCasesMap.put(testName, testCase);
+
             DefaultMutableTreeNode testCaseNode = new DefaultMutableTreeNode(testName);
             testCaseNode.add(new DefaultMutableTreeNode("@Given"));
             testCaseNode.add(new DefaultMutableTreeNode("@When"));
@@ -147,6 +163,8 @@ public class TestRecorderTab implements UIComponent {
         if (selectedPath != null) {
             DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) selectedPath.getLastPathComponent();
             if (selectedNode.getParent() != null) {
+                String testName = selectedNode.toString();
+                testCasesMap.remove(testName);
                 treeModel.removeNodeFromParent(selectedNode);
             }
         }
@@ -157,14 +175,28 @@ public class TestRecorderTab implements UIComponent {
         dynamicButtonPanel.removeAll();
 
         if (selectedNode != null) {
+            DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) selectedNode.getParent();
+            String testName = (parentNode != null) ? parentNode.toString() : selectedNode.toString();
+            TestCase testCase = testCasesMap.get(testName);
+
+            if (testCase == null) {
+                return;
+            }
+
             switch (selectedNode.toString()) {
                 case "@Given":
                     cardLayout.show(contentPanel, "@Given");
+                    givenListModel.clear();
+                    for (TestAction action : testCase.getGiven()) {
+                        givenListModel.addElement(action.getAction()); // Falls du weitere Infos brauchst, erweitere hier
+                    }
+
                     JButton addGivenButton = new JButton("Vorbedingung hinzufügen");
                     addGivenButton.addActionListener(e -> {
                         String input = JOptionPane.showInputDialog("Neue Vorbedingung:");
                         if (input != null && !input.isEmpty()) {
                             givenListModel.addElement(input);
+                            testCase.getGiven().add(new TestAction(input));
                         }
                     });
                     dynamicButtonPanel.add(addGivenButton);
@@ -172,28 +204,51 @@ public class TestRecorderTab implements UIComponent {
 
                 case "@When":
                     cardLayout.show(contentPanel, "@When");
+                    tableModel.setRowCount(0);
+                    for (TestAction action : testCase.getWhen()) {
+                        tableModel.addRow(new Object[]{
+                                action.getAction(),
+                                action.getLocatorType(),
+                                action.getSelectedSelector(),
+                                action.getTimeout()
+                        });
+                    }
+
                     JButton addActionButton = new JButton("Aktion hinzufügen");
-                    addActionButton.addActionListener(e -> tableModel.addRow(new Object[]{"click", "css", "", 3000}));
+                    addActionButton.addActionListener(e -> {
+                        tableModel.addRow(new Object[]{"click", "css", "", 3000});
+                        testCase.getWhen().add(new TestAction("click", "css", "", 3000));
+                    });
+
                     JButton removeActionButton = new JButton("Aktion entfernen");
                     removeActionButton.addActionListener(e -> {
                         int selectedRow = actionTable.getSelectedRow();
                         if (selectedRow != -1) {
                             tableModel.removeRow(selectedRow);
+                            testCase.getWhen().remove(selectedRow);
                         }
                     });
+
                     dynamicButtonPanel.add(addActionButton);
                     dynamicButtonPanel.add(removeActionButton);
                     break;
 
                 case "@Then":
                     cardLayout.show(contentPanel, "@Then");
+                    thenListModel.clear();
+                    for (TestAction action : testCase.getThen()) {
+                        thenListModel.addElement(action.getAction());
+                    }
+
                     JButton addThenButton = new JButton("Erwartetes Ergebnis hinzufügen");
                     addThenButton.addActionListener(e -> {
                         String input = JOptionPane.showInputDialog("Neue Bedingung (z.B. 'Text sichtbar'):");
                         if (input != null && !input.isEmpty()) {
                             thenListModel.addElement(input);
+                            testCase.getThen().add(new TestAction(input));
                         }
                     });
+
                     dynamicButtonPanel.add(addThenButton);
                     break;
             }
@@ -255,49 +310,7 @@ public class TestRecorderTab implements UIComponent {
     }
 
     public List<TestCase> getTestCases() {
-        List<TestCase> testCases = new ArrayList<>();
-
-        for (int i = 0; i < rootNode.getChildCount(); i++) {
-            DefaultMutableTreeNode testCaseNode = (DefaultMutableTreeNode) rootNode.getChildAt(i);
-            TestCase testCase = new TestCase();
-            testCase.setName(testCaseNode.toString());
-
-            List<TestAction> givenActions = new ArrayList<>();
-            List<TestAction> whenActions = new ArrayList<>();
-            List<TestAction> thenActions = new ArrayList<>();
-
-            for (int j = 0; j < testCaseNode.getChildCount(); j++) {
-                DefaultMutableTreeNode phaseNode = (DefaultMutableTreeNode) testCaseNode.getChildAt(j);
-                String phaseName = phaseNode.toString();
-
-                if (phaseName.equals("@When")) {
-                    whenActions.addAll(getActionsFromTable());
-                }
-            }
-
-            testCase.setGiven(givenActions);
-            testCase.setWhen(whenActions);
-            testCase.setThen(thenActions);
-            testCases.add(testCase);
-        }
-
-        return testCases;
-    }
-
-    private List<TestAction> getActionsFromTable() {
-        List<TestAction> actions = new ArrayList<>();
-
-        for (int i = 0; i < tableModel.getRowCount(); i++) {
-            TestAction action = new TestAction();
-            action.setAction((String) tableModel.getValueAt(i, 0));
-            action.setLocatorType((String) tableModel.getValueAt(i, 1));
-            action.setSelectedSelector((String) tableModel.getValueAt(i, 2));
-            action.setTimeout((int) tableModel.getValueAt(i, 3));
-
-            actions.add(action);
-        }
-
-        return actions;
+        return new ArrayList<>(testCasesMap.values());
     }
 
     private void loadSettings() {
@@ -327,8 +340,11 @@ public class TestRecorderTab implements UIComponent {
 
     private void loadTestCasesIntoUI(List<TestCase> testCases) {
         rootNode.removeAllChildren();
+        testCasesMap.clear();
 
         for (TestCase testCase : testCases) {
+            testCasesMap.put(testCase.getName(), testCase);
+
             DefaultMutableTreeNode testCaseNode = new DefaultMutableTreeNode(testCase.getName());
             DefaultMutableTreeNode givenNode = new DefaultMutableTreeNode("@Given");
             DefaultMutableTreeNode whenNode = new DefaultMutableTreeNode("@When");
@@ -338,39 +354,9 @@ public class TestRecorderTab implements UIComponent {
             testCaseNode.add(whenNode);
             testCaseNode.add(thenNode);
             rootNode.add(testCaseNode);
-
-            // @Given Liste füllen
-            if (!testCase.getGiven().isEmpty()) {
-                givenListModel.clear();
-                for (TestAction action : testCase.getGiven()) {
-                    givenListModel.addElement(action.getAction()); // Oder ein anderes relevantes Attribut
-                }
-            }
-
-            // @When Tabelle füllen
-            if (!testCase.getWhen().isEmpty()) {
-                tableModel.setRowCount(0); // Vorherige Daten leeren
-                for (TestAction action : testCase.getWhen()) {
-                    tableModel.addRow(new Object[]{
-                            action.getAction(),
-                            action.getLocatorType(),
-                            action.getSelectedSelector(),
-                            action.getTimeout()
-                    });
-                }
-            }
-
-            // @Then Liste füllen
-            if (!testCase.getThen().isEmpty()) {
-                thenListModel.clear();
-                for (TestAction action : testCase.getThen()) {
-                    thenListModel.addElement(action.getAction()); // Erwartetes Ergebnis hinzufügen
-                }
-            }
         }
 
         treeModel.reload();
     }
-
 
 }
