@@ -8,16 +8,16 @@ public class TestCase {
     private List<TestAction> when;
     private List<TestAction> then;
 
-    public TestAction[] getGiven() {
-        return given.toArray(new TestAction[0]);
+    public List<TestAction> getGiven() {
+        return given;  // Direkt eine Liste zurückgeben
     }
 
-    public TestAction[] getWhen() {
-        return when.toArray(new TestAction[0]);
+    public List<TestAction> getWhen() {
+        return when;  // Direkt eine Liste zurückgeben
     }
 
-    public TestAction[] getThen() {
-        return then.toArray(new TestAction[0]);
+    public List<TestAction> getThen() {
+        return then;  // Direkt eine Liste zurückgeben
     }
 
     public void setGiven(List<TestAction> givenActions) {
@@ -32,7 +32,11 @@ public class TestCase {
         this.then = thenActions;
     }
 
-    public void setName(String string) {
-        this.name = string;
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
     }
 }
