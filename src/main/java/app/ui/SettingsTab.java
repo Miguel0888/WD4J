@@ -44,14 +44,14 @@ public class SettingsTab implements UIComponent {
         // Erstelle ein Untermenü für die Settings-Optionen
         JMenu settingsMenu = new JMenu("Settings");
 
-        JMenuItem saveItem = new JMenuItem("Save Settings");
-        saveItem.addActionListener(e -> saveSettings());
-
         JMenuItem loadItem = new JMenuItem("Load Settings");
         loadItem.addActionListener(e -> loadSettings());
 
-        settingsMenu.add(saveItem);
+        JMenuItem saveItem = new JMenuItem("Save Settings");
+        saveItem.addActionListener(e -> saveSettings());
+
         settingsMenu.add(loadItem);
+        settingsMenu.add(saveItem);
 
         return settingsMenu;  // Das Menü wird dem Hauptmenü hinzugefügt
     }

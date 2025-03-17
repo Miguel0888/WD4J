@@ -386,20 +386,30 @@ public class TestRecorderTab implements UIComponent {
 
     @Override
     public JMenuItem getMenuItem() {
-        // Erstelle ein Untermenü für die Settings-Optionen
+        // Erstelle ein Untermenü für die Test-Optionen
         JMenu settingsMenu = new JMenu("Test");
 
-        JMenuItem saveItem = new JMenuItem("Save");
-        saveItem.addActionListener(e -> saveSettings());
-
-        JMenuItem loadItem = new JMenuItem("Load");
+        JMenuItem loadItem = new JMenuItem("Load Testsuite");
         loadItem.addActionListener(e -> loadSettings());
 
-        settingsMenu.add(saveItem);
-        settingsMenu.add(loadItem);
+        JMenuItem saveItem = new JMenuItem("Save Testsuite");
+        saveItem.addActionListener(e -> saveSettings());
 
-        return settingsMenu;  // Das Menü wird dem Hauptmenü hinzugefügt
+        settingsMenu.add(loadItem);
+        settingsMenu.add(saveItem);
+
+        // 🔹 Trennstrich hinzufügen
+        settingsMenu.addSeparator();
+
+        // 🔹 "New Testcase" Menüeintrag hinzufügen
+        JMenuItem newTestCaseItem = new JMenuItem("New Testcase");
+        newTestCaseItem.addActionListener(e -> addTestCase()); // Ruft dieselbe Methode auf wie der Button
+
+        settingsMenu.add(newTestCaseItem);
+
+        return settingsMenu; // Das Menü wird dem Hauptmenü hinzugefügt
     }
+
 
     private void saveSettings() {
         JFileChooser fileChooser = new JFileChooser();

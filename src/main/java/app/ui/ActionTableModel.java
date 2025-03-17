@@ -8,6 +8,7 @@ import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Arrays;
 import java.util.List;
 
 public class ActionTableModel extends AbstractTableModel {
@@ -121,9 +122,33 @@ public class ActionTableModel extends AbstractTableModel {
         centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
         table.getColumnModel().getColumn(4).setCellRenderer(centerRenderer);
 
-        // 🟢 Button im Header der ersten Spalte setzen
+        // 🛠️ Spaltensteuerungs-Menü vorbereiten
         TableColumnModel columnModel = table.getColumnModel();
-        columnModel.getColumn(0).setHeaderRenderer(new ButtonHeaderRenderer());
+        JPopupMenu columnMenu = new JPopupMenu();
+        List<String> columnNames = Arrays.asList("Aktion", "Locator-Typ", "Selektor", "Wartezeit");
+
+        for (int i = 1; i < columnModel.getColumnCount(); i++) { // 0 ist die Checkbox-Spalte
+            TableColumn column = columnModel.getColumn(i);
+            JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(columnNames.get(i - 1), true);
+
+            final int columnIndex = i;
+            menuItem.addActionListener(e -> {
+                if (menuItem.isSelected()) {
+                    table.addColumn(column);
+                } else {
+                    table.removeColumn(column);
+                }
+            });
+
+            columnMenu.add(menuItem);
+        }
+
+        // 🟢 Button im Header setzen für Spaltensteuerung
+        columnModel.getColumn(0).setHeaderRenderer(new ButtonHeaderRenderer(columnMenu));
+        TableColumn firstColumn = table.getColumnModel().getColumn(0);
+        firstColumn.setPreferredWidth(30);  // 🔥 Setze die Breite auf 30 Pixel (anpassen, falls nötig)
+        firstColumn.setMaxWidth(40);        // 🔥 Maximalbreite begrenzen
+        firstColumn.setMinWidth(30);        // 🔥 Minimalbreite setzen
 
         // 🛠️ MouseListener für Klicks im Header hinzufügen
         JTableHeader header = table.getTableHeader();
@@ -132,36 +157,25 @@ public class ActionTableModel extends AbstractTableModel {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 int column = table.columnAtPoint(evt.getPoint());
                 if (column == 0) { // Falls der Button-Header geklickt wurde
-                    JLabel headerLabel = (JLabel) table.getColumnModel().getColumn(0).getHeaderRenderer().getTableCellRendererComponent(table, null, false, false, 0, 0);
-
-                    // 🔥 Temporär Button-Effekt simulieren
-                    headerLabel.setBackground(Color.LIGHT_GRAY);
-                    Timer timer = new Timer(100, e -> {
-                        headerLabel.setBackground(new Color(230, 230, 230)); // Zurücksetzen
-                        table.getTableHeader().repaint();
-                    });
-                    timer.setRepeats(false);
-                    timer.start();
-
-                    // 🎯 Aktion ausführen (Einstellungsmenü öffnen)
-                    JOptionPane.showMessageDialog(null, "Einstellungs-Button wurde geklickt!", "Info", JOptionPane.INFORMATION_MESSAGE);
+                    columnMenu.show(header, evt.getX(), evt.getY()); // Popup-Menü an Mausposition öffnen
                 }
             }
         });
-
     }
 
-    /** 🔥 Custom Renderer für den Header mit einem Label */
+    /** 🔧 Custom Renderer für den Header mit Button */
     static class ButtonHeaderRenderer extends JLabel implements TableCellRenderer {
-        public ButtonHeaderRenderer() {
-//            setText("\u26ED"); // Unicode für Zahnrad-Symbol
-            setText("\uD83D\uDD27"); // Unicode für Schraubeschlüssel-Symbol
+        private final JPopupMenu columnMenu;
+
+        public ButtonHeaderRenderer(JPopupMenu columnMenu) {
+            this.columnMenu = columnMenu;
+            setText("\uD83D\uDD27"); // 🔧 Schraubenschlüssel-Symbol
             setFont(new Font("SansSerif", Font.BOLD, 12));
             setHorizontalAlignment(SwingConstants.CENTER);
             setOpaque(true);
-            setBackground(new Color(230, 230, 230)); // Heller Hintergrund für Button-Optik
-            setBorder(BorderFactory.createLineBorder(Color.GRAY)); // Simulierter Button-Rahmen
-            setToolTipText("Einstellungen öffnen");
+            setBackground(new Color(230, 230, 230));
+            setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            setToolTipText("Spalten anzeigen/ausblenden");
         }
 
         @Override
@@ -169,6 +183,7 @@ public class ActionTableModel extends AbstractTableModel {
             return this;
         }
     }
+
 
     public void setRowData(List<TestAction> when) {
         actions.clear();
