@@ -259,10 +259,6 @@
         watchPrimeFacesAjax();
         rebindEventListeners();
         startObserver();
-
-        // Capture-Phase-Listener für Clicks und Tastaturanschläge
-        document.body.addEventListener('click', recordEvent, true);
-        document.body.addEventListener('keydown', recordEvent, true);
     });
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
