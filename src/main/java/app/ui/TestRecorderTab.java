@@ -347,6 +347,11 @@ public class TestRecorderTab implements UIComponent {
                     addActionButton.addActionListener(e -> {
                         TestAction newAction = new TestAction("click", "css", "", 3000);
                         tableModel.addAction(newAction);
+
+                        // 🟢 Testfall-Datenstruktur aktualisieren
+                        if (testCase != null) {
+                            testCase.getWhen().add(newAction); // ✅ Aktion dauerhaft speichern
+                        }
                     });
 
                     JButton removeActionButton = new JButton("Aktion entfernen");
