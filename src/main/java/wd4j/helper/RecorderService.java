@@ -115,4 +115,16 @@ public class RecorderService {
     }
 
 
+    public List<String> getSelectorAlternatives(String selector) {
+        List<String> alternatives = new ArrayList<>();
+
+        for (RecordedEvent event : recordedEvents) {
+            if (event.getSelector().equals(selector)) {
+                alternatives.add(event.getSelector()); // Hier könnten weitere Methoden eingebaut werden
+            }
+        }
+
+        return alternatives;
+    }
+
 }

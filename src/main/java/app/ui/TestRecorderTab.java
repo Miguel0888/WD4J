@@ -29,7 +29,7 @@ public class TestRecorderTab implements UIComponent {
     private JPanel contentPanel;
     private CardLayout cardLayout;
     private JTable actionTable;
-    private DefaultTableModel tableModel;
+    private ActionTableModel tableModel;
     private JList<String> givenList, thenList;
     private DefaultListModel<String> givenListModel, thenListModel;
     private JPanel dynamicButtonPanel;
@@ -91,82 +91,44 @@ public class TestRecorderTab implements UIComponent {
     }
 
     private JTable createActionTable() {
-        tableModel = new DefaultTableModel(new Object[]{"Aktion", "Locator-Typ", "Selektor/Text", "Timeout", "Wert"}, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return true;
-            }
-        };
-
+        tableModel = new ActionTableModel(new ArrayList<>());
         actionTable = new JTable(tableModel);
         setUpComboBoxes();
-
-        // Listener für Änderungen in der Tabelle
-        tableModel.addTableModelListener(e -> {
-            int row = e.getFirstRow();
-            int column = e.getColumn();
-            if (row < 0 || column < 0) {
-                return;
-            }
-
-            DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) testCaseTree.getLastSelectedPathComponent();
-            if (selectedNode == null || !selectedNode.toString().equals("@When")) {
-                return;
-            }
-
-            DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) selectedNode.getParent();
-            if (parentNode == null) {
-                return;
-            }
-
-            String testName = parentNode.toString();
-            TestCase testCase = testCasesMap.get(testName);
-            if (testCase == null || testCase.getWhen().size() <= row) {
-                return;
-            }
-
-            TestAction action = testCase.getWhen().get(row);
-
-            // Passenden Wert setzen (ohne enhanced switch)
-            if (column == 0) {
-                action.setAction((String) tableModel.getValueAt(row, column));
-            } else if (column == 1) {
-                action.setLocatorType((String) tableModel.getValueAt(row, column));
-            } else if (column == 2) {
-                action.setSelectedSelector((String) tableModel.getValueAt(row, column));
-            } else if (column == 3) {
-                Object timeoutValue = tableModel.getValueAt(row, column);
-                if (timeoutValue instanceof Integer) {
-                    action.setTimeout((Integer) timeoutValue);
-                } else {
-                    try {
-                        action.setTimeout(Integer.parseInt(timeoutValue.toString()));
-                    } catch (NumberFormatException ex) {
-                        action.setTimeout(3000);
-                    }
-                }
-            } else if (column == 4) {  // 🔥 Hier wird `value` gespeichert!
-                action.setValue((String) tableModel.getValueAt(row, column));
-            }
-        });
 
         return actionTable;
     }
 
 
+
     private void setUpComboBoxes() {
+        // Aktionen DropDown
         String[] actions = {"click", "input", "screenshot"};
         JComboBox<String> actionComboBox = new JComboBox<>(actions);
-        TableColumn actionColumn = actionTable.getColumnModel().getColumn(0);
-        actionColumn.setCellEditor(new DefaultCellEditor(actionComboBox));
+        actionTable.getColumnModel().getColumn(0).setCellEditor(new DefaultCellEditor(actionComboBox));
 
+        // Locator-Typen DropDown
         String[] locatorTypes = {"css", "xpath", "id", "text", "role", "label", "placeholder", "altText"};
         JComboBox<String> locatorTypeComboBox = new JComboBox<>(locatorTypes);
-        TableColumn locatorColumn = actionTable.getColumnModel().getColumn(1);
-        locatorColumn.setCellEditor(new DefaultCellEditor(locatorTypeComboBox));
+        actionTable.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(locatorTypeComboBox));
 
-        TableColumn selectorColumn = actionTable.getColumnModel().getColumn(2);
-        selectorColumn.setCellEditor(new DefaultCellEditor(new JComboBox<>()));
+        // 🟢 Selektor/Text DropDown dynamisch befüllen
+        JComboBox<String> selectorComboBox = new JComboBox<>();
+        actionTable.getColumnModel().getColumn(2).setCellEditor(new DefaultCellEditor(selectorComboBox));
+
+        actionTable.getSelectionModel().addListSelectionListener(e -> {
+            int row = actionTable.getSelectedRow();
+            if (row >= 0) {
+                ActionTableModel model = (ActionTableModel) actionTable.getModel();
+                TestAction action = model.getActions().get(row);
+
+                // 🟢 Vorschläge aus dem Recorder-Service holen
+                List<String> suggestions = RecorderService.getInstance().getSelectorAlternatives(action.getSelectedSelector());
+                selectorComboBox.removeAllItems();
+                for (String suggestion : suggestions) {
+                    selectorComboBox.addItem(suggestion);
+                }
+            }
+        });
     }
 
     private JPanel createControlPanel() {
@@ -259,30 +221,21 @@ public class TestRecorderTab implements UIComponent {
                 case "@When":
                     cardLayout.show(contentPanel, "@When");
 
-                    tableModel.setRowCount(0); // Vorherige Daten entfernen
-                    for (TestAction action : testCase.getWhen()) {
-                        tableModel.addRow(new Object[]{
-                                action.getAction(),
-                                action.getLocatorType(),
-                                action.getSelectedSelector(),
-                                action.getTimeout(),
-                                action.getValue()
-                        });
-                    }
+                    // 🟢 Neue TableModel-Klasse setzen
+                    ActionTableModel model = new ActionTableModel(testCase.getWhen());
+                    actionTable.setModel(model);
 
                     JButton addActionButton = new JButton("Aktion hinzufügen");
                     addActionButton.addActionListener(e -> {
                         TestAction newAction = new TestAction("click", "css", "", 3000);
-                        testCase.getWhen().add(newAction);
-                        tableModel.addRow(new Object[]{"click", "css", "", 3000});
+                        model.addAction(newAction);
                     });
 
                     JButton removeActionButton = new JButton("Aktion entfernen");
                     removeActionButton.addActionListener(e -> {
                         int selectedRow = actionTable.getSelectedRow();
                         if (selectedRow != -1) {
-                            tableModel.removeRow(selectedRow);
-                            testCase.getWhen().remove(selectedRow);
+                            model.removeAction(selectedRow);
                         }
                     });
 
@@ -293,6 +246,7 @@ public class TestRecorderTab implements UIComponent {
                     dynamicButtonPanel.add(removeActionButton);
                     dynamicButtonPanel.add(importRecordedButton);
                     break;
+
 
                 case "@Then":
                     cardLayout.show(contentPanel, "@Then");
@@ -445,13 +399,7 @@ public class TestRecorderTab implements UIComponent {
 
         for (RecordedEvent event : recordedEvents) {
             TestAction action = RecorderService.getInstance().convertToTestAction(event);
-            tableModel.addRow(new Object[]{
-                    action.getAction(),
-                    action.getLocatorType(),
-                    action.getSelectedSelector(),
-                    action.getTimeout(),
-                    action.getValue()  // 🔥 `value` wird jetzt sichtbar
-            });
+            tableModel.addAction(action);
             testCase.getWhen().add(action);
         }
 
