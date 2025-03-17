@@ -92,11 +92,60 @@ public class TestRecorderTab implements UIComponent {
         tableModel = new DefaultTableModel(new Object[]{"Aktion", "Locator-Typ", "Selektor/Text", "Timeout"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return true;
+                return true; // Alle Zellen sind editierbar
             }
         };
+
         actionTable = new JTable(tableModel);
         setUpComboBoxes();
+
+        // TableModelListener fügt Änderungen in die TestCase-Objekte ein
+        tableModel.addTableModelListener(e -> {
+            int row = e.getFirstRow();
+            int column = e.getColumn();
+            if (row < 0 || column < 0) {
+                return;
+            }
+
+            DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) testCaseTree.getLastSelectedPathComponent();
+            if (selectedNode == null || !selectedNode.toString().equals("@When")) {
+                return;
+            }
+
+            DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) selectedNode.getParent();
+            if (parentNode == null) {
+                return;
+            }
+
+            String testName = parentNode.toString();
+            TestCase testCase = testCasesMap.get(testName);
+            if (testCase == null || testCase.getWhen().size() <= row) {
+                return;
+            }
+
+            TestAction action = testCase.getWhen().get(row);
+
+            // Je nach Spalte den passenden Wert setzen (ohne enhanced switch)
+            if (column == 0) {
+                action.setAction((String) tableModel.getValueAt(row, column));
+            } else if (column == 1) {
+                action.setLocatorType((String) tableModel.getValueAt(row, column));
+            } else if (column == 2) {
+                action.setSelectedSelector((String) tableModel.getValueAt(row, column));
+            } else if (column == 3) {
+                Object timeoutValue = tableModel.getValueAt(row, column);
+                if (timeoutValue instanceof Integer) {
+                    action.setTimeout((Integer) timeoutValue);
+                } else {
+                    try {
+                        action.setTimeout(Integer.parseInt(timeoutValue.toString()));
+                    } catch (NumberFormatException ex) {
+                        action.setTimeout(3000); // Fallback-Wert
+                    }
+                }
+            }
+        });
+
         return actionTable;
     }
 
@@ -204,7 +253,8 @@ public class TestRecorderTab implements UIComponent {
 
                 case "@When":
                     cardLayout.show(contentPanel, "@When");
-                    tableModel.setRowCount(0);
+
+                    tableModel.setRowCount(0); // Vorherige Daten entfernen
                     for (TestAction action : testCase.getWhen()) {
                         tableModel.addRow(new Object[]{
                                 action.getAction(),
@@ -216,8 +266,9 @@ public class TestRecorderTab implements UIComponent {
 
                     JButton addActionButton = new JButton("Aktion hinzufügen");
                     addActionButton.addActionListener(e -> {
+                        TestAction newAction = new TestAction("click", "css", "", 3000);
+                        testCase.getWhen().add(newAction);
                         tableModel.addRow(new Object[]{"click", "css", "", 3000});
-                        testCase.getWhen().add(new TestAction("click", "css", "", 3000));
                     });
 
                     JButton removeActionButton = new JButton("Aktion entfernen");
