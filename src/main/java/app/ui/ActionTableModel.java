@@ -24,6 +24,7 @@ public class ActionTableModel extends AbstractTableModel {
 
     private void updateColumnNames() {
         Set<String> dynamicKeys = actions.stream()
+                .filter(action -> action.getExtractedValues() != null)
                 .flatMap(action -> action.getExtractedValues().keySet().stream())
                 .distinct()
                 .filter(key -> !columnNames.contains(key)) // Nur neue Keys hinzufügen
