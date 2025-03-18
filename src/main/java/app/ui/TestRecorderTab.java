@@ -18,6 +18,7 @@ import java.awt.*;
 import java.io.*;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -43,8 +44,7 @@ public class TestRecorderTab implements UIComponent {
 
     public TestRecorderTab(MainController controller) {
         panel = new JPanel(new BorderLayout());
-        String[] columnNames = {"✔", "Aktion", "Locator-Typ", "Selektor", "Wert", "Wartezeit"};
-        tableModel = new ActionTableModel(columnNames);
+        tableModel = new ActionTableModel(Arrays.asList("✔", "Aktion", "Locator-Typ", "Selektor", "Wert", "Wartezeit"));
 
         // Testfall-Hierarchie (JTree)
         rootNode = new DefaultMutableTreeNode("Testfälle");
@@ -319,7 +319,8 @@ public class TestRecorderTab implements UIComponent {
 
                     JButton addActionButton = new JButton("Aktion hinzufügen");
                     addActionButton.addActionListener(e -> {
-                        TestAction newAction = new TestAction("click", "css", "", 3000);
+                        LinkedHashMap<String, String> extractedValues = new LinkedHashMap<>(); // ToDo: Move into TestAction
+                        TestAction newAction = new TestAction("click", "css", "", extractedValues, 3000);
                         tableModel.addAction(newAction);
 
                         // 🟢 Testfall-Datenstruktur aktualisieren

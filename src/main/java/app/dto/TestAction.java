@@ -3,6 +3,7 @@ package app.dto;
 import wd4j.api.options.AriaRole;
 
 import java.util.List;
+import java.util.Map;
 
 public class TestAction {
     private boolean selected;
@@ -10,6 +11,7 @@ public class TestAction {
     private String selectedSelector;  // Der tatsächlich verwendete Selektor
     private String locatorType; // "css", "xpath", "id", "text", "role", "label", "placeholder", "altText"
     private String value;
+    private Map<String, String> extractedValues; // Für die Extraktion von Werten, die später zum Auffinden evtl. benötigt werden
     private int timeout;
 
     private List<String> availableCssSelectors;
@@ -21,10 +23,11 @@ public class TestAction {
     private String placeholder; // Falls getByPlaceholder verwendet wird
     private String altText; // Falls getByAltText verwendet wird
 
-    public TestAction(String action, String locatorType, String selectedSelector, int timeout) {
+    public TestAction(String action, String locatorType, String selectedSelector, Map<String, String> extractedValues, int timeout) {
         this.action = action;
         this.locatorType = locatorType;
         this.selectedSelector = selectedSelector;
+        this.extractedValues = extractedValues;
         this.timeout = timeout;
     }
 
@@ -119,5 +122,13 @@ public class TestAction {
 
     public void setValue(String value) {
         this.value = value;
+    }
+
+    public Map<String, String> getExtractedValues() {
+        return extractedValues;
+    }
+
+    public void setExtractedValues(Map<String, String> extractedValues) {
+        this.extractedValues = extractedValues;
     }
 }

@@ -57,8 +57,7 @@
         action: null,         // Aktion (click, input, press etc.)
         value: null,          // Falls ein Input-Event -> Eingabewert
         key: null,            // Falls eine Taste gedrückt wurde
-        extractedText: null,  // Extrahierter Text (z. B. aus Menüs oder Buttons)
-        extractedColumns: null, // JSON-Array für Spalten in Tabellen
+        extractedValues: {},  // 🔥 Generische Map für alle extrahierten Werte
         inputName: null,      // Falls ein Formularfeld geklickt wurde -> Name des Inputs
         buttonText: null,     // Falls ein Button geklickt wurde -> Button-Text
         pagination: null,     // Falls ein Paginierungs-Link geklickt wurde -> Paginierungsbereich
@@ -146,7 +145,7 @@
         let menuItem = element.closest('[role="menuitem"], [role="tab"], li');
         if (menuItem) {
             let linkInside = menuItem.querySelector('a');
-            eventData.extractedText = (linkInside ? linkInside.textContent.trim() : menuItem.textContent.trim()) || null;
+            eventData.extractedValues["text"] = (linkInside ? linkInside.textContent.trim() : menuItem.textContent.trim()) || null;
         }
     }
 
@@ -158,7 +157,9 @@
                 .map(td => td.textContent.trim())
                 .filter(text => text.length > 0);
 
-            eventData.extractedColumns = columnData.length > 0 ? columnData : null;
+            if (columnData.length > 0) {
+                eventData.extractedValues["columns"] = JSON.stringify(columnData);
+            }
         }
     }
 

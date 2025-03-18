@@ -11,14 +11,31 @@ import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class ActionTableModel extends AbstractTableModel {
     private final List<TestAction> actions = new ArrayList<>();
-    private final String[] columnNames;
+    private List<String> columnNames;
 
-    public ActionTableModel(String[] columnNames) {
-        this.columnNames = columnNames;
+    public ActionTableModel(List<String> columnNames) {
+        this.columnNames = new ArrayList<>(columnNames);
     }
+
+    private void updateColumnNames() {
+        Set<String> dynamicKeys = actions.stream()
+                .flatMap(action -> action.getExtractedValues().keySet().stream())
+                .distinct()
+                .filter(key -> !columnNames.contains(key)) // Nur neue Keys hinzufügen
+                .collect(Collectors.toSet());
+
+        if (!dynamicKeys.isEmpty()) {
+            columnNames = new ArrayList<>(columnNames); // Kopie erstellen, um änderbar zu sein
+            columnNames.addAll(dynamicKeys);
+            fireTableStructureChanged(); // 🔄 Tabelle neu rendern
+        }
+    }
+
 
     @Override
     public int getRowCount() {
@@ -27,12 +44,12 @@ public class ActionTableModel extends AbstractTableModel {
 
     @Override
     public int getColumnCount() {
-        return columnNames.length;
+        return columnNames.size();
     }
 
     @Override
     public String getColumnName(int column) {
-        return columnNames[column];
+        return columnNames.get(column);
     }
 
     @Override
@@ -57,7 +74,9 @@ public class ActionTableModel extends AbstractTableModel {
             case 3: return action.getSelectedSelector();
             case 4: return action.getValue();
             case 5: return action.getTimeout();
-            default: return null;
+            default:
+                String dynamicKey = columnNames.get(columnIndex);
+                return action.getExtractedValues().get(dynamicKey);
         }
     }
 
@@ -71,6 +90,9 @@ public class ActionTableModel extends AbstractTableModel {
             case 3: action.setSelectedSelector((String) value); break;
             case 4: action.setValue((String) value); break;
             case 5: action.setTimeout((Integer) value); break;
+            default:
+                String dynamicKey = columnNames.get(columnIndex);
+                action.getExtractedValues().put(dynamicKey, (String) value);
         }
         fireTableCellUpdated(rowIndex, columnIndex);
     }
@@ -81,11 +103,13 @@ public class ActionTableModel extends AbstractTableModel {
 
     public void addAction(TestAction action) {
         actions.add(action);
+        updateColumnNames();
         fireTableRowsInserted(actions.size() - 1, actions.size() - 1);
     }
 
     public void removeAction(int rowIndex) {
         actions.remove(rowIndex);
+        updateColumnNames();
         fireTableRowsDeleted(rowIndex, rowIndex);
     }
 
@@ -193,6 +217,7 @@ public class ActionTableModel extends AbstractTableModel {
     public void setRowData(List<TestAction> when) {
         actions.clear();
         actions.addAll(when);
+        updateColumnNames();
         fireTableDataChanged();
     }
 }
