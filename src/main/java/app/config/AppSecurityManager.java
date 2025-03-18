@@ -37,6 +37,7 @@ public class AppSecurityManager extends SecurityManager {
         ALLOWED_PACKAGES.add("wd4j.helper");
         ALLOWED_PACKAGES.add("wd4j.helper.");
         ALLOWED_PACKAGES.add("wd4j.helper.dto");
+        ALLOWED_PACKAGES.add("kotlinx.coroutines.debug.internal");
 
         // ✅ Einzelne erlaubte Klassen
         ALLOWED_CLASSES.add("java.lang.Thread");

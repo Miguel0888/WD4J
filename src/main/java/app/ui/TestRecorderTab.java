@@ -25,13 +25,12 @@ import java.util.List;
 public class TestRecorderTab implements UIComponent {
     public static final String SELECT_ON_CREATE = "@When"; // Alternatives: "@Given", "@When", "@Then"
     private final JPanel panel;
-    private final ActionTableModel tableModel;
     private final JTree testCaseTree;
     private final DefaultMutableTreeNode rootNode;
     private final DefaultTreeModel treeModel;
     private final JPanel contentPanel;
     private final CardLayout cardLayout;
-    private JTable actionTable;
+    private ActionTable actionTable;
 
     private JList<String> givenList, thenList;
     private DefaultListModel<String> givenListModel, thenListModel;
@@ -44,7 +43,6 @@ public class TestRecorderTab implements UIComponent {
 
     public TestRecorderTab(MainController controller) {
         panel = new JPanel(new BorderLayout());
-        tableModel = new ActionTableModel(Arrays.asList("✔", "Aktion", "Locator-Typ", "Selektor", "Wert", "Wartezeit"));
 
         // Testfall-Hierarchie (JTree)
         rootNode = new DefaultMutableTreeNode("Testfälle");
@@ -129,7 +127,7 @@ public class TestRecorderTab implements UIComponent {
     }
 
     private JTable createActionTable() {
-        actionTable = new ActionTable(tableModel); // ✅ NEUE ActionTable benutzen
+        actionTable = new ActionTable(); // ✅ NEUE ActionTable benutzen
         return actionTable;
     }
 
@@ -305,13 +303,15 @@ public class TestRecorderTab implements UIComponent {
 
                 case "@When":
                     cardLayout.show(contentPanel, "@When");
-                    tableModel.setRowData(testCase.getWhen());
+
+                    // 🔄 Setze die Daten direkt in die ActionTable
+                    actionTable.setRowData(testCase.getWhen());
 
                     JButton addActionButton = new JButton("Aktion hinzufügen");
                     addActionButton.addActionListener(e -> {
                         LinkedHashMap<String, String> extractedValues = new LinkedHashMap<>(); // ToDo: Move into TestAction
                         TestAction newAction = new TestAction("click", "css", "", extractedValues, 3000);
-                        tableModel.addAction(newAction);
+                        actionTable.addAction(newAction);  // ✅ Verwende jetzt die ActionTable-Methode
 
                         // 🟢 Testfall-Datenstruktur aktualisieren
                         if (testCase != null) {
@@ -323,7 +323,7 @@ public class TestRecorderTab implements UIComponent {
                     removeActionButton.addActionListener(e -> {
                         int selectedRow = actionTable.getSelectedRow();
                         if (selectedRow != -1) {
-                            tableModel.removeAction(selectedRow);
+                            actionTable.removeAction(selectedRow);  // ✅ Jetzt auf ActionTable aufrufen
                         }
                     });
 
@@ -334,6 +334,7 @@ public class TestRecorderTab implements UIComponent {
                     dynamicButtonPanel.add(removeActionButton);
                     dynamicButtonPanel.add(importRecordedButton);
                     break;
+
 
                 case "@Then":
                     cardLayout.show(contentPanel, "@Then");
@@ -503,7 +504,7 @@ public class TestRecorderTab implements UIComponent {
 
         for (RecordedEvent event : recordedEvents) {
             TestAction action = RecorderService.getInstance().convertToTestAction(event);
-            tableModel.addAction(action);
+            actionTable.addAction(action);
             testCase.getWhen().add(action);
         }
 

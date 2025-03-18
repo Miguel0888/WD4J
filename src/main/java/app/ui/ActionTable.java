@@ -4,58 +4,67 @@ import app.dto.TestAction;
 import wd4j.helper.RecorderService;
 
 import javax.swing.*;
+import javax.swing.event.TableModelEvent;
 import javax.swing.table.*;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class ActionTable extends JTable {
     private final ActionTableModel tableModel;
     private final JPopupMenu columnMenu;
 
-    public ActionTable(ActionTableModel tableModel) {
-        super(tableModel);
-        this.tableModel = tableModel;
+    public ActionTable() {
+        this.tableModel = new ActionTableModel();
+        setModel(tableModel);
+        this.columnMenu = new JPopupMenu();
 
-        // 🛠️ Spaltensteuerungs-Menü vorbereiten
-        columnMenu = new JPopupMenu();
-        configureColumns();
+        configureColumns(); // 🛠️ Initiale Spaltenkonfiguration
         setUpEditors();
+
+        // 🔥 Lauscher hinzufügen, damit sich die Spalten dynamisch aktualisieren
+        tableModel.addTableModelListener(e -> {
+            if (e.getType() == TableModelEvent.INSERT || e.getType() == TableModelEvent.UPDATE) {
+                configureColumns(); // ✅ Spalten neu setzen
+                setUpEditors(); // 🟢 Editoren erneut setzen
+            }
+        });
     }
 
-    /** 🔧 Konfiguriert die Spalten und fügt das Header-Menü hinzu */
+    /** 🔧 Konfiguriert das Spalten-Menü und setzt den Header */
     private void configureColumns() {
         TableColumnModel columnModel = getColumnModel();
-        List<String> columnNames = Arrays.asList("Aktion", "Locator-Typ", "Selektor", "Wert", "Wartezeit");
+        columnModel.getColumn(0).setHeaderRenderer(new ButtonHeaderRenderer(columnMenu));
+        columnModel.getColumn(0).setPreferredWidth(30);
+        columnModel.getColumn(0).setMaxWidth(40);
+        columnModel.getColumn(0).setMinWidth(30);
 
-        for (int i = 1; i < columnModel.getColumnCount(); i++) { // 0 ist die Checkbox-Spalte
+        columnMenu.removeAll(); // 🔄 Menü leeren, um doppelte Einträge zu vermeiden
+
+        // Spaltensteuerungs-Menü neu aufbauen
+        for (int i = 1; i < columnModel.getColumnCount(); i++) {
             TableColumn column = columnModel.getColumn(i);
-            JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(columnNames.get(i - 1), true);
+            JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(tableModel.getColumnName(i), true);
 
             final int columnIndex = i;
             menuItem.addActionListener(e -> {
                 if (menuItem.isSelected()) {
-                    addColumn(column);
+                    column.setMinWidth(75);
+                    column.setMaxWidth(300);
                 } else {
-                    removeColumn(column);
+                    column.setMinWidth(0);
+                    column.setMaxWidth(0);
                 }
             });
 
             columnMenu.add(menuItem);
         }
-
-        // 🟢 Button im Header setzen für Spaltensteuerung
-        columnModel.getColumn(0).setHeaderRenderer(new ButtonHeaderRenderer(columnMenu));
     }
 
     /** 🟢 Setzt die Spalteneditoren für DropDowns */
     private void setUpEditors() {
         TableColumnModel columnModel = getColumnModel();
 
-        // 🟢 Checkbox-Editor setzen (Boolean-Werte)
+        // 🟢 Checkbox-Editor setzen
         columnModel.getColumn(0).setCellEditor(new DefaultCellEditor(new JCheckBox()));
         columnModel.getColumn(0).setCellRenderer(getDefaultRenderer(Boolean.class));
 
@@ -63,45 +72,32 @@ public class ActionTable extends JTable {
         JComboBox<String> actionComboBox = new JComboBox<>(new String[]{"click", "input", "screenshot"});
         columnModel.getColumn(1).setCellEditor(new DefaultCellEditor(actionComboBox));
 
-        // Locator-Typen DropDown
-        JComboBox<String> locatorTypeComboBox = new JComboBox<>(new String[]{"css", "xpath", "id", "text", "role", "label", "placeholder", "altText"});
-        columnModel.getColumn(2).setCellEditor(new DefaultCellEditor(locatorTypeComboBox));
-
-        // Selektor DropDown dynamisch befüllen
-        JComboBox<String> selectorComboBox = new JComboBox<>();
-        columnModel.getColumn(3).setCellEditor(new DefaultCellEditor(selectorComboBox));
-
-        // Selektoren dynamisch nachladen
-        getSelectionModel().addListSelectionListener(e -> {
-            int row = getSelectedRow();
-            if (row >= 0) {
-                TestAction action = tableModel.getActions().get(row);
-                List<String> suggestions = RecorderService.getInstance().getSelectorAlternatives(action.getSelectedSelector());
-                selectorComboBox.removeAllItems();
-                for (String suggestion : suggestions) {
-                    selectorComboBox.addItem(suggestion);
-                }
-            }
-        });
-
-        columnModel.getColumn(4).setCellEditor(new DefaultCellEditor(new JTextField()));
-
-        // Spaltenausrichtung anpassen (zentriert für "Wartezeit")
-        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-        centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
-        columnModel.getColumn(5).setCellRenderer(centerRenderer);
-
         // 🛠️ MouseListener für Klicks im Header hinzufügen
         JTableHeader header = getTableHeader();
         header.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 int column = columnAtPoint(evt.getPoint());
-                if (column == 0) { // Falls der Button-Header (Schraubenschlüssel) geklickt wurde
-                    columnMenu.show(header, evt.getX(), evt.getY()); // Popup-Menü an Mausposition öffnen
+                if (column == 0) {
+                    columnMenu.show(header, evt.getX(), evt.getY()); // 🛠️ Popup-Menü anzeigen
                 }
             }
         });
+    }
+
+    /** 🔧 Action hinzufügen und automatisch UI updaten */
+    public void addAction(TestAction action) {
+        tableModel.addAction(action);
+    }
+
+    /** 🔧 Entfernt eine Aktion */
+    public void removeAction(int rowIndex) {
+        tableModel.removeAction(rowIndex);
+    }
+
+    /** 🔧 Setzt neue Daten */
+    public void setRowData(List<TestAction> actions) {
+        tableModel.setRowData(actions);
     }
 
     /** 🔧 Custom Renderer für den Header mit Button */
@@ -124,18 +120,4 @@ public class ActionTable extends JTable {
             return this;
         }
     }
-
-    public void updateTableStructure() {
-        tableModel.updateColumnNames(); // 🔄 Zuerst die Spalten im Model aktualisieren
-        setModel(tableModel); // 🚀 Model neu setzen, damit JTable sich aktualisiert
-
-        // 🔥 Header mit 🔧 Schraubenschlüssel erneut setzen
-        TableColumn firstColumn = getColumnModel().getColumn(0);
-        firstColumn.setHeaderRenderer(new ButtonHeaderRenderer(columnMenu));
-        firstColumn.setPreferredWidth(30);  // 🔥 Feste Breite für Checkbox-Spalte
-        firstColumn.setMaxWidth(40);        // 🔥 Maximalbreite begrenzen
-        firstColumn.setMinWidth(30);        // 🔥 Minimalbreite setzen
-    }
-
-
 }
