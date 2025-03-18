@@ -7,11 +7,16 @@ import javax.swing.*;
 import javax.swing.event.TableModelEvent;
 import javax.swing.table.*;
 import java.awt.*;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ActionTable extends JTable {
     private final ActionTableModel tableModel;
     private final JPopupMenu columnMenu;
+
+    private final Map<String, Boolean> columnVisibility = new HashMap<>();
+    private final Map<TableColumn, Integer> columnWidths = new HashMap<>();
 
     public ActionTable() {
         this.tableModel = new ActionTableModel();
@@ -37,26 +42,46 @@ public class ActionTable extends JTable {
         columnModel.getColumn(0).setPreferredWidth(30);
         columnModel.getColumn(0).setMaxWidth(40);
         columnModel.getColumn(0).setMinWidth(30);
+        columnModel.getColumn(0).setResizable(false);
 
         columnMenu.removeAll(); // 🔄 Menü leeren, um doppelte Einträge zu vermeiden
 
         // Spaltensteuerungs-Menü neu aufbauen
         for (int i = 1; i < columnModel.getColumnCount(); i++) {
             TableColumn column = columnModel.getColumn(i);
-            JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(tableModel.getColumnName(i), true);
+            String columnName = tableModel.getColumnName(i);
 
-            final int columnIndex = i;
+            // 🔥 Speichere die aktuelle Breite IMMER, auch wenn Spalte schon existiert
+            columnWidths.put(column, column.getPreferredWidth());
+
+            // 🔥 Sichtbarkeit beibehalten oder Standardwert setzen
+            boolean isVisible = columnVisibility.getOrDefault(columnName, true);
+            setColumnVisibility(column, isVisible);
+
+            // 🟢 Menüeintrag hinzufügen
+            JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(tableModel.getColumnName(i), true);
+            menuItem.setSelected(isVisible);
             menuItem.addActionListener(e -> {
-                if (menuItem.isSelected()) {
-                    column.setMinWidth(75);
-                    column.setMaxWidth(300);
-                } else {
-                    column.setMinWidth(0);
-                    column.setMaxWidth(0);
-                }
+                boolean selected = menuItem.isSelected();
+                columnVisibility.put(columnName, selected);
+                setColumnVisibility(column, selected);
             });
 
             columnMenu.add(menuItem);
+        }
+    }
+
+    private void setColumnVisibility(TableColumn column, boolean visible) {
+        if (visible) {
+            int originalWidth = columnWidths.getOrDefault(column, 100); // 🔥 Breite wiederherstellen
+            column.setMinWidth(75);
+            column.setMaxWidth(300);
+            column.setPreferredWidth(originalWidth);
+            column.setResizable(true);
+        } else {
+            column.setMinWidth(0);
+            column.setMaxWidth(0);
+            column.setResizable(false);
         }
     }
 
