@@ -2,6 +2,7 @@ package app.dto;
 
 import wd4j.api.options.AriaRole;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -27,7 +28,12 @@ public class TestAction {
         this.action = action;
         this.locatorType = locatorType;
         this.selectedSelector = selectedSelector;
-        this.extractedValues = extractedValues;
+        if (extractedValues != null) {
+            this.extractedValues = extractedValues;
+        }
+        else {
+            this.extractedValues = new LinkedHashMap<>();
+        }
         this.timeout = timeout;
     }
 

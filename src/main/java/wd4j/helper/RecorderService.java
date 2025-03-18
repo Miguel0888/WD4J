@@ -7,6 +7,7 @@ import wd4j.helper.dto.RecordedEvent;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -50,6 +51,14 @@ public class RecorderService {
         action.setValue(event.getValue());
         action.setTimeout(3000); // Standard-Timeout
 
+        // ✅ Übernehme extractedValues in TestAction
+        if (event.getExtractedValues() != null) {
+            action.setExtractedValues(new LinkedHashMap<>(event.getExtractedValues()));
+        } else {
+            action.setExtractedValues(new LinkedHashMap<>()); // Leere Map vermeiden NullPointer
+        }
+
+        System.out.println("🔄 Konvertierte TestAction: " + action);
         return action;
     }
 

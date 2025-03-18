@@ -31,12 +31,12 @@ public class ActionTableModel extends AbstractTableModel {
                 .collect(Collectors.toSet());
 
         if (!dynamicKeys.isEmpty()) {
-            columnNames = new ArrayList<>(columnNames); // Kopie erstellen, um änderbar zu sein
-            columnNames.addAll(dynamicKeys);
-            fireTableStructureChanged(); // 🔄 Tabelle neu rendern
+            List<String> updatedColumnNames = new ArrayList<>(columnNames); // Kopie erstellen, um änderbar zu sein
+            updatedColumnNames.addAll(dynamicKeys);
+            columnNames = updatedColumnNames; // Aktualisierte Liste übernehmen
+            fireTableStructureChanged(); // 🔄 Tabelle komplett neu rendern
         }
     }
-
 
     @Override
     public int getRowCount() {
@@ -75,9 +75,12 @@ public class ActionTableModel extends AbstractTableModel {
             case 3: return action.getSelectedSelector();
             case 4: return action.getValue();
             case 5: return action.getTimeout();
-            default:
+            default:  // Dynamische Spalten
                 String dynamicKey = columnNames.get(columnIndex);
-                return action.getExtractedValues().get(dynamicKey);
+                if (action.getExtractedValues() != null) {
+                    return action.getExtractedValues().getOrDefault(dynamicKey, ""); // Falls Key nicht existiert, leeren String zurückgeben
+                }
+                return ""; // Falls extractedValues null ist
         }
     }
 
@@ -103,10 +106,12 @@ public class ActionTableModel extends AbstractTableModel {
     }
 
     public void addAction(TestAction action) {
+        System.out.println("Neue Aktion hinzugefügt: " + action); // Debugging-Ausgabe
         actions.add(action);
-        updateColumnNames();
+        updateColumnNames(); // 🔥 Neue Spalten prüfen und ggf. hinzufügen
         fireTableRowsInserted(actions.size() - 1, actions.size() - 1);
     }
+
 
     public void removeAction(int rowIndex) {
         actions.remove(rowIndex);

@@ -1,6 +1,6 @@
 package wd4j.helper.dto;
 
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class RecordedEvent {
@@ -8,8 +8,6 @@ public class RecordedEvent {
     private String action;
     private String value;
     private String key;
-    private String extractedText;
-    private List<String> extractedColumns;
     private String inputName;
     private String buttonText;
     private String pagination;
@@ -19,9 +17,12 @@ public class RecordedEvent {
     private Map<String, String> aria;
     private Map<String, String> attributes;
     private Map<String, String> test;
+    private Map<String, String> extractedValues; // 🆕 Ersetzt extractedText & extractedColumns
 
     // Standard-Konstruktor (wichtig für GSON)
-    public RecordedEvent() {}
+    public RecordedEvent() {
+        this.extractedValues = new LinkedHashMap<>();
+    }
 
     // Getter & Setter
     public String getSelector() { return selector; }
@@ -35,12 +36,6 @@ public class RecordedEvent {
 
     public String getKey() { return key; }
     public void setKey(String key) { this.key = key; }
-
-    public String getExtractedText() { return extractedText; }
-    public void setExtractedText(String extractedText) { this.extractedText = extractedText; }
-
-    public List<String> getExtractedColumns() { return extractedColumns; }
-    public void setExtractedColumns(List<String> extractedColumns) { this.extractedColumns = extractedColumns; }
 
     public String getInputName() { return inputName; }
     public void setInputName(String inputName) { this.inputName = inputName; }
@@ -68,4 +63,7 @@ public class RecordedEvent {
 
     public Map<String, String> getTest() { return test; }
     public void setTest(Map<String, String> test) { this.test = test; }
+
+    public Map<String, String> getExtractedValues() { return extractedValues; }
+    public void setExtractedValues(Map<String, String> extractedValues) { this.extractedValues = extractedValues; }
 }
