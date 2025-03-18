@@ -43,7 +43,8 @@ public class TestRecorderTab implements UIComponent {
 
     public TestRecorderTab(MainController controller) {
         panel = new JPanel(new BorderLayout());
-        tableModel = new ActionTableModel(new ArrayList<>());
+        String[] columnNames = {"✔", "Aktion", "Locator-Typ", "Selektor", "Wert", "Wartezeit"};
+        tableModel = new ActionTableModel(columnNames);
 
         // Testfall-Hierarchie (JTree)
         rootNode = new DefaultMutableTreeNode("Testfälle");
@@ -511,7 +512,7 @@ public class TestRecorderTab implements UIComponent {
 
         for (RecordedEvent event : recordedEvents) {
             TestAction action = RecorderService.getInstance().convertToTestAction(event);
-            tableModel.addAction(action); // ✅ Jetzt auf dem **richtigen** Model!
+            tableModel.addAction(action);
             testCase.getWhen().add(action);
         }
 

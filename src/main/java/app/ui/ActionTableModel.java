@@ -8,15 +8,16 @@ import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class ActionTableModel extends AbstractTableModel {
-    private final List<TestAction> actions;
-    private final String[] columnNames = {"✔", "Aktion", "Locator-Typ", "Selektor", "Wartezeit"};
+    private final List<TestAction> actions = new ArrayList<>();
+    private final String[] columnNames;
 
-    public ActionTableModel(List<TestAction> actions) {
-        this.actions = actions;
+    public ActionTableModel(String[] columnNames) {
+        this.columnNames = columnNames;
     }
 
     @Override
@@ -54,7 +55,8 @@ public class ActionTableModel extends AbstractTableModel {
             case 1: return action.getAction();
             case 2: return action.getLocatorType();
             case 3: return action.getSelectedSelector();
-            case 4: return action.getTimeout();
+            case 4: return action.getValue();
+            case 5: return action.getTimeout();
             default: return null;
         }
     }
@@ -67,7 +69,8 @@ public class ActionTableModel extends AbstractTableModel {
             case 1: action.setAction((String) value); break;
             case 2: action.setLocatorType((String) value); break;
             case 3: action.setSelectedSelector((String) value); break;
-            case 4: action.setTimeout((Integer) value); break;
+            case 4: action.setValue((String) value); break;
+            case 5: action.setTimeout((Integer) value); break;
         }
         fireTableCellUpdated(rowIndex, columnIndex);
     }
@@ -117,15 +120,17 @@ public class ActionTableModel extends AbstractTableModel {
             }
         });
 
+        table.getColumnModel().getColumn(4).setCellEditor(new DefaultCellEditor(new JTextField()));
+
         // Spaltenausrichtung anpassen (zentriert für "Wartezeit")
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
-        table.getColumnModel().getColumn(4).setCellRenderer(centerRenderer);
+        table.getColumnModel().getColumn(5).setCellRenderer(centerRenderer);
 
         // 🛠️ Spaltensteuerungs-Menü vorbereiten
         TableColumnModel columnModel = table.getColumnModel();
         JPopupMenu columnMenu = new JPopupMenu();
-        List<String> columnNames = Arrays.asList("Aktion", "Locator-Typ", "Selektor", "Wartezeit");
+        List<String> columnNames = Arrays.asList("Aktion", "Locator-Typ", "Selektor", "Wert", "Wartezeit");
 
         for (int i = 1; i < columnModel.getColumnCount(); i++) { // 0 ist die Checkbox-Spalte
             TableColumn column = columnModel.getColumn(i);
