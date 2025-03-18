@@ -129,17 +129,7 @@ public class TestRecorderTab implements UIComponent {
     }
 
     private JTable createActionTable() {
-        actionTable = new JTable(tableModel);
-
-        // 🟢 Checkbox-Spalte als erste Spalte hinzufügen
-        TableColumn checkBoxColumn = actionTable.getColumnModel().getColumn(0);
-        checkBoxColumn.setCellEditor(new DefaultCellEditor(new JCheckBox()));
-        checkBoxColumn.setCellRenderer(actionTable.getDefaultRenderer(Boolean.class));
-        checkBoxColumn.setPreferredWidth(30); // ✔ Feste Breite für die Checkbox-Spalte
-
-        // 🟢 Spalteneditoren setzen
-        tableModel.setUpEditors(actionTable);
-
+        actionTable = new ActionTable(tableModel); // ✅ NEUE ActionTable benutzen
         return actionTable;
     }
 

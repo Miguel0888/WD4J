@@ -1,28 +1,24 @@
 package app.ui;
 
 import app.dto.TestAction;
-import wd4j.helper.RecorderService;
 
 import javax.swing.*;
 import javax.swing.table.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 public class ActionTableModel extends AbstractTableModel {
     private final List<TestAction> actions = new ArrayList<>();
     private List<String> columnNames;
+    private JPopupMenu columnMenu;
 
     public ActionTableModel(List<String> columnNames) {
         this.columnNames = new ArrayList<>(columnNames);
     }
 
-    private void updateColumnNames() {
+    void updateColumnNames() {
         Set<String> dynamicKeys = actions.stream()
                 .filter(action -> action.getExtractedValues() != null)
                 .flatMap(action -> action.getExtractedValues().keySet().stream())
@@ -31,10 +27,10 @@ public class ActionTableModel extends AbstractTableModel {
                 .collect(Collectors.toSet());
 
         if (!dynamicKeys.isEmpty()) {
-            List<String> updatedColumnNames = new ArrayList<>(columnNames); // Kopie erstellen, um änderbar zu sein
+            List<String> updatedColumnNames = new ArrayList<>(columnNames);
             updatedColumnNames.addAll(dynamicKeys);
-            columnNames = updatedColumnNames; // Aktualisierte Liste übernehmen
-            fireTableStructureChanged(); // 🔄 Tabelle komplett neu rendern
+            columnNames = updatedColumnNames;
+            fireTableStructureChanged(); // 🔄 Nur Datenmodell neu rendern
         }
     }
 
@@ -105,6 +101,11 @@ public class ActionTableModel extends AbstractTableModel {
         return actions;
     }
 
+    public List<String> getColumnNames()
+    {
+        return columnNames;
+    }
+
     public void addAction(TestAction action) {
         System.out.println("Neue Aktion hinzugefügt: " + action); // Debugging-Ausgabe
         actions.add(action);
@@ -117,85 +118,6 @@ public class ActionTableModel extends AbstractTableModel {
         actions.remove(rowIndex);
         updateColumnNames();
         fireTableRowsDeleted(rowIndex, rowIndex);
-    }
-
-    /** 🟢 Setzt die Spalteneditoren für DropDowns */
-    public void setUpEditors(JTable table) {
-        // 🟢 Checkbox-Editor setzen (Boolean-Werte)
-        table.getColumnModel().getColumn(0).setCellEditor(new DefaultCellEditor(new JCheckBox()));
-        table.getColumnModel().getColumn(0).setCellRenderer(table.getDefaultRenderer(Boolean.class));
-
-        // Aktionen DropDown
-        JComboBox<String> actionComboBox = new JComboBox<>(new String[]{"click", "input", "screenshot"});
-        table.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(actionComboBox));
-
-        // Locator-Typen DropDown
-        JComboBox<String> locatorTypeComboBox = new JComboBox<>(new String[]{"css", "xpath", "id", "text", "role", "label", "placeholder", "altText"});
-        table.getColumnModel().getColumn(2).setCellEditor(new DefaultCellEditor(locatorTypeComboBox));
-
-        // Selektor DropDown dynamisch befüllen
-        JComboBox<String> selectorComboBox = new JComboBox<>();
-        table.getColumnModel().getColumn(3).setCellEditor(new DefaultCellEditor(selectorComboBox));
-
-        // Selektoren dynamisch nachladen
-        table.getSelectionModel().addListSelectionListener(e -> {
-            int row = table.getSelectedRow();
-            if (row >= 0) {
-                TestAction action = getActions().get(row);
-                List<String> suggestions = RecorderService.getInstance().getSelectorAlternatives(action.getSelectedSelector());
-                selectorComboBox.removeAllItems();
-                for (String suggestion : suggestions) {
-                    selectorComboBox.addItem(suggestion);
-                }
-            }
-        });
-
-        table.getColumnModel().getColumn(4).setCellEditor(new DefaultCellEditor(new JTextField()));
-
-        // Spaltenausrichtung anpassen (zentriert für "Wartezeit")
-        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-        centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
-        table.getColumnModel().getColumn(5).setCellRenderer(centerRenderer);
-
-        // 🛠️ Spaltensteuerungs-Menü vorbereiten
-        TableColumnModel columnModel = table.getColumnModel();
-        JPopupMenu columnMenu = new JPopupMenu();
-        List<String> columnNames = Arrays.asList("Aktion", "Locator-Typ", "Selektor", "Wert", "Wartezeit");
-
-        for (int i = 1; i < columnModel.getColumnCount(); i++) { // 0 ist die Checkbox-Spalte
-            TableColumn column = columnModel.getColumn(i);
-            JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(columnNames.get(i - 1), true);
-
-            final int columnIndex = i;
-            menuItem.addActionListener(e -> {
-                if (menuItem.isSelected()) {
-                    table.addColumn(column);
-                } else {
-                    table.removeColumn(column);
-                }
-            });
-
-            columnMenu.add(menuItem);
-        }
-
-        // 🟢 Button im Header setzen für Spaltensteuerung
-        columnModel.getColumn(0).setHeaderRenderer(new ButtonHeaderRenderer(columnMenu));
-        TableColumn firstColumn = table.getColumnModel().getColumn(0);
-        firstColumn.setPreferredWidth(30);  // 🔥 Setze die Breite auf 30 Pixel (anpassen, falls nötig)
-        firstColumn.setMaxWidth(40);        // 🔥 Maximalbreite begrenzen
-        firstColumn.setMinWidth(30);        // 🔥 Minimalbreite setzen
-
-        // 🛠️ MouseListener für Klicks im Header hinzufügen
-        JTableHeader header = table.getTableHeader();
-        header.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseClicked(java.awt.event.MouseEvent evt) {
-                int column = table.columnAtPoint(evt.getPoint());
-                if (column == 0) { // Falls der Button-Header geklickt wurde
-                    columnMenu.show(header, evt.getX(), evt.getY()); // Popup-Menü an Mausposition öffnen
-                }
-            }
-        });
     }
 
     /** 🔧 Custom Renderer für den Header mit Button */
