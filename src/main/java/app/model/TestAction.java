@@ -1,4 +1,4 @@
-package app.dto;
+package app.model;
 
 import wd4j.api.options.AriaRole;
 
@@ -12,7 +12,10 @@ public class TestAction {
     private String selectedSelector;  // Der tatsächlich verwendete Selektor
     private String locatorType; // "css", "xpath", "id", "text", "role", "label", "placeholder", "altText"
     private String value;
-    private Map<String, String> extractedValues; // Für die Extraktion von Werten, die später zum Auffinden evtl. benötigt werden
+    private Map<String, String> extractedValues = new LinkedHashMap<>();
+    private Map<String, String> extractedAttributes = new LinkedHashMap<>();
+    private Map<String, String> extractedTestIds = new LinkedHashMap<>();
+    private Map<String, String> extractedAriaRoles = new LinkedHashMap<>();
     private int timeout;
 
     private List<String> availableCssSelectors;
@@ -137,4 +140,30 @@ public class TestAction {
     public void setExtractedValues(Map<String, String> extractedValues) {
         this.extractedValues = extractedValues;
     }
+
+    public Map<String, String> getExtractedAttributes() {
+        return extractedAttributes;
+    }
+
+    public void setExtractedAttributes(Map<String, String> extractedAttributes) {
+        this.extractedValues = extractedAttributes;
+    }
+
+    public Map<String, String> getExtractedTestIds() {
+        return extractedTestIds;
+    }
+
+    public void setExtractedTestIds(Map<String, String> extractedTestIds) {
+        this.extractedTestIds = extractedTestIds;
+    }
+
+    public Map<String, String> getExtractedAriaRoles() {
+        return extractedAriaRoles;
+    }
+
+    public void setExtractedAriaRoles(Map<String, String> extractedAriaRoles) {
+        this.extractedAriaRoles = extractedAriaRoles;
+    }
+
+
 }

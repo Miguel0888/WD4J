@@ -1,24 +1,21 @@
 package app.ui;
 
 import app.controller.MainController;
-import app.dto.TestAction;
-import app.dto.TestCase;
-import app.dto.TestSuite;
+import app.model.TestAction;
+import app.model.TestCase;
+import app.model.TestSuite;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import wd4j.helper.RecorderService;
-import wd4j.helper.dto.RecordedEvent;
+import app.dto.RecordedEvent;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableColumn;
 import javax.swing.tree.*;
 import java.awt.*;
 import java.io.*;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 

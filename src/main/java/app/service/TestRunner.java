@@ -1,7 +1,7 @@
 package app.service;
 
-import app.dto.TestAction;
-import app.dto.TestCase;
+import app.model.TestAction;
+import app.model.TestCase;
 import wd4j.api.Locator;
 import wd4j.api.Page;
 

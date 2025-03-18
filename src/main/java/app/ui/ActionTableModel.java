@@ -1,6 +1,6 @@
 package app.ui;
 
-import app.dto.TestAction;
+import app.model.TestAction;
 
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableColumn;

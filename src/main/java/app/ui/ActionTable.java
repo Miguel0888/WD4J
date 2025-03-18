@@ -1,7 +1,6 @@
 package app.ui;
 
-import app.dto.TestAction;
-import wd4j.helper.RecorderService;
+import app.model.TestAction;
 
 import javax.swing.*;
 import javax.swing.event.TableModelEvent;

@@ -1,9 +1,9 @@
 package wd4j.helper;
 
-import app.dto.TestAction;
+import app.model.TestAction;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import wd4j.helper.dto.RecordedEvent;
+import app.dto.RecordedEvent;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -43,24 +43,177 @@ public class RecorderService {
         }
     }
 
+    /**
+     * 🚀 Konvertiert ein {@link RecordedEvent} in eine {@link TestAction}.
+     * <p>
+     * Die folgende Tabelle zeigt, wie die Felder von {@link RecordedEvent} auf die Felder von {@link TestAction} abgebildet werden:
+     * </p>
+     *
+     * <table>
+     *   <tr>
+     *     <th>📌 RecordedEvent-Feld</th>
+     *     <th>➡ Mapping in TestAction</th>
+     *     <th>📖 Beschreibung</th>
+     *   </tr>
+     *   <tr>
+     *     <td><code>selector</code></td>
+     *     <td><code>selectedSelector</code></td>
+     *     <td>Direkt übernommen</td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>action</code></td>
+     *     <td><code>action</code></td>
+     *     <td>Direkt übernommen</td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>value</code></td>
+     *     <td><code>value</code></td>
+     *     <td>Direkt übernommen</td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>key</code></td>
+     *     <td><code>value</code> (falls nicht null, sonst <code>extractedValues</code>)</td>
+     *     <td>Mapped auf <code>value</code> oder <code>extractedValues</code></td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>buttonText</code></td>
+     *     <td><code>value</code> (falls nicht null, sonst <code>extractedValues</code>)</td>
+     *     <td>Mapped auf <code>value</code> oder <code>extractedValues</code></td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>inputName</code></td>
+     *     <td><code>extractedAttributes</code> (Key: "inputName")</td>
+     *     <td>In <code>extractedAttributes</code> gespeichert</td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>pagination</code></td>
+     *     <td><code>extractedAttributes</code> (Key: "pagination")</td>
+     *     <td>In <code>extractedAttributes</code> gespeichert</td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>elementId</code></td>
+     *     <td><code>extractedAttributes</code> (Key: "elementId")</td>
+     *     <td>In <code>extractedAttributes</code> gespeichert</td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>classes</code></td>
+     *     <td><code>extractedAttributes</code> (Key: "classes")</td>
+     *     <td>In <code>extractedAttributes</code> gespeichert</td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>xpath</code></td>
+     *     <td><code>locatorType</code> ("xpath" falls vorhanden, sonst "css")</td>
+     *     <td>XPath hat Priorität als Locator</td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>aria</code></td>
+     *     <td><code>extractedAriaRoles</code></td>
+     *     <td>Map mit allen Aria-Werten</td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>attributes</code></td>
+     *     <td><code>extractedAttributes</code></td>
+     *     <td>Map mit allen Attributen</td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>test</code></td>
+     *     <td><code>extractedTestIds</code></td>
+     *     <td>Map mit Test-IDs</td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>extractedValues</code></td>
+     *     <td><code>extractedValues</code></td>
+     *     <td>Direkt übernommen</td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>oldValue</code></td>
+     *     <td><code>extractedAttributes</code> (Key: "oldValue")</td>
+     *     <td>Für DOM-Events gespeichert</td>
+     *   </tr>
+     *   <tr>
+     *     <td><code>newValue</code></td>
+     *     <td><code>extractedAttributes</code> (Key: "newValue")</td>
+     *     <td>Für DOM-Events gespeichert</td>
+     *   </tr>
+     * </table>
+     *
+     * <p>
+     * Falls es zu Kollisionen kommt (z. B. <code>buttonText</code> und <code>key</code> gleichzeitig gesetzt),
+     * wird der zusätzliche Wert in <code>extractedValues</code> gespeichert, um Datenverlust zu vermeiden. ✅
+     * </p>
+     *
+     * @param event Das {@link RecordedEvent}, das konvertiert werden soll.
+     * @return Die erzeugte {@link TestAction}-Instanz.
+     */
     public TestAction convertToTestAction(RecordedEvent event) {
         TestAction action = new TestAction();
+
         action.setAction(event.getAction());
         action.setSelectedSelector(event.getSelector());
         action.setLocatorType(event.getXpath() != null ? "xpath" : "css"); // Priorität für XPath
-        action.setValue(event.getValue());
         action.setTimeout(3000); // Standard-Timeout
 
-        // ✅ Übernehme extractedValues in TestAction
-        if (event.getExtractedValues() != null) {
-            action.setExtractedValues(new LinkedHashMap<>(event.getExtractedValues()));
-        } else {
-            action.setExtractedValues(new LinkedHashMap<>()); // Leere Map vermeiden NullPointer
+        // ✅ extractedValues übernehmen
+        action.setExtractedValues(event.getExtractedValues() != null ?
+                new LinkedHashMap<>(event.getExtractedValues()) : new LinkedHashMap<>());
+
+        // ✅ extractedAttributes übernehmen
+        action.setExtractedAttributes(event.getAttributes() != null ?
+                new LinkedHashMap<>(event.getAttributes()) : new LinkedHashMap<>());
+
+        // ✅ extractedTestIds übernehmen
+        action.setExtractedTestIds(event.getTest() != null ?
+                new LinkedHashMap<>(event.getTest()) : new LinkedHashMap<>());
+
+        // ✅ extractedAriaRoles übernehmen
+        action.setExtractedAriaRoles(event.getAria() != null ?
+                new LinkedHashMap<>(event.getAria()) : new LinkedHashMap<>());
+
+        // ✅ pagination in extractedAttributes speichern
+        if (event.getPagination() != null) {
+            action.getExtractedAttributes().put("pagination", event.getPagination());
+        }
+
+        // ✅ inputName in extractedAttributes speichern
+        if (event.getInputName() != null) {
+            action.getExtractedAttributes().put("inputName", event.getInputName());
+        }
+
+        // ✅ buttonText auf value mappen, falls value noch nicht gesetzt ist
+        if (event.getButtonText() != null) {
+            if (action.getValue() == null) {
+                action.setValue(event.getButtonText());
+            } else {
+                action.getExtractedValues().put("buttonText", event.getButtonText()); // Falls bereits ein value existiert
+            }
+        }
+
+        // ✅ Key-Events (Tastenanschläge) auf "value" mappen
+        if (event.getKey() != null) {
+            if (action.getValue() == null) {
+                action.setValue(event.getKey());
+            } else {
+                action.getExtractedValues().put("key", event.getKey()); // Falls es bereits ein value gibt
+            }
+        }
+
+        // ✅ classes als Attribut speichern
+        if (event.getClasses() != null) {
+            action.getExtractedAttributes().put("classes", event.getClasses());
+        }
+
+        // ✅ oldValue & newValue in extractedAttributes speichern (nur für DOM-Events)
+        if (event.getOldValue() != null) {
+            action.getExtractedAttributes().put("oldValue", event.getOldValue());
+        }
+        if (event.getNewValue() != null) {
+            action.getExtractedAttributes().put("newValue", event.getNewValue());
         }
 
         System.out.println("🔄 Konvertierte TestAction: " + action);
         return action;
     }
+
 
     public List<RecordedEvent> getRecordedEvents() {
         return new ArrayList<>(recordedEvents);

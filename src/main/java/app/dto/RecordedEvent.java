@@ -1,4 +1,4 @@
-package wd4j.helper.dto;
+package app.dto;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -18,6 +18,10 @@ public class RecordedEvent {
     private Map<String, String> attributes;
     private Map<String, String> test;
     private Map<String, String> extractedValues; // 🆕 Ersetzt extractedText & extractedColumns
+
+    // For DOM-Events only:
+    private String oldValue;
+    private String newValue;
 
     // Standard-Konstruktor (wichtig für GSON)
     public RecordedEvent() {
@@ -66,4 +70,12 @@ public class RecordedEvent {
 
     public Map<String, String> getExtractedValues() { return extractedValues; }
     public void setExtractedValues(Map<String, String> extractedValues) { this.extractedValues = extractedValues; }
+
+    public String getOldValue() {
+        return oldValue;
+    }
+
+    public String getNewValue() {
+        return newValue;
+    }
 }
