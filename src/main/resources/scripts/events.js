@@ -223,23 +223,36 @@
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    function recordEventIfInteractive(event) {
+        let target = event.target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], .ui-selectonemenu, .ui-autocomplete, .ui-dropdown');
+
+        if (target) {
+            // Verhindert doppelte Events auf einem Element
+            if (!event._recorded) {
+                event._recorded = true; // Markiere Event als erfasst
+                recordEvent(event);
+            }
+        }
+    }
+
     function rebindEventListeners() {
         console.log('🔄 PrimeFaces AJAX-Update erkannt – Event-Listener werden neu gebunden');
 
-        const elements = document.querySelectorAll('button, a, input, textarea, select, .ui-commandlink, .ui-button');
+        const elements = document.querySelectorAll('button, a, input, textarea, select, .ui-commandlink, .ui-button, .ui-selectonemenu, .ui-autocomplete, .ui-dropdown');
         elements.forEach(el => {
-            el.removeEventListener('click', recordEvent);
-            el.addEventListener('click', recordEvent);
-            el.removeEventListener('input', recordEvent);
-            el.addEventListener('input', recordEvent);
-            el.removeEventListener('change', recordEvent);
-            el.addEventListener('change', recordEvent);
-            el.removeEventListener('keydown', recordEvent);
-            el.addEventListener('keydown', recordEvent);
-            el.removeEventListener('submit', recordEvent);
-            el.addEventListener('submit', recordEvent);
+            el.removeEventListener('click', recordEventIfInteractive);
+            el.addEventListener('click', recordEventIfInteractive);
+            el.removeEventListener('input', recordEventIfInteractive);
+            el.addEventListener('input', recordEventIfInteractive);
+            el.removeEventListener('change', recordEventIfInteractive);
+            el.addEventListener('change', recordEventIfInteractive);
+            el.removeEventListener('keydown', recordEventIfInteractive);
+            el.addEventListener('keydown', recordEventIfInteractive);
+            el.removeEventListener('submit', recordEventIfInteractive);
+            el.addEventListener('submit', recordEventIfInteractive);
         });
     }
+
 
     function watchPrimeFacesAjax() {
         if (window.PrimeFaces) {
@@ -259,6 +272,14 @@
         watchPrimeFacesAjax();
         rebindEventListeners();
         startObserver();
+
+        // Capture Phase verwenden, um Events zu erfassen, bevor PrimeFaces sie verarbeitet
+        document.body.addEventListener('click', event => {
+            recordEventIfInteractive(event);
+        }, true);
+        document.body.addEventListener('keydown', event => {
+            recordEventIfInteractive(event);
+        }, true);
     });
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
