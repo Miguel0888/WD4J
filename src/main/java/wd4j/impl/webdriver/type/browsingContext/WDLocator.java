@@ -3,6 +3,7 @@ package wd4j.impl.webdriver.type.browsingContext;
 import com.google.gson.*;
 import com.google.gson.annotations.JsonAdapter;
 import wd4j.impl.webdriver.mapping.EnumWrapper;
+import wd4j.impl.webdriver.type.script.WDRealmInfo;
 
 import java.lang.reflect.Type;
 
@@ -12,7 +13,7 @@ public interface WDLocator<T> {
     T getValue();
 
     // 🔥 **INNERE KLASSE für JSON-Deserialisierung**
-    class LocatorAdapter implements JsonDeserializer<WDLocator<?>> {
+    class LocatorAdapter implements JsonDeserializer<WDLocator<?>>, JsonSerializer<WDLocator<?>> {
         @Override
         public WDLocator<?> deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             JsonObject jsonObject = json.getAsJsonObject();
@@ -37,6 +38,11 @@ public interface WDLocator<T> {
                 default:
                     throw new JsonParseException("Unknown Locator type: " + type);
             }
+        }
+
+        @Override
+        public JsonElement serialize(WDLocator src, Type typeOfSrc, JsonSerializationContext context) {
+            return context.serialize(src);
         }
     }
 

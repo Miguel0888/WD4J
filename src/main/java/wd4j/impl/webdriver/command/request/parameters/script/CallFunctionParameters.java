@@ -1,5 +1,6 @@
 package wd4j.impl.webdriver.command.request.parameters.script;
 
+import com.google.gson.annotations.SerializedName;
 import wd4j.impl.webdriver.type.script.WDLocalValue;
 import wd4j.impl.webdriver.type.script.WDResultOwnership;
 import wd4j.impl.webdriver.type.script.WDSerializationOptions;
@@ -15,6 +16,7 @@ public class CallFunctionParameters implements WDCommand.Params {
     private final List<WDLocalValue> arguments; // Optional
     private final WDResultOwnership resultOwnership; // Optional
     private final WDSerializationOptions serializationOptions; // Optional
+    @SerializedName("this") // 🔥 Explizit auf "this" in JSON mappen, da "this" ein reserviertes Schlüsselwort in Java ist
     private final WDLocalValue thisObject; // Optional
     private final boolean userActivation;  // Optional, default false
 
