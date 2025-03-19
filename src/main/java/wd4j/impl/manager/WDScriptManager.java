@@ -217,6 +217,22 @@ public class WDScriptManager implements WDModule {
     }
 
     /**
+     * Retrieves the realms for the specified context.
+     *
+     * @param context The ID of the context.
+     * @param type The type of the realms to retrieve.
+     *
+     * @return A list of realm IDs.
+     * @throws RuntimeException if the operation fails.
+     */
+    public WDScriptResult.GetRealmsResult getRealms(WDBrowsingContext context, WDRealmType type){
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.GetRealms(context, type),
+                WDScriptResult.GetRealmsResult.class
+        );
+    }
+
+    /**
      * Removes a preload script with the specified script ID.
      *
      * @param scriptId The ID of the script to remove.
@@ -292,7 +308,46 @@ public class WDScriptManager implements WDModule {
         TAP("function() { this.dispatchEvent(new MouseEvent('touchstart')); this.dispatchEvent(new MouseEvent('touchend')); }"), // ToDo: Check if this is correct
         PRESS_KEY("function(key) { this.dispatchEvent(new KeyboardEvent('keydown', { key: key })); this.dispatchEvent(new KeyboardEvent('keypress', { key: key })); this.dispatchEvent(new KeyboardEvent('keyup', { key: key })); }"), // ToDo: Check if this is correct
         CLEAR_INPUT("function() { this.value = ''; this.dispatchEvent(new Event('input')); }"), // ToDo: Check if this is correct
-        SELECT_TEXT("function() { this.select(); }"); // ToDo: Check if this is correct
+        SELECT_TEXT("function() { this.select(); }"), // ToDo: Check if this is correct
+
+        SUBMIT("function() { this.submit(); }"), // ToDo: Check if this is correct
+        RESET("function() { this.reset(); }"), // ToDo: Check if this is correct
+
+        SCROLL_TO("function(x, y) { this.scrollTo(x, y); }"), // ToDo: Check if this is correct
+        SCROLL_BY("function(x, y) { this.scrollBy(x, y); }"), // ToDo: Check if this is correct
+        SCROLL_TOP("function() { this.scrollTop = 0; }"), // ToDo: Check if this is correct
+        SCROLL_BOTTOM("function() { this.scrollTop = this.scrollHeight; }"), // ToDo: Check if this is correct
+        SCROLL_LEFT("function() { this.scrollLeft = 0; }"), // ToDo: Check if this is correct
+        SCROLL_RIGHT("function() { this.scrollLeft = this.scrollWidth; }"), // ToDo: Check if this is correct
+        SCROLL_HEIGHT("function() { return this.scrollHeight; }"), // ToDo: Check if this is correct
+        SCROLL_WIDTH("function() { return this.scrollWidth; }"), // ToDo: Check if this is correct
+        SCROLL_TOP_MAX("function() { return this.scrollHeight - this.clientHeight; }"), // ToDo: Check if this is correct
+        SCROLL_LEFT_MAX("function() { return this.scrollWidth - this.clientWidth; }"), // ToDo: Check if this is correct
+        SCROLL_HEIGHT_MAX("function() { return this.scrollHeight - this.clientHeight; }"), // ToDo: Check if this is correct
+        SCROLL_WIDTH_MAX("function() { return this.scrollWidth - this.clientWidth; }"), // ToDo: Check if this is correct
+        SCROLL_HEIGHT_OFFSET("function() { return this.scrollHeight - this.clientHeight - this.scrollTop; }"), // ToDo: Check if this is correct
+        SCROLL_WIDTH_OFFSET("function() { return this.scrollWidth - this.clientWidth - this.scrollLeft; }"), // ToDo: Check if this is correct
+        SCROLL_HEIGHT_RATIO("function() { return this.scrollTop / (this.scrollHeight - this.clientHeight); }"), // ToDo: Check if this is correct
+        SCROLL_WIDTH_RATIO("function() { return this.scrollLeft / (this.scrollWidth - this.clientWidth); }"), // ToDo: Check if this is correct
+        SCROLL_HEIGHT_RATIO_OFFSET("function() { return (this.scrollTop + this.clientHeight) / this.scrollHeight; }"), // ToDo: Check if this is correct
+        SCROLL_WIDTH_RATIO_OFFSET("function() { return (this.scrollLeft + this.clientWidth) / this.scrollWidth; }"), // ToDo: Check if this is correct
+        SCROLL_HEIGHT_RATIO_CENTER("function() { return (this.scrollTop + this.clientHeight / 2) / this.scrollHeight; }"), // ToDo: Check if this is correct
+        SCROLL_WIDTH_RATIO_CENTER("function() { return (this.scrollLeft + this.clientWidth / 2) / this.scrollWidth; }"), // ToDo: Check if this is correct
+        SCROLL_HEIGHT_RATIO_CENTER_OFFSET("function() { return (this.scrollTop + this.clientHeight / 2) / this.scrollHeight; }"), // ToDo: Check if this is correct
+        SCROLL_WIDTH_RATIO_CENTER_OFFSET("function() { return (this.scrollLeft + this.clientWidth / 2) / this.scrollWidth; }"), // ToDo: Check if this is correct
+
+        WAIT_FOR("function() { return new Promise(resolve => { this.addEventListener('click', () => { resolve(); }, { once: true }); }); }"), // ToDo: Check if this is correct
+        WAIT_FOR_TIMEOUT("function(timeout) { return new Promise(resolve => { setTimeout(() => { resolve(); }, timeout); }); }"), // ToDo: Check if this is correct
+        WAIT_FOR_SELECTOR("function(selector) { return new Promise(resolve => { const element = document.querySelector(selector); if (element) { resolve(element); } else { const observer = new MutationObserver(() => { const element = document.querySelector(selector); if (element) { observer.disconnect(); resolve(element); } }); observer.observe(document.body, { childList: true, subtree: true }); } }); }"), // ToDo: Check if this is correct
+        WAIT_FOR_SELECTOR_TIMEOUT("function(selector, timeout) { return new Promise(resolve => { const element = document.querySelector(selector); if (element) { resolve(element); } else { const observer = new MutationObserver(() => { const element = document.querySelector(selector); if (element) { observer.disconnect(); resolve(element); } }); observer.observe(document.body, { childList: true, subtree: true }); setTimeout(() => { observer.disconnect(); resolve(null); }, timeout); } }); }"), // ToDo: Check if this is correct
+        WAIT_FOR_NAVIGATION("function() { return new Promise(resolve => { window.addEventListener('popstate', () => { resolve(); }, { once: true }); }); }"), // ToDo: Check if this is correct
+        WAIT_FOR_NAVIGATION_TIMEOUT("function(timeout) { return new Promise(resolve => { const timeoutId = setTimeout(() => { resolve(); }, timeout); window.addEventListener('popstate', () => { clearTimeout(timeoutId); resolve(); }, { once: true }); }); }"), // ToDo: Check if this is correct
+        WAIT_FOR_NETWORK("function() { return new Promise(resolve => { window.addEventListener('fetch', () => { resolve(); }, { once: true }); }); }"), // ToDo: Check if this is correct
+        WAIT_FOR_NETWORK_TIMEOUT("function(timeout) { return new Promise(resolve => { const timeoutId = setTimeout(() => { resolve(); }, timeout); window.addEventListener('fetch', () => { clearTimeout(timeoutId); resolve(); }, { once: true }); }); }"), // ToDo: Check if this is correct
+        WAIT_FOR_SCRIPT("function(script) { return new Promise(resolve => { const scriptElement = document.createElement('script'); scriptElement.textContent = script; scriptElement.onload = () => { resolve(); }; document.head.appendChild(scriptElement); }); }"), // ToDo: Check if this is correct
+        WAIT_FOR_SCRIPT_TIMEOUT("function(script, timeout) { return new Promise(resolve => { const scriptElement = document.createElement('script'); scriptElement.textContent = script; scriptElement.onload = () => { resolve(); }; document.head.appendChild(scriptElement); setTimeout(() => { resolve(); }, timeout); }); }"), // ToDo: Check if this is correct
+        WAIT_FOR_STYLE("function() { return new Promise(resolve => { window.addEventListener('load', () => { resolve(); }, { once: true }); }); }"), // ToDo: Check if this is correct
+        WAIT_FOR_STYLE_TIMEOUT("function(timeout) { return new Promise(resolve => { const timeoutId = setTimeout(() => { resolve(); }, timeout); window.addEventListener('load', () => { clearTimeout(timeoutId); resolve(); }, { once: true }); }); }"); // ToDo: Check if this is correct
 
         private final String functionDeclaration;
 

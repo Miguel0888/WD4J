@@ -25,8 +25,8 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 public class PageImpl implements Page {
-    private final String pageId; // aka. browsing context id or navigable id in WebDriver BiDi
-    private final String userContextId; // aka. simply as contextId in CDP - default is "default"
+    private final WDBrowsingContext pageId; // aka. browsing context id or navigable id in WebDriver BiDi
+    private final WDUserContext userContextId; // aka. simply as contextId in CDP - default is "default"
     private boolean isClosed;
     private String url;
 
@@ -60,8 +60,8 @@ public class PageImpl implements Page {
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        this.pageId = browser.getBrowsingContextManager().create().getContext();
-        this.userContextId = userContext != null ? userContext.value() : null;
+        this.pageId = new WDBrowsingContext(browser.getBrowsingContextManager().create().getContext());
+        this.userContextId = userContext;
     }
 
     /**
@@ -77,8 +77,8 @@ public class PageImpl implements Page {
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        this.pageId = browsingContext.value();
-        this.userContextId = userContext != null ? userContext.value() : null;
+        this.pageId = browsingContext;
+        this.userContextId = userContext;
     }
 
     public PageImpl(WDBrowsingContextEvent.Load load) {
@@ -87,10 +87,10 @@ public class PageImpl implements Page {
 
         this.browser = existingPage != null ? ((PageImpl) existingPage).getBrowser() : null;
         this.session = (this.browser != null)  ? this.browser.getSession() : null;
-        this.userContextId = (existingPage != null) ? existingPage.getUserContextId() : null;
+        this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
         // 🔹 Falls keine existierende Seite vorhanden ist, eine neue Instanz initialisieren
-        this.pageId = context.value();
+        this.pageId = context;
         this.isClosed = false;
         this.url = load.getParams().getUrl();
     }
@@ -102,10 +102,10 @@ public class PageImpl implements Page {
         // 🔹 Übernahme der bestehenden Browser-Instanz und Session, falls vorhanden
         this.browser = existingPage != null ? existingPage.getBrowser() : null;
         this.session = (this.browser != null) ? this.browser.getSession() : null;
-        this.userContextId = (existingPage != null) ? existingPage.getUserContextId() : null;
+        this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
         // 🔹 Falls keine existierende Seite vorhanden ist, eine neue Instanz initialisieren
-        this.pageId = context.value();
+        this.pageId = context;
         this.isClosed = false;
         this.url = domContentLoaded.getParams().getUrl();
     }
@@ -117,9 +117,9 @@ public class PageImpl implements Page {
         // 🔹 Falls die Page existiert, markieren wir sie als geschlossen
         this.browser = existingPage != null ? existingPage.getBrowser() : null;
         this.session = (this.browser != null) ? this.browser.getSession() : null;
-        this.userContextId = (existingPage != null) ? existingPage.getUserContextId() : null;
+        this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
-        this.pageId = context.value();
+        this.pageId = context;
         this.isClosed = true;  // Diese Page gilt als "destroyed"
         this.url = (existingPage != null) ? existingPage.url() : null;
     }
@@ -131,9 +131,9 @@ public class PageImpl implements Page {
         // 🔹 Falls eine existierende Page vorhanden ist, übernehmen wir ihre fehlenden Werte
         this.browser = existingPage != null ? existingPage.getBrowser() : null;
         this.session = (this.browser != null) ? this.browser.getSession() : null;
-        this.userContextId = (existingPage != null) ? existingPage.getUserContextId() : created.getParams().getUserContext().value();
+        this.userContextId = (existingPage != null) ? existingPage.getUserContext() : created.getParams().getUserContext();
 
-        this.pageId = context.value();
+        this.pageId = context;
         this.isClosed = false;
         this.url = created.getParams().getUrl();
     }
@@ -448,7 +448,7 @@ public class PageImpl implements Page {
     @Override
     public void addInitScript(String script) {
         addPreloadScriptResults.add(((BrowserImpl) browser).getScriptManager().addPreloadScript(
-                script, pageId
+                script, getBrowsingContextId()
         ));
     }
 
@@ -456,7 +456,7 @@ public class PageImpl implements Page {
     public void addInitScript(Path scriptPath) {
         String scriptData = ScriptHelper.loadScript(scriptPath.toString());
         addPreloadScriptResults.add(((BrowserImpl) browser).getScriptManager().addPreloadScript(
-                scriptData, pageId
+                scriptData, getBrowsingContextId()
         ));
     }
 
@@ -496,7 +496,7 @@ public class PageImpl implements Page {
     @Override
     public void close() {
         isClosed = true;
-        browser.getBrowsingContextManager().close(pageId);
+        browser.getBrowsingContextManager().close(getBrowsingContextId());
 //        browser.getPages().remove(pageId);
     }
 
@@ -512,7 +512,7 @@ public class PageImpl implements Page {
         }
 
         // Ziel: BrowsingContext für das `evaluate()`-Command setzen
-        WDTarget.ContextTarget contextTarget = new WDTarget.ContextTarget(new WDBrowsingContext(pageId));
+        WDTarget.ContextTarget contextTarget = new WDTarget.ContextTarget(new WDBrowsingContext(getBrowsingContextId()));
 
         // WebDriver BiDi Evaluate-Command ausführen
         WDEvaluateResult evaluate = session.getBrowser().getScriptManager().evaluate(
@@ -719,14 +719,14 @@ public class PageImpl implements Page {
 
     @Override
     public Response goBack(GoBackOptions options) {
-        browser.getBrowsingContextManager().traverseHistory(pageId, -1);
+        browser.getBrowsingContextManager().traverseHistory(getBrowsingContextId(), -1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
 
     @Override
     public Response goForward(GoForwardOptions options) {
-        browser.getBrowsingContextManager().traverseHistory(pageId, 1);
+        browser.getBrowsingContextManager().traverseHistory(getBrowsingContextId(), 1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -741,13 +741,13 @@ public class PageImpl implements Page {
         if (isClosed) {
             throw new PlaywrightException("Page is closed");
         }
-        if (pageId == null || pageId.isEmpty()) {
+        if (getBrowsingContextId() == null || getBrowsingContextId().isEmpty()) {
             throw new PlaywrightException("Cannot navigate: contextId is null or empty!");
         }
         this.url = url;
 
         // WebDriver BiDi Befehl senden
-        WDBrowsingContextResult.NavigateResult navigate = browser.getBrowsingContextManager().navigate(url, pageId);
+        WDBrowsingContextResult.NavigateResult navigate = browser.getBrowsingContextManager().navigate(url, getBrowsingContextId());
 
         return new PlaywrightResponse<WDBrowsingContextResult.NavigateResult>(navigate);
     }
@@ -877,7 +877,7 @@ public class PageImpl implements Page {
 
     @Override
     public Response reload(ReloadOptions options) {
-        browser.getBrowsingContextManager().reload(pageId);
+        browser.getBrowsingContextManager().reload(getBrowsingContextId());
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -925,7 +925,7 @@ public class PageImpl implements Page {
     @Override
     public byte[] screenshot(ScreenshotOptions options) {
         // ToDo: Use options
-        WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult = browser.getBrowsingContextManager().captureScreenshot(pageId);
+        WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult = browser.getBrowsingContextManager().captureScreenshot(getBrowsingContextId());
         String base64Image = captureScreenshotResult.getData();
         return Base64.getDecoder().decode(base64Image);
     }
@@ -1195,12 +1195,23 @@ public class PageImpl implements Page {
         return Collections.emptyList();
     }
 
-    public String getBrowsingContextId() {
+    public WDBrowsingContext getBrowsingContext() {
         return pageId;
     }
 
-    public String getUserContextId() {
+    public String getBrowsingContextId() {
+        if (pageId == null) {
+            throw new PlaywrightException("Browsing context is null.");
+        }
+        return pageId.value();
+    }
+
+    public WDUserContext getUserContext() {
         return userContextId;
+    }
+
+    public String getUserContextId() {
+        return userContextId.value();
     }
 
     public BrowserImpl getBrowser() {

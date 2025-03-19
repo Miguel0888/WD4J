@@ -107,8 +107,8 @@ public class WDScriptRequest {
         public GetRealms() {
             super("script.getRealms", new GetRealmsParameters());
         }
-        public GetRealms(WDBrowsingContext WDBrowsingContext, WDRealmType type) {
-            super("script.getRealms", new GetRealmsParameters(WDBrowsingContext, type));
+        public GetRealms(WDBrowsingContext browsingContext, WDRealmType type) {
+            super("script.getRealms", new GetRealmsParameters(browsingContext, type));
         }
     }
 

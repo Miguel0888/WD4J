@@ -18,6 +18,7 @@ import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
 import wd4j.impl.webdriver.command.request.parameters.browsingContext.CaptureScreenshotParameters;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
+import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.browsingContext.WDInfo;
 import wd4j.impl.webdriver.type.browsingContext.WDLocator;
@@ -159,7 +160,10 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Locator and(Locator locator) {
-        return null; // ToDo: Implement
+        if (!(locator instanceof LocatorImpl)) {
+            throw new IllegalArgumentException("Locator must be of type LocatorImpl.");
+        }
+        return new LocatorImpl(page, this.selector + " and " + ((LocatorImpl) locator).selector); // ToDo: Check this!
     }
 
     @Override
@@ -261,7 +265,15 @@ public class LocatorImpl implements Locator {
 
     @Override
     public ElementHandle elementHandle(ElementHandleOptions options) {
-        return null;
+        resolveSharedId();
+        WDHandle handle = new WDHandle(this.sharedId);
+        // ToDo: Maybe use specific realm type, too?
+        WDScriptResult.GetRealmsResult realmsResult = page.getBrowser().getScriptManager().getRealms(page.getBrowsingContext());
+        realmsResult.getRealms().forEach(System.out::println); // ToDo: Remove this, but check if realms are correct!
+        String realmId = realmsResult.getRealms().get(0).getRealm();
+
+        WDRealm realm = new WDRealm(realmId);
+        return new ElementHandleImpl(handle, realm);
     }
 
     @Override
@@ -540,22 +552,25 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Locator locator(String selectorOrLocator, LocatorOptions options) {
-        return null;
+        return new LocatorImpl(page, this.selector + " " + selectorOrLocator); // ToDo: Check this!
     }
 
     @Override
     public Locator locator(Locator selectorOrLocator, LocatorOptions options) {
-        return null;
+        return null; // ToDo: Implement
     }
 
     @Override
     public Locator nth(int index) {
-        return null;
+        return new LocatorImpl(page, this.selector + ":nth-of-type(" + index + ")"); // ToDo: Check this!
     }
 
     @Override
     public Locator or(Locator locator) {
-        return null;
+        if (!(locator instanceof LocatorImpl)) {
+            throw new IllegalArgumentException("Locator must be of type LocatorImpl.");
+        }
+        return new LocatorImpl(page, this.selector + ", " + ((LocatorImpl) locator).selector); // ToDo: Check this!
     }
 
     @Override
@@ -807,7 +822,13 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void waitFor(WaitForOptions options) {
-
+        // ToDo: Use Options
+        resolveSharedId();
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.WAIT_FOR
+        );
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
