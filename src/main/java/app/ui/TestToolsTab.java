@@ -4,9 +4,12 @@ import app.controller.MainController;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TestToolsTab implements UIComponent {
     private final MainController controller;
@@ -84,10 +87,16 @@ public class TestToolsTab implements UIComponent {
 
         JLabel separator = new JLabel(" | ");
         JLabel selectorLabel = new JLabel("Selector: ");
-        JTextField selectorTestField = new JTextField();
-        selectorTestField.setMaximumSize(new Dimension(200, 24));
-        selectorTestField.setPreferredSize(new Dimension(200, 24));
+
+        // 🔽 Dropdown mit Textfeld-Funktionalität
+        JComboBox<String> selectorTestField = new JComboBox<>();
+        selectorTestField.setEditable(true); // Erlaubt direkte Eingabe
+        selectorTestField.setMaximumSize(new Dimension(350, 24));
+        selectorTestField.setPreferredSize(new Dimension(350, 24));
         selectorTestField.setToolTipText("Enter a XPATH selector to test");
+
+        // 🛠 Historie der letzten Eingaben
+        List<String> selectorHistory = new ArrayList<>();
 
         JComboBox<String> selectorTestVariant = new JComboBox<>(new String[]{"Change Text"});
         selectorTestVariant.setMaximumSize(new Dimension(100, 24));
@@ -98,11 +107,19 @@ public class TestToolsTab implements UIComponent {
             selectorTestField.setEnabled(!isSelected);
             selectorTestVariant.setEnabled(!isSelected);
 
-            String selector = selectorTestField.getText();
+            String selector = (String) selectorTestField.getEditor().getItem();
             if (!isSelected || (selector != null && !selector.isEmpty())) {
                 String variant = (String) selectorTestVariant.getSelectedItem();
                 if (!isSelected || (variant != null && !variant.isEmpty())) {
                     controller.testSelector(selector, variant, isSelected);
+
+                    // ✅ Eingabe zur Historie hinzufügen
+                    if (!selectorHistory.contains(selector)) {
+                        selectorHistory.add(0, selector); // Neueste oben
+                        if (selectorHistory.size() > 10) selectorHistory.remove(10); // Begrenzung
+                        selectorTestField.removeAllItems();
+                        selectorHistory.forEach(selectorTestField::addItem);
+                    }
                 } else {
                     JOptionPane.showMessageDialog(null, "Please select a valid test variant!", "Error", JOptionPane.ERROR_MESSAGE);
                     selectorToggleButton.setSelected(false); // Toggle zurücksetzen
