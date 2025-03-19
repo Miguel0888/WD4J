@@ -2,8 +2,18 @@
     let isEnabled = false;
     let intervalId = null;
 
+    function findElement(selector) {
+        // XPath erkennen, falls Selektor mit "/" oder "(//" beginnt
+        if (selector.startsWith("/") || selector.startsWith("(//")) {
+            let result = document.evaluate(selector, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+            return result.singleNodeValue;
+        } else {
+            return document.querySelector(selector);
+        }
+    }
+
     function animateTextarea(selector) {
-        const textarea = document.querySelector(selector);
+        const textarea = findElement(selector);  // 🔄 Jetzt mit XPath-Unterstützung
         if (!textarea) {
             console.log(`❌ Element mit Selektor ${selector} nicht gefunden!`);
             return;
