@@ -1,10 +1,5 @@
 package wd4j.impl.playwright;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.sun.xml.internal.stream.events.LocationImpl;
 import wd4j.api.ElementHandle;
 import wd4j.api.FrameLocator;
 import wd4j.api.JSHandle;
@@ -15,7 +10,6 @@ import wd4j.api.options.BoundingBox;
 import wd4j.api.options.FilePayload;
 import wd4j.api.options.SelectOption;
 import wd4j.impl.manager.WDScriptManager;
-import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
 import wd4j.impl.webdriver.command.request.parameters.browsingContext.CaptureScreenshotParameters;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
