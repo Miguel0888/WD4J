@@ -293,35 +293,35 @@ public class MainController {
 
         switch (command)
         {
-            case "text":
+            case "Change Text":
                 List<WDLocalValue> args = new ArrayList<>();
                 args.add(new WDPrimitiveProtocolValue.BooleanValue(toggle)); // true = get text
                 args.add(new WDPrimitiveProtocolValue.StringValue(selector));
                 WDScriptManager.getInstance().callFunction(
-                        "toggleAnimation",
+                        "testSelector",
                         false, // awaitPromise=false
                         new WDTarget.ContextTarget(new WDBrowsingContext(contextTarget)),
                         args
                 );
                 break;
-            case "click":
-                browser.getPages().getActivePage().click(selector);
-                break;
-            case "fill":
-                browser.getPages().getActivePage().fill(selector, "Test");
-                break;
-            case "focus":
-                browser.getPages().getActivePage().focus(selector);
-                break;
-            case "hover":
-                browser.getPages().getActivePage().hover(selector);
-                break;
-            case "select":
-                browser.getPages().getActivePage().selectOption(selector, "Test");
-                break;
-            case "type":
-                browser.getPages().getActivePage().type(selector, "Test");
-                break;
+//            case "click":
+//                browser.getPages().getActivePage().click(selector);
+//                break;
+//            case "fill":
+//                browser.getPages().getActivePage().fill(selector, "Test");
+//                break;
+//            case "focus":
+//                browser.getPages().getActivePage().focus(selector);
+//                break;
+//            case "hover":
+//                browser.getPages().getActivePage().hover(selector);
+//                break;
+//            case "select":
+//                browser.getPages().getActivePage().selectOption(selector, "Test");
+//                break;
+//            case "type":
+//                browser.getPages().getActivePage().type(selector, "Test");
+//                break;
             default:
                 System.out.println("Unknown command: " + command);
         }

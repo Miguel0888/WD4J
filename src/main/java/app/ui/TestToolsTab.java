@@ -82,9 +82,16 @@ public class TestToolsTab implements UIComponent {
         screenshotButton.setToolTipText("Take Screenshot");
         screenshotButton.addActionListener(e -> captureScreenshot(controller));
 
+        JLabel separator = new JLabel(" | ");
+        JLabel selectorLabel = new JLabel("Selector: ");
         JTextField selectorTestField = new JTextField();
+        selectorTestField.setMaximumSize(new Dimension(200, 24));
+        selectorTestField.setPreferredSize(new Dimension(200, 24));
         selectorTestField.setToolTipText("Enter a XPATH selector to test");
-        JComboBox<String> selectorTestVariant = new JComboBox<>(new String[]{"text", "click", "hover", "scroll"});
+
+        JComboBox<String> selectorTestVariant = new JComboBox<>(new String[]{"Change Text"});
+        selectorTestVariant.setMaximumSize(new Dimension(100, 24));
+        selectorTestVariant.setPreferredSize(new Dimension(100, 24));
         JToggleButton selectorToggleButton = new JToggleButton("Test");
         selectorToggleButton.addActionListener(e -> {
             boolean isSelected = selectorToggleButton.isSelected();
@@ -108,9 +115,15 @@ public class TestToolsTab implements UIComponent {
 
         toolbar.add(new JLabel("Tools: "));
         toolbar.add(screenshotButton);
+
+        // Rest rechts ausrichten
+        toolbar.add(Box.createHorizontalGlue());
+//        toolbar.add(separator);
+        toolbar.add(selectorLabel);
         toolbar.add(selectorTestField);
         toolbar.add(selectorTestVariant);
         toolbar.add(selectorToggleButton);
+
         return toolbar;
     }
 }
