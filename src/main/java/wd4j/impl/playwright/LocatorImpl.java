@@ -117,42 +117,57 @@ public class LocatorImpl implements Locator {
 
     @Override
     public List<String> allInnerTexts() {
-        return Collections.emptyList();
+        return Collections.emptyList(); // ToDo: Implement
     }
 
     @Override
     public List<String> allTextContents() {
-        return Collections.emptyList();
+        return Collections.emptyList(); // ToDo: Implement
     }
 
     @Override
     public Locator and(Locator locator) {
-        return null;
+        return null; // ToDo: Implement
     }
 
     @Override
     public String ariaSnapshot(AriaSnapshotOptions options) {
-        return "";
+        return ""; // ToDo: Implement
     }
 
     @Override
     public void blur(BlurOptions options) {
-
+        // ToDo: Use Options
+        resolveSharedId();
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.BLUR
+        );
     }
 
     @Override
     public BoundingBox boundingBox(BoundingBoxOptions options) {
-        return null;
+        // ToDo: Use Options
+        resolveSharedId();
+        WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomQuery.GET_BOUNDING_BOX
+        );
+        return getBoundingBoxFromEvaluateResult(result);
     }
 
     @Override
     public void check(CheckOptions options) {
-
+        // ToDo: Use Options
+        // ToDo: Implement
     }
 
     @Override
     public void clear(ClearOptions options) {
-
+        // ToDo: Use Options
+        // ToDo: Implement
     }
 
     @Override
@@ -320,7 +335,7 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Locator getByPlaceholder(Pattern text, GetByPlaceholderOptions options) {
-        return null;
+        return new LocatorImpl(page, "aria=" + text);
     }
 
     @Override
@@ -427,7 +442,8 @@ public class LocatorImpl implements Locator {
                 WDScriptManager.DomQuery.GET_ATTRIBUTES,
                 Collections.singletonList(new WDPrimitiveProtocolValue.StringValue("disabled"))
         );
-        return Boolean.TRUE.equals(getBooleanFromEvaluateResult(result)); // ToDo: Check this!
+        Boolean value = getBooleanFromEvaluateResult(result);
+        return value != null && value;  // ✅ Falls `null`, wird `false` zurückgegeben
     }
 
     @Override
@@ -511,12 +527,30 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void press(String key, PressOptions options) {
-
+        // ToDo: Use Options
+        resolveSharedId();
+        List<WDLocalValue> args = Collections.singletonList(new WDPrimitiveProtocolValue.StringValue(key));
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.PRESS_KEY,
+                args
+        );
     }
 
     @Override
     public void pressSequentially(String text, PressSequentiallyOptions options) {
-
+        // ToDo: Use Options
+        resolveSharedId();
+        for (char c : text.toCharArray()) {
+            List<WDLocalValue> args = Collections.singletonList(new WDPrimitiveProtocolValue.StringValue(String.valueOf(c)));
+            page.getBrowser().getScriptManager().executeDomAction(
+                    page.getBrowsingContextId(),
+                    sharedId,
+                    WDScriptManager.DomAction.PRESS_KEY,
+                    args
+            );
+        }
     }
 
     @Override
@@ -528,6 +562,13 @@ public class LocatorImpl implements Locator {
 
         // Also capture if the element is not is the viewport ? // ToDo: Alternatively scroll into view
         CaptureScreenshotParameters.Origin origin = CaptureScreenshotParameters.Origin.DOCUMENT;
+
+        // Falls das Element außerhalb des Viewports liegt, erst scrollen:
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.SCROLL_INTO_VIEW
+        );
 
         // Only capture the element:
         WDRemoteReference.SharedReference sharedReference = new WDRemoteReference.SharedReference(new WDSharedId(this.sharedId));
@@ -601,7 +642,21 @@ public class LocatorImpl implements Locator {
 
     @Override
     public List<String> selectOption(String[] values, SelectOptionOptions options) {
-        return Collections.emptyList(); // ToDo: Implement
+        resolveSharedId();
+
+        List<WDLocalValue> args = new ArrayList<>();
+        for (String value : values) {
+            args.add(new WDPrimitiveProtocolValue.StringValue(value));
+        }
+
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.SELECT, // ToDo: Will it work with multiple values?
+                args
+        );
+
+        return Arrays.asList(values);
     }
 
     @Override
@@ -626,7 +681,14 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void setChecked(boolean checked, SetCheckedOptions options) {
-
+        // ToDo: Use Options
+        resolveSharedId();
+        WDScriptManager.DomAction action = checked ? WDScriptManager.DomAction.CHECK : WDScriptManager.DomAction.UNCHECK;
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                action
+        );
     }
 
     @Override
@@ -651,12 +713,25 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void tap(TapOptions options) {
-
+        // ToDo: Use Options
+        resolveSharedId();
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.TAP
+        );
     }
 
     @Override
     public String textContent(TextContentOptions options) {
-        return "";
+        // ToDo: Use Options
+        resolveSharedId();
+        WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomQuery.GET_TEXT_CONTENT
+        );
+        return getStringFromEvaluateResult(result);
     }
 
     /**
@@ -682,7 +757,7 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void uncheck(UncheckOptions options) {
-
+        setChecked(false, null);
     }
 
     @Override

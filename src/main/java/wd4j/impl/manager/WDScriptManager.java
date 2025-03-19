@@ -287,8 +287,10 @@ public class WDScriptManager implements WDModule {
         UNCHECK("function() { this.checked = false; this.dispatchEvent(new Event('change')); }"), // ToDo: Check if this is really correct
         HOVER("function() { this.dispatchEvent(new MouseEvent('mouseover')); }"), // ToDo: Check if this is correct
         HIGHLIGHT("function() { this.style.outline = '2px solid red'; }"), // ToDo: Check if this is correct
-        DRAG_AND_DROP( "function(target) { this.dispatchEvent(new DragEvent('dragstart')); target.dispatchEvent(new DragEvent('drop')); this.dispatchEvent(new DragEvent('dragend')); }"); // ToDo: Check if this is correct
-
+        DRAG_AND_DROP( "function(target) { this.dispatchEvent(new DragEvent('dragstart')); target.dispatchEvent(new DragEvent('drop')); this.dispatchEvent(new DragEvent('dragend')); }"), // ToDo: Check if this is correct
+        SCROLL_INTO_VIEW("function() { this.scrollIntoView(); }"), // ToDo: Check if this is correct
+        TAP("function() { this.dispatchEvent(new MouseEvent('touchstart')); this.dispatchEvent(new MouseEvent('touchend')); }"), // ToDo: Check if this is correct
+        PRESS_KEY("function(key) { this.dispatchEvent(new KeyboardEvent('keydown', { key: key })); this.dispatchEvent(new KeyboardEvent('keypress', { key: key })); this.dispatchEvent(new KeyboardEvent('keyup', { key: key })); }"); // ToDo: Check if this is correct
         private final String functionDeclaration;
 
         DomAction(String functionDeclaration) {
@@ -314,7 +316,8 @@ public class WDScriptManager implements WDModule {
         IS_HIDDEN("function() { return this.offsetParent === null; }"), // ToDo: Check if this is correct
         IS_SELECTED("function() { return this.selected; }"),
         GET_ROLE("function() { return this.getAttribute('role'); }"),
-        GET_BOUNDING_BOX("function() { const rect = this.getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }; }"); // ToDo: Check if this is correct
+        GET_BOUNDING_BOX("function() { const rect = this.getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }; }"), // ToDo: Check if this is correct
+        GET_TEXT_CONTENT( "function() { return this.textContent; }"); // ToDo: Check if this is correct
 
         private final String functionDeclaration;
 
