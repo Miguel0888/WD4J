@@ -282,10 +282,12 @@ public class WDScriptManager implements WDModule {
         BLUR("function() { this.blur(); }"),
         INPUT("function(value) { this.value = value; this.dispatchEvent(new Event('input')); }"),
         CHANGE("function(value) { this.value = value; this.dispatchEvent(new Event('change')); }"),
-        SELECT("function(value) { this.value = value; this.dispatchEvent(new Event('change')); }"),
+        SELECT("function(value) { this.value = value; this.dispatchEvent(new Event('change')); }"), // ToDo: Check if this is really correct
         CHECK("function() { this.checked = true; this.dispatchEvent(new Event('change')); }"),
-        UNCHECK("function() { this.checked = false; this.dispatchEvent(new Event('change')); }"),
-        HOVER("function() { this.dispatchEvent(new MouseEvent('mouseover')); }"); // ToDo: Check if this is correct
+        UNCHECK("function() { this.checked = false; this.dispatchEvent(new Event('change')); }"), // ToDo: Check if this is really correct
+        HOVER("function() { this.dispatchEvent(new MouseEvent('mouseover')); }"), // ToDo: Check if this is correct
+        HIGHLIGHT("function() { this.style.outline = '2px solid red'; }"), // ToDo: Check if this is correct
+        DRAG_AND_DROP( "function(target) { this.dispatchEvent(new DragEvent('dragstart')); target.dispatchEvent(new DragEvent('drop')); this.dispatchEvent(new DragEvent('dragend')); }"); // ToDo: Check if this is correct
 
         private final String functionDeclaration;
 
@@ -306,6 +308,10 @@ public class WDScriptManager implements WDModule {
         GET_CSS_CLASS("function() { return this.className; }"),
         GET_ATTRIBUTES("function() { let attrs = {}; for (let attr of this.attributes) { attrs[attr.name] = attr.value; } return attrs; }"),
         IS_CHECKED("function() { return this.checked; }"),
+        IS_ENABLED("function() { return !this.disabled; }"), // ToDo: Check if this is correct
+        IS_EDITABLE("function() { return !this.readOnly; }"), // ToDo: Check if this is correct
+        IS_VISIBLE("function() { return this.offsetParent !== null; }"), // ToDo: Check if this is correct
+        IS_HIDDEN("function() { return this.offsetParent === null; }"), // ToDo: Check if this is correct
         IS_SELECTED("function() { return this.selected; }"),
         GET_ROLE("function() { return this.getAttribute('role'); }"),
         GET_BOUNDING_BOX("function() { const rect = this.getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }; }"); // ToDo: Check if this is correct

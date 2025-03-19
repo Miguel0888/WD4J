@@ -111,7 +111,12 @@ public class CaptureScreenshotParameters implements WDCommand.Params {
 
     public static class ImageFormat {
         public final String type;
-        private final float quality;
+        private final Float quality; // optional (0.0..1.0)
+
+        public ImageFormat(String type) {
+            this.type = type;
+            this.quality = null;
+        }
 
         public ImageFormat(String type, float quality) {
             this.type = type;

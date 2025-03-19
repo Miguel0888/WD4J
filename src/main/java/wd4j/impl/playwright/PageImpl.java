@@ -924,6 +924,7 @@ public class PageImpl implements Page {
 
     @Override
     public byte[] screenshot(ScreenshotOptions options) {
+        // ToDo: Use options
         WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult = browser.getBrowsingContextManager().captureScreenshot(pageId);
         String base64Image = captureScreenshotResult.getData();
         return Base64.getDecoder().decode(base64Image);

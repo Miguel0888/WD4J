@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.sun.xml.internal.stream.events.LocationImpl;
 import wd4j.api.ElementHandle;
 import wd4j.api.FrameLocator;
 import wd4j.api.JSHandle;
@@ -15,22 +16,18 @@ import wd4j.api.options.FilePayload;
 import wd4j.api.options.SelectOption;
 import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
+import wd4j.impl.webdriver.command.request.parameters.browsingContext.CaptureScreenshotParameters;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.browsingContext.WDInfo;
 import wd4j.impl.webdriver.type.browsingContext.WDLocator;
-import wd4j.impl.webdriver.type.script.WDEvaluateResult;
-import wd4j.impl.webdriver.type.script.WDLocalValue;
-import wd4j.impl.webdriver.type.script.WDPrimitiveProtocolValue;
+import wd4j.impl.webdriver.type.script.*;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Pattern;
 
-import static wd4j.impl.support.WDRemoteValueUtil.getBoundingBoxFromEvaluateResult;
-import static wd4j.impl.support.WDRemoteValueUtil.getStringFromEvaluateResult;
+import static wd4j.impl.support.WDRemoteValueUtil.*;
 
 public class LocatorImpl implements Locator {
     private final PageImpl page;
@@ -191,7 +188,22 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void dragTo(Locator target, DragToOptions options) {
+        resolveSharedId();
+        if(!(target instanceof LocatorImpl)) {
+            throw new IllegalArgumentException("Target must be a LocatorImpl.");
+        }
+        ((LocatorImpl) target).resolveSharedId();
 
+        List<WDLocalValue> args = new ArrayList<>();
+        args.add(new WDPrimitiveProtocolValue.StringValue(sharedId));
+        args.add(new WDPrimitiveProtocolValue.StringValue(((LocatorImpl) target).sharedId));
+
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.DRAG_AND_DROP,
+                args
+        );
     }
 
     @Override
@@ -291,7 +303,8 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Locator getByLabel(String text, GetByLabelOptions options) {
-        return null;
+        // ToDo: Use Options
+        return new LocatorImpl(page, "aria=" + text);
     }
 
     @Override
@@ -301,7 +314,8 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Locator getByPlaceholder(String text, GetByPlaceholderOptions options) {
-        return null;
+        // ToDo: Use Options
+        return new LocatorImpl(page, "aria=" + text);
     }
 
     @Override
@@ -311,7 +325,11 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Locator getByRole(AriaRole role, GetByRoleOptions options) {
-        return null;
+        // ToDo: Use Options
+        String roleString = role.name().toLowerCase();
+        // ToDo: Fix this!
+        WDLocator.AccessibilityLocator.Value value = new WDLocator.AccessibilityLocator.Value(null, roleString);
+        return new LocatorImpl(page, "aria=" + roleString);
     }
 
     @Override
@@ -346,7 +364,12 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void highlight() {
-
+        resolveSharedId();
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.HIGHLIGHT
+        );
     }
 
     @Override
@@ -367,6 +390,7 @@ public class LocatorImpl implements Locator {
 
     @Override
     public String innerText(InnerTextOptions options) {
+        // ToDo: Use Options
         resolveSharedId();
         WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
                 page.getBrowsingContextId(),
@@ -383,27 +407,63 @@ public class LocatorImpl implements Locator {
 
     @Override
     public boolean isChecked(IsCheckedOptions options) {
-        return false;
+        // ToDo: Use Options
+        resolveSharedId();
+        WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomQuery.IS_CHECKED
+        );
+        return Boolean.TRUE.equals(getBooleanFromEvaluateResult(result)); // ToDo: Check this!
     }
 
     @Override
     public boolean isDisabled(IsDisabledOptions options) {
-        return false;
+        // ToDo: Use Options
+        resolveSharedId();
+        WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomQuery.GET_ATTRIBUTES,
+                Collections.singletonList(new WDPrimitiveProtocolValue.StringValue("disabled"))
+        );
+        return Boolean.TRUE.equals(getBooleanFromEvaluateResult(result)); // ToDo: Check this!
     }
 
     @Override
     public boolean isEditable(IsEditableOptions options) {
-        return false;
+        // ToDo: Use Options
+        resolveSharedId();
+        WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomQuery.IS_EDITABLE
+        );
+        return Boolean.TRUE.equals(getBooleanFromEvaluateResult(result)); // ToDo: Check this!
     }
 
     @Override
     public boolean isEnabled(IsEnabledOptions options) {
-        return false;
+        // ToDo: Use Options
+        resolveSharedId();
+        WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomQuery.IS_ENABLED
+        );
+        return Boolean.TRUE.equals(getBooleanFromEvaluateResult(result)); // ToDo: Check this!
     }
 
     @Override
     public boolean isHidden(IsHiddenOptions options) {
-        return false;
+        // ToDo: Use Options
+        resolveSharedId();
+        WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomQuery.IS_HIDDEN
+        );
+        return Boolean.TRUE.equals(getBooleanFromEvaluateResult(result)); // ToDo: Check this!
     }
 
     @Override
@@ -446,7 +506,7 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Page page() {
-        return null;
+        return page;
     }
 
     @Override
@@ -461,42 +521,102 @@ public class LocatorImpl implements Locator {
 
     @Override
     public byte[] screenshot(ScreenshotOptions options) {
-        return new byte[0];
+        // ToDo: Use options
+        // Set the options
+        WDBrowsingContext context = new WDBrowsingContext(page.getBrowsingContextId());
+        CaptureScreenshotParameters.ImageFormat format = new CaptureScreenshotParameters.ImageFormat( "png");
+
+        // Also capture if the element is not is the viewport ? // ToDo: Alternatively scroll into view
+        CaptureScreenshotParameters.Origin origin = CaptureScreenshotParameters.Origin.DOCUMENT;
+
+        // Only capture the element:
+        WDRemoteReference.SharedReference sharedReference = new WDRemoteReference.SharedReference(new WDSharedId(this.sharedId));
+        CaptureScreenshotParameters.ClipRectangle clip = new CaptureScreenshotParameters.ClipRectangle.ElementClipRectangle(sharedReference);
+
+        WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult =
+                page.getBrowser().getBrowsingContextManager().captureScreenshot(page.getBrowsingContextId());
+        String base64Image = captureScreenshotResult.getData();
+        return Base64.getDecoder().decode(base64Image);
     }
 
     @Override
     public void scrollIntoViewIfNeeded(ScrollIntoViewIfNeededOptions options) {
-
+        // ToDo: Use Options
+        // ToDo: Implement
     }
 
+    /**
+     * Selects option or options in {@code <select>}.
+     *
+     * <p> <strong>Details</strong>
+     *
+     * <p> This method waits for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks, waits until all
+     * specified options are present in the {@code <select>} element and selects these options.
+     *
+     * <p> If the target element is not a {@code <select>} element, this method throws an error. However, if the element is inside
+     * the {@code <label>} element that has an associated <a
+     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, the control will be used
+     * instead.
+     *
+     * <p> Returns the array of option values that have been successfully selected.
+     *
+     * <p> Triggers a {@code change} and {@code input} event once all the provided options have been selected.
+     *
+     * <p> <strong>Usage</strong>
+     * <pre>{@code
+     * // single selection matching the value or label
+     * element.selectOption("blue");
+     * // single selection matching the label
+     * element.selectOption(new SelectOption().setLabel("Blue"));
+     * // multiple selection for blue, red and second option
+     * element.selectOption(new String[] {"red", "green", "blue"});
+     * }</pre>
+     *
+     * @param values Options to select. If the {@code <select>} has the {@code multiple} attribute, all matching options are selected,
+     * otherwise only the first option matching one of the passed options is selected. String values are matching both values
+     * and labels. Option is considered matching if all specified properties match.
+     * @since v1.14
+     */
     @Override
     public List<String> selectOption(String values, SelectOptionOptions options) {
-        return Collections.emptyList();
+        // ToDo: Use Options
+        // ToDo: How values can be an array and a string at the same time?
+        // ToDo: Make sure only successful values are returned
+        // ToDo: Make sure an error is thrown if the element is not a select element
+        resolveSharedId();
+        List<WDLocalValue> args = Collections.singletonList(new WDPrimitiveProtocolValue.StringValue(values));
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.SELECT,
+                args
+        );
+        return Collections.singletonList(values); // Proposed an error is thrown otherwise by webdriver
     }
 
     @Override
     public List<String> selectOption(ElementHandle values, SelectOptionOptions options) {
-        return Collections.emptyList();
+        return Collections.emptyList(); // ToDo: Implement
     }
 
     @Override
     public List<String> selectOption(String[] values, SelectOptionOptions options) {
-        return Collections.emptyList();
+        return Collections.emptyList(); // ToDo: Implement
     }
 
     @Override
     public List<String> selectOption(SelectOption values, SelectOptionOptions options) {
-        return Collections.emptyList();
+        return Collections.emptyList(); // ToDo: Implement
     }
 
     @Override
     public List<String> selectOption(ElementHandle[] values, SelectOptionOptions options) {
-        return Collections.emptyList();
+        return Collections.emptyList(); // ToDo: Implement
     }
 
     @Override
     public List<String> selectOption(SelectOption[] values, SelectOptionOptions options) {
-        return Collections.emptyList();
+        return Collections.emptyList(); // ToDo: Implement
     }
 
     @Override

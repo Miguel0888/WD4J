@@ -2,6 +2,7 @@ package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
+import wd4j.impl.webdriver.command.request.parameters.browsingContext.CaptureScreenshotParameters;
 import wd4j.impl.webdriver.command.request.parameters.browsingContext.CreateType;
 import wd4j.impl.webdriver.command.request.parameters.browsingContext.SetViewportParameters;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
@@ -123,6 +124,19 @@ public class WDBrowsingContextManager implements WDModule {
     public WDBrowsingContextResult.CaptureScreenshotResult captureScreenshot(String contextId) {
         return webSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.CaptureScreenshot(contextId),
+                WDBrowsingContextResult.CaptureScreenshotResult.class
+        );
+    }
+
+    /**
+     * Captures a screenshot of the given browsing context.
+     *
+     * @param contextId The ID of the context to capture a screenshot from.
+     * @return The screenshot as a base64-encoded string.
+     */
+    public WDBrowsingContextResult.CaptureScreenshotResult captureScreenshot(WDBrowsingContext context, CaptureScreenshotParameters.Origin origin, CaptureScreenshotParameters.ImageFormat format, CaptureScreenshotParameters.ClipRectangle clip) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.CaptureScreenshot(context, origin, format, clip),
                 WDBrowsingContextResult.CaptureScreenshotResult.class
         );
     }
