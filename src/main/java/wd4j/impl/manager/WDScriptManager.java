@@ -1,5 +1,6 @@
 package wd4j.impl.manager;
 
+import wd4j.api.options.BoundingBox;
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDScriptRequest;
 import wd4j.impl.webdriver.command.request.parameters.script.AddPreloadScriptParameters;
@@ -12,6 +13,7 @@ import wd4j.impl.websocket.WebSocketManager;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class WDScriptManager implements WDModule {
 
@@ -232,8 +234,6 @@ public class WDScriptManager implements WDModule {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public void executeDomAction(String browsingContextId, String sharedId, DomAction action) {
-//        List<WDLocalValue> args = new ArrayList<>();
-//        args.add(new WDPrimitiveProtocolValue.StringValue(selector));
         List<WDLocalValue> args = null;
                 callFunction(
                         action.getFunctionDeclaration(),
@@ -242,6 +242,38 @@ public class WDScriptManager implements WDModule {
                         args,
                         new WDRemoteReference.SharedReference(new WDSharedId(sharedId))
                 );
+    }
+
+    public void executeDomAction(String browsingContextId, String sharedId, DomAction action, List<WDLocalValue> args) {
+        callFunction(
+                action.getFunctionDeclaration(),
+                false, // awaitPromise=false
+                new WDTarget.ContextTarget(new WDBrowsingContext(browsingContextId)),
+                args,
+                new WDRemoteReference.SharedReference(new WDSharedId(sharedId))
+        );
+    }
+
+    public WDEvaluateResult queryDomProperty(String browsingContextId, String sharedId, DomQuery domQuery) {
+        WDEvaluateResult result = callFunction(
+                domQuery.getFunctionDeclaration(),
+                false, // awaitPromise=false
+                new WDTarget.ContextTarget(new WDBrowsingContext(browsingContextId)),
+                null,
+                new WDRemoteReference.SharedReference(new WDSharedId(sharedId))
+        );
+        return result;
+    }
+
+    public WDEvaluateResult queryDomProperty(String browsingContextId, String sharedId, DomQuery domQuery, List<WDLocalValue> args) {
+        WDEvaluateResult result = callFunction(
+                domQuery.getFunctionDeclaration(),
+                false, // awaitPromise=false
+                new WDTarget.ContextTarget(new WDBrowsingContext(browsingContextId)),
+                args,
+                new WDRemoteReference.SharedReference(new WDSharedId(sharedId))
+        );
+        return result;
     }
 
     public enum DomAction {

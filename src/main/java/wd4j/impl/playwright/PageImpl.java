@@ -817,7 +817,7 @@ public class PageImpl implements Page {
         if (selector == null || selector.isEmpty()) {
             throw new IllegalArgumentException("Selector must not be null or empty.");
         }
-        return new LocatorImpl(selector, pageId, browser.getWebSockatManager());
+        return new LocatorImpl(this, selector);
     }
 
     @Override

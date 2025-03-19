@@ -9,9 +9,16 @@ import wd4j.api.options.AriaRole;
 import wd4j.api.options.BoundingBox;
 import wd4j.api.options.FilePayload;
 import wd4j.api.options.SelectOption;
+import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
-import wd4j.impl.websocket.WebSocketManager;
+import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
+import wd4j.impl.webdriver.type.browsingContext.WDLocator;
+import wd4j.impl.webdriver.type.script.WDEvaluateResult;
+import wd4j.impl.webdriver.type.script.WDLocalValue;
+import wd4j.impl.webdriver.type.script.WDPrimitiveProtocolValue;
+import wd4j.impl.webdriver.type.script.WDRemoteValue;
 
+import javax.annotation.Nullable;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -19,21 +26,57 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 public class LocatorImpl implements Locator {
+    private final PageImpl page;
     private final String selector;
-    private final String contextId;
-    private final WebSocketManager webSocket;
 
-    public LocatorImpl(String selector, String contextId, WebSocketManager webSocketManager) {
+    private String sharedId; // Wird erst beim ersten Zugriff gesetzt
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Constructors
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public LocatorImpl(PageImpl page, String selector) {
+        if (page == null) {
+            throw new IllegalArgumentException("Page must not be null.");
+        }
         if (selector == null || selector.isEmpty()) {
             throw new IllegalArgumentException("Selector must not be null or empty.");
         }
-        if (contextId == null || contextId.isEmpty()) {
-            throw new IllegalArgumentException("Context ID must not be null or empty.");
-        }
+        this.page = page;
         this.selector = selector;
-        this.contextId = contextId;
-        this.webSocket = webSocketManager;
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Webdriver Interaction
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private void resolveSharedId() {
+        if (sharedId == null) {
+            WDLocator<?> locator = createWDLocator(selector);
+            WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getBrowsingContextManager().locateNodes(
+                    page.getBrowsingContextId(),
+                    locator
+            );
+            if (nodes.getNodes().isEmpty()) {
+                throw new RuntimeException("No nodes found for selector: " + selector);
+            }
+            sharedId = nodes.getNodes().get(0).getSharedId().value();
+        }
+    }
+
+    public static WDLocator<?> createWDLocator(String selector) {
+        if (selector.startsWith("/") || selector.startsWith("(")) {
+            return new WDLocator.XPathLocator(selector);
+        } else if (selector.startsWith("text=")) {
+            return new WDLocator.InnerTextLocator(selector.substring(5));
+        } else {
+            return new WDLocator.CssLocator(selector);
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Overridden Methods / Implementation
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
     public List<Locator> all() {
@@ -114,7 +157,13 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void click(ClickOptions options) {
-
+        // ToDo: Use Options
+        resolveSharedId();
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.CLICK
+        );
     }
 
 
@@ -170,7 +219,15 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void fill(String value, FillOptions options) {
-
+        resolveSharedId();
+        List<WDLocalValue> args = new ArrayList<>();
+        args.add(new WDPrimitiveProtocolValue.StringValue(value));
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.INPUT,
+                args
+        );
     }
 
     @Override
@@ -195,7 +252,16 @@ public class LocatorImpl implements Locator {
 
     @Override
     public String getAttribute(String name, GetAttributeOptions options) {
-        return "";
+        resolveSharedId();
+        List<WDLocalValue> args = new ArrayList<>();
+        args.add(new WDPrimitiveProtocolValue.StringValue(name));
+        WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomQuery.GET_ATTRIBUTES,
+                args
+        );
+        return getStringFromEvaluateResult(result);
     }
 
     @Override
@@ -280,7 +346,13 @@ public class LocatorImpl implements Locator {
 
     @Override
     public String innerText(InnerTextOptions options) {
-        return "";
+        resolveSharedId();
+        WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomQuery.GET_INNER_TEXT
+        );
+        return getStringFromEvaluateResult(result);
     }
 
     @Override
@@ -314,8 +386,14 @@ public class LocatorImpl implements Locator {
     }
 
     @Override
-    public boolean isVisible(IsVisibleOptions options) {
-        return false;
+    public boolean isVisible(IsVisibleOptions options) { // ToDo: Is implementation correct?
+        resolveSharedId();
+        WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomQuery.GET_CSS_CLASS
+        );
+        return getBooleanFromEvaluateResult(result) != null; // Sichtbarkeit über CSS prüfen
     }
 
     @Override
@@ -451,5 +529,37 @@ public class LocatorImpl implements Locator {
     @Override
     public void waitFor(WaitForOptions options) {
 
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Helper Methods
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    @Nullable
+    private String getStringFromEvaluateResult(WDEvaluateResult result) {
+        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            WDRemoteValue remoteValue = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
+            if (remoteValue instanceof WDPrimitiveProtocolValue.StringValue) {
+                return ((WDPrimitiveProtocolValue.StringValue) remoteValue).getValue();
+            }
+        } else if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
+            throw new RuntimeException("Error while querying DOM property: " +
+                    ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
+        }
+        return null;
+    }
+
+    @Nullable
+    private Boolean getBooleanFromEvaluateResult(WDEvaluateResult result) {
+        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            WDRemoteValue remoteValue = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
+            if (remoteValue instanceof WDPrimitiveProtocolValue.BooleanValue) {
+                return ((WDPrimitiveProtocolValue.BooleanValue) remoteValue).getValue();
+            }
+        } else if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
+            throw new RuntimeException("Error while querying DOM property: " +
+                    ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
+        }
+        return null;
     }
 }
