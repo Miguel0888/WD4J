@@ -34,7 +34,8 @@ public class DebugTab implements UIComponent {
     }
 
     private JToolBar createDebugToolBar() {
-        JToolBar eventToolbar = new JToolBar();
+        JToolBar toolbar = new JToolBar();
+        toolbar.setFloatable(false);
 
         JButton clearConsoleButton = new JButton("Clear Console");
         clearConsoleButton.addActionListener(e -> console.setText(""));
@@ -56,7 +57,7 @@ public class DebugTab implements UIComponent {
             }
         };
 
-        // Optional: Leichtgewichtige Popups deaktivieren, falls dein Look & Feel
+        // Optional: Leichtgewichtige Popups deaktivieren, falls Look & Feel
         // sonst das Menü bei Item-Klick schließt
         eventMenu.setLightWeightPopupEnabled(false);
 
@@ -90,9 +91,9 @@ public class DebugTab implements UIComponent {
         });
 
         // Erzeugtes Menü & Button in die Toolbar
-        eventToolbar.add(new JLabel("Debug WebDriver: "));
-        eventToolbar.add(eventDropdownButton);
-        eventToolbar.add(Box.createHorizontalGlue());
+        toolbar.add(new JLabel("Debug: "));
+        toolbar.add(eventDropdownButton);
+        toolbar.add(Box.createHorizontalGlue());
 
         JToggleButton togglePlayPauseButton = new JToggleButton("Stop");
         togglePlayPauseButton.addItemListener(e -> {
@@ -106,9 +107,9 @@ public class DebugTab implements UIComponent {
                 console.setEnabled(true);
             }
         });
-        eventToolbar.add(togglePlayPauseButton);
+        toolbar.add(togglePlayPauseButton);
 
-        JButton clearLogButton = new JButton("Clear Debug Output");
+        JButton clearLogButton = new JButton("Clear Debug Log");
         clearLogButton.addActionListener(e -> {
             // Ask for confirmation
             int result = JOptionPane.showConfirmDialog(null, "Do you really want to clear the console?", "Clear Console", JOptionPane.YES_NO_OPTION);
@@ -116,9 +117,9 @@ public class DebugTab implements UIComponent {
                 console.setText("");
             }
         });
-        eventToolbar.add(clearLogButton);
+        toolbar.add(clearLogButton);
 
-        return eventToolbar;
+        return toolbar;
     }
 
     public JToolBar getToolbar() {

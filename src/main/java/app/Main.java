@@ -29,8 +29,8 @@ public class Main {
         componentsMap.put("Browser", new BrowserTab(controller));
         componentsMap.put("Context", new ContextTab(controller));
         componentsMap.put("Navigation", new NavigationTab(controller));
-        componentsMap.put("Script", new ScriptTab(controller));
         componentsMap.put("TestTools", new TestToolsTab(controller));
+        componentsMap.put("Script", new ScriptTab(controller));
         componentsMap.put("Debug", new DebugTab(controller));
         componentsMap.put("Settings", new SettingsTab(controller));
 

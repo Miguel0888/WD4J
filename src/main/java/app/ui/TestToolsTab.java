@@ -35,7 +35,7 @@ public class TestToolsTab implements UIComponent {
 
     @Override
     public String getComponentTitle() {
-        return "Test Tools";
+        return "Tools";
     }
 
     private void captureScreenshot(MainController controller) {
@@ -82,8 +82,35 @@ public class TestToolsTab implements UIComponent {
         screenshotButton.setToolTipText("Take Screenshot");
         screenshotButton.addActionListener(e -> captureScreenshot(controller));
 
-        toolbar.add(new JLabel("Test Tools: "));
+        JTextField selectorTestField = new JTextField();
+        selectorTestField.setToolTipText("Enter a XPATH selector to test");
+        JComboBox<String> selectorTestVariant = new JComboBox<>(new String[]{"text", "click", "hover", "scroll"});
+        JToggleButton selectorToggleButton = new JToggleButton("Test");
+        selectorToggleButton.addActionListener(e -> {
+            boolean isSelected = selectorToggleButton.isSelected();
+            selectorTestField.setEnabled(!isSelected);
+            selectorTestVariant.setEnabled(!isSelected);
+
+            String selector = selectorTestField.getText();
+            if (!isSelected || (selector != null && !selector.isEmpty())) {
+                String variant = (String) selectorTestVariant.getSelectedItem();
+                if (!isSelected || (variant != null && !variant.isEmpty())) {
+                    controller.testSelector(selector, variant, isSelected);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Please select a valid test variant!", "Error", JOptionPane.ERROR_MESSAGE);
+                    selectorToggleButton.setSelected(false); // Toggle zurücksetzen
+                }
+            } else {
+                JOptionPane.showMessageDialog(null, "Please enter a valid XPATH selector!", "Error", JOptionPane.ERROR_MESSAGE);
+                selectorToggleButton.setSelected(false); // Toggle zurücksetzen
+            }
+        });
+
+        toolbar.add(new JLabel("Tools: "));
         toolbar.add(screenshotButton);
+        toolbar.add(selectorTestField);
+        toolbar.add(selectorTestVariant);
+        toolbar.add(selectorToggleButton);
         return toolbar;
     }
 }

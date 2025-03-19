@@ -17,7 +17,8 @@ public class ContextTab implements UIComponent {
     }
 
     private JToolBar createContextsToolbar() {
-        JToolBar contextToolbar = new JToolBar();
+        JToolBar toolbar = new JToolBar();
+        toolbar.setFloatable(false);
 
         // User Context Combobox (leere Liste)
         userContextDropdown = new JComboBox<>(new DefaultComboBoxModel<>(new Vector<>()));
@@ -36,14 +37,14 @@ public class ContextTab implements UIComponent {
         closeContext.addActionListener(e -> controller.closePage());
 
         // Labels & Dropdowns hinzufügen
-        contextToolbar.add(new JLabel("User Context:"));
-        contextToolbar.add(userContextDropdown);
-        contextToolbar.add(new JLabel("Browsing Context:"));
-        contextToolbar.add(browsingContextDropdown);
-        contextToolbar.add(newContext);
-        contextToolbar.add(closeContext);
+        toolbar.add(new JLabel("User Context:"));
+        toolbar.add(userContextDropdown);
+        toolbar.add(new JLabel("Browsing Context:"));
+        toolbar.add(browsingContextDropdown);
+        toolbar.add(newContext);
+        toolbar.add(closeContext);
 
-        return contextToolbar;
+        return toolbar;
     }
 
     public JComboBox<Object> getBrowsingContextDropdown() {

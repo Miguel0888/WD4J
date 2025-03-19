@@ -15,6 +15,7 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import wd4j.impl.support.Pages;
+import wd4j.impl.support.ScriptHelper;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.*;
@@ -286,6 +287,46 @@ public class MainController {
         return browser.getPages().getActivePage().screenshot();
     }
 
+    @Deprecated // since it only for debugging purposes
+    public void testSelector(String selector, String command, Boolean toggle) {
+        String contextTarget = browser.getPages().getActivePage().getBrowsingContextId();
+
+        switch (command)
+        {
+            case "text":
+                List<WDLocalValue> args = new ArrayList<>();
+                args.add(new WDPrimitiveProtocolValue.BooleanValue(toggle)); // true = get text
+                args.add(new WDPrimitiveProtocolValue.StringValue(selector));
+                WDScriptManager.getInstance().callFunction(
+                        "toggleAnimation",
+                        false, // awaitPromise=false
+                        new WDTarget.ContextTarget(new WDBrowsingContext(contextTarget)),
+                        args
+                );
+                break;
+            case "click":
+                browser.getPages().getActivePage().click(selector);
+                break;
+            case "fill":
+                browser.getPages().getActivePage().fill(selector, "Test");
+                break;
+            case "focus":
+                browser.getPages().getActivePage().focus(selector);
+                break;
+            case "hover":
+                browser.getPages().getActivePage().hover(selector);
+                break;
+            case "select":
+                browser.getPages().getActivePage().selectOption(selector, "Test");
+                break;
+            case "type":
+                browser.getPages().getActivePage().type(selector, "Test");
+                break;
+            default:
+                System.out.println("Unknown command: " + command);
+        }
+    }
+
     ////////////////////////////////////////////////////////////////////////////
 
     public void setEventLoggingEnabled(boolean enabled) {
@@ -522,27 +563,6 @@ public class MainController {
             );
         }
     }
-
-    public void runScript(String script) {
-        String text = Main.getScriptTab().getScriptLog();
-
-        if (text.isEmpty()) {
-            JOptionPane.showMessageDialog(null, "Script is empty!", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-//        try {
-//            // ToDo: Implement script execution (gedacht waren webdriver bidi scripts nicht nur JS Scripts)
-//            // Beispiel: Ein einfaches JavaScript-Snippet ausführen
-//            browser.getPages().getActivePage().evaluate(script);
-//
-//            // Log-Eintrag aktualisieren
-//            SwingUtilities.invokeLater(() -> Main.getScriptTab().appendLog("Executed script: \n" + script + "\n"));
-//        } catch (Exception ex) {
-//            SwingUtilities.invokeLater(() -> Main.getScriptTab().appendLog("Error executing script: " + ex.getMessage() + "\n"));
-//        }
-    }
-
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

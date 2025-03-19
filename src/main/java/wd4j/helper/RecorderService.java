@@ -148,10 +148,29 @@ public class RecorderService {
     public TestAction convertToTestAction(RecordedEvent event) {
         TestAction action = new TestAction();
 
+        action.setTimeout(3000); // Standard-Timeout
         action.setAction(event.getAction());
         action.setSelectedSelector(event.getSelector());
         action.setLocatorType(event.getXpath() != null ? "xpath" : "css"); // Priorität für XPath
-        action.setTimeout(3000); // Standard-Timeout
+        action.setValue(event.getValue() != null ? event.getValue() : null);
+
+        // ✅ buttonText auf value mappen, falls value noch nicht gesetzt ist
+        if (event.getButtonText() != null) {
+            if (action.getValue() == null) {
+                action.setValue(event.getButtonText());
+            } else {
+                action.getExtractedValues().put("buttonText", event.getButtonText()); // Falls bereits ein value existiert
+            }
+        }
+
+        // ✅ Key-Events (Tastenanschläge) auf "value" mappen
+        if (event.getKey() != null) {
+            if (action.getValue() == null) {
+                action.setValue(event.getKey());
+            } else {
+                action.getExtractedValues().put("key", event.getKey()); // Falls es bereits ein value gibt
+            }
+        }
 
         // ✅ extractedValues übernehmen
         action.setExtractedValues(event.getExtractedValues() != null ?
@@ -177,24 +196,6 @@ public class RecorderService {
         // ✅ inputName in extractedAttributes speichern
         if (event.getInputName() != null) {
             action.getExtractedAttributes().put("inputName", event.getInputName());
-        }
-
-        // ✅ buttonText auf value mappen, falls value noch nicht gesetzt ist
-        if (event.getButtonText() != null) {
-            if (action.getValue() == null) {
-                action.setValue(event.getButtonText());
-            } else {
-                action.getExtractedValues().put("buttonText", event.getButtonText()); // Falls bereits ein value existiert
-            }
-        }
-
-        // ✅ Key-Events (Tastenanschläge) auf "value" mappen
-        if (event.getKey() != null) {
-            if (action.getValue() == null) {
-                action.setValue(event.getKey());
-            } else {
-                action.getExtractedValues().put("key", event.getKey()); // Falls es bereits ein value gibt
-            }
         }
 
         // ✅ classes als Attribut speichern
