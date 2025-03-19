@@ -9,7 +9,11 @@ import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.command.response.WDEmptyResult;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.browsingContext.WDLocator;
+import wd4j.impl.webdriver.type.script.WDRemoteReference;
+import wd4j.impl.webdriver.type.script.WDSerializationOptions;
 import wd4j.impl.websocket.WebSocketManager;
+
+import java.util.List;
 
 public class WDBrowsingContextManager implements WDModule {
 
@@ -199,12 +203,58 @@ public class WDBrowsingContextManager implements WDModule {
     }
 
     /**
-     * Prints the current page in the given browsing context.
+     * Locates nodes in the given browsing context using the provided CSS selector.
      *
-     * @param contextId The ID of the context to print.
-     * @return The print output as a base64-encoded string.
-     * @throws RuntimeException if the print operation fails.
+     * @param contextId The ID of the context to search in.
+     * @param locator  The CSS selector to locate nodes or the like.
+     * @return The response containing the located nodes.
      */
+    public WDBrowsingContextResult.LocateNodesResult locateNodes(String contextId, WDLocator locator, Long maxNodeCount) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.LocateNodes(contextId, locator, maxNodeCount),
+                WDBrowsingContextResult.LocateNodesResult.class
+        );
+    }
+
+    /**
+     * Locates nodes in the given browsing context using the provided CSS selector.
+     *
+     * @param context The context to search in.
+     * @param locator  The CSS selector to locate nodes or the like.
+     *                                @return The response containing the located nodes.
+     * @return The response containing the located nodes.
+     */
+    public WDBrowsingContextResult.LocateNodesResult locateNodes(WDBrowsingContext context, WDLocator locator, Long maxNodeCount) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.LocateNodes(context, locator, maxNodeCount),
+                WDBrowsingContextResult.LocateNodesResult.class
+        );
+    }
+
+    /**
+     * Locates nodes in the given browsing context using the provided CSS selector.
+     *
+     * @param context The context to search in.
+     * @param locator  The CSS selector to locate nodes or the like.
+     *                                @return The response containing the located nodes.
+     * @return The response containing the located nodes.
+     */
+    public WDBrowsingContextResult.LocateNodesResult locateNodes(WDBrowsingContext context, WDLocator locator, Long maxNodeCount, WDSerializationOptions WDSerializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.LocateNodes(context, locator, maxNodeCount, WDSerializationOptions, startNodes),
+                WDBrowsingContextResult.LocateNodesResult.class
+        );
+    }
+
+
+
+        /**
+         * Prints the current page in the given browsing context.
+         *
+         * @param contextId The ID of the context to print.
+         * @return The print output as a base64-encoded string.
+         * @throws RuntimeException if the print operation fails.
+         */
     public WDBrowsingContextResult.PrintResult print(String contextId) {
         return webSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.Print(contextId),

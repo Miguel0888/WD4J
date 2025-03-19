@@ -290,7 +290,10 @@ public class WDScriptManager implements WDModule {
         DRAG_AND_DROP( "function(target) { this.dispatchEvent(new DragEvent('dragstart')); target.dispatchEvent(new DragEvent('drop')); this.dispatchEvent(new DragEvent('dragend')); }"), // ToDo: Check if this is correct
         SCROLL_INTO_VIEW("function() { this.scrollIntoView(); }"), // ToDo: Check if this is correct
         TAP("function() { this.dispatchEvent(new MouseEvent('touchstart')); this.dispatchEvent(new MouseEvent('touchend')); }"), // ToDo: Check if this is correct
-        PRESS_KEY("function(key) { this.dispatchEvent(new KeyboardEvent('keydown', { key: key })); this.dispatchEvent(new KeyboardEvent('keypress', { key: key })); this.dispatchEvent(new KeyboardEvent('keyup', { key: key })); }"); // ToDo: Check if this is correct
+        PRESS_KEY("function(key) { this.dispatchEvent(new KeyboardEvent('keydown', { key: key })); this.dispatchEvent(new KeyboardEvent('keypress', { key: key })); this.dispatchEvent(new KeyboardEvent('keyup', { key: key })); }"), // ToDo: Check if this is correct
+        CLEAR_INPUT("function() { this.value = ''; this.dispatchEvent(new Event('input')); }"), // ToDo: Check if this is correct
+        SELECT_TEXT("function() { this.select(); }"); // ToDo: Check if this is correct
+
         private final String functionDeclaration;
 
         DomAction(String functionDeclaration) {

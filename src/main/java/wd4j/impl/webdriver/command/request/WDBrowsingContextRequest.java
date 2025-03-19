@@ -64,8 +64,8 @@ public class WDBrowsingContextRequest {
         public Create(CreateType type) {
             super("browsingContext.create", new CreateParameters(type));
         }
-        public Create(CreateType type, WDBrowsingContext referenceContext, Boolean background, WDUserContext WDUserContext) {
-            super("browsingContext.create", new CreateParameters(type, referenceContext, background, WDUserContext));
+        public Create(CreateType type, WDBrowsingContext referenceContext, Boolean background, WDUserContext userContext) {
+            super("browsingContext.create", new CreateParameters(type, referenceContext, background, userContext));
         }
     }
 
@@ -107,17 +107,23 @@ public class WDBrowsingContextRequest {
     }
 
     public static class LocateNodes extends WDCommandImpl<LocateNodesParameters> implements WDCommandData {
-        public LocateNodes(String contextId, WDLocator WDLocator) {
-            super("browsingContext.locateNodes", new LocateNodesParameters(new WDBrowsingContext(contextId), WDLocator));
+        public LocateNodes(String contextId, WDLocator locator) {
+            super("browsingContext.locateNodes", new LocateNodesParameters(new WDBrowsingContext(contextId), locator));
         }
-        public LocateNodes(String contextId, WDLocator WDLocator, Long maxNodeCount, WDSerializationOptions WDSerializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
-            super("browsingContext.locateNodes", new LocateNodesParameters(new WDBrowsingContext(contextId), WDLocator, maxNodeCount, WDSerializationOptions, startNodes));
+        public LocateNodes(String contextId, WDLocator locator, Long maxNodeCount) {
+            super("browsingContext.locateNodes", new LocateNodesParameters(new WDBrowsingContext(contextId), locator, maxNodeCount, null, null));
         }
-        public LocateNodes(WDBrowsingContext context, WDLocator WDLocator) {
-            super("browsingContext.locateNodes", new LocateNodesParameters(context, WDLocator));
+        public LocateNodes(String contextId, WDLocator locator, Long maxNodeCount, WDSerializationOptions serializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
+            super("browsingContext.locateNodes", new LocateNodesParameters(new WDBrowsingContext(contextId), locator, maxNodeCount, serializationOptions, startNodes));
         }
-        public LocateNodes(WDBrowsingContext context, WDLocator WDLocator, Long maxNodeCount, WDSerializationOptions WDSerializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
-            super("browsingContext.locateNodes", new LocateNodesParameters(context, WDLocator, maxNodeCount, WDSerializationOptions, startNodes));
+        public LocateNodes(WDBrowsingContext context, WDLocator locator) {
+            super("browsingContext.locateNodes", new LocateNodesParameters(context, locator));
+        }
+        public LocateNodes(WDBrowsingContext context, WDLocator locator, Long maxNodeCount) {
+            super("browsingContext.locateNodes", new LocateNodesParameters(context, locator, maxNodeCount, null, null));
+        }
+        public LocateNodes(WDBrowsingContext context, WDLocator locator, Long maxNodeCount, WDSerializationOptions serializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
+            super("browsingContext.locateNodes", new LocateNodesParameters(context, locator, maxNodeCount, serializationOptions, startNodes));
         }
     }
 
@@ -126,14 +132,14 @@ public class WDBrowsingContextRequest {
         public Navigate(String url, String contextId) {
             super("browsingContext.navigate", new NavigateParameters(new WDBrowsingContext(contextId), url));
         }
-        public Navigate(String url, String contextId, WDReadinessState WDReadinessState) {
-            super("browsingContext.navigate", new NavigateParameters(new WDBrowsingContext(contextId), url, WDReadinessState));
+        public Navigate(String url, String contextId, WDReadinessState readinessState) {
+            super("browsingContext.navigate", new NavigateParameters(new WDBrowsingContext(contextId), url, readinessState));
         }
         public Navigate(String url, WDBrowsingContext context) {
             super("browsingContext.navigate", new NavigateParameters(context, url));
         }
-        public Navigate(String url, WDBrowsingContext context, WDReadinessState WDReadinessState) {
-            super("browsingContext.navigate", new NavigateParameters(context, url, WDReadinessState));
+        public Navigate(String url, WDBrowsingContext context, WDReadinessState readinessState) {
+            super("browsingContext.navigate", new NavigateParameters(context, url, readinessState));
         }
     }
 
@@ -141,14 +147,14 @@ public class WDBrowsingContextRequest {
         public Print(String contextId) {
             super("browsingContext.print", new PrintParameters(new WDBrowsingContext(contextId)));
         }
-        public Print(String contextId, boolean background, PrintParameters.PrintMarginParameters margin, Orientation WDOrientation, PrintParameters.PrintPageParameters page, long pageRanges, float scale, boolean shrinkToFit) {
-            super("browsingContext.print", new PrintParameters(new WDBrowsingContext(contextId), background, margin, WDOrientation, page, pageRanges, scale, shrinkToFit));
+        public Print(String contextId, boolean background, PrintParameters.PrintMarginParameters margin, Orientation orientation, PrintParameters.PrintPageParameters page, long pageRanges, float scale, boolean shrinkToFit) {
+            super("browsingContext.print", new PrintParameters(new WDBrowsingContext(contextId), background, margin, orientation, page, pageRanges, scale, shrinkToFit));
         }
         public Print(WDBrowsingContext context) {
             super("browsingContext.print", new PrintParameters(context));
         }
-        public Print(WDBrowsingContext context, boolean background, PrintParameters.PrintMarginParameters margin, Orientation WDOrientation, PrintParameters.PrintPageParameters page, long pageRanges, float scale, boolean shrinkToFit) {
-            super("browsingContext.print", new PrintParameters(context, background, margin, WDOrientation, page, pageRanges, scale, shrinkToFit));
+        public Print(WDBrowsingContext context, boolean background, PrintParameters.PrintMarginParameters margin, Orientation orientation, PrintParameters.PrintPageParameters page, long pageRanges, float scale, boolean shrinkToFit) {
+            super("browsingContext.print", new PrintParameters(context, background, margin, orientation, page, pageRanges, scale, shrinkToFit));
         }
     }
 

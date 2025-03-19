@@ -117,12 +117,44 @@ public class LocatorImpl implements Locator {
 
     @Override
     public List<String> allInnerTexts() {
-        return Collections.emptyList(); // ToDo: Implement
+        WDLocator<?> locator = createWDLocator(selector);
+        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getBrowsingContextManager().locateNodes(
+                page.getBrowsingContextId(),
+                locator,
+                Long.MAX_VALUE
+        );
+
+        List<String> innerTexts = new ArrayList<>();
+        for (WDRemoteValue.NodeRemoteValue node : nodes.getNodes()) {
+            WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
+                    page.getBrowsingContextId(),
+                    node.getSharedId().value(),
+                    WDScriptManager.DomQuery.GET_INNER_TEXT
+            );
+            innerTexts.add(getStringFromEvaluateResult(result));
+        }
+        return innerTexts;
     }
 
     @Override
     public List<String> allTextContents() {
-        return Collections.emptyList(); // ToDo: Implement
+        WDLocator<?> locator = createWDLocator(selector);
+        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getBrowsingContextManager().locateNodes(
+                page.getBrowsingContextId(),
+                locator,
+                Long.MAX_VALUE
+        );
+
+        List<String> textContents = new ArrayList<>();
+        for (WDRemoteValue.NodeRemoteValue node : nodes.getNodes()) {
+            WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
+                    page.getBrowsingContextId(),
+                    node.getSharedId().value(),
+                    WDScriptManager.DomQuery.GET_TEXT_CONTENT
+            );
+            textContents.add(getStringFromEvaluateResult(result));
+        }
+        return textContents;
     }
 
     @Override
@@ -161,13 +193,19 @@ public class LocatorImpl implements Locator {
     @Override
     public void check(CheckOptions options) {
         // ToDo: Use Options
-        // ToDo: Implement
+        SetCheckedOptions setCheckedOptions = new SetCheckedOptions(); // ToDo: Is this correct?
+        setChecked(true, setCheckedOptions);
     }
 
     @Override
     public void clear(ClearOptions options) {
         // ToDo: Use Options
-        // ToDo: Implement
+        resolveSharedId();
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.CLEAR_INPUT
+        );
     }
 
     @Override
@@ -564,11 +602,7 @@ public class LocatorImpl implements Locator {
         CaptureScreenshotParameters.Origin origin = CaptureScreenshotParameters.Origin.DOCUMENT;
 
         // Falls das Element außerhalb des Viewports liegt, erst scrollen:
-        page.getBrowser().getScriptManager().executeDomAction(
-                page.getBrowsingContextId(),
-                sharedId,
-                WDScriptManager.DomAction.SCROLL_INTO_VIEW
-        );
+        scrollIntoViewIfNeeded(null);
 
         // Only capture the element:
         WDRemoteReference.SharedReference sharedReference = new WDRemoteReference.SharedReference(new WDSharedId(this.sharedId));
@@ -583,7 +617,12 @@ public class LocatorImpl implements Locator {
     @Override
     public void scrollIntoViewIfNeeded(ScrollIntoViewIfNeededOptions options) {
         // ToDo: Use Options
-        // ToDo: Implement
+        resolveSharedId();
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.SCROLL_INTO_VIEW
+        );
     }
 
     /**
@@ -676,7 +715,13 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void selectText(SelectTextOptions options) {
-
+        // ToDo: Use Options
+        resolveSharedId();
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.SELECT_TEXT
+        );
     }
 
     @Override
