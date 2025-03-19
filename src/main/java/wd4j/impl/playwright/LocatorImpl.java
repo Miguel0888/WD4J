@@ -4,7 +4,11 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import wd4j.api.*;
+import wd4j.api.ElementHandle;
+import wd4j.api.FrameLocator;
+import wd4j.api.JSHandle;
+import wd4j.api.Locator;
+import wd4j.api.Page;
 import wd4j.api.options.AriaRole;
 import wd4j.api.options.BoundingBox;
 import wd4j.api.options.FilePayload;
@@ -12,18 +16,21 @@ import wd4j.api.options.SelectOption;
 import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
+import wd4j.impl.webdriver.type.browsingContext.WDInfo;
 import wd4j.impl.webdriver.type.browsingContext.WDLocator;
 import wd4j.impl.webdriver.type.script.WDEvaluateResult;
 import wd4j.impl.webdriver.type.script.WDLocalValue;
 import wd4j.impl.webdriver.type.script.WDPrimitiveProtocolValue;
-import wd4j.impl.webdriver.type.script.WDRemoteValue;
 
-import javax.annotation.Nullable;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
+
+import static wd4j.impl.support.WDRemoteValueUtil.getBoundingBoxFromEvaluateResult;
+import static wd4j.impl.support.WDRemoteValueUtil.getStringFromEvaluateResult;
 
 public class LocatorImpl implements Locator {
     private final PageImpl page;
@@ -69,6 +76,11 @@ public class LocatorImpl implements Locator {
             return new WDLocator.XPathLocator(selector);
         } else if (selector.startsWith("text=")) {
             return new WDLocator.InnerTextLocator(selector.substring(5));
+        } else if (selector.startsWith("aria=")) {
+            String name = selector.substring(5);
+            String role = null; // ToDo: Implement
+            WDLocator.AccessibilityLocator.Value value = new WDLocator.AccessibilityLocator.Value(name, role);
+            return new WDLocator.AccessibilityLocator(value);
         } else {
             return new WDLocator.CssLocator(selector);
         }
@@ -83,31 +95,22 @@ public class LocatorImpl implements Locator {
         try {
             // ToDo: Das lässt sich vielleicht mit LocateNodes und / oder CallFunction viel einfacher lösen ??
 
-            // 1. Hole den DOM-Baum für den Kontext
-//            CompletableFuture<WebSocketFrame> futureResponse = webSocket.send(new BrowsingContextRequest.GetTree());
-//            String jsonResponse = futureResponse.get(5, TimeUnit.SECONDS).text();
-//            System.out.println("===>" + jsonResponse);
+            WDBrowsingContextResult.GetTreeResult response = page.getBrowser().getBrowsingContextManager().getTree(page.getBrowsingContextId());
 
-            String jsonResponse  = webSocket.sendAndWaitForResponse(new WDBrowsingContextRequest.GetTree(), String.class);
-
-            JsonObject json = new Gson().fromJson(jsonResponse, JsonObject.class);
-            JsonArray nodes = json.getAsJsonArray("nodes");
-
-            // 2. Finde Elemente mit `script.evaluate`Result Type
-            List<Locator> locators = new ArrayList<>();
-            for (JsonElement node : nodes) {
-                // ToDo: Fix Evalutate Call
-
-//                CompletableFuture<WebSocketFrame> evalResponse = webSocket.send(new ScriptRequest.Evaluate(contextId, selector));
-//                String evalJsonResponse = evalResponse.get(5, TimeUnit.SECONDS).text();
-//                JsonObject evalJson = new Gson().fromJson(evalJsonResponse, JsonObject.class);
-
-//                if (evalJson.has("result") && !evalJson.get("result").isJsonNull()) {
-//                    locators.add(new LocatorImpl(selector, contextId, webSocket));
-//                }
-
-                System.out.println(" - " + node.toString());
+            if(response == null) {
+                throw new RuntimeException("Failed to locate elements: Response is null");
             }
+            Collection<WDInfo> contexts = response.getContexts();
+            if(contexts == null) {
+                throw new RuntimeException("Failed to locate elements: Contexts are null");
+            }
+
+            List<Locator> locators = new ArrayList<>();
+            for (WDInfo context : contexts) {
+                System.out.println("Context: " + context);
+                // ToDo: Implement!
+            }
+
             return locators;
 
         } catch (Exception e) {
@@ -166,10 +169,14 @@ public class LocatorImpl implements Locator {
         );
     }
 
-
     @Override
     public int count() {
-        return 0;
+        WDLocator<?> locator = createWDLocator(selector);
+        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getBrowsingContextManager().locateNodes(
+                page.getBrowsingContextId(),
+                locator
+        );
+        return nodes.getNodes().size();
     }
 
     @Override
@@ -219,6 +226,7 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void fill(String value, FillOptions options) {
+        // ToDo: Use Options
         resolveSharedId();
         List<WDLocalValue> args = new ArrayList<>();
         args.add(new WDPrimitiveProtocolValue.StringValue(value));
@@ -242,7 +250,13 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void focus(FocusOptions options) {
-
+        // ToDo: Use Options
+        resolveSharedId();
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.FOCUS
+        );
     }
 
     @Override
@@ -252,6 +266,7 @@ public class LocatorImpl implements Locator {
 
     @Override
     public String getAttribute(String name, GetAttributeOptions options) {
+        // ToDo: Use Options
         resolveSharedId();
         List<WDLocalValue> args = new ArrayList<>();
         args.add(new WDPrimitiveProtocolValue.StringValue(name));
@@ -336,7 +351,13 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void hover(HoverOptions options) {
-
+        // ToDo: Use Options
+        resolveSharedId();
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.HOVER
+        );
     }
 
     @Override
@@ -387,13 +408,15 @@ public class LocatorImpl implements Locator {
 
     @Override
     public boolean isVisible(IsVisibleOptions options) { // ToDo: Is implementation correct?
+        // ToDo: Use Options
         resolveSharedId();
         WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
                 page.getBrowsingContextId(),
                 sharedId,
-                WDScriptManager.DomQuery.GET_CSS_CLASS
+                WDScriptManager.DomQuery.GET_BOUNDING_BOX
         );
-        return getBooleanFromEvaluateResult(result) != null; // Sichtbarkeit über CSS prüfen
+        BoundingBox box = getBoundingBoxFromEvaluateResult(result);
+        return box != null && box.width > 0 && box.height > 0;
     }
 
     @Override
@@ -516,9 +539,25 @@ public class LocatorImpl implements Locator {
         return "";
     }
 
+    /**
+     * @deprecated In most cases, you should use {@link Locator#fill Locator.fill()} instead. You only need to
+     * press keys one by one if there is special keyboard handling on the page - in this case use {@link
+     * Locator#pressSequentially Locator.pressSequentially()}.
+     *
+     * @param text A text to type into a focused element.
+     * @since v1.14
+     */
     @Override
     public void type(String text, TypeOptions options) {
-
+        // ToDo: Use Options
+        resolveSharedId();
+        List<WDLocalValue> args = Collections.singletonList(new WDPrimitiveProtocolValue.StringValue(text));
+        page.getBrowser().getScriptManager().executeDomAction(
+                page.getBrowsingContextId(),
+                sharedId,
+                WDScriptManager.DomAction.INPUT,
+                args
+        );
     }
 
     @Override
@@ -535,31 +574,6 @@ public class LocatorImpl implements Locator {
     // Helper Methods
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    @Nullable
-    private String getStringFromEvaluateResult(WDEvaluateResult result) {
-        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue remoteValue = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
-            if (remoteValue instanceof WDPrimitiveProtocolValue.StringValue) {
-                return ((WDPrimitiveProtocolValue.StringValue) remoteValue).getValue();
-            }
-        } else if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
-            throw new RuntimeException("Error while querying DOM property: " +
-                    ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
-        }
-        return null;
-    }
 
-    @Nullable
-    private Boolean getBooleanFromEvaluateResult(WDEvaluateResult result) {
-        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue remoteValue = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
-            if (remoteValue instanceof WDPrimitiveProtocolValue.BooleanValue) {
-                return ((WDPrimitiveProtocolValue.BooleanValue) remoteValue).getValue();
-            }
-        } else if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
-            throw new RuntimeException("Error while querying DOM property: " +
-                    ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
-        }
-        return null;
-    }
+
 }

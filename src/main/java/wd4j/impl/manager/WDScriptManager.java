@@ -284,7 +284,8 @@ public class WDScriptManager implements WDModule {
         CHANGE("function(value) { this.value = value; this.dispatchEvent(new Event('change')); }"),
         SELECT("function(value) { this.value = value; this.dispatchEvent(new Event('change')); }"),
         CHECK("function() { this.checked = true; this.dispatchEvent(new Event('change')); }"),
-        UNCHECK("function() { this.checked = false; this.dispatchEvent(new Event('change')); }");
+        UNCHECK("function() { this.checked = false; this.dispatchEvent(new Event('change')); }"),
+        HOVER("function() { this.dispatchEvent(new MouseEvent('mouseover')); }"); // ToDo: Check if this is correct
 
         private final String functionDeclaration;
 
@@ -306,7 +307,8 @@ public class WDScriptManager implements WDModule {
         GET_ATTRIBUTES("function() { let attrs = {}; for (let attr of this.attributes) { attrs[attr.name] = attr.value; } return attrs; }"),
         IS_CHECKED("function() { return this.checked; }"),
         IS_SELECTED("function() { return this.selected; }"),
-        GET_ROLE("function() { return this.getAttribute('role'); }");
+        GET_ROLE("function() { return this.getAttribute('role'); }"),
+        GET_BOUNDING_BOX("function() { const rect = this.getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }; }"); // ToDo: Check if this is correct
 
         private final String functionDeclaration;
 

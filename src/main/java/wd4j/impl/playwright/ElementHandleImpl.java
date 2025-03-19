@@ -2,12 +2,27 @@ package wd4j.impl.playwright;
 
 import wd4j.api.ElementHandle;
 import wd4j.api.Frame;
-import wd4j.api.options.*;
+import wd4j.api.options.BoundingBox;
+import wd4j.api.options.ElementState;
+import wd4j.api.options.FilePayload;
+import wd4j.api.options.SelectOption;
 import wd4j.impl.manager.WDScriptManager;
-import wd4j.impl.webdriver.type.script.*;
+import wd4j.impl.webdriver.type.script.WDEvaluateResult;
+import wd4j.impl.webdriver.type.script.WDHandle;
+import wd4j.impl.webdriver.type.script.WDLocalValue;
+import wd4j.impl.webdriver.type.script.WDPrimitiveProtocolValue;
+import wd4j.impl.webdriver.type.script.WDRealm;
+import wd4j.impl.webdriver.type.script.WDRemoteValue;
+import wd4j.impl.webdriver.type.script.WDTarget;
 
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+import static wd4j.impl.support.WDRemoteValueUtil.getBoundingBoxFromEvaluateResult;
 
 /**
  * Implementation of ElementHandle using WebDriver BiDi.
@@ -29,23 +44,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
         String script = "el => el.getBoundingClientRect()";
         WDEvaluateResult result = scriptManager.evaluate(script, new WDTarget.RealmTarget(realm), true);
 
-        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue remoteValue = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
-            if (remoteValue instanceof WDRemoteValue.ObjectRemoteValue) {
-                Map<WDRemoteValue, WDRemoteValue> values = ((WDRemoteValue.ObjectRemoteValue) remoteValue).getValue();
-
-                return new BoundingBox(
-                        extractDouble(values, "x"),
-                        extractDouble(values, "y"),
-                        extractDouble(values, "width"),
-                        extractDouble(values, "height")
-                );
-            }
-        } else if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
-            throw new RuntimeException("Error evaluating boundingBox: " +
-                    ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
-        }
-        return null;
+        return getBoundingBoxFromEvaluateResult(result);
     }
 
     /**
@@ -989,6 +988,10 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Helper methods
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     private boolean evaluateBoolean(String script) {
         WDEvaluateResult result = scriptManager.evaluate(script, new WDTarget.RealmTarget(realm), true);
         if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
@@ -1008,18 +1011,5 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
             }
         }
         return "";
-    }
-
-    private double extractDouble(Map<WDRemoteValue, WDRemoteValue> values, String key) {
-        for (Map.Entry<WDRemoteValue, WDRemoteValue> entry : values.entrySet()) {
-            if (entry.getKey() instanceof WDPrimitiveProtocolValue.StringValue &&
-                    key.equals(((WDPrimitiveProtocolValue.StringValue) entry.getKey()).getValue())) {
-                WDRemoteValue value = entry.getValue();
-                if (value instanceof WDPrimitiveProtocolValue.NumberValue) {
-                    return Double.parseDouble(((WDPrimitiveProtocolValue.NumberValue) value).getValue());
-                }
-            }
-        }
-        throw new IllegalStateException("Missing key: " + key);
     }
 }
