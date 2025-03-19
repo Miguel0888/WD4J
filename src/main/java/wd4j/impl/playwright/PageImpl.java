@@ -817,14 +817,7 @@ public class PageImpl implements Page {
         if (selector == null || selector.isEmpty()) {
             throw new IllegalArgumentException("Selector must not be null or empty.");
         }
-        return new LocatorImpl(selector, pageId, null); // ToDo: webSocketImpl übergeben
-
-        // ToDo: Implementierung verbessern
-        // XPath-Selektoren beginnen mit "xpath=", CSS-Selektoren mit "css="
-//        if (selector.startsWith("xpath=")) {
-//            return new LocatorImpl(selector);
-//        }
-//        return new LocatorImpl("css=" + selector);
+        return new LocatorImpl(selector, pageId, browser.getWebSockatManager());
     }
 
     @Override

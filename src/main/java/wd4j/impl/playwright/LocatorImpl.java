@@ -23,17 +23,6 @@ public class LocatorImpl implements Locator {
     private final String contextId;
     private final WebSocketManager webSocket;
 
-//    public LocatorImpl(String selector) {
-//        // TODO: Implement
-//        this.selector = selector;
-//        this.webSocket = null; // ToDo
-//    }
-//
-//    public LocatorImpl(String selector, WebSocketImpl webSocket) {
-//        this.selector = selector;
-//        this.webSocket = webSocket;
-//    }
-
     public LocatorImpl(String selector, String contextId, WebSocketManager webSocketManager) {
         if (selector == null || selector.isEmpty()) {
             throw new IllegalArgumentException("Selector must not be null or empty.");
@@ -49,6 +38,8 @@ public class LocatorImpl implements Locator {
     @Override
     public List<Locator> all() {
         try {
+            // ToDo: Das lässt sich vielleicht mit LocateNodes und / oder CallFunction viel einfacher lösen ??
+
             // 1. Hole den DOM-Baum für den Kontext
 //            CompletableFuture<WebSocketFrame> futureResponse = webSocket.send(new BrowsingContextRequest.GetTree());
 //            String jsonResponse = futureResponse.get(5, TimeUnit.SECONDS).text();
@@ -80,8 +71,6 @@ public class LocatorImpl implements Locator {
             throw new RuntimeException("Failed to locate elements: " + e.getMessage(), e);
         }
     }
-
-
 
     @Override
     public List<String> allInnerTexts() {
@@ -125,8 +114,7 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void click(ClickOptions options) {
-        String contextId = "default"; // Sollte aus Page kommen
-//        webSocket.send(new BrowsingContext.DispatchEvent(contextId, selector, "click"));
+
     }
 
 
