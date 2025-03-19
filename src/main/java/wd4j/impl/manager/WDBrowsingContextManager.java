@@ -167,12 +167,12 @@ public class WDBrowsingContextManager implements WDModule {
      * Locates nodes in the given browsing context using the provided CSS selector.
      *
      * @param contextId The ID of the context to search in.
-     * @param WDLocator  The CSS selector to locate nodes or the like.
+     * @param locator  The CSS selector to locate nodes or the like.
      * @return The response containing the located nodes.
      */
-    public WDBrowsingContextResult.LocateNodesResult locateNodes(String contextId, WDLocator WDLocator) {
+    public WDBrowsingContextResult.LocateNodesResult locateNodes(String contextId, WDLocator locator) {
         return webSocketManager.sendAndWaitForResponse(
-                new WDBrowsingContextRequest.LocateNodes(contextId, WDLocator),
+                new WDBrowsingContextRequest.LocateNodes(contextId, locator),
                 WDBrowsingContextResult.LocateNodesResult.class
         );
     }

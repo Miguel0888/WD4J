@@ -26,6 +26,10 @@ public class CallFunctionParameters implements WDCommand.Params {
         this(functionDeclaration, awaitPromise, target, arguments, null, null, null, false);
     }
 
+    public CallFunctionParameters(String functionDeclaration, boolean awaitPromise, WDTarget target, List<WDLocalValue> arguments, WDLocalValue thisObject) {
+        this(functionDeclaration, awaitPromise, target, arguments, null, null, thisObject, false);
+    }
+
     public CallFunctionParameters(String functionDeclaration, boolean awaitPromise, WDTarget target, List<WDLocalValue> arguments, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions, WDLocalValue thisObject, boolean userActivation) {
         this.functionDeclaration = functionDeclaration;
         this.awaitPromise = awaitPromise;

@@ -10,6 +10,7 @@ import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.*;
 import wd4j.impl.websocket.WebSocketManager;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class WDScriptManager implements WDModule {
@@ -157,6 +158,22 @@ public class WDScriptManager implements WDModule {
     }
 
     /**
+     * Calls a function on the specified target with the given arguments.
+     *
+     * @param functionDeclaration The function to call.
+     * @param target              The target where the function is called.
+     * @param arguments           The arguments to pass to the function.
+     * @param thisArg             The value of 'this' in the function.
+     * @throws RuntimeException if the operation fails.
+     */
+    public <T> WDEvaluateResult callFunction(String functionDeclaration, boolean awaitPromise, WDTarget target, List<WDLocalValue> arguments, WDLocalValue thisArg) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.CallFunction(functionDeclaration, awaitPromise, target, arguments, thisArg),
+                WDEvaluateResult.class
+        );
+    }
+
+    /**
      * Evaluates the given expression in the specified target.
      *
      * @param script    The script to evaluate.
@@ -209,4 +226,65 @@ public class WDScriptManager implements WDModule {
                 WDEmptyResult.class
         );
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // JS Functions available via CallFunction and SharedId given by the locateNodes Command
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public void executeDomAction(String browsingContextId, String sharedId, DomAction action) {
+//        List<WDLocalValue> args = new ArrayList<>();
+//        args.add(new WDPrimitiveProtocolValue.StringValue(selector));
+        List<WDLocalValue> args = null;
+                callFunction(
+                        action.getFunctionDeclaration(),
+                        false, // awaitPromise=false
+                        new WDTarget.ContextTarget(new WDBrowsingContext(browsingContextId)),
+                        args,
+                        new WDRemoteReference.SharedReference(new WDSharedId(sharedId))
+                );
+    }
+
+    public enum DomAction {
+        CLICK("function() { this.click(); }"),
+        FOCUS("function() { this.focus(); }"),
+        BLUR("function() { this.blur(); }"),
+        INPUT("function(value) { this.value = value; this.dispatchEvent(new Event('input')); }"),
+        CHANGE("function(value) { this.value = value; this.dispatchEvent(new Event('change')); }"),
+        SELECT("function(value) { this.value = value; this.dispatchEvent(new Event('change')); }"),
+        CHECK("function() { this.checked = true; this.dispatchEvent(new Event('change')); }"),
+        UNCHECK("function() { this.checked = false; this.dispatchEvent(new Event('change')); }");
+
+        private final String functionDeclaration;
+
+        DomAction(String functionDeclaration) {
+            this.functionDeclaration = functionDeclaration;
+        }
+
+        public String getFunctionDeclaration() {
+            return functionDeclaration;
+        }
+    }
+
+    public enum DomQuery {
+        GET_INNER_TEXT("function() { return this.innerText; }"),
+        GET_VALUE("function() { return this.value; }"),
+        GET_PLACEHOLDER("function() { return this.placeholder; }"),
+        GET_TAG_NAME("function() { return this.tagName.toLowerCase(); }"),
+        GET_CSS_CLASS("function() { return this.className; }"),
+        GET_ATTRIBUTES("function() { let attrs = {}; for (let attr of this.attributes) { attrs[attr.name] = attr.value; } return attrs; }"),
+        IS_CHECKED("function() { return this.checked; }"),
+        IS_SELECTED("function() { return this.selected; }"),
+        GET_ROLE("function() { return this.getAttribute('role'); }");
+
+        private final String functionDeclaration;
+
+        DomQuery(String functionDeclaration) {
+            this.functionDeclaration = functionDeclaration;
+        }
+
+        public String getFunctionDeclaration() {
+            return functionDeclaration;
+        }
+    }
+
 }

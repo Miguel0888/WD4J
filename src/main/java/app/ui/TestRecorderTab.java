@@ -9,6 +9,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import wd4j.helper.RecorderService;
 import app.dto.RecordedEvent;
+import wd4j.impl.manager.WDScriptManager;
 
 import javax.swing.*;
 import javax.swing.tree.*;
@@ -22,6 +23,8 @@ import java.util.List;
 public class TestRecorderTab implements UIComponent {
     public static final String SELECT_ON_CREATE = "@When"; // Alternatives: "@Given", "@When", "@Then"
     private final JPanel panel;
+    private final MainController controller;
+    private JToolBar toolbar;
     private final JTree testCaseTree;
     private final DefaultMutableTreeNode rootNode;
     private final DefaultTreeModel treeModel;
@@ -39,7 +42,9 @@ public class TestRecorderTab implements UIComponent {
     private JButton removeTestCaseButton;
 
     public TestRecorderTab(MainController controller) {
+        this.controller = controller;
         panel = new JPanel(new BorderLayout());
+        toolbar = createToolbar();
 
         // Testfall-Hierarchie (JTree)
         rootNode = new DefaultMutableTreeNode("Testfälle");
@@ -559,4 +564,89 @@ public class TestRecorderTab implements UIComponent {
         treeModel.nodeChanged(selectedNode);
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Playback
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    @Override
+    public JToolBar getToolbar() {
+        return toolbar;
+    }
+
+    private void playTestSuite() {
+        // ToDo: Will be implemented in the next chapter, but not now!
+    }
+
+    private JToolBar createToolbar() {
+        toolbar = new JToolBar();
+        toolbar.setFloatable(false);
+
+        JButton playButton = new JButton("▶️ Abspielen");
+        playButton.addActionListener(e -> playTestSuite());
+
+        JLabel separator = new JLabel(" | ");
+        JLabel selectorLabel = new JLabel("Selector: ");
+
+        // 🔽 Dropdown mit Textfeld-Funktionalität
+        JComboBox<String> selectorTestField = new JComboBox<>();
+        selectorTestField.setEditable(true); // Erlaubt direkte Eingabe
+        selectorTestField.setMaximumSize(new Dimension(350, 24));
+        selectorTestField.setPreferredSize(new Dimension(350, 24));
+        selectorTestField.setToolTipText("Enter a XPATH selector to test");
+
+        // 🛠 Historie der letzten Eingaben
+        List<String> selectorHistory = new ArrayList<>();
+
+        // 🔽 Dropdown für Testvarianten
+        WDScriptManager.DomAction[] actions = WDScriptManager.DomAction.values();
+        String[] variants = new String[actions.length];
+        for (int i = 0; i < actions.length; i++) {
+            variants[i] = actions[i].name();
+        }
+        JComboBox<String> selectorTestVariant = new JComboBox<>(variants);
+        selectorTestVariant.setMaximumSize(new Dimension(100, 24));
+        selectorTestVariant.setPreferredSize(new Dimension(100, 24));
+
+        JButton selectorToggleButton = new JButton("Call");
+        selectorToggleButton.addActionListener(e -> {
+            boolean isSelected = selectorToggleButton.isSelected();
+            selectorTestField.setEnabled(!isSelected);
+            selectorTestVariant.setEnabled(!isSelected);
+
+            String selector = (String) selectorTestField.getEditor().getItem();
+            if (!isSelected || (selector != null && !selector.isEmpty())) {
+                String variant = (String) selectorTestVariant.getSelectedItem();
+                if (!isSelected || (variant != null && !variant.isEmpty())) {
+                    controller.testPlayback(selector, WDScriptManager.DomAction.valueOf(variant));
+
+                    // ✅ Eingabe zur Historie hinzufügen
+                    if (!selectorHistory.contains(selector)) {
+                        selectorHistory.add(0, selector); // Neueste oben
+                        if (selectorHistory.size() > 10) selectorHistory.remove(10); // Begrenzung
+                        selectorTestField.removeAllItems();
+                        selectorHistory.forEach(selectorTestField::addItem);
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(null, "Please select a valid test variant!", "Error", JOptionPane.ERROR_MESSAGE);
+                    selectorToggleButton.setSelected(false); // Toggle zurücksetzen
+                }
+            } else {
+                JOptionPane.showMessageDialog(null, "Please enter a valid XPATH selector!", "Error", JOptionPane.ERROR_MESSAGE);
+                selectorToggleButton.setSelected(false); // Toggle zurücksetzen
+            }
+        });
+
+        toolbar.add(new JLabel("Recorder: "));
+        toolbar.add(playButton);
+
+        // Rest rechts ausrichten
+        toolbar.add(Box.createHorizontalGlue());
+//        toolbar.add(separator);
+        toolbar.add(selectorLabel);
+        toolbar.add(selectorTestField);
+        toolbar.add(selectorTestVariant);
+        toolbar.add(selectorToggleButton);
+
+        return toolbar;
+    }
 }

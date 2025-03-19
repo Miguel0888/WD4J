@@ -322,17 +322,17 @@ public interface WDRemoteValue {
     }
 
      class NodeRemoteValue extends BaseRemoteValue {
-        private final WDSharedId WDSharedId;
+        private final WDSharedId sharedId;
         private final NodeProperties value;
 
-        public NodeRemoteValue(WDHandle handle, WDInternalId internalId, WDSharedId WDSharedId, NodeProperties value) {
+        public NodeRemoteValue(WDHandle handle, WDInternalId internalId, WDSharedId sharedId, NodeProperties value) {
             super("node", handle, internalId);
-            this.WDSharedId = WDSharedId;
+            this.sharedId = sharedId;
             this.value = value;
         }
 
         public WDSharedId getSharedId() {
-            return WDSharedId;
+            return sharedId;
         }
 
         public NodeProperties getValue() {

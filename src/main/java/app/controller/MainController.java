@@ -2,6 +2,7 @@ package app.controller;
 
 import app.Main;
 import wd4j.api.*;
+import wd4j.impl.manager.WDBrowsingContextManager;
 import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.PageImpl;
@@ -16,8 +17,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import wd4j.impl.support.Pages;
 import wd4j.impl.support.ScriptHelper;
+import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.browsingContext.WDLocator;
 import wd4j.impl.webdriver.type.script.*;
 
 public class MainController {
@@ -285,6 +288,34 @@ public class MainController {
 
     public byte[] captureScreenshot() {
         return browser.getPages().getActivePage().screenshot();
+    }
+
+    @Deprecated // since it only for debugging purposes
+    public void testPlayback(String selector, WDScriptManager.DomAction command) {
+        String contextTarget = browser.getPages().getActivePage().getBrowsingContextId();
+        String sharedId;
+
+        WDLocator.XPathLocator locator = new WDLocator.XPathLocator(selector);
+        WDBrowsingContextResult.LocateNodesResult nodes = WDBrowsingContextManager.getInstance().locateNodes(
+                contextTarget,
+                locator
+        );
+
+        if (nodes.getNodes().isEmpty()) {
+            System.out.println("No nodes found for selector: " + selector);
+            return;
+        }
+        else
+        {
+            sharedId = nodes.getNodes().get(0).getSharedId().value(); // ToDo: Use Object directly instead of String
+            System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Shared ID: " + sharedId + " <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+        }
+
+        WDScriptManager.getInstance().executeDomAction(
+                contextTarget,
+                sharedId,
+                command
+        );
     }
 
     @Deprecated // since it only for debugging purposes
