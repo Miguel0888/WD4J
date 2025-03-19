@@ -18,6 +18,12 @@ public class ActionTableModel extends AbstractTableModel {
         addColumn("Locator-Typ");
         addColumn("Selektor");
         addColumn("Wert");
+        addColumn("XPath");
+        addColumn("CSS");
+        addColumn("Element-ID");
+        addColumn("CSS-Klassen");
+        addColumn("Pagination");
+        addColumn("Input-Name");
         addColumn("Wartezeit");
     }
 
@@ -31,8 +37,14 @@ public class ActionTableModel extends AbstractTableModel {
     /** 🔄 Aktualisiert Spalten mit dynamischen Werten */
     void updateColumnNames() {
         Set<String> dynamicKeys = actions.stream()
-                .filter(action -> action.getExtractedValues() != null)
-                .flatMap(action -> action.getExtractedValues().keySet().stream())
+                .flatMap(action -> {
+                    List<String> keys = new ArrayList<>();
+                    if (action.getExtractedValues() != null) keys.addAll(action.getExtractedValues().keySet());
+                    if (action.getExtractedAttributes() != null) keys.addAll(action.getExtractedAttributes().keySet());
+                    if (action.getExtractedAriaRoles() != null) keys.addAll(action.getExtractedAriaRoles().keySet());
+                    if (action.getExtractedTestIds() != null) keys.addAll(action.getExtractedTestIds().keySet());
+                    return keys.stream();
+                })
                 .distinct()
                 .filter(key -> columns.stream().noneMatch(col -> nameEquals(col, key)))
                 .collect(Collectors.toSet());
@@ -76,12 +88,31 @@ public class ActionTableModel extends AbstractTableModel {
             case 2: return action.getLocatorType();
             case 3: return action.getSelectedSelector();
             case 4: return action.getValue();
-            case 5: return action.getTimeout();
+            case 5: return action.getLocators().getOrDefault("xpath", "");                  // ✅ XPath
+            case 6: return action.getLocators().getOrDefault("css", "");                    // ✅ CSS
+            case 7: return action.getExtractedAttributes().getOrDefault("elementId", "");   // ✅ Element-ID
+            case 8: return action.getExtractedAttributes().getOrDefault("classes", "");     // ✅ CSS-Klassen
+            case 9: return action.getExtractedAttributes().getOrDefault("pagination", "");  // ✅ Pagination
+            case 10: return action.getExtractedAttributes().getOrDefault("inputName", "");  // ✅ Input-Name
+            case 11: return action.getTimeout();
             default:  // Dynamische Spalten
+                // Dynamische Spalten nach den festen Spalten (ab Index 11)
                 String dynamicKey = getColumnName(columnIndex);
-                if (action.getExtractedValues() != null) {
-                    return action.getExtractedValues().getOrDefault(dynamicKey, "");
+
+                // Prüfe dynamische Werte aus den verschiedenen Maps
+                if (action.getExtractedValues() != null && action.getExtractedValues().containsKey(dynamicKey)) {
+                    return action.getExtractedValues().get(dynamicKey);
                 }
+                if (action.getExtractedAttributes() != null && action.getExtractedAttributes().containsKey(dynamicKey)) {
+                    return action.getExtractedAttributes().get(dynamicKey);
+                }
+                if (action.getExtractedAriaRoles() != null && action.getExtractedAriaRoles().containsKey(dynamicKey)) {
+                    return action.getExtractedAriaRoles().get(dynamicKey);
+                }
+                if (action.getExtractedTestIds() != null && action.getExtractedTestIds().containsKey(dynamicKey)) {
+                    return action.getExtractedTestIds().get(dynamicKey);
+                }
+
                 return "";
         }
     }

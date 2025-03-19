@@ -12,6 +12,7 @@ public class TestAction {
     private String selectedSelector;  // Der tatsächlich verwendete Selektor
     private String locatorType; // "css", "xpath", "id", "text", "role", "label", "placeholder", "altText"
     private String value;
+    private Map<String, String> locators = new LinkedHashMap<>();
     private Map<String, String> extractedValues = new LinkedHashMap<>();
     private Map<String, String> extractedAttributes = new LinkedHashMap<>();
     private Map<String, String> extractedTestIds = new LinkedHashMap<>();
@@ -165,5 +166,11 @@ public class TestAction {
         this.extractedAriaRoles = extractedAriaRoles;
     }
 
+    public Map<String, String> getLocators() {
+        return locators;
+    }
 
+    public void setLocators(Map<String, String> locators) {
+        this.locators = locators;
+    }
 }

@@ -150,8 +150,10 @@ public class RecorderService {
 
         action.setTimeout(3000); // Standard-Timeout
         action.setAction(event.getAction());
-        action.setSelectedSelector(event.getSelector());
+        action.getLocators().put("xpath", event.getXpath()); // ToDo: event script & RecordedEvent DTO may be cleaner
+        action.getLocators().put("css", event.getCss()); // ToDo: Should be renamed to cssSelector in event Script
         action.setLocatorType(event.getXpath() != null ? "xpath" : "css"); // Priorität für XPath
+        action.setSelectedSelector(event.getXpath() != null ? event.getXpath() : event.getCss());
         action.setValue(event.getValue() != null ? event.getValue() : null);
 
         // ✅ buttonText auf value mappen, falls value noch nicht gesetzt ist
@@ -267,7 +269,7 @@ public class RecorderService {
      * Vergleicht zwei RecordedEvent-Objekte, ob sie identisch sind – außer beim `value`.
      */
     private boolean isSameExceptValue(RecordedEvent a, RecordedEvent b) {
-        return a.getSelector().equals(b.getSelector()) &&
+        return a.getCss().equals(b.getCss()) &&
                 a.getAction().equals(b.getAction()) &&
                 Objects.equals(a.getElementId(), b.getElementId()) &&
                 Objects.equals(a.getClasses(), b.getClasses()) &&
@@ -282,8 +284,8 @@ public class RecorderService {
         List<String> alternatives = new ArrayList<>();
 
         for (RecordedEvent event : recordedEvents) {
-            if (event.getSelector().equals(selector)) {
-                alternatives.add(event.getSelector()); // Hier könnten weitere Methoden eingebaut werden
+            if (event.getCss().equals(selector)) {
+                alternatives.add(event.getCss()); // Hier könnten weitere Methoden eingebaut werden
             }
         }
 

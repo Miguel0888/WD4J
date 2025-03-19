@@ -29,7 +29,7 @@ public class RecordedEvent {
     }
 
     // Getter & Setter
-    public String getSelector() { return selector; }
+    public String getCss() { return selector; }
     public void setSelector(String selector) { this.selector = selector; }
 
     public String getAction() { return action; }
