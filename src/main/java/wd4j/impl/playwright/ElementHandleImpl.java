@@ -541,9 +541,18 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
     @Override
     public ElementHandle querySelector(String selector) {
         String script = "el => el.querySelector(arguments[0])";
-        WDEvaluateResult element = scriptManager.evaluate(script, new WDTarget.RealmTarget(realm), true);
-        return (element instanceof WDEvaluateResult.WDEvaluateResultSuccess) ? new ElementHandleImpl(handle, realm) : null;
+        WDEvaluateResult result = scriptManager.evaluate(script, new WDTarget.RealmTarget(realm), true);
+
+        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            WDRemoteValue value = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
+            if (value instanceof WDRemoteValue.NodeRemoteValue) {
+                WDHandle newHandle = ((WDRemoteValue.NodeRemoteValue) value).getHandle();
+                return new ElementHandleImpl(newHandle, realm);
+            }
+        }
+        return null;
     }
+
 
     @Override
     public List<ElementHandle> querySelectorAll(String selector) {

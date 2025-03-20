@@ -22,7 +22,7 @@ import java.util.function.Consumer;
 public class BrowserImpl implements Browser {
     private static final List<BrowserImpl> browsers = new ArrayList<>(); // ToDo: Improve this
     private final List<WDScriptResult.AddPreloadScriptResult> globalScripts = new ArrayList<>();
-    private final Pages pages = new Pages(); // aka. BrowsingContexts / Navigables in WebDriver BiDi
+    private final Pages pages = new Pages(this); // aka. BrowsingContexts / Navigables in WebDriver BiDi
 
     private final BrowserTypeImpl browserType;
     private final Session session;

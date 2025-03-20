@@ -100,23 +100,6 @@ public class EventDispatcher {
         return subscription;
     }
 
-    @Deprecated // Since the Class is derived from the JSON response via "type"
-    public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> listener, Class<T> eventTypeClass, WDSessionManager sessionManager) {
-        // Hole oder erzeuge die Liste der Listener für das Event
-        ConcurrentLinkedQueue<Consumer<Object>> listeners = eventListeners.computeIfAbsent(subscriptionRequest.getEvents().get(0), k -> {
-            return new ConcurrentLinkedQueue<>();
-        });
-
-        // Registriere das Event in WebDriver BiDi und speichere die Subscription-ID
-        WDSessionResult.SubscribeResult result = sessionManager.subscribe(subscriptionRequest);
-        WDSubscription subscription = (result != null) ? result.getSubscription() : null;
-
-        // Listener zur Liste hinzufügen
-        listeners.add((Consumer<Object>) listener);
-
-        return subscription;
-    }
-
     public <T> void removeEventListener(String eventType, Consumer<T> listener, WDSessionManager sessionManager) {
         removeEventListener(eventType, null, listener, sessionManager);
     }

@@ -52,7 +52,8 @@ public class WDScriptManager implements WDModule {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
-     * Adds a preload script for the entire session.
+     * Adds a preload script for the entire session. It is functional the same as the evaluate command, but the script
+     * will be re-evaluated on every new page load (=after the original realm was destroyed).
      *
      * @param script The script to preload.
      * @throws RuntimeException if the operation fails.

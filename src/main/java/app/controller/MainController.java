@@ -40,6 +40,7 @@ public class MainController {
     private final Consumer<Page> loadHandler = p -> logEvent("Page loaded: " + p.url() + " (" + p.title() + ")");
 
     // Neue Event-Handler
+    private final Consumer<Page> createdHandler = p -> logEvent("Page created!");
     private final Consumer<Page> closeHandler = p -> logEvent("Page closed!");
     private final Consumer<Page> crashHandler = p -> logEvent("Page crashed!");
     private final Consumer<Dialog> dialogHandler = dialog -> logEvent("Dialog opened: " + dialog.message());
@@ -81,7 +82,11 @@ public class MainController {
                 () -> deregisterPageLoadEvent()
         ));
 
-        // Neue Events hinzufügen
+        eventHandlers.put("Created", new EventHandler(
+                () -> registerCreatedEvent(),
+                () -> deregisterCreatedEvent()
+        ));
+
         eventHandlers.put("Close", new EventHandler(
                 () -> registerCloseEvent(),
                 () -> deregisterCloseEvent()
@@ -495,6 +500,14 @@ public class MainController {
 
     private void deregisterPageLoadEvent() {
         if (browser.getPages().getActivePage()!= null) browser.getPages().getActivePage().offLoad(loadHandler);
+    }
+
+    private void registerCreatedEvent() {
+        if (browser.getPages().getActivePage()!= null) browser.getPages().onCreated(createdHandler);
+    }
+
+    private void deregisterCreatedEvent() {
+        if (browser.getPages().getActivePage()!= null) browser.getPages().offCreated(createdHandler);
     }
 
     /** Neue Registrierungs-Methoden */

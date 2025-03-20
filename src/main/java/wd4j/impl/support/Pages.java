@@ -1,7 +1,12 @@
 package wd4j.impl.support;
 
+import wd4j.api.Page;
 import wd4j.impl.manager.WDBrowsingContextManager;
+import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.PageImpl;
+import wd4j.impl.webdriver.event.WDEventMapping;
+import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
+
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.util.Collections;
@@ -9,12 +14,19 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 public class Pages {
+    private final BrowserImpl browser;
+
     private final Map<String, PageImpl> pages = new ConcurrentHashMap<>();
     private final PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
 
     private String activePageId;
+
+    public Pages(BrowserImpl browser) {
+        this.browser = browser;
+    }
 
     public Set<String> keySet() {
         return pages.keySet();
@@ -101,5 +113,18 @@ public class Pages {
 
     public void removeListener(PropertyChangeListener listener) {
         propertyChangeSupport.removePropertyChangeListener(listener);
+    }
+
+    public void onCreated(Consumer<Page> handler) {
+        if (handler != null) {
+            WDSubscriptionRequest subscriptionRequest = new WDSubscriptionRequest(WDEventMapping.CONTEXT_CREATED.getName(), null, null);
+            browser.getSession().addEventListener(subscriptionRequest, handler);
+        }
+    }
+
+    public void offCreated(Consumer<Page> createdHandler) {
+        if (createdHandler != null) {
+            browser.getSession().removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), null, createdHandler);
+        }
     }
 }
