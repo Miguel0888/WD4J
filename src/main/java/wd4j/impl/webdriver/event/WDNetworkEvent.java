@@ -6,6 +6,7 @@ import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.browsingContext.WDNavigation;
 import wd4j.impl.webdriver.type.network.*;
 import wd4j.impl.websocket.WDEvent;
+import wd4j.impl.websocket.WDEventNames;
 
 import java.util.List;
 
@@ -19,7 +20,7 @@ public class WDNetworkEvent implements WDModule {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class AuthRequired extends WDEvent<AuthRequired.AuthRequiredParametersWD> {
-        private String method = WDEventMapping.AUTH_REQUIRED.getName();
+        private String method = WDEventNames.AUTH_REQUIRED.getName();
 
         public AuthRequired(JsonObject json) {
             super(json, AuthRequired.AuthRequiredParametersWD.class);
@@ -47,7 +48,7 @@ public class WDNetworkEvent implements WDModule {
     }
 
     public static class BeforeRequestSent extends WDEvent<BeforeRequestSent.BeforeRequestSentParametersWD> {
-        private String method = WDEventMapping.BEFORE_REQUEST_SENT.getName();
+        private String method = WDEventNames.BEFORE_REQUEST_SENT.getName();
 
         public BeforeRequestSent(JsonObject json) {
             super(json, BeforeRequestSent.BeforeRequestSentParametersWD.class);
@@ -86,7 +87,7 @@ public class WDNetworkEvent implements WDModule {
     }
 
     public static class FetchError extends WDEvent<FetchError.FetchErrorParametersWD> {
-        private String method = WDEventMapping.FETCH_ERROR.getName();
+        private String method = WDEventNames.FETCH_ERROR.getName();
 
         public FetchError(JsonObject json) {
             super(json, FetchError.FetchErrorParametersWD.class);
@@ -125,7 +126,7 @@ public class WDNetworkEvent implements WDModule {
     }
 
     public static class ResponseCompleted extends WDEvent<ResponseCompleted.ResponseCompletedParametersWD> {
-        private String method = WDEventMapping.RESPONSE_COMPLETED.getName();
+        private String method = WDEventNames.RESPONSE_COMPLETED.getName();
 
         public ResponseCompleted(JsonObject json) {
             super(json, ResponseCompleted.ResponseCompletedParametersWD.class);
@@ -164,7 +165,7 @@ public class WDNetworkEvent implements WDModule {
     }
 
     public static class ResponseStarted extends WDEvent<ResponseStarted.ResponseStartedParametersWD> {
-        private String method = WDEventMapping.RESPONSE_STARTED.getName();
+        private String method = WDEventNames.RESPONSE_STARTED.getName();
 
         public ResponseStarted(JsonObject json) {
             super(json, ResponseStarted.ResponseStartedParametersWD.class);

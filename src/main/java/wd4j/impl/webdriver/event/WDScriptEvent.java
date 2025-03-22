@@ -7,6 +7,7 @@ import wd4j.impl.webdriver.type.script.WDRealm;
 import wd4j.impl.webdriver.type.script.WDRemoteValue;
 import wd4j.impl.webdriver.type.script.WDSource;
 import wd4j.impl.websocket.WDEvent;
+import wd4j.impl.websocket.WDEventNames;
 
 public class WDScriptEvent implements WDModule {
 
@@ -22,7 +23,7 @@ public class WDScriptEvent implements WDModule {
      * @see wd4j.impl.webdriver.command.request.WDScriptRequest.CallFunction
      */
     public static class Message extends WDEvent<Message.MessageParameters> {
-        private String method = WDEventMapping.MESSAGE.getName();
+        private String method = WDEventNames.MESSAGE.getName();
 
         public Message(JsonObject json) {
             super(json, MessageParameters.class);
@@ -80,7 +81,7 @@ public class WDScriptEvent implements WDModule {
     }
 
     public static class RealmCreated extends WDEvent<RealmCreated.RealmCreatedParameters> {
-        private String method = WDEventMapping.REALM_CREATED.getName();
+        private String method = WDEventNames.REALM_CREATED.getName();
 
         public RealmCreated(JsonObject json) {
             super(json, RealmCreatedParameters.class);
@@ -116,7 +117,7 @@ public class WDScriptEvent implements WDModule {
     }
 
     public static class RealmDestroyed extends WDEvent<RealmDestroyed.RealmDestroyedParameters> {
-        private String method = WDEventMapping.REALM_DESTROYED.getName();
+        private String method = WDEventNames.REALM_DESTROYED.getName();
 
         public RealmDestroyed(JsonObject json) {
             super(json, RealmDestroyedParameters.class);

@@ -3,14 +3,12 @@ package wd4j.impl.support;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import wd4j.impl.manager.WDSessionManager;
-import wd4j.impl.playwright.PageImpl;
-import wd4j.impl.playwright.event.*;
 import wd4j.impl.webdriver.command.response.WDSessionResult;
-import wd4j.impl.webdriver.event.*;
 import wd4j.impl.webdriver.mapping.GsonMapperFactory;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.session.WDSubscription;
 import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
+import wd4j.impl.websocket.WDEventNames;
 
 import java.util.Collections;
 import java.util.Map;
@@ -49,7 +47,7 @@ public class EventDispatcherImpl implements EventDispatcher {
      * @param params
      */
     private void dispatchEvent(String eventType, JsonObject params) {
-        WDEventMapping eventEnum = WDEventMapping.fromName(eventType);
+        WDEventNames eventEnum = WDEventNames.fromName(eventType);
 
         if (eventEnum == null) {
             System.err.println("[WARN] No event mapping found for event: " + eventType);

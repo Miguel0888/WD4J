@@ -7,7 +7,7 @@ import wd4j.impl.support.Pages;
 import wd4j.impl.support.ScriptHelper;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
-import wd4j.impl.webdriver.event.WDEventMapping;
+import wd4j.impl.websocket.WDEventNames;
 import wd4j.impl.webdriver.event.WDScriptEvent;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.WDChannel;
@@ -269,7 +269,7 @@ public class BrowserImpl implements Browser {
 
     void onMessage(Consumer<WDScriptEvent.Message> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.MESSAGE.getName(), null, null);
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.MESSAGE.getName(), null, null);
             WDSubscription tmp = webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
@@ -277,7 +277,7 @@ public class BrowserImpl implements Browser {
     private void offMessage(Consumer<WDScriptEvent.Message> handler) {
         // ToDo: Will not work without the browsingContextId, thus it has to use the SubscriptionId, in future!
         if (handler != null) {
-            webDriver.removeEventListener(WDEventMapping.MESSAGE.getName(), null, handler);
+            webDriver.removeEventListener(WDEventNames.MESSAGE.getName(), null, handler);
         }
     }
 
