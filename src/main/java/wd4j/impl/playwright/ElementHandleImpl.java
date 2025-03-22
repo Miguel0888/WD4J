@@ -34,7 +34,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
     public ElementHandleImpl(WDHandle handle, WDRealm realm) {
         super(handle, realm);
-        this.scriptManager = WDScriptManager.getInstance();
+        this.scriptManager = null; // ToDo: Implement this, how to get the script manager? Might be a constructor parameter?
         this.handle = handle;
         this.realm = realm;
     }

@@ -5,6 +5,12 @@ import wd4j.impl.webdriver.type.session.WDProxyConfiguration;
 import wd4j.impl.webdriver.type.session.WDSubscription;
 
 public interface WDSessionResult extends WDResultData {
+
+    // ToDo: Add missing GSON serializer??
+
+    /**
+     * Result of a new session request.
+     */
     public static class NewResult implements WDSessionResult {
         private String sessionId;
         private Capabilities capabilities;
@@ -95,6 +101,10 @@ public interface WDSessionResult extends WDResultData {
         }
     }
 
+    /**
+     * The session.status command returns information about whether a remote end is in a state in which it can create
+     * new sessions, but may additionally include arbitrary meta information that is specific to the implementation.
+     */
     class StatusResult implements WDSessionResult {
         private final boolean ready;
         private final String message;
@@ -121,6 +131,11 @@ public interface WDSessionResult extends WDResultData {
         }
     }
 
+
+    /**
+     * The session.subscribe command subscribes to a set of events.
+     * The session.subscribe command enables certain events either globally or for a set of navigables.
+     */
     class SubscribeResult implements WDSessionResult {
         private final WDSubscription WDSubscription;
 

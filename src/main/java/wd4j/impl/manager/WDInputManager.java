@@ -2,7 +2,6 @@ package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDInputRequest;
-import wd4j.impl.webdriver.command.request.parameters.input.PerformActionsParameters;
 import wd4j.impl.webdriver.command.request.parameters.input.sourceActions.SourceActions;
 import wd4j.impl.webdriver.command.response.WDEmptyResult;
 import wd4j.impl.webdriver.type.script.WDRemoteReference;
@@ -12,28 +11,12 @@ import java.util.List;
 
 public class WDInputManager implements WDModule {
 
-    private static WDInputManager instance;
     private final WebSocketManager webSocketManager;
 
-    private WDInputManager(WebSocketManager webSocketManager) {
+    public WDInputManager(WebSocketManager webSocketManager) {
         this.webSocketManager = webSocketManager;
     }
 
-    /**
-     * Gibt die Singleton-Instanz von WDInputManager zurück.
-     *
-     * @return Singleton-Instanz von WDInputManager.
-     */
-    public static WDInputManager getInstance() {
-        if (instance == null) {
-            synchronized (WDScriptManager.class) {
-                if (instance == null) {
-                    instance = new WDInputManager(WebSocketManager.getInstance());
-                }
-            }
-        }
-        return instance;
-    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event Handlers

@@ -4,20 +4,19 @@ import wd4j.api.Page;
 import wd4j.impl.manager.WDBrowsingContextManager;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.PageImpl;
+import wd4j.impl.playwright.UserContextImpl;
 import wd4j.impl.webdriver.event.WDEventMapping;
 import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-public class Pages {
+public class Pages implements Iterable<PageImpl> {
     private final BrowserImpl browser;
+    private final UserContextImpl userContext; // ToDo: Use this on every WebDriver command
 
     private final Map<String, PageImpl> pages = new ConcurrentHashMap<>();
     private final PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
@@ -26,6 +25,12 @@ public class Pages {
 
     public Pages(BrowserImpl browser) {
         this.browser = browser;
+        this.userContext = null;
+    }
+
+    public Pages(BrowserImpl browser, UserContextImpl userContext) {
+        this.browser = browser;
+        this.userContext = userContext;
     }
 
     public Set<String> keySet() {
@@ -36,6 +41,24 @@ public class Pages {
         return activePageId;
     }
 
+    public void clear() {
+        pages.clear();
+    }
+
+    /**
+     * Returns an iterator over elements of type {@code T}.
+     *
+     * @return an Iterator.
+     */
+    @Override
+    public Iterator<PageImpl> iterator() {
+        return pages.values().iterator();
+    }
+
+    public List<? super PageImpl> asList() {
+        return new ArrayList<>(pages.values());
+    }
+
     /** 🔹 Enum für verschiedene Events */
     public enum EventType {
         BROWSING_CONTEXT_ADDED,  // 🔥 Aktualisiert die UI-Liste
@@ -43,7 +66,11 @@ public class Pages {
         ACTIVE_PAGE_CHANGED        // 🔥 Setzt das aktive Element in der UI
     }
 
-    public void put(String contextId, PageImpl page) {
+    public void add(PageImpl page) {
+        put(page.getBrowsingContextId(), page);
+    }
+
+    private void put(String contextId, PageImpl page) {
         PageImpl put = pages.put(contextId, page);
         if(put != null)
         { // avoid firing event if page was only updated / overwritten
@@ -98,7 +125,7 @@ public class Pages {
         }
         if(isUiInitiated)
         {
-            WDBrowsingContextManager.getInstance().activate(contextId);
+            browser.getWebDriver().browsingContext().activate(contextId);
         }
     }
 
@@ -118,13 +145,16 @@ public class Pages {
     public void onCreated(Consumer<Page> handler) {
         if (handler != null) {
             WDSubscriptionRequest subscriptionRequest = new WDSubscriptionRequest(WDEventMapping.CONTEXT_CREATED.getName(), null, null);
-            browser.getSession().addEventListener(subscriptionRequest, handler);
+            browser.getWebDriver().addEventListener(subscriptionRequest, handler);
         }
     }
 
     public void offCreated(Consumer<Page> createdHandler) {
         if (createdHandler != null) {
-            browser.getSession().removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), null, createdHandler);
+            browser.getWebDriver().removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), null, createdHandler);
         }
     }
+
+
+
 }

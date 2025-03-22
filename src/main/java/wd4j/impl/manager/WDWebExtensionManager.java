@@ -11,29 +11,10 @@ import wd4j.impl.webdriver.command.response.WDEmptyResult;
 
 public class WDWebExtensionManager implements WDModule {
 
-    private static WDWebExtensionManager instance;
-    public WDExtension WDExtension;
-
     private final WebSocketManager webSocketManager;
 
-    private WDWebExtensionManager(WebSocketManager webSocketManager) {
+    public WDWebExtensionManager(WebSocketManager webSocketManager) {
         this.webSocketManager = webSocketManager;
-    }
-
-    /**
-     * Gibt die Singleton-Instanz von WDWebExtensionManager zurück.
-     *
-     * @return Singleton-Instanz von WDWebExtensionManager.
-     */
-    public static WDWebExtensionManager getInstance() {
-        if (instance == null) {
-            synchronized (WDScriptManager.class) {
-                if (instance == null) {
-                    instance = new WDWebExtensionManager(WebSocketManager.getInstance());
-                }
-            }
-        }
-        return instance;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

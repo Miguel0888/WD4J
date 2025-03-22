@@ -17,7 +17,7 @@ public class MouseImpl implements Mouse {
     private static final String WHEEL_ID = "wheel-scroll"; // ToDo: Check ID
 
     public MouseImpl(String contextId) {
-        inputManager = WDInputManager.getInstance();
+        inputManager = null; // ToDo: Implement this, how to get the manager? Might be a constructor parameter?
         this.contextId = contextId;
     }
 

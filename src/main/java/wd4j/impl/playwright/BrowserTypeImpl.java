@@ -3,7 +3,6 @@ package wd4j.impl.playwright;
 import wd4j.api.Browser;
 import wd4j.api.BrowserContext;
 import wd4j.api.BrowserType;
-import wd4j.impl.websocket.WebSocketManager;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -133,8 +132,7 @@ public class BrowserTypeImpl implements BrowserType {
     //
     @Override
     public Browser connect(String wsEndpoint, ConnectOptions options) {
-        WebSocketImpl webSocketImpl = WebSocketImpl.getNewInstance(); // ToDo: Has to be improved for multiple browsers!
-        webSocketImpl.createAndConfigureWebSocketClient(URI.create(wsEndpoint));
+        WebSocketImpl webSocketImpl = new WebSocketImpl(URI.create(wsEndpoint));
         try {
             webSocketImpl.connect();
         } catch (InterruptedException e) {
@@ -142,8 +140,8 @@ public class BrowserTypeImpl implements BrowserType {
         }
 
         try {
-            BrowserImpl browser = new BrowserImpl(this, process);
-            playwright.addBrowser(browser);
+            BrowserImpl browser = new BrowserImpl(this, process, webSocketImpl); // PlayWright API forces Browser to know BrowserType, process may be optional!
+            playwright.addBrowser(browser); // May be optional!
             return browser;
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException(e);

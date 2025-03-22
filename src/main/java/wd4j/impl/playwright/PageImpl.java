@@ -1,6 +1,7 @@
 package wd4j.impl.playwright;
 
 import com.google.gson.JsonObject;
+import wd4j.WebDriver;
 import wd4j.api.*;
 import wd4j.api.options.*;
 import wd4j.impl.support.PlaywrightResponse;
@@ -31,9 +32,7 @@ public class PageImpl implements Page {
     private String url;
 
     private final BrowserImpl browser;
-
-    @Deprecated // Use browser.getSession() instead
-    private final Session session;
+    private final WebDriver webDriver;
 
     // ToDo: Not supported yet, just for testing: Firefox does not remember the id, only accepts event + contextId
     private WDSubscription consoleMessageSubscription;
@@ -55,12 +54,12 @@ public class PageImpl implements Page {
      */
     public PageImpl(BrowserImpl browser, WDUserContext userContext) {
         this.browser = browser;
-        this.session = browser.getSession();
+        this.webDriver = browser.getWebDriver();
 
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        this.pageId = new WDBrowsingContext(browser.getBrowsingContextManager().create().getContext());
+        this.pageId = new WDBrowsingContext(browser.getWebDriver().browsingContext().create().getContext());
         this.userContextId = userContext;
     }
 
@@ -72,7 +71,7 @@ public class PageImpl implements Page {
      */
     public PageImpl(BrowserImpl browser,  WDUserContext userContext, WDBrowsingContext browsingContext) {
         this.browser = browser;
-        this.session = browser.getSession();
+        this.webDriver = browser.getWebDriver();
 
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
@@ -83,10 +82,10 @@ public class PageImpl implements Page {
 
     public PageImpl(WDBrowsingContextEvent.Load load) {
         WDBrowsingContext context = load.getParams().getContext();
-        PageImpl existingPage = BrowserImpl.getPage(context);
+        PageImpl existingPage = BrowserImpl.getPage(context); // ToDo: No static access to BrowserImpl, find correct browser via the Connection or SessionId
 
         this.browser = existingPage != null ? ((PageImpl) existingPage).getBrowser() : null;
-        this.session = (this.browser != null)  ? this.browser.getSession() : null;
+        this.webDriver = browser.getWebDriver();
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
         // 🔹 Falls keine existierende Seite vorhanden ist, eine neue Instanz initialisieren
@@ -101,7 +100,7 @@ public class PageImpl implements Page {
 
         // 🔹 Übernahme der bestehenden Browser-Instanz und Session, falls vorhanden
         this.browser = existingPage != null ? existingPage.getBrowser() : null;
-        this.session = (this.browser != null) ? this.browser.getSession() : null;
+        this.webDriver = browser.getWebDriver();
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
         // 🔹 Falls keine existierende Seite vorhanden ist, eine neue Instanz initialisieren
@@ -116,7 +115,7 @@ public class PageImpl implements Page {
 
         // 🔹 Falls die Page existiert, markieren wir sie als geschlossen
         this.browser = existingPage != null ? existingPage.getBrowser() : null;
-        this.session = (this.browser != null) ? this.browser.getSession() : null;
+        this.webDriver = browser.getWebDriver();
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
         this.pageId = context;
@@ -130,7 +129,7 @@ public class PageImpl implements Page {
 
         // 🔹 Falls eine existierende Page vorhanden ist, übernehmen wir ihre fehlenden Werte
         this.browser = existingPage != null ? existingPage.getBrowser() : null;
-        this.session = (this.browser != null) ? this.browser.getSession() : null;
+        this.webDriver = browser.getWebDriver();
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : created.getParams().getUserContext();
 
         this.pageId = context;
@@ -146,14 +145,14 @@ public class PageImpl implements Page {
     public void onClose(Consumer<Page> handler) {
         if (handler != null) {
             WDSubscriptionRequest subscriptionRequest = new WDSubscriptionRequest(WDEventMapping.CONTEXT_DESTROYED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(subscriptionRequest, handler);
+            webDriver.addEventListener(subscriptionRequest, handler);
         }
     }
 
     @Override
     public void offClose(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.CONTEXT_DESTROYED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.CONTEXT_DESTROYED.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -161,14 +160,14 @@ public class PageImpl implements Page {
     public void onConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.ENTRY_ADDED.getName(), this.getBrowsingContextId(), null);
-            consoleMessageSubscription = session.addEventListener(wdSubscriptionRequest, handler);
+            consoleMessageSubscription = webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
     @Override
     public void offConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.ENTRY_ADDED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.ENTRY_ADDED.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -186,14 +185,14 @@ public class PageImpl implements Page {
     public void onCrash(Consumer<Page> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.NAVIGATION_FAILED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler);
+            webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
     @Override
     public void offCrash(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.NAVIGATION_FAILED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.NAVIGATION_FAILED.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -201,14 +200,14 @@ public class PageImpl implements Page {
     public void onDialog(Consumer<Dialog> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.USER_PROMPT_OPENED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler);
+            webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
     @Override
     public void offDialog(Consumer<Dialog> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.USER_PROMPT_OPENED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.USER_PROMPT_OPENED.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -216,14 +215,14 @@ public class PageImpl implements Page {
     public void onDOMContentLoaded(Consumer<Page> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.DOM_CONTENT_LOADED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler);
+            webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
     @Override
     public void offDOMContentLoaded(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.DOM_CONTENT_LOADED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.DOM_CONTENT_LOADED.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -231,14 +230,14 @@ public class PageImpl implements Page {
     public void onLoad(Consumer<Page> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.LOAD.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler);
+            webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
     @Override
     public void offLoad(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.LOAD.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.LOAD.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -246,14 +245,14 @@ public class PageImpl implements Page {
     public void onRequest(Consumer<Request> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.BEFORE_REQUEST_SENT.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler);
+            webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
     @Override
     public void offRequest(Consumer<Request> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.BEFORE_REQUEST_SENT.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.BEFORE_REQUEST_SENT.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -261,14 +260,14 @@ public class PageImpl implements Page {
     public void onRequestFailed(Consumer<Request> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.FETCH_ERROR.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler);
+            webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
     @Override
     public void offRequestFailed(Consumer<Request> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.FETCH_ERROR.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.FETCH_ERROR.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -276,14 +275,14 @@ public class PageImpl implements Page {
     public void onRequestFinished(Consumer<Request> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.RESPONSE_COMPLETED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler);
+            webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
     @Override
     public void offRequestFinished(Consumer<Request> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.RESPONSE_COMPLETED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.RESPONSE_COMPLETED.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -291,14 +290,14 @@ public class PageImpl implements Page {
     public void onResponse(Consumer<Response> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.RESPONSE_STARTED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler);
+            webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
     @Override
     public void offResponse(Consumer<Response> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.RESPONSE_STARTED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.RESPONSE_STARTED.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -306,14 +305,14 @@ public class PageImpl implements Page {
     public void onWebSocket(Consumer<WebSocket> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.CONTEXT_CREATED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler);
+            webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
     @Override
     public void offWebSocket(Consumer<WebSocket> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -321,14 +320,14 @@ public class PageImpl implements Page {
     public void onWorker(Consumer<Worker> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.REALM_CREATED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, handler);
+            webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
     @Override
     public void offWorker(Consumer<Worker> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.REALM_CREATED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.REALM_CREATED.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -421,7 +420,7 @@ public class PageImpl implements Page {
     public void onPopup(Consumer<Page> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.CONTEXT_CREATED.getName(), this.getBrowsingContextId(), null);
-            session.addEventListener(wdSubscriptionRequest, jsonObject -> {
+            webDriver.addEventListener(wdSubscriptionRequest, jsonObject -> {
                 // Stelle sicher, dass jsonObject tatsächlich ein JsonObject ist
                 Page popupPage = JsonToPlaywrightMapper.mapToInterface((JsonObject) jsonObject, Page.class);
                 handler.accept(popupPage);
@@ -432,7 +431,7 @@ public class PageImpl implements Page {
     @Override
     public void offPopup(Consumer<Page> handler) {
         if (handler != null) {
-            session.removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -496,7 +495,7 @@ public class PageImpl implements Page {
     @Override
     public void close() {
         isClosed = true;
-        browser.getBrowsingContextManager().close(getBrowsingContextId());
+        browser.getWebDriver().browsingContext().close(getBrowsingContextId());
 //        browser.getPages().remove(pageId);
     }
 
@@ -515,7 +514,7 @@ public class PageImpl implements Page {
         WDTarget.ContextTarget contextTarget = new WDTarget.ContextTarget(new WDBrowsingContext(getBrowsingContextId()));
 
         // WebDriver BiDi Evaluate-Command ausführen
-        WDEvaluateResult evaluate = session.getBrowser().getScriptManager().evaluate(
+        WDEvaluateResult evaluate = webDriver.script().evaluate(
                 "return document.documentElement.outerHTML;", contextTarget, true);
 
         try {
@@ -719,14 +718,14 @@ public class PageImpl implements Page {
 
     @Override
     public Response goBack(GoBackOptions options) {
-        browser.getBrowsingContextManager().traverseHistory(getBrowsingContextId(), -1);
+        browser.getWebDriver().browsingContext().traverseHistory(getBrowsingContextId(), -1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
 
     @Override
     public Response goForward(GoForwardOptions options) {
-        browser.getBrowsingContextManager().traverseHistory(getBrowsingContextId(), 1);
+        browser.getWebDriver().browsingContext().traverseHistory(getBrowsingContextId(), 1);
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -747,7 +746,7 @@ public class PageImpl implements Page {
         this.url = url;
 
         // WebDriver BiDi Befehl senden
-        WDBrowsingContextResult.NavigateResult navigate = browser.getBrowsingContextManager().navigate(url, getBrowsingContextId());
+        WDBrowsingContextResult.NavigateResult navigate = browser.getWebDriver().browsingContext().navigate(url, getBrowsingContextId());
 
         return new PlaywrightResponse<WDBrowsingContextResult.NavigateResult>(navigate);
     }
@@ -877,7 +876,7 @@ public class PageImpl implements Page {
 
     @Override
     public Response reload(ReloadOptions options) {
-        browser.getBrowsingContextManager().reload(getBrowsingContextId());
+        browser.getWebDriver().browsingContext().reload(getBrowsingContextId());
 
         return null; // ToDo: Echte Response zurückgeben
     }
@@ -925,7 +924,7 @@ public class PageImpl implements Page {
     @Override
     public byte[] screenshot(ScreenshotOptions options) {
         // ToDo: Use options
-        WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult = browser.getBrowsingContextManager().captureScreenshot(getBrowsingContextId());
+        WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult = browser.getWebDriver().browsingContext().captureScreenshot(getBrowsingContextId());
         String base64Image = captureScreenshotResult.getData();
         return Base64.getDecoder().decode(base64Image);
     }

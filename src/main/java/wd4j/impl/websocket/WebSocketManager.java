@@ -1,13 +1,10 @@
 package wd4j.impl.websocket;
 
-import app.Main;
-import app.controller.CallbackWebSocketServer;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import wd4j.api.WebSocketFrame;
-import wd4j.helper.RecorderService;
 import wd4j.impl.playwright.WebSocketImpl;
 import wd4j.impl.support.EventDispatcher;
 import wd4j.impl.webdriver.mapping.GsonMapperFactory;
@@ -24,55 +21,28 @@ import java.util.concurrent.atomic.AtomicReference;
 public class WebSocketManager {
     private final Gson gson = GsonMapperFactory.getGson(); // ✅ Nutzt zentrale Fabrik
 
+    private final WebSocketImpl webSocket; // ToDo: Should be WebSocket instead of WebSocketImpl
     private final EventDispatcher eventDispatcher;
-    private WebSocketImpl webSocket; // ToDo: Remove this, since it is a workaround to reorganize if connection is closed
-
-    private static volatile WebSocketManager instance;
-
-    @Deprecated // since JSON Data might be received via Message Events (see WebDriverBiDi ChannelValue)
-    private CallbackWebSocketServer callbackWebSocketServer;
-
-    private WebSocketManager() {
-        this.webSocket = WebSocketImpl.getInstance();
-        this.eventDispatcher = new EventDispatcher();
-        registerEventListener(eventDispatcher); // 🔥 Events aktivieren!
-
-        toggleCallbackServer(true); // ✅ Callback-Server aktivieren
-    }
-
-    @Deprecated // since script.ChannelValue might be used for Callbacks (will lead to Message Events)
-    private void toggleCallbackServer(boolean activate) {
-        if (activate) {
-            callbackWebSocketServer = new CallbackWebSocketServer(8080, message -> {
-                    Main.getScriptTab().appendLog(message);  // UI-Log aktualisieren
-                    RecorderService.getInstance().recordAction(message); // Aktion im Recorder speichern
-            });
-            callbackWebSocketServer.start();
-        } else {
-            try {
-                callbackWebSocketServer.stop();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
-    public static WebSocketManager getInstance() {
-        if (instance == null) {
-            synchronized (WebSocketManager.class) {
-                if (instance == null) {
-                    instance = new WebSocketManager();
-                }
-            }
-        }
-        return instance;
-    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public EventDispatcher getEventDispatcher() {
-        return eventDispatcher;
+    @Deprecated // since WebSocketConnection should not be a singleton anymore?
+    private static volatile WebSocketManager instance; // ToDo: Remove singleton pattern
+
+    @Deprecated // since WebSocketConnection should not be a singleton anymore?
+    public WebSocketManager(WebSocketImpl webSocket, EventDispatcher eventDispatcher) {
+        this.webSocket = webSocket;
+        this.eventDispatcher = eventDispatcher;
+
+        registerEventListener(eventDispatcher); // 🔥 Events aktivieren!
     }
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
      * Sendet einen Befehl über den WebSocket.
@@ -82,11 +52,12 @@ public class WebSocketManager {
     public void send(WDCommand command) {
         if(webSocket.isClosed())
         { // ToDo: Find a better solution, the problem is a new connection removes all listeners
-            this.webSocket = WebSocketImpl.getInstance();
-            registerEventListener(eventDispatcher);
+            throw new RuntimeException("WebSocket connection is closed. Please reestablish the connection.");
+//            this.webSocket = WebSocketImpl.getInstance();
+//            registerEventListener(eventDispatcher);
         }
         String jsonCommand = gson.toJson(command);
-        WebSocketImpl.getInstance().send(jsonCommand); // Nachricht senden
+        webSocket.send(jsonCommand); // Nachricht senden
     }
 
     /**
@@ -185,7 +156,7 @@ public class WebSocketManager {
                     } else {
                         future.complete(responseType.cast(WDErrorResponse)); // ✅ Gib `ErrorResponse` als DTO zurück
                     }
-                    WebSocketImpl.getInstance().offFrameReceived(listenerRef.get()); // Listener entfernen
+                    webSocket.offFrameReceived(listenerRef.get()); // Listener entfernen
                     return;
                 }
 
@@ -201,7 +172,7 @@ public class WebSocketManager {
 
                     if (response != null) {
                         future.complete(response);
-                        WebSocketImpl.getInstance().offFrameReceived(listenerRef.get()); // Listener entfernen
+                        webSocket.offFrameReceived(listenerRef.get()); // Listener entfernen
                     }
                 } else {
                     System.out.println("[DEBUG] Frame erfüllt Predicate NICHT! Ignoriert.");
@@ -212,7 +183,7 @@ public class WebSocketManager {
         };
 
         listenerRef.set(listener); // 🛠 Hier wird die Variable gesetzt!
-        WebSocketImpl.getInstance().onFrameReceived(listenerRef.get()); // ✅ Sicherstellen, dass `listener` registriert ist
+        webSocket.onFrameReceived(listenerRef.get()); // ✅ Sicherstellen, dass `listener` registriert ist
 
         return future;
     }
@@ -223,7 +194,7 @@ public class WebSocketManager {
      * @param eventDispatcher Der EventDispatcher, der die Events verarbeitet.
      */
     public void registerEventListener(EventDispatcher eventDispatcher) {
-        WebSocketImpl.getInstance().onFrameReceived(frame -> {
+        webSocket.onFrameReceived(frame -> {
             try {
                 JsonObject json = gson.fromJson(frame.text(), JsonObject.class);
 
@@ -239,6 +210,9 @@ public class WebSocketManager {
     }
 
     public boolean isConnected() {
-        return WebSocketImpl.getInstance().isConnected();
+        return webSocket.isConnected();
+        // ToDo: Check the session, too? (e.g. if the session is still alive, otherwise the user is not able to send commands)
+        //  You may use a WebDriver BiDi command to check the session status?
+        //  -> newSession() Command has to be send otherwise
     }
 }

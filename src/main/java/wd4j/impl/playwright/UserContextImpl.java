@@ -1,14 +1,15 @@
 package wd4j.impl.playwright;
 
+import wd4j.WebDriver;
 import wd4j.api.*;
 import wd4j.api.options.BindingCallback;
 import wd4j.api.options.Cookie;
 import wd4j.api.options.FunctionCallback;
 import wd4j.api.options.Geolocation;
-import wd4j.impl.websocket.WebSocketManager;
+import wd4j.impl.support.Pages;
+import wd4j.impl.webdriver.type.browser.WDUserContext;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -21,28 +22,26 @@ import java.util.regex.Pattern;
 // The WebDriverBiDi term "UserContext" is equivalent to the CDP term "BrowserContext".
 // IT IS DIFFERENT FROM THE W3C BROWSING CONTEXT MODULE, WHICH IS A NAVIGABLE AKA. PAGE IN CHROMIUM DEVTOOLS PROTOCOL.
 public class UserContextImpl implements BrowserContext{
-    private final List<PageImpl> pages = new ArrayList<>(); // aka. BrowsingContexts / Navigables in WebDriver BiDi
+    private final Pages pages; // aka. BrowsingContexts / Navigables in WebDriver BiDi
     private final BrowserImpl browser;
-    private final Session session;
     private boolean isClosed = false; // ToDo: Is this variable really necessary?
 
-    private final String userContextId; // ToDo: If found, it should be used to create a new page with this id
-    private WebSocketManager webSocketManager;
+    private final WDUserContext userContext; // ToDo: If found, it should be used to create a new page with this id
 
     public UserContextImpl(BrowserImpl browser) {
         this.browser = browser;
-        this.webSocketManager = browser.getWebSockatManager();
-        this.session = browser.getSession();
 
-        userContextId = browser.getBrowserManager().createUserContext().getUserContext().value();
+        this.pages = new Pages(browser, this);
+
+        userContext = browser.getWebDriver().browser().createUserContext().getUserContext();
     }
 
-    public UserContextImpl(BrowserImpl browser, String userContextId) {
+    public UserContextImpl(BrowserImpl browser, WDUserContext userContext) {
         this.browser = browser;
-        this.webSocketManager = browser.getWebSockatManager();
-        this.session = browser.getSession();
 
-        this.userContextId = userContextId;
+        this.pages = new Pages(browser, this);
+
+        this.userContext = userContext;
     }
 
     @Override
@@ -98,12 +97,12 @@ public class UserContextImpl implements BrowserContext{
 
     @Override
     public void onPage(Consumer<Page> handler) {
-
+        pages.onCreated(handler);
     }
 
     @Override
     public void offPage(Consumer<Page> handler) {
-
+        pages.offCreated(handler);
     }
 
     @Override
@@ -254,7 +253,7 @@ public class UserContextImpl implements BrowserContext{
 
     @Override
     public List<Page> pages() {
-        return new ArrayList<>(pages);
+        return (List<Page>) pages.asList();
     }
 
     @Override
@@ -370,10 +369,10 @@ public class UserContextImpl implements BrowserContext{
     ///////////////////////////////////////////////////////////////////////////
 
     public List<PageImpl> getPages() {
-        return pages;
+        return (List<PageImpl>) pages.asList();
     }
 
-    public String getUserContextId() {
-        return userContextId;
+    public String getUserContext() {
+        return userContext.value();
     }
 }

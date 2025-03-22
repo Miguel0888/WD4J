@@ -10,28 +10,10 @@ import wd4j.impl.websocket.WebSocketManager;
 
 public class WDStorageManager implements WDModule {
 
-    private static WDStorageManager instance;
     private final WebSocketManager webSocketManager;
 
-    private WDStorageManager(WebSocketManager webSocketManager) {
+    public WDStorageManager(WebSocketManager webSocketManager) {
         this.webSocketManager = webSocketManager;
-    }
-
-
-    /**
-     * Gibt die Singleton-Instanz von WDStorageManager zurück.
-     *
-     * @return Singleton-Instanz von WDStorageManager.
-     */
-    public static WDStorageManager getInstance() {
-        if (instance == null) {
-            synchronized (WDScriptManager.class) {
-                if (instance == null) {
-                    instance = new WDStorageManager(WebSocketManager.getInstance());
-                }
-            }
-        }
-        return instance;
     }
 
 

@@ -4,40 +4,16 @@ import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDBrowserRequest;
 import wd4j.impl.webdriver.command.response.WDBrowserResult;
 import wd4j.impl.webdriver.command.response.WDEmptyResult;
-import wd4j.impl.webdriver.type.browser.WDClientWindow;
 import wd4j.impl.webdriver.type.browser.WDClientWindowInfo;
-import wd4j.impl.webdriver.type.browser.WDUserContext;
 import wd4j.impl.webdriver.type.browser.WDUserContextInfo;
 import wd4j.impl.websocket.WebSocketManager;
 
 public class WDBrowserManager implements WDModule {
 
-    private static WDBrowserManager instance;
     private final WebSocketManager webSocketManager;
 
-    public WDClientWindow WDClientWindow;
-    public WDClientWindowInfo WDClientWindowInfo;
-    public WDUserContext WDUserContext;
-    public WDUserContextInfo WDUserContextInfo;
-
-    private WDBrowserManager(WebSocketManager webSocketManager) {
+    public WDBrowserManager(WebSocketManager webSocketManager) {
         this.webSocketManager = webSocketManager;
-    }
-
-    /**
-     * Gibt die Singleton-Instanz von WDBrowserManager zurück.
-     *
-     * @return Singleton-Instanz von WDBrowserManager.
-     */
-    public static WDBrowserManager getInstance() {
-        if (instance == null) {
-            synchronized (WDScriptManager.class) {
-                if (instance == null) {
-                    instance = new WDBrowserManager(WebSocketManager.getInstance());
-                }
-            }
-        }
-        return instance;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

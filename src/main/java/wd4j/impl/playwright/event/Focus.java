@@ -26,7 +26,7 @@ public class Focus {
     public Focus(String contextId, WDRemoteReference.SharedReference elementHandle, WDRealm realm, WDBrowsingContext browsingContext) {
         this.realm = realm;
         this.browsingContext = browsingContext;
-        this.scriptManager = WDScriptManager.getInstance();
+        this.scriptManager = null; // ToDo: Implement this, how to get the script manager? Might be a constructor parameter?
         this.contextId = contextId;
         this.elementHandle = elementHandle;
     }

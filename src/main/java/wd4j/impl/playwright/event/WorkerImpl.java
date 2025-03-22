@@ -21,7 +21,7 @@ public class WorkerImpl implements Worker {
     private boolean isClosed = false;
 
     public WorkerImpl(WDScriptEvent.RealmCreated realmCreated) {
-        this.scriptManager = WDScriptManager.getInstance();
+        this.scriptManager = null; // ToDo: Implement this, how to get the manager? Might be a constructor parameter?
         if (realmCreated == null || realmCreated.getParams() == null) {
             throw new IllegalArgumentException("RealmCreated event must not be null.");
         }
@@ -29,7 +29,7 @@ public class WorkerImpl implements Worker {
     }
 
     public WorkerImpl(WDScriptEvent.RealmDestroyed realmDestroyed) {
-        this.scriptManager = WDScriptManager.getInstance();
+        this.scriptManager = null; // ToDo: Implement this, how to get the manager? Might be a constructor parameter?
         if (realmDestroyed == null || realmDestroyed.getParams() == null) {
             throw new IllegalArgumentException("RealmDestroyed event must not be null.");
         }

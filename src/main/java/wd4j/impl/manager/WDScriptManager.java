@@ -1,9 +1,7 @@
 package wd4j.impl.manager;
 
-import wd4j.api.options.BoundingBox;
 import wd4j.impl.markerInterfaces.WDModule;
 import wd4j.impl.webdriver.command.request.WDScriptRequest;
-import wd4j.impl.webdriver.command.request.parameters.script.AddPreloadScriptParameters;
 import wd4j.impl.webdriver.command.response.WDEmptyResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.type.browser.WDUserContext;
@@ -11,36 +9,15 @@ import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.*;
 import wd4j.impl.websocket.WebSocketManager;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class WDScriptManager implements WDModule {
 
     private final WebSocketManager webSocketManager;
 
-    private static volatile WDScriptManager instance;
-
-    private WDScriptManager(WebSocketManager webSocketManager) {
+    public WDScriptManager(WebSocketManager webSocketManager) {
         this.webSocketManager = webSocketManager;
     }
-
-    /**
-     * Gibt die Singleton-Instanz von WDScriptManager zurück.
-     *
-     * @return Singleton-Instanz von WDScriptManager.
-     */
-    public static WDScriptManager getInstance() {
-        if (instance == null) {
-            synchronized (WDScriptManager.class) {
-                if (instance == null) {
-                    instance = new WDScriptManager(WebSocketManager.getInstance());
-                }
-            }
-        }
-        return instance;
-    }
-
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event Handlers

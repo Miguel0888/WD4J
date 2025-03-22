@@ -15,7 +15,7 @@ public class JSHandleImpl implements JSHandle {
     private boolean disposed = false;
 
     public JSHandleImpl(WDHandle handle, WDRealm realm) {
-        this.scriptManager = WDScriptManager.getInstance();
+        this.scriptManager = null; // ToDo: Implement this, how to get the script manager? Might be a constructor parameter?
         this.handle = handle;
         this.realm = realm;
     }

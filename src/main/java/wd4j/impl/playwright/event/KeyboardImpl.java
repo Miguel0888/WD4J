@@ -14,7 +14,7 @@ public class KeyboardImpl implements Keyboard {
     private static final String KEYBOARD_ID = "keyboard"; // ToDo: Check ID
 
     public KeyboardImpl(String contextId) {
-        inputManager = WDInputManager.getInstance();
+        inputManager = null; // ToDo: Implement this, how to get the manager? Might be a constructor parameter?
         this.contextId = contextId;
     }
 

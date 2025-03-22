@@ -13,27 +13,10 @@ import java.util.List;
 
 public class WDNetworkManager implements WDModule {
 
-    private static WDNetworkManager instance;
     private final WebSocketManager webSocketManager;
 
-    private WDNetworkManager(WebSocketManager webSocketManager) {
+    public WDNetworkManager(WebSocketManager webSocketManager) {
         this.webSocketManager = webSocketManager;
-    }
-
-    /**
-     * Gibt die Singleton-Instanz von WDNetworkManager zurück.
-     *
-     * @return Singleton-Instanz von WDNetworkManager.
-     */
-    public static WDNetworkManager getInstance() {
-        if (instance == null) {
-            synchronized (WDScriptManager.class) {
-                if (instance == null) {
-                    instance = new WDNetworkManager(WebSocketManager.getInstance());
-                }
-            }
-        }
-        return instance;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

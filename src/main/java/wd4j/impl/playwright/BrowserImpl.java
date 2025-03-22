@@ -1,18 +1,22 @@
 package wd4j.impl.playwright;
 
+import wd4j.WebDriver;
 import wd4j.impl.manager.*;
 import wd4j.api.*;
 import wd4j.impl.support.Pages;
 import wd4j.impl.support.ScriptHelper;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
+import wd4j.impl.webdriver.event.WDEventMapping;
+import wd4j.impl.webdriver.event.WDScriptEvent;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.script.WDChannel;
 import wd4j.impl.webdriver.type.script.WDChannelValue;
 import wd4j.impl.webdriver.type.script.WDPrimitiveProtocolValue;
 import wd4j.impl.webdriver.type.script.WDRemoteValue;
+import wd4j.impl.webdriver.type.session.WDSubscription;
+import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 import wd4j.impl.websocket.WDException;
-import wd4j.impl.websocket.WebSocketManager;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -20,42 +24,34 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class BrowserImpl implements Browser {
-    private static final List<BrowserImpl> browsers = new ArrayList<>(); // ToDo: Improve this
     private final List<WDScriptResult.AddPreloadScriptResult> globalScripts = new ArrayList<>();
-    private final Pages pages = new Pages(this); // aka. BrowsingContexts / Navigables in WebDriver BiDi
+    // ToDo: Make pages not static, to be able to handle multiple Browser instances:
+    private static /*final*/ Pages pages;
 
     private final BrowserTypeImpl browserType;
-    private final Session session;
     private final Process process;
-    private final WebSocketManager webSocketManager;
-    private final WDBrowserManager browserManager;
-    private final WDBrowsingContextManager browsingContextManager;
     private final List<UserContextImpl> userContextImpls = new ArrayList<>();
     private String defaultContextId = "default";
 
-    private WDScriptManager scriptManager;
-    private WDNetworkManager networkManager;
-    private WDStorageManager storageManager;
-    private WDWebExtensionManager webExtensionManager;
+    private final WebDriver webDriver;
 
-    public BrowserImpl(BrowserTypeImpl browserType, Process process) throws ExecutionException, InterruptedException {
-        browsers.add(this);
-        this.webSocketManager = WebSocketManager.getInstance();
-        this.browserManager = WDBrowserManager.getInstance();
-        this.browsingContextManager = WDBrowsingContextManager.getInstance();
+    public BrowserImpl(BrowserTypeImpl browserType, Process process, WebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
+        // ToDo: Make pages not static BUT FINAL, to be able to handle multiple Browser instances, see above:
+        this.pages = new Pages(this); // aka. BrowsingContexts / Navigables in WebDriver BiDi
 
-        this.scriptManager = WDScriptManager.getInstance();
-        this.networkManager = WDNetworkManager.getInstance();
-        this.storageManager = WDStorageManager.getInstance();
-        this.webExtensionManager = WDWebExtensionManager.getInstance();
         this.browserType = browserType;
         this.process = process;
 
-        this.session = new Session(this); // ToDo: Add PW Options
+        this.webDriver = new WebDriver(webSocketImpl, new PlaywrightEventMapper()).connect(browserType.name());
+
         onContextSwitch(pages::setActivePageId);
         fetchDefaultData();
 
         loadGlobalScripts(); // load JavaScript code relevant for the working Playwright API
+    }
+
+    public static PageImpl getPage(WDBrowsingContext context) {
+        return pages.get(context.value());
     }
 
     private void loadGlobalScripts() {
@@ -65,7 +61,7 @@ public class BrowserImpl implements Browser {
 //        String callbackScript = ScriptHelper.loadScript("scripts/callback.js")
 //                .replace("<CHANNEL_ID>", channelId);
 //        // Callback-Script für die Kommunikation mit dem Playwright-Server (über Message Events)
-//        globalScripts.add(scriptManager.addPreloadScript(callbackScript, Collections.singletonList(channel)));
+//        globalScripts.add(webDriver.script().addPreloadScript(callbackScript, Collections.singletonList(channel)));
 
 
         // 🔹 1️⃣ Channel für das Fokus-Tracking anlegen
@@ -73,31 +69,27 @@ public class BrowserImpl implements Browser {
         WDChannelValue focusChannel = new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(focusChannelId)));
 
         // 🔹 2️⃣ Fokus-Tracking PreloadScript registrieren
-        globalScripts.add(scriptManager.addPreloadScript(
+        globalScripts.add(webDriver.script().addPreloadScript(
                 ScriptHelper.loadScript("scripts/focusTracker.js"),
                 Collections.singletonList(focusChannel)  // Channel mit übergeben
         ));
 
 
         // Alle weiteren globalen Scripts
-        globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/events.js")));
-        globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/callback.js")));
-        globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/debug.js"))); // ToDo: Remove
-        globalScripts.add(scriptManager.addPreloadScript(ScriptHelper.loadScript("scripts/dragAndDrop.js")));
+        globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/events.js")));
+        globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/callback.js")));
+        globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/debug.js"))); // ToDo: Remove
+        globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/dragAndDrop.js")));
     }
 
     public void removeGlobalScripts() {
         for (WDScriptResult.AddPreloadScriptResult result : globalScripts) {
-            scriptManager.removePreloadScript(result.getScript().value());
+            webDriver.script().removePreloadScript(result.getScript().value());
         }
         globalScripts.clear();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    public static List<BrowserImpl> getBrowsers() {
-        return Collections.unmodifiableList(browsers);
-    }
 
     // ToDo: May require another UserContext if this is not "default"
     private void fetchDefaultData() {
@@ -114,9 +106,9 @@ public class BrowserImpl implements Browser {
     private void fetchDefaultSessionData() {
         // Get all user contexts already available
         try {
-            browserManager.getUserContexts().getUserContexts().forEach(context -> {
+            webDriver.browser().getUserContexts().getUserContexts().forEach(context -> {
                 System.out.println("UserContext: " + context.getUserContext().value());
-                UserContextImpl uc = new UserContextImpl(this, context.getUserContext().value());
+                UserContextImpl uc = new UserContextImpl(this, context.getUserContext());
 //                fetchDefaultBrowsingContexts(uc.getPages(), context.getUserContext().value());
                 userContextImpls.add(uc);
             });
@@ -127,11 +119,10 @@ public class BrowserImpl implements Browser {
         // Get all browsing contexts (pages / tabs) already available
         try {
             // Check if a context is already available
-            WDBrowsingContextResult.GetTreeResult tree = browsingContextManager.getTree();
+            WDBrowsingContextResult.GetTreeResult tree = webDriver.browsingContext().getTree();
             tree.getContexts().forEach(context -> {
                 System.out.println("BrowsingContext: " + context.getContext().value());
-                currentPages.put(context.getContext().value(),
-                        new PageImpl(this, null, context.getContext()));
+                currentPages.add(new PageImpl(this, null, context.getContext()));
 
                 // NOT WORKING
 //                // ToDo: Find a solution for all preloaded scripts, without duplicated code
@@ -140,7 +131,7 @@ public class BrowserImpl implements Browser {
 //                String focusChannelId = "focus-events-channel";  // Feste ID für Fokus-Events
 //                WDChannelValue focusChannel = new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(focusChannelId)));
 //                // 🔹 2️⃣ Fokus-Tracking PreloadScript registrieren
-//                scriptManager.addPreloadScript(
+//                webDriver.script().addPreloadScript(
 //                        ScriptHelper.loadScript("scripts/focusTracker.js"),
 //                        Collections.singletonList(focusChannel),  // Channel mit übergeben
 //                        Collections.singletonList(context.getContext())
@@ -172,12 +163,12 @@ public class BrowserImpl implements Browser {
 
     @Override
     public void onDisconnected(Consumer<Browser> handler) {
-
+        // ToDo: Implement
     }
 
     @Override
     public void offDisconnected(Consumer<Browser> handler) {
-
+        // ToDo: Implement
     }
 
     @Override
@@ -199,7 +190,7 @@ public class BrowserImpl implements Browser {
 
     @Override
     public boolean isConnected() {
-        return webSocketManager.isConnected();
+        return webDriver.isConnected();
     }
 
     @Override
@@ -221,29 +212,28 @@ public class BrowserImpl implements Browser {
      */
     @Override
     public Page newPage(NewPageOptions options) {
-        synchronized (pages) { // Sperrt alle Zugriffe auf pages während der Erzeugung einer neuen ContextId
-            PageImpl page = new PageImpl(this);
-            page.onClose((e) -> {
-                pages.remove(page.getBrowsingContextId());
-            });
-            pages.put(page.getBrowsingContextId(), page);
-            return page;
-        }
+        // ToDo: Hier muss ein neuer UserContext (aka. BrowserContext) erstellt werden, anstatt den Default UserContext zu verwenden
+        PageImpl page = new PageImpl(this);
+        page.onClose((e) -> {
+            pages.remove(page.getBrowsingContextId());
+        });
+        pages.add(page);
+        return page;
     }
 
     @Override
     public void startTracing(Page page, StartTracingOptions options) {
-
+        throw new UnsupportedOperationException("Not implemented!");
     }
 
     @Override
     public byte[] stopTracing() {
-        return new byte[0];
+        throw new UnsupportedOperationException("Not implemented!");
     }
 
     @Override
     public String version() {
-        return "";
+        throw new UnsupportedOperationException("Not implemented!");
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -256,49 +246,16 @@ public class BrowserImpl implements Browser {
     /// ToDo: Think about where to put the service instances
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public WebSocketManager getWebSockatManager() {
-        return webSocketManager;
-    }
-
-    public Session getSession() {
-        return session;
-    }
-
-    /**
-     * Returns the BrowserService.
-     *
-     * @return The BrowserService.
-     */
-    public WDBrowserManager getBrowserManager() {
-        return browserManager;
-    }
-
-    public WDBrowsingContextManager getBrowsingContextManager() {
-        return browsingContextManager;
+    public WebDriver getWebDriver() {
+        return webDriver;
     }
 
     public WDScriptManager getScriptManager() {
-        return scriptManager;
-    }
-
-    public WDNetworkManager getNetworkManager() {
-        return networkManager;
-    }
-
-    public WDStorageManager getStorageManager() {
-        return storageManager;
-    }
-
-    public WDWebExtensionManager getWebExtensionManager() {
-        return webExtensionManager;
-    }
-
-    public WebSocketManager getWebSocketManager() {
-        return webSocketManager;
+        return webDriver.script();
     }
 
     public Pages getPages() {
-            return pages;
+        return pages;
     }
 
     public List<UserContextImpl> getUserContextImpls() {
@@ -307,20 +264,26 @@ public class BrowserImpl implements Browser {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // ToDo: Es ist nicht ganz sicher, dass es hier keine Race-Conditions gibt
-    public static PageImpl getPage(WDBrowsingContext context) {
-        return BrowserImpl.getBrowsers().stream()
-                .map(browser -> browser.getPages().get(context.value()))  // 🔹 Direkter Map-Access (O(1))
-                .filter(Objects::nonNull) // Falls null, überspringen
-                .findFirst()
-                .orElse(null);
-    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    void onMessage(Consumer<WDScriptEvent.Message> handler) {
+        if (handler != null) {
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.MESSAGE.getName(), null, null);
+            WDSubscription tmp = webDriver.addEventListener(wdSubscriptionRequest, handler);
+        }
+    }
+
+    private void offMessage(Consumer<WDScriptEvent.Message> handler) {
+        // ToDo: Will not work without the browsingContextId, thus it has to use the SubscriptionId, in future!
+        if (handler != null) {
+            webDriver.removeEventListener(WDEventMapping.MESSAGE.getName(), null, handler);
+        }
+    }
+
     public void onContextSwitch(Consumer<String> handler) {
         if (handler != null) {
-            session.onMessage(message -> {
+            onMessage(message -> {
                 if ("focus-events-channel".equals(message.getParams().getChannel().value())) {
                     WDRemoteValue.ObjectRemoteValue remoteValue = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
 

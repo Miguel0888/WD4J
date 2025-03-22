@@ -52,7 +52,7 @@ public class LocatorImpl implements Locator {
     private void resolveSharedId() {
         if (sharedId == null) {
             WDLocator<?> locator = createWDLocator(selector);
-            WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getBrowsingContextManager().locateNodes(
+            WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver().browsingContext().locateNodes(
                     page.getBrowsingContextId(),
                     locator
             );
@@ -87,7 +87,7 @@ public class LocatorImpl implements Locator {
         try {
             // ToDo: Das lässt sich vielleicht mit LocateNodes und / oder CallFunction viel einfacher lösen ??
 
-            WDBrowsingContextResult.GetTreeResult response = page.getBrowser().getBrowsingContextManager().getTree(page.getBrowsingContextId());
+            WDBrowsingContextResult.GetTreeResult response = page.getBrowser().getWebDriver().browsingContext().getTree(page.getBrowsingContextId());
 
             if(response == null) {
                 throw new RuntimeException("Failed to locate elements: Response is null");
@@ -113,7 +113,7 @@ public class LocatorImpl implements Locator {
     @Override
     public List<String> allInnerTexts() {
         WDLocator<?> locator = createWDLocator(selector);
-        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getBrowsingContextManager().locateNodes(
+        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver().browsingContext().locateNodes(
                 page.getBrowsingContextId(),
                 locator,
                 Long.MAX_VALUE
@@ -134,7 +134,7 @@ public class LocatorImpl implements Locator {
     @Override
     public List<String> allTextContents() {
         WDLocator<?> locator = createWDLocator(selector);
-        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getBrowsingContextManager().locateNodes(
+        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver().browsingContext().locateNodes(
                 page.getBrowsingContextId(),
                 locator,
                 Long.MAX_VALUE
@@ -220,7 +220,7 @@ public class LocatorImpl implements Locator {
     @Override
     public int count() {
         WDLocator<?> locator = createWDLocator(selector);
-        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getBrowsingContextManager().locateNodes(
+        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver().browsingContext().locateNodes(
                 page.getBrowsingContextId(),
                 locator
         );
@@ -618,7 +618,7 @@ public class LocatorImpl implements Locator {
         CaptureScreenshotParameters.ClipRectangle clip = new CaptureScreenshotParameters.ClipRectangle.ElementClipRectangle(sharedReference);
 
         WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult =
-                page.getBrowser().getBrowsingContextManager().captureScreenshot(page.getBrowsingContextId());
+                page.getBrowser().getWebDriver().browsingContext().captureScreenshot(page.getBrowsingContextId());
         String base64Image = captureScreenshotResult.getData();
         return Base64.getDecoder().decode(base64Image);
     }

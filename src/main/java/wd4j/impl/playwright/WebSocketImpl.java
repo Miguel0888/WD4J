@@ -12,7 +12,6 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 public class WebSocketImpl implements WebSocket {
-    private static final int MAX_QUEUE_SIZE = 100;
     private WebSocketClient webSocketClient;
     private boolean isClosed = false;
     private String url;
@@ -21,32 +20,6 @@ public class WebSocketImpl implements WebSocket {
     private final List<Consumer<WebSocketFrame>> onFrameReceivedListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<WebSocketFrame>> onFrameSentListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<String>> onSocketErrorListeners = new CopyOnWriteArrayList<>();
-
-    private static volatile WebSocketImpl instance;
-
-    private WebSocketImpl() {}
-
-    public static WebSocketImpl getNewInstance() {
-        synchronized (WebSocketImpl.class) {
-            if (instance != null) {
-                instance.close(); // Close the existing WebSocket for cleanup, if any!
-            }
-            instance = new WebSocketImpl();
-        }
-        return instance;
-    }
-
-    public static WebSocketImpl getInstance() {
-        if (instance == null) {
-            synchronized (WebSocketImpl.class) {
-                if (instance == null) {
-                    instance = new WebSocketImpl();
-                }
-            }
-        }
-        return instance;
-    }
-
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// **WebSocket-Event-Listener**
@@ -222,7 +195,7 @@ public class WebSocketImpl implements WebSocket {
     /// **WebSocket-Verwaltung**
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void createAndConfigureWebSocketClient(URI uri) {
+    public WebSocketImpl(URI uri) {
         this.url = uri.toString();
         webSocketClient = new WebSocketClient(uri) {
             @Override

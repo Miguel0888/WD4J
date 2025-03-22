@@ -16,7 +16,6 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import wd4j.impl.support.Pages;
-import wd4j.impl.support.ScriptHelper;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
@@ -301,7 +300,8 @@ public class MainController {
         String sharedId;
 
         WDLocator.XPathLocator locator = new WDLocator.XPathLocator(selector);
-        WDBrowsingContextResult.LocateNodesResult nodes = WDBrowsingContextManager.getInstance().locateNodes(
+        // ToDo: USE PLAYWRIGHT API >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        WDBrowsingContextResult.LocateNodesResult nodes = browser.getWebDriver().browsingContext().locateNodes(
                 contextTarget,
                 locator
         );
@@ -316,7 +316,8 @@ public class MainController {
             System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Shared ID: " + sharedId + " <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
         }
 
-        WDScriptManager.getInstance().executeDomAction(
+        // ToDo: USE PLAYWRIGHT API >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        browser.getWebDriver().script().executeDomAction(
                 contextTarget,
                 sharedId,
                 command
@@ -333,7 +334,8 @@ public class MainController {
                 List<WDLocalValue> args = new ArrayList<>();
                 args.add(new WDPrimitiveProtocolValue.BooleanValue(toggle)); // true = get text
                 args.add(new WDPrimitiveProtocolValue.StringValue(selector));
-                WDScriptManager.getInstance().callFunction(
+                // ToDo: USE PLAYWRIGHT API >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                browser.getWebDriver().script().callFunction(
                         "testSelector",
                         false, // awaitPromise=false
                         new WDTarget.ContextTarget(new WDBrowsingContext(contextTarget)),
@@ -444,7 +446,7 @@ public class MainController {
             JComboBox<Object> userDropdown = Main.getContextTab().getUserContextDropdown();
             userDropdown.removeAllItems();
             for (UserContextImpl userContext : browser.getUserContextImpls()) {
-                userDropdown.addItem(userContext.getUserContextId());
+                userDropdown.addItem(userContext.getUserContext());
             }
         });
     }
@@ -467,11 +469,11 @@ public class MainController {
             selectedUserContext = null;
         } else {
             selectedUserContext = ((BrowserImpl) browser).getUserContextImpls().stream()
-                    .filter(ctx -> ctx.getUserContextId().equals(selectedContextId))
+                    .filter(ctx -> ctx.getUserContext().equals(selectedContextId))
                     .findFirst()
                     .orElse(null);
         }
-        System.out.println("Selected User Context updated: " + (selectedUserContext != null ? ((UserContextImpl) selectedUserContext).getUserContextId() : "default"));
+        System.out.println("Selected User Context updated: " + (selectedUserContext != null ? ((UserContextImpl) selectedUserContext).getUserContext() : "default"));
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -599,7 +601,8 @@ public class MainController {
             List<WDLocalValue> args = new ArrayList<>();
             args.add(new WDPrimitiveProtocolValue.BooleanValue(selected)); // true oder false übergeben
 
-            WDScriptManager.getInstance().callFunction(
+            // ToDo: USE PLAYWRIGHT API >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+            browser.getWebDriver().script().callFunction(
                     "toggleTooltip",
                     false, // awaitPromise=false
                     new WDTarget.ContextTarget(new WDBrowsingContext(((PageImpl) selectedPage).getBrowsingContextId())), // Ziel: aktuelle Seite
@@ -612,7 +615,8 @@ public class MainController {
 
     public void showSelectors(boolean selected) {
         // 1. Alle Realms abrufen
-        WDScriptManager scriptManager = WDScriptManager.getInstance();
+        // ToDo: USE PLAYWRIGHT API >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        WDScriptManager scriptManager = browser.getWebDriver().script();
         WDScriptResult.GetRealmsResult realmsResult = scriptManager.getRealms(); // Hol alle existierenden Realms
 
         // 2. Für jeden Context toggleTooltip aktivieren
@@ -631,7 +635,8 @@ public class MainController {
 
     public void showDomEvents(boolean selected) {
         // 1. Alle Realms abrufen
-        WDScriptManager scriptManager = WDScriptManager.getInstance();
+        // ToDo: USE PLAYWRIGHT API >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        WDScriptManager scriptManager = browser.getWebDriver().script();
         WDScriptResult.GetRealmsResult realmsResult = scriptManager.getRealms(); // Hol alle existierenden Realms
 
         // 2. Für jeden Context toggleTooltip aktivieren

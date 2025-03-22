@@ -1,14 +1,14 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.playwright.WebSocketImpl;
+import wd4j.impl.websocket.WebSocketManager;
 
 public class WDLogManager implements WDModule {
 
-    private final WebSocketImpl webSocketImpl;
+    private final WebSocketManager webSocketImpl;
 
-    public WDLogManager(WebSocketImpl webSocketImpl) {
-        this.webSocketImpl = webSocketImpl;
+    public WDLogManager(WebSocketManager webSocketManager) {
+        this.webSocketImpl = webSocketManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
