@@ -1,9 +1,9 @@
 package wd4j.impl.support;
 
 import wd4j.api.options.BoundingBox;
-import wd4j.impl.webdriver.type.script.WDEvaluateResult;
-import wd4j.impl.webdriver.type.script.WDPrimitiveProtocolValue;
-import wd4j.impl.webdriver.type.script.WDRemoteValue;
+import wd4j.impl.dto.type.script.WDEvaluateResult;
+import wd4j.impl.dto.type.script.WDPrimitiveProtocolValue;
+import wd4j.impl.dto.type.script.WDRemoteValue;
 
 import javax.annotation.Nullable;
 import java.util.Map;

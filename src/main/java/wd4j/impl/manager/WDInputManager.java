@@ -1,10 +1,10 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.WDInputRequest;
-import wd4j.impl.webdriver.command.request.parameters.input.sourceActions.SourceActions;
-import wd4j.impl.webdriver.command.response.WDEmptyResult;
-import wd4j.impl.webdriver.type.script.WDRemoteReference;
+import wd4j.impl.dto.command.request.WDInputRequest;
+import wd4j.impl.dto.command.request.parameters.input.sourceActions.SourceActions;
+import wd4j.impl.dto.command.response.WDEmptyResult;
+import wd4j.impl.dto.type.script.WDRemoteReference;
 import wd4j.impl.websocket.WebSocketManager;
 
 import java.util.List;

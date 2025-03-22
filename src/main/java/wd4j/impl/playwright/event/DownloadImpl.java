@@ -3,9 +3,9 @@ package wd4j.impl.playwright.event;
 import wd4j.api.Download;
 import wd4j.api.Page;
 import wd4j.impl.playwright.BrowserImpl;
-import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
-import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
-import wd4j.impl.webdriver.type.browsingContext.WDNavigationInfo;
+import wd4j.impl.dto.event.WDBrowsingContextEvent;
+import wd4j.impl.dto.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.dto.type.browsingContext.WDNavigationInfo;
 
 import java.io.IOException;
 import java.io.InputStream;

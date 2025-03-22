@@ -6,8 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import wd4j.api.WebSocketFrame;
 import wd4j.impl.playwright.WebSocketImpl;
-import wd4j.impl.support.EventDispatcher;
-import wd4j.impl.webdriver.mapping.GsonMapperFactory;
+import wd4j.impl.dto.mapping.GsonMapperFactory;
 
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;

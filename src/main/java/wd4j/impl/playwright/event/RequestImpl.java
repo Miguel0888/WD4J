@@ -6,7 +6,7 @@ import wd4j.api.Response;
 import wd4j.api.options.HttpHeader;
 import wd4j.api.options.Sizes;
 import wd4j.api.options.Timing;
-import wd4j.impl.webdriver.event.WDNetworkEvent;
+import wd4j.impl.dto.event.WDNetworkEvent;
 
 import java.util.Collections;
 import java.util.List;

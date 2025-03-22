@@ -2,11 +2,7 @@ package wd4j.impl.websocket;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.google.gson.reflect.TypeToken;
-import wd4j.impl.markerInterfaces.WDType;
-import wd4j.impl.webdriver.mapping.GsonMapperFactory;
-
-import java.lang.reflect.Type;
+import wd4j.impl.dto.mapping.GsonMapperFactory;
 
 public abstract class WDEvent<T> implements WebSocketMessage {
     private final Gson gson = GsonMapperFactory.getGson();

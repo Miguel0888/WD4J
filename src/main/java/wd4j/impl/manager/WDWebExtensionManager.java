@@ -1,13 +1,13 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.WDWebExtensionRequest;
-import wd4j.impl.webdriver.command.request.parameters.webExtension.ExtensionData;
-import wd4j.impl.webdriver.command.response.WDWebExtensionResult;
-import wd4j.impl.webdriver.type.webExtension.WDExtension;
+import wd4j.impl.dto.command.request.WDWebExtensionRequest;
+import wd4j.impl.dto.command.request.parameters.webExtension.ExtensionData;
+import wd4j.impl.dto.command.response.WDWebExtensionResult;
+import wd4j.impl.dto.type.webExtension.WDExtension;
 import wd4j.impl.websocket.WebSocketManager;
 
-import wd4j.impl.webdriver.command.response.WDEmptyResult;
+import wd4j.impl.dto.command.response.WDEmptyResult;
 
 public class WDWebExtensionManager implements WDModule {
 

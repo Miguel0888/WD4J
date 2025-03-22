@@ -1,12 +1,12 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.WDScriptRequest;
-import wd4j.impl.webdriver.command.response.WDEmptyResult;
-import wd4j.impl.webdriver.command.response.WDScriptResult;
-import wd4j.impl.webdriver.type.browser.WDUserContext;
-import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
-import wd4j.impl.webdriver.type.script.*;
+import wd4j.impl.dto.command.request.WDScriptRequest;
+import wd4j.impl.dto.command.response.WDEmptyResult;
+import wd4j.impl.dto.command.response.WDScriptResult;
+import wd4j.impl.dto.type.browser.WDUserContext;
+import wd4j.impl.dto.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.dto.type.script.*;
 import wd4j.impl.websocket.WebSocketManager;
 
 import java.util.List;

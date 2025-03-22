@@ -6,10 +6,10 @@ import wd4j.api.Response;
 import wd4j.api.options.HttpHeader;
 import wd4j.api.options.SecurityDetails;
 import wd4j.api.options.ServerAddr;
-import wd4j.impl.webdriver.event.WDNetworkEvent;
-import wd4j.impl.webdriver.type.network.WDBaseParameters;
-import wd4j.impl.webdriver.type.network.WDResponseData;
-import wd4j.impl.webdriver.type.network.WDHeader;
+import wd4j.impl.dto.event.WDNetworkEvent;
+import wd4j.impl.dto.type.network.WDBaseParameters;
+import wd4j.impl.dto.type.network.WDResponseData;
+import wd4j.impl.dto.type.network.WDHeader;
 
 import java.util.*;
 import java.util.stream.Collectors;

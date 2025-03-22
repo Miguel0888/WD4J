@@ -1,7 +1,6 @@
 package app.ui;
 
 import app.controller.MainController;
-import wd4j.impl.webdriver.type.script.WDExceptionDetails;
 
 import javax.swing.*;
 import java.awt.*;

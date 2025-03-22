@@ -2,7 +2,6 @@ package app.controller;
 
 import app.Main;
 import wd4j.api.*;
-import wd4j.impl.manager.WDBrowsingContextManager;
 import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.PageImpl;
@@ -16,11 +15,11 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import wd4j.impl.support.Pages;
-import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
-import wd4j.impl.webdriver.command.response.WDScriptResult;
-import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
-import wd4j.impl.webdriver.type.browsingContext.WDLocator;
-import wd4j.impl.webdriver.type.script.*;
+import wd4j.impl.dto.command.response.WDBrowsingContextResult;
+import wd4j.impl.dto.command.response.WDScriptResult;
+import wd4j.impl.dto.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.dto.type.browsingContext.WDLocator;
+import wd4j.impl.dto.type.script.*;
 
 public class MainController {
 

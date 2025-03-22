@@ -7,7 +7,7 @@ import wd4j.api.options.LoadState;
 import wd4j.api.options.SelectOption;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.PageImpl;
-import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
+import wd4j.impl.dto.event.WDBrowsingContextEvent;
 
 import java.nio.file.Path;
 import java.util.ArrayList;

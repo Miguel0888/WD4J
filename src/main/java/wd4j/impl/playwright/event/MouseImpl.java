@@ -2,10 +2,9 @@ package wd4j.impl.playwright.event;
 
 import wd4j.api.Mouse;
 import wd4j.impl.manager.WDInputManager;
-import wd4j.impl.webdriver.command.request.parameters.input.PerformActionsParameters;
-import wd4j.impl.webdriver.command.request.parameters.input.sourceActions.PointerSourceAction;
-import wd4j.impl.webdriver.command.request.parameters.input.sourceActions.SourceActions;
-import wd4j.impl.webdriver.command.request.parameters.input.sourceActions.WheelSourceAction;
+import wd4j.impl.dto.command.request.parameters.input.sourceActions.PointerSourceAction;
+import wd4j.impl.dto.command.request.parameters.input.sourceActions.SourceActions;
+import wd4j.impl.dto.command.request.parameters.input.sourceActions.WheelSourceAction;
 
 import java.util.ArrayList;
 import java.util.List;

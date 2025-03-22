@@ -1,11 +1,11 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.WDBrowserRequest;
-import wd4j.impl.webdriver.command.response.WDBrowserResult;
-import wd4j.impl.webdriver.command.response.WDEmptyResult;
-import wd4j.impl.webdriver.type.browser.WDClientWindowInfo;
-import wd4j.impl.webdriver.type.browser.WDUserContextInfo;
+import wd4j.impl.dto.command.request.WDBrowserRequest;
+import wd4j.impl.dto.command.response.WDBrowserResult;
+import wd4j.impl.dto.command.response.WDEmptyResult;
+import wd4j.impl.dto.type.browser.WDClientWindowInfo;
+import wd4j.impl.dto.type.browser.WDUserContextInfo;
 import wd4j.impl.websocket.WebSocketManager;
 
 public class WDBrowserManager implements WDModule {

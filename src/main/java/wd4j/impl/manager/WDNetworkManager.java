@@ -1,12 +1,12 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.WDNetworkRequest;
-import wd4j.impl.webdriver.command.request.parameters.network.AddInterceptParameters;
-import wd4j.impl.webdriver.command.request.parameters.network.SetCacheBehaviorParameters;
-import wd4j.impl.webdriver.command.response.WDEmptyResult;
-import wd4j.impl.webdriver.command.response.WDNetworkResult;
-import wd4j.impl.webdriver.type.network.WDAuthCredentials;
+import wd4j.impl.dto.command.request.WDNetworkRequest;
+import wd4j.impl.dto.command.request.parameters.network.AddInterceptParameters;
+import wd4j.impl.dto.command.request.parameters.network.SetCacheBehaviorParameters;
+import wd4j.impl.dto.command.response.WDEmptyResult;
+import wd4j.impl.dto.command.response.WDNetworkResult;
+import wd4j.impl.dto.type.network.WDAuthCredentials;
 import wd4j.impl.websocket.WebSocketManager;
 
 import java.util.List;

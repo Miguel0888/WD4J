@@ -1,11 +1,10 @@
 package wd4j.impl.playwright.event;
 
 import wd4j.impl.manager.WDScriptManager;
-import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
-import wd4j.impl.webdriver.type.script.WDEvaluateResult;
-import wd4j.impl.webdriver.type.script.WDRealm;
-import wd4j.impl.webdriver.type.script.WDRemoteReference;
-import wd4j.impl.webdriver.type.script.WDTarget;
+import wd4j.impl.dto.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.dto.type.script.WDEvaluateResult;
+import wd4j.impl.dto.type.script.WDRealm;
+import wd4j.impl.dto.type.script.WDRemoteReference;
 
 
 import java.util.HashMap;

@@ -117,8 +117,8 @@ public class PlaywrightResponse<T extends WDResultData> implements Response {
 
     @Override
     public String url() {
-        if (resultData instanceof wd4j.impl.webdriver.command.response.WDBrowsingContextResult.NavigateResult) {
-            return ((wd4j.impl.webdriver.command.response.WDBrowsingContextResult.NavigateResult) resultData).getUrl();
+        if (resultData instanceof wd4j.impl.dto.command.response.WDBrowsingContextResult.NavigateResult) {
+            return ((wd4j.impl.dto.command.response.WDBrowsingContextResult.NavigateResult) resultData).getUrl();
         }
         return ""; // Falls kein URL-Feld existiert, leere String zurückgeben
     }

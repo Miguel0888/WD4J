@@ -1,16 +1,16 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
-import wd4j.impl.webdriver.command.request.parameters.browsingContext.CaptureScreenshotParameters;
-import wd4j.impl.webdriver.command.request.parameters.browsingContext.CreateType;
-import wd4j.impl.webdriver.command.request.parameters.browsingContext.SetViewportParameters;
-import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
-import wd4j.impl.webdriver.command.response.WDEmptyResult;
-import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
-import wd4j.impl.webdriver.type.browsingContext.WDLocator;
-import wd4j.impl.webdriver.type.script.WDRemoteReference;
-import wd4j.impl.webdriver.type.script.WDSerializationOptions;
+import wd4j.impl.dto.command.request.WDBrowsingContextRequest;
+import wd4j.impl.dto.command.request.parameters.browsingContext.CaptureScreenshotParameters;
+import wd4j.impl.dto.command.request.parameters.browsingContext.CreateType;
+import wd4j.impl.dto.command.request.parameters.browsingContext.SetViewportParameters;
+import wd4j.impl.dto.command.response.WDBrowsingContextResult;
+import wd4j.impl.dto.command.response.WDEmptyResult;
+import wd4j.impl.dto.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.dto.type.browsingContext.WDLocator;
+import wd4j.impl.dto.type.script.WDRemoteReference;
+import wd4j.impl.dto.type.script.WDSerializationOptions;
 import wd4j.impl.websocket.WebSocketManager;
 
 import java.util.List;

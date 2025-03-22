@@ -1,13 +1,13 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.webdriver.command.request.WDSessionRequest;
-import wd4j.impl.webdriver.command.request.parameters.session.parameters.UnsubscribeParameters;
-import wd4j.impl.webdriver.command.response.WDEmptyResult;
-import wd4j.impl.webdriver.command.response.WDSessionResult;
-import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
-import wd4j.impl.webdriver.type.session.WDSubscription;
-import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
+import wd4j.impl.dto.command.request.WDSessionRequest;
+import wd4j.impl.dto.command.request.parameters.session.parameters.UnsubscribeParameters;
+import wd4j.impl.dto.command.response.WDEmptyResult;
+import wd4j.impl.dto.command.response.WDSessionResult;
+import wd4j.impl.dto.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.dto.type.session.WDSubscription;
+import wd4j.impl.dto.type.session.WDSubscriptionRequest;
 import wd4j.impl.websocket.WebSocketManager;
 
 import java.util.*;
