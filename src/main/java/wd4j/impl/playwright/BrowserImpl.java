@@ -1,6 +1,6 @@
 package wd4j.impl.playwright;
 
-import wd4j.WebDriver;
+import wd4j.impl.WebDriver;
 import wd4j.impl.manager.*;
 import wd4j.api.*;
 import wd4j.impl.support.Pages;

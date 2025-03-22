@@ -1,4 +1,4 @@
-package wd4j;
+package wd4j.impl;
 
 import app.Main;
 import app.controller.CallbackWebSocketServer;

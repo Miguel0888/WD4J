@@ -1,7 +1,7 @@
 package wd4j.impl.playwright;
 
 import com.google.gson.JsonObject;
-import wd4j.WebDriver;
+import wd4j.impl.WebDriver;
 import wd4j.api.*;
 import wd4j.api.options.*;
 import wd4j.impl.support.PlaywrightResponse;

@@ -1,6 +1,5 @@
 package wd4j.impl.playwright;
 
-import wd4j.WebDriver;
 import wd4j.api.*;
 import wd4j.api.options.BindingCallback;
 import wd4j.api.options.Cookie;
