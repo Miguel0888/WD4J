@@ -1,11 +1,12 @@
 package wd4j.impl.support;
 
 import wd4j.api.Page;
+import wd4j.impl.manager.WDBrowsingContextManager;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.PageImpl;
 import wd4j.impl.playwright.UserContextImpl;
-import wd4j.impl.websocket.WDEventNames;
-import wd4j.impl.dto.type.session.WDSubscriptionRequest;
+import wd4j.impl.webdriver.event.WDEventMapping;
+import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
@@ -143,14 +144,14 @@ public class Pages implements Iterable<PageImpl> {
 
     public void onCreated(Consumer<Page> handler) {
         if (handler != null) {
-            WDSubscriptionRequest subscriptionRequest = new WDSubscriptionRequest(WDEventNames.CONTEXT_CREATED.getName(), null, null);
+            WDSubscriptionRequest subscriptionRequest = new WDSubscriptionRequest(WDEventMapping.CONTEXT_CREATED.getName(), null, null);
             browser.getWebDriver().addEventListener(subscriptionRequest, handler);
         }
     }
 
     public void offCreated(Consumer<Page> createdHandler) {
         if (createdHandler != null) {
-            browser.getWebDriver().removeEventListener(WDEventNames.CONTEXT_CREATED.getName(), null, createdHandler);
+            browser.getWebDriver().removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), null, createdHandler);
         }
     }
 

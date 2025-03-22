@@ -3,9 +3,11 @@ package wd4j.impl.playwright.event;
 import wd4j.api.JSHandle;
 import wd4j.api.Worker;
 import wd4j.impl.manager.WDScriptManager;
-import wd4j.impl.dto.event.WDScriptEvent;
-import wd4j.impl.dto.type.script.WDRealm;
-import wd4j.impl.dto.type.script.WDTarget;
+import wd4j.impl.playwright.JSHandleImpl;
+import wd4j.impl.webdriver.event.WDScriptEvent;
+import wd4j.impl.webdriver.type.script.WDEvaluateResult;
+import wd4j.impl.webdriver.type.script.WDRealm;
+import wd4j.impl.webdriver.type.script.WDTarget;
 
 import java.util.ArrayList;
 import java.util.List;

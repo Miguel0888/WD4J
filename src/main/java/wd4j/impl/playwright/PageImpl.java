@@ -1,22 +1,22 @@
 package wd4j.impl.playwright;
 
 import com.google.gson.JsonObject;
-import wd4j.impl.WebDriver;
+import wd4j.WebDriver;
 import wd4j.api.*;
 import wd4j.api.options.*;
 import wd4j.impl.support.PlaywrightResponse;
 import wd4j.impl.support.ScriptHelper;
-import wd4j.impl.dto.command.response.WDBrowsingContextResult;
-import wd4j.impl.dto.command.response.WDScriptResult;
-import wd4j.impl.dto.event.WDBrowsingContextEvent;
-import wd4j.impl.websocket.WDEventNames;
+import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
+import wd4j.impl.webdriver.command.response.WDScriptResult;
+import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
+import wd4j.impl.webdriver.event.WDEventMapping;
 import wd4j.impl.support.JsonToPlaywrightMapper;
-import wd4j.impl.dto.type.browser.WDUserContext;
-import wd4j.impl.dto.type.browsingContext.WDBrowsingContext;
-import wd4j.impl.dto.type.script.WDEvaluateResult;
-import wd4j.impl.dto.type.script.WDTarget;
-import wd4j.impl.dto.type.session.WDSubscription;
-import wd4j.impl.dto.type.session.WDSubscriptionRequest;
+import wd4j.impl.webdriver.type.browser.WDUserContext;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.script.WDEvaluateResult;
+import wd4j.impl.webdriver.type.script.WDTarget;
+import wd4j.impl.webdriver.type.session.WDSubscription;
+import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 
 import java.nio.file.Path;
 import java.util.*;
@@ -144,7 +144,7 @@ public class PageImpl implements Page {
     @Override
     public void onClose(Consumer<Page> handler) {
         if (handler != null) {
-            WDSubscriptionRequest subscriptionRequest = new WDSubscriptionRequest(WDEventNames.CONTEXT_DESTROYED.getName(), this.getBrowsingContextId(), null);
+            WDSubscriptionRequest subscriptionRequest = new WDSubscriptionRequest(WDEventMapping.CONTEXT_DESTROYED.getName(), this.getBrowsingContextId(), null);
             webDriver.addEventListener(subscriptionRequest, handler);
         }
     }
@@ -152,14 +152,14 @@ public class PageImpl implements Page {
     @Override
     public void offClose(Consumer<Page> handler) {
         if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.CONTEXT_DESTROYED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.CONTEXT_DESTROYED.getName(), getBrowsingContextId(), handler);
         }
     }
 
     @Override
     public void onConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.ENTRY_ADDED.getName(), this.getBrowsingContextId(), null);
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.ENTRY_ADDED.getName(), this.getBrowsingContextId(), null);
             consoleMessageSubscription = webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
@@ -167,7 +167,7 @@ public class PageImpl implements Page {
     @Override
     public void offConsoleMessage(Consumer<ConsoleMessage> handler) {
         if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.ENTRY_ADDED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.ENTRY_ADDED.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -184,7 +184,7 @@ public class PageImpl implements Page {
     @Override
     public void onCrash(Consumer<Page> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.NAVIGATION_FAILED.getName(), this.getBrowsingContextId(), null);
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.NAVIGATION_FAILED.getName(), this.getBrowsingContextId(), null);
             webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
@@ -192,14 +192,14 @@ public class PageImpl implements Page {
     @Override
     public void offCrash(Consumer<Page> handler) {
         if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.NAVIGATION_FAILED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.NAVIGATION_FAILED.getName(), getBrowsingContextId(), handler);
         }
     }
 
     @Override
     public void onDialog(Consumer<Dialog> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.USER_PROMPT_OPENED.getName(), this.getBrowsingContextId(), null);
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.USER_PROMPT_OPENED.getName(), this.getBrowsingContextId(), null);
             webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
@@ -207,14 +207,14 @@ public class PageImpl implements Page {
     @Override
     public void offDialog(Consumer<Dialog> handler) {
         if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.USER_PROMPT_OPENED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.USER_PROMPT_OPENED.getName(), getBrowsingContextId(), handler);
         }
     }
 
     @Override
     public void onDOMContentLoaded(Consumer<Page> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.DOM_CONTENT_LOADED.getName(), this.getBrowsingContextId(), null);
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.DOM_CONTENT_LOADED.getName(), this.getBrowsingContextId(), null);
             webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
@@ -222,14 +222,14 @@ public class PageImpl implements Page {
     @Override
     public void offDOMContentLoaded(Consumer<Page> handler) {
         if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.DOM_CONTENT_LOADED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.DOM_CONTENT_LOADED.getName(), getBrowsingContextId(), handler);
         }
     }
 
     @Override
     public void onLoad(Consumer<Page> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.LOAD.getName(), this.getBrowsingContextId(), null);
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.LOAD.getName(), this.getBrowsingContextId(), null);
             webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
@@ -237,14 +237,14 @@ public class PageImpl implements Page {
     @Override
     public void offLoad(Consumer<Page> handler) {
         if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.LOAD.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.LOAD.getName(), getBrowsingContextId(), handler);
         }
     }
 
     @Override
     public void onRequest(Consumer<Request> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.BEFORE_REQUEST_SENT.getName(), this.getBrowsingContextId(), null);
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.BEFORE_REQUEST_SENT.getName(), this.getBrowsingContextId(), null);
             webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
@@ -252,14 +252,14 @@ public class PageImpl implements Page {
     @Override
     public void offRequest(Consumer<Request> handler) {
         if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.BEFORE_REQUEST_SENT.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.BEFORE_REQUEST_SENT.getName(), getBrowsingContextId(), handler);
         }
     }
 
     @Override
     public void onRequestFailed(Consumer<Request> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.FETCH_ERROR.getName(), this.getBrowsingContextId(), null);
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.FETCH_ERROR.getName(), this.getBrowsingContextId(), null);
             webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
@@ -267,14 +267,14 @@ public class PageImpl implements Page {
     @Override
     public void offRequestFailed(Consumer<Request> handler) {
         if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.FETCH_ERROR.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.FETCH_ERROR.getName(), getBrowsingContextId(), handler);
         }
     }
 
     @Override
     public void onRequestFinished(Consumer<Request> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.RESPONSE_COMPLETED.getName(), this.getBrowsingContextId(), null);
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.RESPONSE_COMPLETED.getName(), this.getBrowsingContextId(), null);
             webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
@@ -282,14 +282,14 @@ public class PageImpl implements Page {
     @Override
     public void offRequestFinished(Consumer<Request> handler) {
         if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.RESPONSE_COMPLETED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.RESPONSE_COMPLETED.getName(), getBrowsingContextId(), handler);
         }
     }
 
     @Override
     public void onResponse(Consumer<Response> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.RESPONSE_STARTED.getName(), this.getBrowsingContextId(), null);
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.RESPONSE_STARTED.getName(), this.getBrowsingContextId(), null);
             webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
@@ -297,14 +297,14 @@ public class PageImpl implements Page {
     @Override
     public void offResponse(Consumer<Response> handler) {
         if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.RESPONSE_STARTED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.RESPONSE_STARTED.getName(), getBrowsingContextId(), handler);
         }
     }
 
     @Override
     public void onWebSocket(Consumer<WebSocket> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.CONTEXT_CREATED.getName(), this.getBrowsingContextId(), null);
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.CONTEXT_CREATED.getName(), this.getBrowsingContextId(), null);
             webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
@@ -312,14 +312,14 @@ public class PageImpl implements Page {
     @Override
     public void offWebSocket(Consumer<WebSocket> handler) {
         if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.CONTEXT_CREATED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), getBrowsingContextId(), handler);
         }
     }
 
     @Override
     public void onWorker(Consumer<Worker> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.REALM_CREATED.getName(), this.getBrowsingContextId(), null);
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.REALM_CREATED.getName(), this.getBrowsingContextId(), null);
             webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
@@ -327,7 +327,7 @@ public class PageImpl implements Page {
     @Override
     public void offWorker(Consumer<Worker> handler) {
         if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.REALM_CREATED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.REALM_CREATED.getName(), getBrowsingContextId(), handler);
         }
     }
 
@@ -419,7 +419,7 @@ public class PageImpl implements Page {
     @Override
     public void onPopup(Consumer<Page> handler) {
         if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.CONTEXT_CREATED.getName(), this.getBrowsingContextId(), null);
+            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventMapping.CONTEXT_CREATED.getName(), this.getBrowsingContextId(), null);
             webDriver.addEventListener(wdSubscriptionRequest, jsonObject -> {
                 // Stelle sicher, dass jsonObject tatsächlich ein JsonObject ist
                 Page popupPage = JsonToPlaywrightMapper.mapToInterface((JsonObject) jsonObject, Page.class);
@@ -431,7 +431,7 @@ public class PageImpl implements Page {
     @Override
     public void offPopup(Consumer<Page> handler) {
         if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.CONTEXT_CREATED.getName(), getBrowsingContextId(), handler);
+            webDriver.removeEventListener(WDEventMapping.CONTEXT_CREATED.getName(), getBrowsingContextId(), handler);
         }
     }
 

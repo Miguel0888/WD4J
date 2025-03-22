@@ -3,7 +3,7 @@ package wd4j.impl.playwright;
 import wd4j.api.ElementHandle;
 import wd4j.api.JSHandle;
 import wd4j.impl.manager.WDScriptManager;
-import wd4j.impl.dto.type.script.*;
+import wd4j.impl.webdriver.type.script.*;
 
 import java.util.*;
 import java.util.stream.Collectors;

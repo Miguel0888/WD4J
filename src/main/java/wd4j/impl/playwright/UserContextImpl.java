@@ -1,12 +1,13 @@
 package wd4j.impl.playwright;
 
+import wd4j.WebDriver;
 import wd4j.api.*;
 import wd4j.api.options.BindingCallback;
 import wd4j.api.options.Cookie;
 import wd4j.api.options.FunctionCallback;
 import wd4j.api.options.Geolocation;
 import wd4j.impl.support.Pages;
-import wd4j.impl.dto.type.browser.WDUserContext;
+import wd4j.impl.webdriver.type.browser.WDUserContext;
 
 import java.nio.file.Path;
 import java.util.Collections;

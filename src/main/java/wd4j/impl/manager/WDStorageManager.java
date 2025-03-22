@@ -1,11 +1,11 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
-import wd4j.impl.dto.command.request.WDStorageRequest;
-import wd4j.impl.dto.command.request.parameters.storage.CookieFilter;
-import wd4j.impl.dto.command.request.parameters.storage.SetCookieParameters;
-import wd4j.impl.dto.command.response.WDStorageResult;
-import wd4j.impl.dto.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.command.request.WDStorageRequest;
+import wd4j.impl.webdriver.command.request.parameters.storage.CookieFilter;
+import wd4j.impl.webdriver.command.request.parameters.storage.SetCookieParameters;
+import wd4j.impl.webdriver.command.response.WDStorageResult;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.websocket.WebSocketManager;
 
 public class WDStorageManager implements WDModule {

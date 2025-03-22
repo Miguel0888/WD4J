@@ -2,15 +2,14 @@ package wd4j.impl.playwright;
 
 import com.google.gson.JsonObject;
 import wd4j.impl.playwright.event.*;
-import wd4j.impl.websocket.EventMapper;
-import wd4j.impl.dto.event.*;
-import wd4j.impl.websocket.WDEventNames;
+import wd4j.impl.support.EventMapper;
+import wd4j.impl.webdriver.event.*;
 
 public class PlaywrightEventMapper implements EventMapper {
 
     @Override
     public Object apply(String eventType, JsonObject json) {
-        WDEventNames eventMapping = WDEventNames.fromName(eventType);
+        WDEventMapping eventMapping = WDEventMapping.fromName(eventType);
         if (eventMapping == null) {
             return null; // Falls das Event nicht bekannt ist, nichts zurückgeben
         }

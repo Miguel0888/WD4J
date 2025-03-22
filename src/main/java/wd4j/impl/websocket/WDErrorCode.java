@@ -1,6 +1,6 @@
 package wd4j.impl.websocket;
 
-import wd4j.impl.dto.mapping.EnumWrapper;
+import wd4j.impl.webdriver.mapping.EnumWrapper;
 
 public enum WDErrorCode implements EnumWrapper {
     INVALID_ARGUMENT("invalid argument"),
