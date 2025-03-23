@@ -13,16 +13,20 @@ public class EvaluateParameters implements WDCommand.Params {
     private final WDSerializationOptions WDSerializationOptions; // Optional
     private final boolean userActivation; // Optional, default false
 
-    public EvaluateParameters(String expression, WDTarget WDTarget, boolean awaitPromise) {
-        this(expression, WDTarget, awaitPromise, null, null, false);
+    public EvaluateParameters(String expression, WDTarget target, boolean awaitPromise) {
+        this(expression, target, awaitPromise, null, null, false);
     }
 
-    public EvaluateParameters(String expression, WDTarget WDTarget, boolean awaitPromise, WDResultOwnership WDResultOwnership, WDSerializationOptions WDSerializationOptions, boolean userActivation) {
+    public EvaluateParameters(String expression, WDTarget target, boolean awaitPromise, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions) {
+        this(expression, target, awaitPromise, resultOwnership, serializationOptions, false);
+    }
+
+    public EvaluateParameters(String expression, WDTarget target, boolean awaitPromise, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions, boolean userActivation) {
         this.expression = expression;
-        this.WDTarget = WDTarget;
+        this.WDTarget = target;
         this.awaitPromise = awaitPromise;
-        this.WDResultOwnership = WDResultOwnership;
-        this.WDSerializationOptions = WDSerializationOptions;
+        this.WDResultOwnership = resultOwnership;
+        this.WDSerializationOptions = serializationOptions;
         this.userActivation = userActivation;
     }
 

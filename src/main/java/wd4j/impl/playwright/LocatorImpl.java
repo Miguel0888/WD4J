@@ -262,7 +262,7 @@ public class LocatorImpl implements Locator {
         resolveSharedId();
         WDHandle handle = new WDHandle(this.sharedId);
         // ToDo: Maybe use specific realm type, too?
-        WDScriptResult.GetRealmsResult realmsResult = page.getBrowser().getScriptManager().getRealms(page.getBrowsingContext());
+        WDScriptResult.GetRealmsResult realmsResult = page.getBrowser().getScriptManager().getRealms(page.getPage());
         realmsResult.getRealms().forEach(System.out::println); // ToDo: Remove this, but check if realms are correct!
         String realmId = realmsResult.getRealms().get(0).getRealm();
 

@@ -2,6 +2,7 @@ package wd4j.impl.playwright;
 
 import wd4j.api.ElementHandle;
 import wd4j.api.JSHandle;
+import wd4j.impl.WebDriver;
 import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.webdriver.type.script.*;
 
@@ -9,21 +10,21 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class JSHandleImpl implements JSHandle {
-    private final WDScriptManager scriptManager;
-    private final WDHandle handle;
-    private final WDRealm realm;
-    private boolean disposed = false;
+    protected final WebDriver webDriver;
+    protected final WDHandle handle;
+    protected final WDTarget target; // can be RealmTarget or ContextTarget (to avoid conversion to RealmTarget when not necessary)
+    protected boolean disposed = false;
 
-    public JSHandleImpl(WDHandle handle, WDRealm realm) {
-        this.scriptManager = null; // ToDo: Implement this, how to get the script manager? Might be a constructor parameter?
+    public JSHandleImpl(WebDriver webDriver, WDHandle handle, WDTarget target) {
+        this.webDriver = webDriver;
         this.handle = handle;
-        this.realm = realm;
+        this.target = target;
     }
 
     @Override
     public ElementHandle asElement() {
         if (isElementHandle()) {
-            return new ElementHandleImpl(handle, realm);
+            return new ElementHandleImpl(webDriver, handle, target);
         }
         return null;
     }
@@ -31,15 +32,14 @@ public class JSHandleImpl implements JSHandle {
     @Override
     public void dispose() {
         if (disposed) return;
-        scriptManager.disown(Collections.singletonList(handle), new WDTarget.RealmTarget(realm));
+        webDriver.script().disown(Collections.singletonList(handle), target);
         disposed = true;
     }
 
     @Override
     public Object evaluate(String expression, Object arg) {
         checkDisposed();
-        WDTarget target = new WDTarget.RealmTarget(realm);
-        WDEvaluateResult result = scriptManager.evaluate(expression, target, true);
+        WDEvaluateResult result = webDriver.script().evaluate(expression, target, true);
         if(result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
             return convertWDLocalValue(((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult());
         }
@@ -93,7 +93,8 @@ public class JSHandleImpl implements JSHandle {
     public String toString() {
         return "JSHandleImpl{" +
                 "handle=" + handle.value() +
-                ", realm=" + realm.value() +
+                // ToDo: Implement this
+//                ", realm=" + target() +
                 '}';
     }
 
@@ -112,7 +113,7 @@ public class JSHandleImpl implements JSHandle {
 
     private Map<String, JSHandle> extractProperties() {
         Map<String, JSHandle> properties = new HashMap<>();
-        WDEvaluateResult evaluate = scriptManager.evaluate("obj => Object.entries(obj)", new WDTarget.RealmTarget(realm), true);
+        WDEvaluateResult evaluate = webDriver.script().evaluate("obj => Object.entries(obj)", target, true);
         WDRemoteValue remoteValue;
         if(evaluate instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
             remoteValue = ((WDEvaluateResult.WDEvaluateResultSuccess) evaluate).getResult();
@@ -173,7 +174,7 @@ public class JSHandleImpl implements JSHandle {
             return ((WDLocalValue.RegExpLocalValue) localValue).getValue().getPattern();
         }
         if (localValue instanceof WDRemoteReference.SharedReference || localValue instanceof WDRemoteReference.RemoteObjectReference) {
-            return new JSHandleImpl(new WDHandle(localValue.toString()), realm);
+            return new JSHandleImpl(webDriver, new WDHandle(localValue.toString()), target);
         }
 
         throw new IllegalArgumentException("Unsupported WDLocalValue type: " + localValue.getClass().getSimpleName());

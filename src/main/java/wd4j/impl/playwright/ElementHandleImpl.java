@@ -6,6 +6,7 @@ import wd4j.api.options.BoundingBox;
 import wd4j.api.options.ElementState;
 import wd4j.api.options.FilePayload;
 import wd4j.api.options.SelectOption;
+import wd4j.impl.WebDriver;
 import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.webdriver.type.script.WDEvaluateResult;
 import wd4j.impl.webdriver.type.script.WDHandle;
@@ -28,21 +29,15 @@ import static wd4j.impl.support.WDRemoteValueUtil.getBoundingBoxFromEvaluateResu
  * Implementation of ElementHandle using WebDriver BiDi.
  */
 public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
-    private final WDScriptManager scriptManager;
-    private final WDHandle handle;
-    private final WDRealm realm;
 
-    public ElementHandleImpl(WDHandle handle, WDRealm realm) {
-        super(handle, realm);
-        this.scriptManager = null; // ToDo: Implement this, how to get the script manager? Might be a constructor parameter?
-        this.handle = handle;
-        this.realm = realm;
+    public ElementHandleImpl(WebDriver webDriver, WDHandle handle, WDTarget target) {
+        super(webDriver, handle, target);
     }
 
     @Override
     public BoundingBox boundingBox() {
         String script = "el => el.getBoundingClientRect()";
-        WDEvaluateResult result = scriptManager.evaluate(script, new WDTarget.RealmTarget(realm), true);
+        WDEvaluateResult result = webDriver.script().evaluate(script, target, true);
 
         return getBoundingBoxFromEvaluateResult(result);
     }
@@ -121,7 +116,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
         scrollIntoViewIfNeeded(null);
 
         String script = "el => el.click()";
-        WDEvaluateResult result = scriptManager.evaluate(script, new WDTarget.RealmTarget(realm), true);
+        WDEvaluateResult result = webDriver.script().evaluate(script, target, true);
 
         if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
             throw new RuntimeException("Click failed: " + ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
@@ -168,7 +163,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
         scrollIntoViewIfNeeded(null);
 
         String script = "el => { el.click(); el.click(); }";
-        WDEvaluateResult result = scriptManager.evaluate(script, new WDTarget.RealmTarget(realm), true);
+        WDEvaluateResult result = webDriver.script().evaluate(script, target, true);
 
         if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
             throw new RuntimeException("Double click failed: " + ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
@@ -237,7 +232,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
             }
         }
 
-        WDEvaluateResult result = scriptManager.callFunction(script, true, new WDTarget.RealmTarget(realm), args);
+        WDEvaluateResult result = webDriver.script().callFunction(script, true, target, args);
 
         if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
             throw new RuntimeException("Dispatch event failed: " + ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
@@ -541,13 +536,13 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
     @Override
     public ElementHandle querySelector(String selector) {
         String script = "el => el.querySelector(arguments[0])";
-        WDEvaluateResult result = scriptManager.evaluate(script, new WDTarget.RealmTarget(realm), true);
+        WDEvaluateResult result = webDriver.script().evaluate(script, target, true);
 
         if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
             WDRemoteValue value = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
             if (value instanceof WDRemoteValue.NodeRemoteValue) {
                 WDHandle newHandle = ((WDRemoteValue.NodeRemoteValue) value).getHandle();
-                return new ElementHandleImpl(newHandle, realm);
+                return new ElementHandleImpl(webDriver, newHandle, target);
             }
         }
         return null;
@@ -557,7 +552,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
     @Override
     public List<ElementHandle> querySelectorAll(String selector) {
         String script = "el => Array.from(el.querySelectorAll(arguments[0]))";
-        WDEvaluateResult elements = scriptManager.evaluate(script, new WDTarget.RealmTarget(realm), true);
+        WDEvaluateResult elements = webDriver.script().evaluate(script, target, true);
 
         if (elements instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
             WDRemoteValue remoteValue = ((WDEvaluateResult.WDEvaluateResultSuccess) elements).getResult();
@@ -565,7 +560,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
                 List<WDRemoteValue> rawArray = ((WDRemoteValue.ArrayRemoteValue) remoteValue).getValue();
                 List<ElementHandle> handles = new ArrayList<>();
                 for (WDRemoteValue el : rawArray) {
-                    handles.add(new ElementHandleImpl(handle, realm));
+                    handles.add(new ElementHandleImpl(webDriver, handle, target));
                 }
                 return handles;
             }
@@ -1002,7 +997,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private boolean evaluateBoolean(String script) {
-        WDEvaluateResult result = scriptManager.evaluate(script, new WDTarget.RealmTarget(realm), true);
+        WDEvaluateResult result = webDriver.script().evaluate(script, target, true);
         if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
             WDRemoteValue value = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
             return value instanceof WDPrimitiveProtocolValue.BooleanValue &&
@@ -1012,7 +1007,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
     }
 
     private String evaluateString(String script) {
-        WDEvaluateResult result = scriptManager.evaluate(script, new WDTarget.RealmTarget(realm), true);
+        WDEvaluateResult result = webDriver.script().evaluate(script, target, true);
         if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
             WDRemoteValue value = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
             if (value instanceof WDPrimitiveProtocolValue.StringValue) {

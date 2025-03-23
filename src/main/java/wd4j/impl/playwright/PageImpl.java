@@ -9,12 +9,11 @@ import wd4j.impl.support.ScriptHelper;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
+import wd4j.impl.webdriver.type.script.*;
 import wd4j.impl.websocket.WDEventNames;
 import wd4j.impl.support.JsonToPlaywrightMapper;
 import wd4j.impl.webdriver.type.browser.WDUserContext;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
-import wd4j.impl.webdriver.type.script.WDEvaluateResult;
-import wd4j.impl.webdriver.type.script.WDTarget;
 import wd4j.impl.webdriver.type.session.WDSubscription;
 import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 
@@ -25,8 +24,10 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
+import static wd4j.impl.webdriver.type.script.WDResultOwnership.ROOT;
+
 public class PageImpl implements Page {
-    private final WDBrowsingContext pageId; // aka. browsing context id or navigable id in WebDriver BiDi
+    private final WDBrowsingContext page; // aka. browsing context or navigable in WebDriver BiDi
     private final WDUserContext userContextId; // aka. simply as contextId in CDP - default is "default"
     private boolean isClosed;
     private String url;
@@ -59,7 +60,7 @@ public class PageImpl implements Page {
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        this.pageId = new WDBrowsingContext(browser.getWebDriver().browsingContext().create().getContext());
+        this.page = new WDBrowsingContext(browser.getWebDriver().browsingContext().create().getContext());
         this.userContextId = userContext;
     }
 
@@ -67,16 +68,16 @@ public class PageImpl implements Page {
      * Constructor for a new page with a given pageId.
      * @param browser
      * @param userContext
-     * @param browsingContext
+     * @param page
      */
-    public PageImpl(BrowserImpl browser,  WDUserContext userContext, WDBrowsingContext browsingContext) {
+    public PageImpl(BrowserImpl browser,  WDUserContext userContext, WDBrowsingContext page) {
         this.browser = browser;
         this.webDriver = browser.getWebDriver();
 
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        this.pageId = browsingContext;
+        this.page = page;
         this.userContextId = userContext;
     }
 
@@ -89,7 +90,7 @@ public class PageImpl implements Page {
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
         // 🔹 Falls keine existierende Seite vorhanden ist, eine neue Instanz initialisieren
-        this.pageId = context;
+        this.page = context;
         this.isClosed = false;
         this.url = load.getParams().getUrl();
     }
@@ -104,7 +105,7 @@ public class PageImpl implements Page {
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
         // 🔹 Falls keine existierende Seite vorhanden ist, eine neue Instanz initialisieren
-        this.pageId = context;
+        this.page = context;
         this.isClosed = false;
         this.url = domContentLoaded.getParams().getUrl();
     }
@@ -118,7 +119,7 @@ public class PageImpl implements Page {
         this.webDriver = browser.getWebDriver();
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
-        this.pageId = context;
+        this.page = context;
         this.isClosed = true;  // Diese Page gilt als "destroyed"
         this.url = (existingPage != null) ? existingPage.url() : null;
     }
@@ -132,7 +133,7 @@ public class PageImpl implements Page {
         this.webDriver = browser.getWebDriver();
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : created.getParams().getUserContext();
 
-        this.pageId = context;
+        this.page = context;
         this.isClosed = false;
         this.url = created.getParams().getUrl();
     }
@@ -572,8 +573,27 @@ public class PageImpl implements Page {
 
     @Override
     public JSHandle evaluateHandle(String expression, Object arg) {
-        return null;
+        WDTarget target = new WDTarget.ContextTarget(page); // oder RealmTarget
+        WDEvaluateResult result = webDriver.script().evaluate(
+                expression,
+                target,
+                true, // awaitPromise
+                ROOT,
+                null // ToDo: Maybe include Shadow DOM?
+        );
+
+        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            WDRemoteValue remote = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
+
+            if (remote instanceof WDRemoteReference.RemoteObjectReference) {
+                WDHandle handle = ((WDRemoteReference.RemoteObjectReference) remote).getHandle();
+                return new JSHandleImpl(webDriver, handle, target); // realm wird von WB aus contextId abgeleitet
+            }
+        }
+
+        throw new RuntimeException("evaluateHandle failed: unexpected result type");
     }
+
 
     @Override
     public void exposeBinding(String name, BindingCallback callback, ExposeBindingOptions options) {
@@ -1194,15 +1214,15 @@ public class PageImpl implements Page {
         return Collections.emptyList();
     }
 
-    public WDBrowsingContext getBrowsingContext() {
-        return pageId;
+    public WDBrowsingContext getPage() {
+        return page;
     }
 
     public String getBrowsingContextId() {
-        if (pageId == null) {
+        if (page == null) {
             throw new PlaywrightException("Browsing context is null.");
         }
-        return pageId.value();
+        return page.value();
     }
 
     public WDUserContext getUserContext() {

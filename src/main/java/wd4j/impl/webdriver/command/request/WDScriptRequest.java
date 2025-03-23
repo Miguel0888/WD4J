@@ -88,6 +88,9 @@ public class WDScriptRequest {
         public Evaluate(String expression, WDTarget target, boolean awaitPromise) {
             super("script.evaluate", new EvaluateParameters(expression, target, awaitPromise));
         }
+        public Evaluate(String expression, WDTarget target, boolean awaitPromise, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions) {
+            super("script.evaluate", new EvaluateParameters(expression, target, awaitPromise, resultOwnership, serializationOptions));
+        }
         public Evaluate(String expression, WDTarget target, boolean awaitPromise, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions, boolean userActivation) {
             super("script.evaluate", new EvaluateParameters(expression, target, awaitPromise, resultOwnership, serializationOptions, userActivation));
         }

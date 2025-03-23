@@ -157,12 +157,50 @@ public class WDScriptManager implements WDModule {
      * Evaluates the given expression in the specified target.
      *
      * @param script    The script to evaluate.
-     * @param wdTarget    The target where the script is evaluated. See {@link WDTarget}.
+     * @param target    The target where the script is evaluated. See {@link WDTarget}.
+     * @param awaitPromise Whether to wait for the promise to resolve.
      * @throws RuntimeException if the operation fails.
      */
-    public WDEvaluateResult evaluate(String script, WDTarget wdTarget, boolean awaitPromise) {
+    public WDEvaluateResult evaluate(String script, WDTarget target, boolean awaitPromise) {
         return webSocketManager.sendAndWaitForResponse(
-                new WDScriptRequest.Evaluate(script, wdTarget, awaitPromise),
+                new WDScriptRequest.Evaluate(script, target, awaitPromise),
+                WDEvaluateResult.class
+        );
+    }
+
+    /**
+     * Evaluates the given expression in the specified target.
+     *
+     * @param script    The script to evaluate.
+     * @param target    The target where the script is evaluated. See {@link WDTarget}.
+     * @param awaitPromise Whether to wait for the promise to resolve.
+     * @param resultOwnership The ownership of the result: root = remote object (id only), none = local object if possible
+     * @param serializationOptions The serialization options for the result.
+     *
+     * @throws RuntimeException if the operation fails.
+     */
+    public WDEvaluateResult evaluate(String script, WDTarget target, boolean awaitPromise, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.Evaluate(script, target, awaitPromise, resultOwnership, serializationOptions),
+                WDEvaluateResult.class
+        );
+    }
+
+    /**
+     * Evaluates the given expression in the specified target.
+     *
+     * @param script    The script to evaluate.
+     * @param target    The target where the script is evaluated. See {@link WDTarget}.
+     * @param awaitPromise Whether to wait for the promise to resolve.
+     * @param resultOwnership The ownership of the result: root = remote object (id only), none = local object if possible
+     * @param serializationOptions The serialization options for the result.
+     * @param userActivation Whether the script is executed in a user-activated context.
+     *
+     * @throws RuntimeException if the operation fails.
+     */
+    public WDEvaluateResult evaluate(String script, WDTarget target, boolean awaitPromise, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions, boolean userActivation) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.Evaluate(script, target, awaitPromise, resultOwnership, serializationOptions, userActivation),
                 WDEvaluateResult.class
         );
     }
