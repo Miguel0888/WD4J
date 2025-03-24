@@ -8,9 +8,14 @@ import wd4j.api.options.SelectOption;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.PageImpl;
 import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
+import wd4j.impl.webdriver.type.browser.WDClientWindow;
+import wd4j.impl.webdriver.type.browser.WDUserContext;
+import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
+import wd4j.impl.webdriver.type.browsingContext.WDInfo;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
@@ -76,6 +81,14 @@ public class FrameImpl implements Frame {
         this.url = navigationCommitted.getParams().getUrl();
         this.isDetached = false;
         this.childFrames = new ArrayList<>();
+    }
+
+    // ToDo: Can user context from sub frames be different from the parent frame / page?
+    public FrameImpl(PageImpl page, WDUserContext userContext, WDClientWindow clientWindow, String url, Collection<WDInfo> children) {
+        this.page = page;
+        this.url = url;
+        this.childFrames = new ArrayList<>(); // ToDo: Implementierung erforderlich
+        this.isDetached = false;
     }
 
     @Override

@@ -4,11 +4,14 @@ import com.google.gson.JsonObject;
 import wd4j.impl.WebDriver;
 import wd4j.api.*;
 import wd4j.api.options.*;
+import wd4j.impl.playwright.event.FrameImpl;
 import wd4j.impl.support.PlaywrightResponse;
 import wd4j.impl.support.ScriptHelper;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
+import wd4j.impl.webdriver.type.browser.WDClientWindow;
+import wd4j.impl.webdriver.type.browsingContext.WDInfo;
 import wd4j.impl.webdriver.type.browsingContext.WDLocator;
 import wd4j.impl.webdriver.type.script.*;
 import wd4j.impl.websocket.WDEventNames;
@@ -618,12 +621,36 @@ public class PageImpl implements Page {
 
     @Override
     public void exposeBinding(String name, BindingCallback callback, ExposeBindingOptions options) {
+        String preloadCode =
+                "window['" + name + "'] = function(...args) {" +
+                        "  return new Promise(function(resolve, reject) {" +
+                        "    window.__playwright_invokeBinding('" + name + "', args).then(resolve).catch(reject);" +
+                        "  });" +
+                        "};";
 
+        webDriver.script().addPreloadScript(
+                getBrowsingContextId(),
+                preloadCode
+        );
+
+        webDriver.registerBinding(name, callback); // Diese Methode bauen wir gleich!
     }
 
     @Override
     public void exposeFunction(String name, FunctionCallback callback) {
+        String preloadCode =
+                "window['" + name + "'] = function(...args) {" +
+                        "  return new Promise(function(resolve, reject) {" +
+                        "    window.__playwright_invoke('" + name + "', args).then(resolve).catch(reject);" +
+                        "  });" +
+                        "};";
 
+        webDriver.script().addPreloadScript(
+                getBrowsingContextId(),
+                preloadCode
+        );
+
+        webDriver.registerFunction(name, callback); // Diese Methode bauen wir gleich!
     }
 
     @Override
@@ -663,7 +690,28 @@ public class PageImpl implements Page {
 
     @Override
     public List<Frame> frames() {
-        return Collections.emptyList();
+        List<Frame> frames = new ArrayList<>();
+        WDBrowsingContextResult.GetTreeResult tree = webDriver.browsingContext().getTree(browsingContext, Long.MAX_VALUE);
+        Collection<WDInfo> infos = tree.getContexts();
+        for(WDInfo info : infos) {
+            WDBrowsingContext context = info.getContext();
+            WDClientWindow clientWindow = info.getClientWindow();
+            WDBrowsingContext originalOpener = info.getOriginalOpener();
+            String url1 = info.getUrl();
+            WDUserContext userContext = info.getUserContext();
+            WDBrowsingContext parent = info.getParent();
+            Collection<WDInfo> children = info.getChildren();
+
+            if(parent != null) { // ToDo: Check if this is correct (all children frames only?)
+                if(browsingContext.equals(parent)) {
+                    frames.add(new FrameImpl(this, userContext, clientWindow, url1, children));
+                }
+                else {
+                    throw new PlaywrightException("Parent context does not correspond to the sub frame's context.");
+                }
+            }
+        }
+        return frames;
     }
 
     @Override

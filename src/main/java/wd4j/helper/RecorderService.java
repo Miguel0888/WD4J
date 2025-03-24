@@ -232,6 +232,8 @@ public class RecorderService {
         List<RecordedEvent> mergedEvents = new ArrayList<>();
         RecordedEvent lastInputEvent = null;
 
+        StringBuilder pressedKeys = new StringBuilder();
+
         for (RecordedEvent event : recordedEvents) {
             if ("input".equals(event.getAction())) {
                 if (lastInputEvent != null && isSameExceptValue(lastInputEvent, event)) {
@@ -246,12 +248,21 @@ public class RecorderService {
                 }
             } else if ("press".equals(event.getAction())) {
                 // Ignoriere `press`, wenn es nur zwischen `input`-Events passiert
-                continue;
+                pressedKeys.append(event.getKey());
             } else {
                 // Anderes Event → vorherigen Input speichern, falls vorhanden
                 if (lastInputEvent != null) {
                     mergedEvents.add(lastInputEvent);
+                    System.out.println("🔍 Letztes Input-Event hinzugefügt: " + lastInputEvent);
                     lastInputEvent = null;
+                } else if (pressedKeys.length() > 0) {
+                    // Falls nur `press`-Events kamen, diese als `key` speichern
+                    RecordedEvent keyEvent = new RecordedEvent();
+                    keyEvent.setAction("input");
+                    keyEvent.setKey(pressedKeys.toString());
+                    System.out.println("🔍 Letztes Key-Event hinzugefügt: " + keyEvent);
+//                    mergedEvents.add(keyEvent);
+                    pressedKeys.setLength(0); // StringBuilder leeren
                 }
                 mergedEvents.add(event);
             }

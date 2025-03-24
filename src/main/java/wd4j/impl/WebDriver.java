@@ -2,6 +2,8 @@ package wd4j.impl;
 
 import app.Main;
 import app.controller.CallbackWebSocketServer;
+import wd4j.api.options.BindingCallback;
+import wd4j.api.options.FunctionCallback;
 import wd4j.helper.RecorderService;
 import wd4j.impl.manager.*;
 import wd4j.impl.playwright.WebSocketImpl;
@@ -13,6 +15,8 @@ import wd4j.impl.webdriver.type.session.WDSubscription;
 import wd4j.impl.webdriver.type.session.WDSubscriptionRequest;
 import wd4j.impl.websocket.WebSocketManager;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
@@ -48,6 +52,9 @@ public class WebDriver {
     private final EventDispatcher dispatcher;
     private String sessionId;
 
+    // Additional features
+    private final Map<String, FunctionCallback> exposedFunctions = new HashMap<>();
+    private final Map<String, BindingCallback> exposedBindings = new HashMap<>();
 
     // ToDo: Use WebSocket Interface instead of WebSocketImpl, here !!!
     public WebDriver(WebSocketImpl connection, EventMapper eventMapper) throws ExecutionException, InterruptedException {
@@ -219,5 +226,21 @@ public class WebDriver {
 
     public boolean isConnected() {
         return webSocketManager.isConnected();
+    }
+
+    public void registerFunction(String name, FunctionCallback callback) {
+        exposedFunctions.put(name, callback);
+    }
+
+    public void registerBinding(String name, BindingCallback callback) {
+        exposedBindings.put(name, callback);
+    }
+
+    public FunctionCallback getFunction(String name) {
+        return exposedFunctions.get(name);
+    }
+
+    public BindingCallback getBinding(String name) {
+        return exposedBindings.get(name);
     }
 }

@@ -79,7 +79,7 @@ public class WDBrowsingContextRequest {
         public GetTree(WDBrowsingContext root) {
             super("browsingContext.getTree", new GetTreeParameters(null, root));
         }
-        public GetTree(Long maxDepth, WDBrowsingContext root) {
+        public GetTree(WDBrowsingContext root, Long maxDepth) {
             super("browsingContext.getTree", new GetTreeParameters(maxDepth, root));
         }
     }

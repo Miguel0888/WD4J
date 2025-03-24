@@ -88,6 +88,13 @@ public class WDBrowsingContextManager implements WDModule {
         );
     }
 
+    public WDBrowsingContextResult.GetTreeResult getTree(WDBrowsingContext context, Long depth) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.GetTree(context, depth),
+                WDBrowsingContextResult.GetTreeResult.class
+        );
+    }
+
     /**
      * Activates the given browsing context.
      *
