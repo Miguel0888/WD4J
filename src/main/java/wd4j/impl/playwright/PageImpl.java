@@ -9,6 +9,7 @@ import wd4j.impl.support.ScriptHelper;
 import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
 import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
+import wd4j.impl.webdriver.type.browsingContext.WDLocator;
 import wd4j.impl.webdriver.type.script.*;
 import wd4j.impl.websocket.WDEventNames;
 import wd4j.impl.support.JsonToPlaywrightMapper;
@@ -896,7 +897,35 @@ public class PageImpl implements Page {
 
     @Override
     public ElementHandle querySelector(String selector, QuerySelectorOptions options) {
-        return null;
+        if (selector == null || selector.isEmpty()) {
+            throw new IllegalArgumentException("Selector must not be null or empty.");
+        }
+
+        String contextTarget = this.getBrowsingContextId();
+
+//        WDLocator locator = selector.trim().startsWith("//") || selector.trim().startsWith("(//")
+//                ? new WDLocator.XPathLocator(selector)
+//                : new WDLocator.CSSLocator(selector); // Falls CSS
+        WDLocator.XPathLocator locator = new WDLocator.XPathLocator(selector); // ToDo: Allow other locators
+
+        WDBrowsingContextResult.LocateNodesResult nodes = browser.getWebDriver().browsingContext().locateNodes(
+                contextTarget,
+                locator
+        );
+
+        if (nodes.getNodes().isEmpty()) {
+            System.out.println("No nodes found for selector: " + selector);
+            return null;
+        }
+        else
+        {
+            WDSharedId sharedId = nodes.getNodes().get(0).getSharedId(); // ToDo: Use Object directly instead of String
+            WDHandle handle = nodes.getNodes().get(0).getHandle(); // Falls vorhanden
+            WDRemoteReference.SharedReference sharedReference = new WDRemoteReference.SharedReference(sharedId, handle);
+            WDTarget.ContextTarget contextTargetObj = new WDTarget.ContextTarget(new WDBrowsingContext(contextTarget));
+            System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Shared ID: " + sharedId + " <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+            return new ElementHandleImpl(webDriver, sharedReference, contextTargetObj);
+        }
     }
 
     @Override

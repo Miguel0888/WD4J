@@ -307,6 +307,7 @@ public class WDScriptManager implements WDModule {
     // JS Functions available via CallFunction and SharedId given by the locateNodes Command
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    @Deprecated
     public void executeDomAction(String browsingContextId, String sharedId, DomAction action) {
         List<WDLocalValue> args = null;
                 callFunction(
@@ -318,6 +319,7 @@ public class WDScriptManager implements WDModule {
                 );
     }
 
+    @Deprecated
     public void executeDomAction(WDTarget.ContextTarget target, WDRemoteReference<?> remoteReference, DomAction action) {
         List<WDLocalValue> args = null;
         callFunction(
@@ -329,6 +331,7 @@ public class WDScriptManager implements WDModule {
         );
     }
 
+    @Deprecated
     public void executeDomAction(String browsingContextId, String sharedId, DomAction action, List<WDLocalValue> args) {
         callFunction(
                 action.getFunctionDeclaration(),
@@ -339,6 +342,7 @@ public class WDScriptManager implements WDModule {
         );
     }
 
+    @Deprecated
     public void executeDomAction(WDTarget.ContextTarget target, WDRemoteReference<?> remoteReference, DomAction action, List<WDLocalValue> args) {
         callFunction(
                 action.getFunctionDeclaration(),
@@ -351,6 +355,7 @@ public class WDScriptManager implements WDModule {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    @Deprecated
     public WDEvaluateResult queryDomProperty(String browsingContextId, String sharedId, DomQuery domQuery) {
         WDEvaluateResult result = callFunction(
                 domQuery.getFunctionDeclaration(),
@@ -362,6 +367,7 @@ public class WDScriptManager implements WDModule {
         return result;
     }
 
+    @Deprecated
     public WDEvaluateResult queryDomProperty(WDTarget.ContextTarget target, WDRemoteReference<?> remoteReference, DomQuery domQuery) {
         WDEvaluateResult result = callFunction(
                 domQuery.getFunctionDeclaration(),
@@ -373,6 +379,7 @@ public class WDScriptManager implements WDModule {
         return result;
     }
 
+    @Deprecated
     public WDEvaluateResult queryDomProperty(String browsingContextId, String sharedId, DomQuery domQuery, List<WDLocalValue> args) {
         WDEvaluateResult result = callFunction(
                 domQuery.getFunctionDeclaration(),
@@ -384,6 +391,7 @@ public class WDScriptManager implements WDModule {
         return result;
     }
 
+    @Deprecated
     public WDEvaluateResult queryDomProperty(WDTarget.ContextTarget target, WDRemoteReference<?> remoteReference, DomQuery domQuery, List<WDLocalValue> args) {
         WDEvaluateResult result = callFunction(
                 domQuery.getFunctionDeclaration(),

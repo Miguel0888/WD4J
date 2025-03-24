@@ -117,17 +117,23 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
         waitForActionability(options);
         scrollIntoViewIfNeeded(null);
 
-        String script = "el => el.click()";
-        WDEvaluateResult result = webDriver.script().evaluate(script, target, true);
+        String script = "function() { this.click(); }";
+
+        WDEvaluateResult result = webDriver.script().callFunction(
+                script,
+                false, // ❗ kein await nötig für click()
+                target,
+                null, // keine Argumente
+                getRemoteReference(), // ← dein sharedId-basiertes Element
+                WDResultOwnership.ROOT,
+                null
+        );
 
         if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
             throw new RuntimeException("Click failed: " + ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
         }
     }
 
-    private void waitForActionability(ClickOptions options) {
-        // Placeholder for actionability checks (e.g., visibility, enabled state)
-    }
 
     /**
      * Returns the content frame for element handles referencing iframe nodes, or {@code null} otherwise
@@ -320,8 +326,33 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public void fill(String value, FillOptions options) {
+        waitForActionability(options);
+        scrollIntoViewIfNeeded(null);
 
+        String script = "function(value) { " +
+                "  this.focus();" +
+                "  this.value = value;" +
+                "  this.dispatchEvent(new Event('input', { bubbles: true }));" +
+                "}";
+
+        List<WDLocalValue> args = Collections.singletonList(WDLocalValue.fromObject(value));
+
+        WDEvaluateResult result = webDriver.script().callFunction(
+                script,
+                false,
+                target,
+                args,
+                getRemoteReference(),
+                WDResultOwnership.ROOT,
+                null
+        );
+
+        if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
+            throw new RuntimeException("Fill failed: " + ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
+        }
     }
+
+
 
     /**
      * Calls <a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus">focus</a> on the element.
@@ -1024,5 +1055,13 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
             }
         }
         return "";
+    }
+
+    private void waitForActionability(ClickOptions options) {
+        // Placeholder for actionability checks (e.g., visibility, enabled state)
+    }
+
+    private void waitForActionability(FillOptions options) {
+        // Placeholder for actionability checks (e.g., visibility, enabled state)
     }
 }

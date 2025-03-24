@@ -2,7 +2,6 @@ package app.controller;
 
 import app.Main;
 import wd4j.api.*;
-import wd4j.impl.manager.WDBrowsingContextManager;
 import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.PageImpl;
@@ -295,7 +294,7 @@ public class MainController {
     }
 
     @Deprecated // since it only for debugging purposes
-    public void testPlayback(String selector, WDScriptManager.DomAction command) {
+    public void testCall(String selector, WDScriptManager.DomAction command) {
         String contextTarget = browser.getPages().getActivePage().getBrowsingContextId();
         String sharedId;
 
@@ -742,5 +741,9 @@ public class MainController {
                 });
             }
         });
+    }
+
+    public BrowserImpl getBrowser() {
+        return browser;
     }
 }

@@ -7,9 +7,11 @@ import app.model.TestSuite;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import wd4j.api.ElementHandle;
 import wd4j.helper.RecorderService;
 import app.dto.RecordedEvent;
 import wd4j.impl.manager.WDScriptManager;
+import wd4j.impl.playwright.PageImpl;
 
 import javax.swing.*;
 import javax.swing.tree.*;
@@ -574,8 +576,69 @@ public class TestRecorderTab implements UIComponent {
     }
 
     private void playTestSuite() {
-        // ToDo: Will be implemented in the next chapter, but not now!
+        List<TestCase> testCases = getTestCases();
+
+        if (testCases.isEmpty()) {
+            JOptionPane.showMessageDialog(panel, "Keine Testfälle zum Abspielen!", "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        // 🔁 Durch alle Testfälle iterieren
+        for (TestCase testCase : testCases) {
+            System.out.println("🎬 Starte Testfall: " + testCase.getName());
+
+            for (TestAction action : testCase.getWhen()) {
+                try {
+                    String selector = action.getSelectedSelector(); // z. B. XPath
+                    String actionType = action.getAction();         // z. B. click, fill
+                    String inputValue = action.getValue();          // für fill()
+
+                    PageImpl page = controller.getBrowser().getPages().getActivePage();
+
+                    // Hole ElementHandle über Page.querySelector()
+                    ElementHandle element = page.querySelector(selector, null);
+
+                    if (element == null) {
+                        System.err.println("⚠️ Element nicht gefunden für Selector: " + selector);
+                        continue;
+                    }
+
+                    // Führe Aktion aus
+                    switch (actionType.toLowerCase()) {
+                        case "click":
+                            element.click(null);
+                            System.out.println("🖱 Klick auf: " + selector);
+                            break;
+
+                        case "input":
+                            element.fill(inputValue != null ? inputValue : "", null);
+                            System.out.println("✍️ Eingabe in: " + selector + " → " + inputValue);
+                            break;
+
+                        case "fill":
+//                            element.fill(inputValue != null ? inputValue : "", null);
+                            System.out.println("✍️ Eingabe in: " + selector + " → " + inputValue);
+                            break;
+
+                        // 🔁 Weitere Aktionen wie check(), selectOption() etc. nach Bedarf ergänzen
+
+                        default:
+                            System.err.println("❓ Unbekannte Aktion: " + actionType);
+                    }
+
+                    System.out.println("⏳ Warte für " + action.getTimeout() + "ms...");
+                    Thread.sleep(action.getTimeout()); // 🔄 Optionaler Delay, Timeout is not quite correct
+
+                } catch (Exception ex) {
+                    System.err.println("❌ Fehler bei Aktion: " + ex.getMessage());
+                    ex.printStackTrace();
+                }
+            }
+        }
+
+        JOptionPane.showMessageDialog(panel, "✅ Testdurchlauf abgeschlossen.");
     }
+
 
     private JToolBar createToolbar() {
         toolbar = new JToolBar();
@@ -617,7 +680,7 @@ public class TestRecorderTab implements UIComponent {
             if (!isSelected || (selector != null && !selector.isEmpty())) {
                 String variant = (String) selectorTestVariant.getSelectedItem();
                 if (!isSelected || (variant != null && !variant.isEmpty())) {
-                    controller.testPlayback(selector, WDScriptManager.DomAction.valueOf(variant));
+                    controller.testCall(selector, WDScriptManager.DomAction.valueOf(variant));
 
                     // ✅ Eingabe zur Historie hinzufügen
                     if (!selectorHistory.contains(selector)) {
