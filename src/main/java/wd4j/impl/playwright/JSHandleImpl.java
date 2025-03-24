@@ -36,12 +36,16 @@ public class JSHandleImpl implements JSHandle {
     @Override
     public ElementHandle asElement() {
 
-        // ToDo: get the shared reference from the remote object reference
-        WDRemoteReference.SharedReference sharedReference = null;
-
-        if (isElementHandle()) {
-            return new ElementHandleImpl(webDriver, sharedReference, target);
+        if (remoteReference instanceof WDRemoteReference.SharedReference) {
+            return new ElementHandleImpl(webDriver, (WDRemoteReference.SharedReference) remoteReference, target);
+        } else if (remoteReference instanceof WDRemoteReference.RemoteObjectReference) {
+            WDRemoteReference.RemoteObjectReference ror = (WDRemoteReference.RemoteObjectReference) remoteReference;
+            if (ror.getSharedId() != null) {
+                WDRemoteReference.SharedReference sharedRef = new WDRemoteReference.SharedReference(ror.getSharedId(), ror.getHandle());
+                return new ElementHandleImpl(webDriver, sharedRef, target);
+            }
         }
+        // ToDo: Maybe request the missing sharedId from the browser..
         return null;
     }
 
