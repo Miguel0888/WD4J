@@ -24,10 +24,8 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
-import static wd4j.impl.webdriver.type.script.WDResultOwnership.ROOT;
-
 public class PageImpl implements Page {
-    private final WDBrowsingContext page; // aka. browsing context or navigable in WebDriver BiDi
+    private final WDBrowsingContext browsingContext; // aka. browsing context or navigable in WebDriver BiDi
     private final WDUserContext userContextId; // aka. simply as contextId in CDP - default is "default"
     private boolean isClosed;
     private String url;
@@ -60,7 +58,7 @@ public class PageImpl implements Page {
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        this.page = new WDBrowsingContext(browser.getWebDriver().browsingContext().create().getContext());
+        this.browsingContext = new WDBrowsingContext(browser.getWebDriver().browsingContext().create().getContext());
         this.userContextId = userContext;
     }
 
@@ -68,16 +66,16 @@ public class PageImpl implements Page {
      * Constructor for a new page with a given pageId.
      * @param browser
      * @param userContext
-     * @param page
+     * @param browsingContext
      */
-    public PageImpl(BrowserImpl browser,  WDUserContext userContext, WDBrowsingContext page) {
+    public PageImpl(BrowserImpl browser,  WDUserContext userContext, WDBrowsingContext browsingContext) {
         this.browser = browser;
         this.webDriver = browser.getWebDriver();
 
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        this.page = page;
+        this.browsingContext = browsingContext;
         this.userContextId = userContext;
     }
 
@@ -90,7 +88,7 @@ public class PageImpl implements Page {
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
         // 🔹 Falls keine existierende Seite vorhanden ist, eine neue Instanz initialisieren
-        this.page = context;
+        this.browsingContext = context;
         this.isClosed = false;
         this.url = load.getParams().getUrl();
     }
@@ -105,7 +103,7 @@ public class PageImpl implements Page {
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
         // 🔹 Falls keine existierende Seite vorhanden ist, eine neue Instanz initialisieren
-        this.page = context;
+        this.browsingContext = context;
         this.isClosed = false;
         this.url = domContentLoaded.getParams().getUrl();
     }
@@ -119,7 +117,7 @@ public class PageImpl implements Page {
         this.webDriver = browser.getWebDriver();
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
-        this.page = context;
+        this.browsingContext = context;
         this.isClosed = true;  // Diese Page gilt als "destroyed"
         this.url = (existingPage != null) ? existingPage.url() : null;
     }
@@ -133,7 +131,7 @@ public class PageImpl implements Page {
         this.webDriver = browser.getWebDriver();
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : created.getParams().getUserContext();
 
-        this.page = context;
+        this.browsingContext = context;
         this.isClosed = false;
         this.url = created.getParams().getUrl();
     }
@@ -573,21 +571,43 @@ public class PageImpl implements Page {
 
     @Override
     public JSHandle evaluateHandle(String expression, Object arg) {
-        WDTarget target = new WDTarget.ContextTarget(page); // oder RealmTarget
-        WDEvaluateResult result = webDriver.script().evaluate(
-                expression,
-                target,
-                true, // awaitPromise
-                ROOT,
-                null // ToDo: Maybe include Shadow DOM?
-        );
+        WDEvaluateResult result;
+        WDTarget target = new WDTarget.ContextTarget(browsingContext); // oder RealmTarget
+
+        if (isFunctionExpression(expression)) {
+            // Verwende callFunction wenn Argumente vorhanden sind
+            List<WDLocalValue> args = arg != null
+                    ? Collections.singletonList(WDLocalValue.fromObject(arg))
+                    : Collections.emptyList();
+
+            result = webDriver.script().callFunction(
+                    expression,
+                    true, // awaitPromise
+                    target,
+                    args,
+                    null, // thisObject
+                    WDResultOwnership.ROOT,
+                    null // serializationOptions
+            );
+        } else {
+            // Normales evaluate ohne Argumente
+            result = webDriver.script().evaluate(
+                    expression,
+                    target,
+                    true,
+                    WDResultOwnership.ROOT,
+                    null // sandbox
+            );
+        }
 
         if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
             WDRemoteValue remote = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
 
-            if (remote instanceof WDRemoteReference.RemoteObjectReference) {
-                WDHandle handle = ((WDRemoteReference.RemoteObjectReference) remote).getHandle();
-                return new JSHandleImpl(webDriver, handle, target); // realm wird von WB aus contextId abgeleitet
+            if (remote instanceof WDRemoteReference.SharedReference) {
+                return new JSHandleImpl(webDriver, ((WDRemoteReference.SharedReference) remote), target);
+            }
+            else if(remote instanceof WDRemoteReference.RemoteObjectReference) { // ToDo: Check if this is correct, should always be a SharedReference!
+                return new JSHandleImpl(webDriver, ((WDRemoteReference.RemoteObjectReference) remote), target);
             }
         }
 
@@ -836,7 +856,7 @@ public class PageImpl implements Page {
         if (selector == null || selector.isEmpty()) {
             throw new IllegalArgumentException("Selector must not be null or empty.");
         }
-        return new LocatorImpl(this, selector);
+        return new LocatorImpl(webDriver, this, selector);
     }
 
     @Override
@@ -1214,15 +1234,15 @@ public class PageImpl implements Page {
         return Collections.emptyList();
     }
 
-    public WDBrowsingContext getPage() {
-        return page;
+    public WDBrowsingContext getBrowsingContext() {
+        return browsingContext;
     }
 
     public String getBrowsingContextId() {
-        if (page == null) {
+        if (browsingContext == null) {
             throw new PlaywrightException("Browsing context is null.");
         }
-        return page.value();
+        return browsingContext.value();
     }
 
     public WDUserContext getUserContext() {
@@ -1236,4 +1256,25 @@ public class PageImpl implements Page {
     public BrowserImpl getBrowser() {
         return browser;
     }
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Helper Methods
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Prüft, ob der übergebene Ausdruck eine Funktion ist. Wird benötigt, um zu entscheiden, ob ein `callFunction` oder
+     * ein `evaluate`-Befehl ausgeführt werden soll.
+     *
+     * @param expr
+     * @return
+     */
+    private boolean isFunctionExpression(String expr) {
+        return expr != null && expr.trim().matches("^\\(?\\s*[^)]*\\)?\\s*=>.*");
+    }
+
+    public WebDriver getWebDriver() {
+        return webDriver;
+    }
+
 }

@@ -11,20 +11,36 @@ import java.util.stream.Collectors;
 
 public class JSHandleImpl implements JSHandle {
     protected final WebDriver webDriver;
-    protected final WDHandle handle;
+    protected final WDRemoteReference<?> remoteReference;
     protected final WDTarget target; // can be RealmTarget or ContextTarget (to avoid conversion to RealmTarget when not necessary)
     protected boolean disposed = false;
 
-    public JSHandleImpl(WebDriver webDriver, WDHandle handle, WDTarget target) {
+    public JSHandleImpl(WebDriver webDriver, WDRemoteReference<?> remoteObjectReference, WDTarget target) {
         this.webDriver = webDriver;
-        this.handle = handle;
+        this.remoteReference = remoteObjectReference;
         this.target = target;
+    }
+
+    public WDRemoteReference<?> getRemoteReference() {
+        return remoteReference;
+    }
+
+    public WDHandle getHandle() {
+        return ((WDRemoteReference.RemoteObjectReference) remoteReference).getHandle();
+    }
+
+    public WDTarget getTarget() {
+        return target;
     }
 
     @Override
     public ElementHandle asElement() {
+
+        // ToDo: get the shared reference from the remote object reference
+        WDRemoteReference.SharedReference sharedReference = null;
+
         if (isElementHandle()) {
-            return new ElementHandleImpl(webDriver, handle, target);
+            return new ElementHandleImpl(webDriver, sharedReference, target);
         }
         return null;
     }
@@ -32,22 +48,27 @@ public class JSHandleImpl implements JSHandle {
     @Override
     public void dispose() {
         if (disposed) return;
-        webDriver.script().disown(Collections.singletonList(handle), target);
+        webDriver.script().disown(Collections.singletonList(getHandle()), target);
         disposed = true;
     }
 
+    /**
+     * Evaluates the JavaScript expression in the browser context.
+     *
+     * @param expression JavaScript expression to be evaluated in the browser context. If the expression evaluates to a function, the function is
+     * automatically invoked.
+     * @param arg Optional argument to pass to {@code expression}.
+     *
+     * @return The corresponding Webdriver object (WDRemoteValue)
+     */
     @Override
     public Object evaluate(String expression, Object arg) {
         checkDisposed();
         WDEvaluateResult result = webDriver.script().evaluate(expression, target, true);
         if(result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            return convertWDLocalValue(((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult());
+            return ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
         }
         return null;
-    }
-
-    private Object convertWDLocalValue(WDRemoteValue result) {
-        return null; // ToDo: Implement this
     }
 
     @Override
@@ -92,7 +113,7 @@ public class JSHandleImpl implements JSHandle {
     @Override
     public String toString() {
         return "JSHandleImpl{" +
-                "handle=" + handle.value() +
+                "handle=" + getHandle().value() +
                 // ToDo: Implement this
 //                ", realm=" + target() +
                 '}';
@@ -132,51 +153,5 @@ public class JSHandleImpl implements JSHandle {
 //            }
 //        }
         return properties;
-    }
-
-    private Object convertWDLocalValue(WDLocalValue localValue) {
-        if (localValue == null) return null;
-
-        // 🔹 Fallunterscheidung für konkrete Implementierungen
-        if (localValue instanceof WDPrimitiveProtocolValue.StringValue) {
-            return ((WDPrimitiveProtocolValue.StringValue) localValue).getValue();
-        }
-        if (localValue instanceof WDPrimitiveProtocolValue.NumberValue) {
-            return ((WDPrimitiveProtocolValue.NumberValue) localValue).getValue();
-        }
-        if (localValue instanceof WDPrimitiveProtocolValue.BooleanValue) {
-            return ((WDPrimitiveProtocolValue.BooleanValue) localValue).getValue();
-        }
-        if (localValue instanceof WDPrimitiveProtocolValue.NullValue) {
-            return null;
-        }
-        if (localValue instanceof WDLocalValue.ArrayLocalValue) {
-            return ((WDLocalValue.ArrayLocalValue) localValue).getValue().stream()
-                    .map(this::convertWDLocalValue)
-                    .collect(Collectors.toList());
-        }
-        if (localValue instanceof WDLocalValue.ObjectLocalValue) {
-            return extractProperties();
-        }
-        if (localValue instanceof WDLocalValue.DateLocalValue) {
-            return ((WDLocalValue.DateLocalValue) localValue).getValue();
-        }
-        if (localValue instanceof WDLocalValue.MapLocalValue) {
-            return ((WDLocalValue.MapLocalValue) localValue).getValue().entrySet().stream()
-                    .collect(Collectors.toMap(e -> convertWDLocalValue(e.getKey()), e -> convertWDLocalValue(e.getValue())));
-        }
-        if (localValue instanceof WDLocalValue.SetLocalValue) {
-            return ((WDLocalValue.SetLocalValue) localValue).getValue().stream()
-                    .map(this::convertWDLocalValue)
-                    .collect(Collectors.toSet());
-        }
-        if (localValue instanceof WDLocalValue.RegExpLocalValue) {
-            return ((WDLocalValue.RegExpLocalValue) localValue).getValue().getPattern();
-        }
-        if (localValue instanceof WDRemoteReference.SharedReference || localValue instanceof WDRemoteReference.RemoteObjectReference) {
-            return new JSHandleImpl(webDriver, new WDHandle(localValue.toString()), target);
-        }
-
-        throw new IllegalArgumentException("Unsupported WDLocalValue type: " + localValue.getClass().getSimpleName());
     }
 }

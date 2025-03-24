@@ -2,6 +2,8 @@ package wd4j.impl.webdriver.type.script;
 
 import wd4j.impl.webdriver.mapping.StringWrapper;
 
+import java.util.Objects;
+
 /**
  * The script.Handle type represents a handle to an object owned by the ECMAScript runtime. The handle is only valid in a specific Realm.
  *
@@ -20,5 +22,20 @@ public class WDHandle implements StringWrapper {
     @Override // confirmed
     public String value() {
         return value;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        WDHandle handle = (WDHandle) o;
+        return Objects.equals(value, handle.value);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(value);
     }
 }

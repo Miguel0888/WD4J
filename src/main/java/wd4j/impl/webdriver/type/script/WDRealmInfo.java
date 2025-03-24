@@ -11,8 +11,8 @@ import java.util.List;
  */
 @JsonAdapter(WDRealmInfo.RealmInfoAdapter.class) // 🔥 Automatische JSON-Konvertierung
 public interface WDRealmInfo {
-    String getType();
-    String getRealm();
+    WDRealmType getType(); // ToDo: Use Enum
+    WDRealm getRealm();
     String getOrigin();
 
     // 🔥 **INNERE KLASSE für JSON-Deserialisierung**
@@ -29,21 +29,21 @@ public interface WDRealmInfo {
 
             switch (type) {
                 case "window":
-                    return context.deserialize(jsonObject, WindowWDRealmInfo.class);
+                    return context.deserialize(jsonObject, WindowRealmInfo.class);
                 case "dedicated-worker":
-                    return context.deserialize(jsonObject, DedicatedWorkerWDRealmInfo.class);
+                    return context.deserialize(jsonObject, DedicatedWorkerRealmInfo.class);
                 case "shared-worker":
-                    return context.deserialize(jsonObject, SharedWorkerWDRealmInfo.class);
+                    return context.deserialize(jsonObject, SharedWorkerRealmInfo.class);
                 case "service-worker":
-                    return context.deserialize(jsonObject, ServiceWorkerWDRealmInfo.class);
+                    return context.deserialize(jsonObject, ServiceWorkerRealmInfo.class);
                 case "worker":
-                    return context.deserialize(jsonObject, WorkerWDRealmInfo.class);
+                    return context.deserialize(jsonObject, WorkerRealmInfo.class);
                 case "paint-worklet":
-                    return context.deserialize(jsonObject, PaintWorkletWDRealmInfo.class);
+                    return context.deserialize(jsonObject, PaintWorkletRealmInfo.class);
                 case "audio-worklet":
-                    return context.deserialize(jsonObject, AudioWorkletWDRealmInfo.class);
+                    return context.deserialize(jsonObject, AudioWorkletRealmInfo.class);
                 case "worklet":
-                    return context.deserialize(jsonObject, WorkletWDRealmInfo.class);
+                    return context.deserialize(jsonObject, WorkletRealmInfo.class);
                 default:
                     throw new JsonParseException("Unknown RealmInfo type: " + type);
             }
@@ -55,17 +55,17 @@ public interface WDRealmInfo {
         }
     }
 
-    abstract class BaseWDRealmInfo implements WDRealmInfo {
-        private final String realm;
+    abstract class BaseRealmInfo implements WDRealmInfo {
+        private final WDRealm realm;
         private final String origin;
 
-        public BaseWDRealmInfo(String realm, String origin) {
+        public BaseRealmInfo(WDRealm realm, String origin) {
             this.realm = realm;
             this.origin = origin;
         }
 
         @Override
-        public String getRealm() {
+        public WDRealm getRealm() {
             return realm;
         }
 
@@ -75,23 +75,23 @@ public interface WDRealmInfo {
         }
     }
 
-    class WindowWDRealmInfo extends BaseWDRealmInfo implements WDRealmInfo {
-        private final String type = "window";
+    class WindowRealmInfo extends BaseRealmInfo implements WDRealmInfo {
+        private final WDRealmType type = WDRealmType.WINDOW;
         private final String context;
         private final String sandbox; // Optional
 
-        public WindowWDRealmInfo(String realm, String origin, String context) {
+        public WindowRealmInfo(WDRealm realm, String origin, String context) {
             this(realm, origin, context, null);
         }
 
-        public WindowWDRealmInfo(String realm, String origin, String context, String sandbox) {
+        public WindowRealmInfo(WDRealm realm, String origin, String context, String sandbox) {
             super(realm, origin);
             this.context = context;
             this.sandbox = sandbox;
         }
 
         @Override
-        public String getType() {
+        public WDRealmType getType() {
             return type;
         }
 
@@ -104,17 +104,17 @@ public interface WDRealmInfo {
         }
     }
 
-    class DedicatedWorkerWDRealmInfo extends BaseWDRealmInfo implements WDRealmInfo {
-        private final String type = "dedicated-worker";
+    class DedicatedWorkerRealmInfo extends BaseRealmInfo implements WDRealmInfo {
+        private final WDRealmType type = WDRealmType.DEDICATED_WORKER;
         private final List<String> owners;
 
-        public DedicatedWorkerWDRealmInfo(String realm, String origin, List<String> owners) {
+        public DedicatedWorkerRealmInfo(WDRealm realm, String origin, List<String> owners) {
             super(realm, origin);
             this.owners = owners;
         }
 
         @Override
-        public String getType() {
+        public WDRealmType getType() {
             return type;
         }
 
@@ -123,80 +123,80 @@ public interface WDRealmInfo {
         }
     }
 
-    class SharedWorkerWDRealmInfo extends BaseWDRealmInfo implements WDRealmInfo {
-        private final String type = "shared-worker";
+    class SharedWorkerRealmInfo extends BaseRealmInfo implements WDRealmInfo {
+        private final WDRealmType type = WDRealmType.SHARED_WORKER;
 
-        public SharedWorkerWDRealmInfo(String realm, String origin) {
+        public SharedWorkerRealmInfo(WDRealm realm, String origin) {
             super(realm, origin);
         }
 
         @Override
-        public String getType() {
+        public WDRealmType getType() {
             return type;
         }
     }
 
-    class ServiceWorkerWDRealmInfo extends BaseWDRealmInfo implements WDRealmInfo {
-        private final String type = "service-worker";
+    class ServiceWorkerRealmInfo extends BaseRealmInfo implements WDRealmInfo {
+        private final WDRealmType type = WDRealmType.SERVICE_WORKER;
 
-        public ServiceWorkerWDRealmInfo(String realm, String origin) {
+        public ServiceWorkerRealmInfo(WDRealm realm, String origin) {
             super(realm, origin);
         }
 
         @Override
-        public String getType() {
+        public WDRealmType getType() {
             return type;
         }
     }
 
-    class WorkerWDRealmInfo extends BaseWDRealmInfo implements WDRealmInfo {
-        private final String type = "worker";
+    class WorkerRealmInfo extends BaseRealmInfo implements WDRealmInfo {
+        private final WDRealmType type = WDRealmType.WORKER;
 
-        public WorkerWDRealmInfo(String realm, String origin) {
+        public WorkerRealmInfo(WDRealm realm, String origin) {
             super(realm, origin);
         }
 
         @Override
-        public String getType() {
+        public WDRealmType getType() {
             return type;
         }
     }
 
-    class PaintWorkletWDRealmInfo extends BaseWDRealmInfo implements WDRealmInfo {
-        private final String type = "paint-worklet";
+    class PaintWorkletRealmInfo extends BaseRealmInfo implements WDRealmInfo {
+        private final WDRealmType type = WDRealmType.PAINT_WORKLET;
 
-        public PaintWorkletWDRealmInfo(String realm, String origin) {
+        public PaintWorkletRealmInfo(WDRealm realm, String origin) {
             super(realm, origin);
         }
 
         @Override
-        public String getType() {
+        public WDRealmType getType() {
             return type;
         }
     }
 
-    class AudioWorkletWDRealmInfo extends BaseWDRealmInfo implements WDRealmInfo {
-        private final String type = "audio-worklet";
+    class AudioWorkletRealmInfo extends BaseRealmInfo implements WDRealmInfo {
+        private final WDRealmType type = WDRealmType.AUDIO_WORKLET;
 
-        public AudioWorkletWDRealmInfo(String realm, String origin) {
+        public AudioWorkletRealmInfo(WDRealm realm, String origin) {
             super(realm, origin);
         }
 
         @Override
-        public String getType() {
+        public WDRealmType getType() {
             return type;
         }
     }
 
-    class WorkletWDRealmInfo extends BaseWDRealmInfo implements WDRealmInfo {
-        private final String type = "worklet";
+    class WorkletRealmInfo extends BaseRealmInfo implements WDRealmInfo {
+        private final WDRealmType type = WDRealmType.WORKLET;
 
-        public WorkletWDRealmInfo(String realm, String origin) {
+        public WorkletRealmInfo(WDRealm realm, String origin) {
             super(realm, origin);
         }
 
         @Override
-        public String getType() {
+        public WDRealmType getType() {
             return type;
         }
     }

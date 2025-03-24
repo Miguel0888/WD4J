@@ -72,9 +72,13 @@ public interface WDRemoteReference<T> extends WDLocalValue {
             this(handle, null);
         }
 
+        public RemoteObjectReference(WDSharedId sharedId) {
+            this(null, sharedId);
+        }
+
         public RemoteObjectReference(WDHandle handle, WDSharedId sharedId) {
-            this.handle = handle;
-            this.sharedId = sharedId;
+            this.handle = handle; // CAUTION: Only valid in the context of the given Realm (user needs to ensure this)
+            this.sharedId = sharedId; // Always valid
         }
 
         @Override

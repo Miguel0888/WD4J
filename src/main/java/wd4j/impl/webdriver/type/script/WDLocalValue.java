@@ -2,10 +2,12 @@ package wd4j.impl.webdriver.type.script;
 
 import com.google.gson.*;
 import com.google.gson.annotations.JsonAdapter;
+import wd4j.impl.playwright.JSHandleImpl;
 
 import java.lang.reflect.Type;
-import java.util.List;
-import java.util.Map;
+import java.math.BigInteger;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * The script.LocalValue type represents values which can be deserialized into ECMAScript. This includes both primitive
@@ -14,6 +16,67 @@ import java.util.Map;
  */
 @JsonAdapter(WDLocalValue.LocalValueAdapter.class) // 🔥 Automatische JSON-Konvertierung
 public interface WDLocalValue {
+
+    /**
+     * Converts an object to a WDLocalValue. The object may be a primitive value, a remote reference, or a collection of
+     * these.
+     * @param arg The object to convert
+     * @return
+     */
+    static WDLocalValue fromObject(Object arg) {
+        if (arg == null) {
+            return new WDPrimitiveProtocolValue.NullValue();
+
+        } else if (arg instanceof String) {
+            return new WDPrimitiveProtocolValue.StringValue((String) arg);
+
+        } else if (arg instanceof Boolean) {
+            return new WDPrimitiveProtocolValue.BooleanValue((Boolean) arg);
+
+        } else if (arg instanceof Integer || arg instanceof Long || arg instanceof Float || arg instanceof Double) {
+            return new WDPrimitiveProtocolValue.NumberValue(arg.toString());
+
+        } else if (arg instanceof BigInteger) {
+            return new WDPrimitiveProtocolValue.BigIntValue(arg.toString());
+
+        } else if (arg instanceof WDRemoteReference.SharedReference || arg instanceof WDRemoteReference.RemoteObjectReference) {
+            return (WDLocalValue) arg; // bereits korrekt
+
+        } else if (arg instanceof JSHandleImpl) { // ToDo: Move Playwright-specific code to Playwright module
+            return new WDRemoteReference.RemoteObjectReference(((JSHandleImpl) arg).getHandle());
+
+        } else if (arg instanceof List<?>) {
+            List<?> list = (List<?>) arg;
+            List<WDLocalValue> converted = list.stream()
+                    .map(WDLocalValue::fromObject)
+                    .collect(Collectors.toList());
+            return new WDLocalValue.ArrayLocalValue(converted);
+
+        } else if (arg instanceof Set<?>) {
+            List<WDLocalValue> converted = ((Set<?>) arg).stream()
+                    .map(WDLocalValue::fromObject)
+                    .collect(Collectors.toList());
+            return new WDLocalValue.SetLocalValue(converted);
+
+        } else if (arg instanceof Map<?, ?>) {
+            Map<?, ?> map = (Map<?, ?>) arg;
+            Map<WDLocalValue, WDLocalValue> converted = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                WDLocalValue key = fromObject(entry.getKey());
+                WDLocalValue value = fromObject(entry.getValue());
+                converted.put(key, value);
+            }
+            return new WDLocalValue.MapLocalValue(converted);
+
+        } else if (arg instanceof Date) {
+            // ISO 8601-Format, wie es BiDi erwartet
+            return new WDLocalValue.DateLocalValue(((Date) arg).toInstant().toString());
+        }
+
+        throw new IllegalArgumentException("Unsupported argument type: " + arg.getClass().getName());
+    }
+
+
     String getType();
 
     // 🔥 **INNERE KLASSE für JSON-Deserialisierung**

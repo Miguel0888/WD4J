@@ -627,7 +627,7 @@ public class MainController {
             scriptManager.callFunction(
                     "toggleTooltip",
                     false, // awaitPromise=false
-                    new WDTarget.RealmTarget(new WDRealm(realm.getRealm())), // Kontext: Aktueller Realm
+                    new WDTarget.RealmTarget(realm.getRealm()), // Kontext: Aktueller Realm
                     args
             );
         }
@@ -647,7 +647,7 @@ public class MainController {
             scriptManager.callFunction(
                     "toggleDomObserver",
                     false, // awaitPromise=false
-                    new WDTarget.RealmTarget(new WDRealm(realm.getRealm())), // Kontext: Aktueller Realm
+                    new WDTarget.RealmTarget(realm.getRealm()), // Kontext: Aktueller Realm
                     args
             );
         }

@@ -1,6 +1,7 @@
 package wd4j.impl.manager;
 
 import wd4j.impl.markerInterfaces.WDModule;
+import wd4j.impl.playwright.ElementHandleImpl;
 import wd4j.impl.webdriver.command.request.WDScriptRequest;
 import wd4j.impl.webdriver.command.response.WDEmptyResult;
 import wd4j.impl.webdriver.command.response.WDScriptResult;
@@ -154,6 +155,47 @@ public class WDScriptManager implements WDModule {
     }
 
     /**
+     * Calls a function on the specified target with the given arguments.
+     *
+     * @param functionDeclaration The function to call.
+     * @param target              The target where the function is called.
+     * @param arguments           The arguments to pass to the function.
+     * @param thisArg             The value of 'this' in the function.
+     * @param resultOwnership     The ownership of the result: root = remote object (id only), none = local object if possible
+     * @param serializationOptions The serialization options for the result.
+     *
+     * @throws RuntimeException if the operation fails.
+     */
+    public <T> WDEvaluateResult callFunction(String functionDeclaration, boolean awaitPromise, WDTarget target, List<WDLocalValue> arguments, WDLocalValue thisArg, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.CallFunction(functionDeclaration, awaitPromise, target, arguments,
+                        resultOwnership, serializationOptions, thisArg),
+                WDEvaluateResult.class
+        );
+    }
+
+    /**
+     * Calls a function on the specified target with the given arguments.
+     *
+     * @param functionDeclaration The function to call.
+     * @param target              The target where the function is called.
+     * @param arguments           The arguments to pass to the function.
+     * @param thisArg             The value of 'this' in the function.
+     * @param resultOwnership     The ownership of the result: root = remote object (id only), none = local object if possible
+     * @param serializationOptions The serialization options for the result.
+     * @param userActivation Whether the script is executed in a user-activated context.
+     *
+     * @throws RuntimeException if the operation fails.
+     */
+    public <T> WDEvaluateResult callFunction(String functionDeclaration, boolean awaitPromise, WDTarget target, List<WDLocalValue> arguments, WDLocalValue thisArg, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions, boolean userActivation) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDScriptRequest.CallFunction(functionDeclaration, awaitPromise, target, arguments,
+                        resultOwnership, serializationOptions, thisArg, userActivation),
+                WDEvaluateResult.class
+        );
+    }
+
+    /**
      * Evaluates the given expression in the specified target.
      *
      * @param script    The script to evaluate.
@@ -276,6 +318,17 @@ public class WDScriptManager implements WDModule {
                 );
     }
 
+    public void executeDomAction(WDTarget.ContextTarget target, WDRemoteReference<?> remoteReference, DomAction action) {
+        List<WDLocalValue> args = null;
+        callFunction(
+                action.getFunctionDeclaration(),
+                false, // awaitPromise=false
+                target,
+                args,
+                remoteReference
+        );
+    }
+
     public void executeDomAction(String browsingContextId, String sharedId, DomAction action, List<WDLocalValue> args) {
         callFunction(
                 action.getFunctionDeclaration(),
@@ -286,6 +339,18 @@ public class WDScriptManager implements WDModule {
         );
     }
 
+    public void executeDomAction(WDTarget.ContextTarget target, WDRemoteReference<?> remoteReference, DomAction action, List<WDLocalValue> args) {
+        callFunction(
+                action.getFunctionDeclaration(),
+                false, // awaitPromise=false
+                target,
+                args,
+                remoteReference
+        );
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     public WDEvaluateResult queryDomProperty(String browsingContextId, String sharedId, DomQuery domQuery) {
         WDEvaluateResult result = callFunction(
                 domQuery.getFunctionDeclaration(),
@@ -293,6 +358,17 @@ public class WDScriptManager implements WDModule {
                 new WDTarget.ContextTarget(new WDBrowsingContext(browsingContextId)),
                 null,
                 new WDRemoteReference.SharedReference(new WDSharedId(sharedId))
+        );
+        return result;
+    }
+
+    public WDEvaluateResult queryDomProperty(WDTarget.ContextTarget target, WDRemoteReference<?> remoteReference, DomQuery domQuery) {
+        WDEvaluateResult result = callFunction(
+                domQuery.getFunctionDeclaration(),
+                false, // awaitPromise=false
+                target,
+                null,
+                remoteReference
         );
         return result;
     }
@@ -307,6 +383,19 @@ public class WDScriptManager implements WDModule {
         );
         return result;
     }
+
+    public WDEvaluateResult queryDomProperty(WDTarget.ContextTarget target, WDRemoteReference<?> remoteReference, DomQuery domQuery, List<WDLocalValue> args) {
+        WDEvaluateResult result = callFunction(
+                domQuery.getFunctionDeclaration(),
+                false, // awaitPromise=false
+                target,
+                args,
+                remoteReference
+        );
+        return result;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public enum DomAction {
         CLICK("function() { this.click(); }"),

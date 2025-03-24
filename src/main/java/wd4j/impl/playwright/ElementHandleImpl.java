@@ -7,14 +7,7 @@ import wd4j.api.options.ElementState;
 import wd4j.api.options.FilePayload;
 import wd4j.api.options.SelectOption;
 import wd4j.impl.WebDriver;
-import wd4j.impl.manager.WDScriptManager;
-import wd4j.impl.webdriver.type.script.WDEvaluateResult;
-import wd4j.impl.webdriver.type.script.WDHandle;
-import wd4j.impl.webdriver.type.script.WDLocalValue;
-import wd4j.impl.webdriver.type.script.WDPrimitiveProtocolValue;
-import wd4j.impl.webdriver.type.script.WDRealm;
-import wd4j.impl.webdriver.type.script.WDRemoteValue;
-import wd4j.impl.webdriver.type.script.WDTarget;
+import wd4j.impl.webdriver.type.script.*;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -30,8 +23,17 @@ import static wd4j.impl.support.WDRemoteValueUtil.getBoundingBoxFromEvaluateResu
  */
 public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
-    public ElementHandleImpl(WebDriver webDriver, WDHandle handle, WDTarget target) {
-        super(webDriver, handle, target);
+    public ElementHandleImpl(WebDriver webDriver, WDRemoteReference.SharedReference sharedReference, WDTarget target) {
+        super(webDriver, sharedReference, target);
+    }
+
+    public WDSharedId getSharedId() {
+        return ((WDRemoteReference.SharedReference) remoteReference).getSharedId();
+    }
+
+    @Override
+    public WDHandle getHandle() {
+        return ((WDRemoteReference.SharedReference) remoteReference).getHandle();
     }
 
     @Override
@@ -542,7 +544,9 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
             WDRemoteValue value = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
             if (value instanceof WDRemoteValue.NodeRemoteValue) {
                 WDHandle newHandle = ((WDRemoteValue.NodeRemoteValue) value).getHandle();
-                return new ElementHandleImpl(webDriver, newHandle, target);
+                WDSharedId newSharedReference = ((WDRemoteValue.NodeRemoteValue) value).getSharedId();
+                WDRemoteReference.SharedReference newReference = new WDRemoteReference.SharedReference(newSharedReference, newHandle);
+                return new ElementHandleImpl(webDriver, newReference, target);
             }
         }
         return null;
@@ -559,8 +563,13 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
             if (remoteValue instanceof WDRemoteValue.ArrayRemoteValue) {
                 List<WDRemoteValue> rawArray = ((WDRemoteValue.ArrayRemoteValue) remoteValue).getValue();
                 List<ElementHandle> handles = new ArrayList<>();
-                for (WDRemoteValue el : rawArray) {
-                    handles.add(new ElementHandleImpl(webDriver, handle, target));
+                for (WDRemoteValue value : rawArray) {
+                    if (value instanceof WDRemoteValue.NodeRemoteValue) {
+                        WDHandle newHandle = ((WDRemoteValue.NodeRemoteValue) value).getHandle();
+                        WDSharedId newSharedReference = ((WDRemoteValue.NodeRemoteValue) value).getSharedId();
+                        WDRemoteReference.SharedReference newReference = new WDRemoteReference.SharedReference(newSharedReference, newHandle);
+                        handles.add(new ElementHandleImpl(webDriver, newReference, target));
+                    }
                 }
                 return handles;
             }
