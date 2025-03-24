@@ -252,16 +252,23 @@ public class RecorderService {
             } else {
                 // Anderes Event → vorherigen Input speichern, falls vorhanden
                 if (lastInputEvent != null) {
+                    // Check whether the last event is contained in lastInputEvent
+                    if(!mergedEvents.isEmpty() && Objects.equals(mergedEvents.get(mergedEvents.size() - 1).getValue(), lastInputEvent.getValue())) {
+                        mergedEvents.remove(mergedEvents.size() - 1); // Remove the last event, because it is already contained in lastInputEvent
+                    }
                     mergedEvents.add(lastInputEvent);
-                    System.out.println("🔍 Letztes Input-Event hinzugefügt: " + lastInputEvent);
                     lastInputEvent = null;
                 } else if (pressedKeys.length() > 0) {
                     // Falls nur `press`-Events kamen, diese als `key` speichern
+                    String string = pressedKeys.toString();
+                    // Check whether the last event is contained in lastInputEvent
+                    if(!mergedEvents.isEmpty() && Objects.equals(mergedEvents.get(mergedEvents.size() - 1).getValue(), string)) {
+                        mergedEvents.remove(mergedEvents.size() - 1); // Remove the last event, because it is already contained in lastInputEvent
+                    }
                     RecordedEvent keyEvent = new RecordedEvent();
                     keyEvent.setAction("input");
-                    keyEvent.setKey(pressedKeys.toString());
-                    System.out.println("🔍 Letztes Key-Event hinzugefügt: " + keyEvent);
-//                    mergedEvents.add(keyEvent);
+                    keyEvent.setKey(string);
+                    mergedEvents.add(keyEvent);
                     pressedKeys.setLength(0); // StringBuilder leeren
                 }
                 mergedEvents.add(event);
