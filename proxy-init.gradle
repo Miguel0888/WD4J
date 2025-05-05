@@ -1,0 +1,42 @@
+gradle.beforeProject { project ->
+
+    def psScript = new File(project.rootProject.projectDir, 'get-wpad-url.ps1')
+    if (!psScript.exists()) {
+        println "Proxy script not found at: ${psScript}"
+        return
+    }
+
+    def proc = ['powershell', '-ExecutionPolicy', 'Bypass', '-File', psScript.absolutePath].execute()
+    proc.waitFor()
+
+    if (proc.exitValue() == 0) {
+        def wpadUrlString = proc.text.trim()
+        if (wpadUrlString) {
+            try {
+                def wpadUrl = new URL(wpadUrlString)
+                def pacScript = wpadUrl.text
+                def proxyMatcher = pacScript =~ /PROXY\s+([^\s;]+)/
+
+                if (proxyMatcher.find()) {
+                    def proxyHostPort = proxyMatcher.group(1)
+                    def (host, portRaw) = proxyHostPort.split(":")
+                    def port = portRaw.replaceAll("[^\\d]", "") // nur Zahlen erlauben
+                    println "Using proxy from PAC: ${host}:${port}"
+
+                    System.setProperty("http.proxyHost", host)
+                    System.setProperty("http.proxyPort", port)
+                    System.setProperty("https.proxyHost", host)
+                    System.setProperty("https.proxyPort", port)
+                } else {
+                    println "No PROXY entry found in PAC file."
+                }
+            } catch (Exception e) {
+                println "Failed to parse PAC file or proxy info: ${e.message}"
+            }
+        } else {
+            println "PowerShell script returned empty result."
+        }
+    } else {
+        println "PowerShell script failed with exit code ${proc.exitValue()}"
+    }
+}

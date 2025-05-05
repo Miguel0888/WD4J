@@ -120,6 +120,17 @@ public class Example {
 
 ---
 
+### Automatische Proxy-Konfiguration per WPAD/PAC-Datei
+Wenn unter Windows ein Setupskript mit URL für das Netzwerk hinterlegt ist, muss das Projekt wie folgt über die PowerShell gebaut werden:
+
+```
+./gradlew assemble --init-script proxy-init.gradle
+```
+
+Dadurch werden die nötigen Dependencies in den Gradle-Cache geladen. Anschließen kann das Projekt auch einfach wie gewohnt in IntelliJ gestartet und dedebugged werden. Dazu einfach die Play-Taste neben der main anklicken. Bei Änderungen der Dependencies muss der o.g. Befehl im Terminal allerdings immer wieder erneut ausgeführt werden. 
+
+**Tipp:** Wer sich das wiederholte Ausführen im Terminal sparen möchte, kann die Datei `proxy-init.gradle` auch global unter `%USERPROFILE%\.gradle\init.gradle` ablegen. Damit wird die automatische Proxy-Konfiguration dauerhaft für alle Gradle-Projekte übernommen – unabhängig davon, wie sie gestartet werden. (Die Datei muss zwingend in init.gradle umbenannt werden, ansonsten funktioniert es nicht.)
+
 ## Contribution
 
 Beiträge sind willkommen! Wenn du helfen möchtest:
@@ -188,3 +199,4 @@ Dieses Projekt steht unter der **MIT-Lizenz**. Bitte beachten Sie, dass die verw
 ## Abspielen des Codes ermöglichen, indem alle notwendigen API-Funktionen implementiert sind
 
 ## Laden des Test Codes aus einer externen Datei als Plugin (Java ServiceLoader)
+
