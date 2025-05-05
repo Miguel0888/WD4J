@@ -137,6 +137,13 @@ Beiträge sind willkommen! Wenn du helfen möchtest:
 - Schaue in den [Issue Tracker](https://github.com/Miguel0888/WD4J/issues), um offene Aufgaben zu finden.
 - Reiche Pull Requests ein, um Funktionen oder Fehlerbehebungen vorzuschlagen.
 
+### Proxy-Konfiguration für GIT
+Im obigen Fall muss auch IDEA angepasst werden, damit die GIT-Versionsverwaltung wie gewohnt funktioniert. Das geht am einfachsten wie folgt:
+Settings → Appearance & Behavior → System Settings → HTTP Proxy:
+- steht auf Auto-detect proxy settings
+- oder manuell mit den richtigen Daten (falls "auto" nicht ausreicht die Box für den Link anhaken)
+Die URL für die halbautomatische Einstellung bekommt man über ein Klick auf den blauen Link zu den Systemeinstellugen, die URL dort einfach kopieren.
+
 ------
 
 ## Siehe auch
