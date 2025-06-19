@@ -22,24 +22,32 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build project with shadowJar
-        run: ./gradlew shadowJar
+      - name: Print project structure
+        run: ./gradlew projects
 
-      # Debug: List build artifacts
-      - name: List build artifacts
-        run: ls -l build/libs
+      - name: Build shadow jars (exclude playwright-java)
+        run: |
+          ./gradlew clean \
+            :app:shadowJar \
+            :wd4j:shadowJar \
+            :playwright-adapter:shadowJar
 
       - name: Determine version
         id: version
         run: |
-          version=$(grep 'version=' gradle.properties | cut -d'=' -f2)
+          version=$(grep '^version=' gradle.properties | cut -d'=' -f2)
           echo "current_version=$version" >> $GITHUB_ENV
-          new_version=$(echo $version | awk -F. '{$NF += 1; OFS="."; print $0}')
+          new_version=$(echo "$version" | awk -F. '{
+            $NF += 1
+            for (i = 1; i <= NF; i++) {
+              printf "%s%s", $i, (i == NF ? "" : ".")
+            }
+          }')
           echo "new_version=$new_version" >> $GITHUB_ENV
 
       - name: Update version in gradle.properties
         run: |
-          sed -i "s/version=$current_version/version=$new_version/" gradle.properties
+          sed -i "s/^version=.*$/version=$new_version/" gradle.properties
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add gradle.properties
@@ -47,23 +55,12 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.PAT }}@github.com/${{ github.repository }}
           git push origin main
 
-      - name: Check if tag already exists
-        id: check_tag
-        run: |
-          if git ls-remote --tags origin | grep -q "refs/tags/v$new_version$"; then
-            echo "exists=true" >> $GITHUB_ENV
-          else
-            echo "exists=false" >> $GITHUB_ENV
-          fi
-
       - name: Create Git tag
-        if: env.exists == 'false'
         run: |
           git tag "v$new_version"
           git push origin "v$new_version"
 
       - name: Create GitHub Release
-        if: env.exists == 'false'
         id: create_release
         uses: actions/create-release@v1
         with:
@@ -74,21 +71,46 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
 
-      - name: Debug upload URL
-        run: echo "${{ steps.create_release.outputs.upload_url }}"
+      # Upload JARs (nacheinander)
 
-      - name: Find JAR file
-        id: find_jar
-        run: |
-          JAR_FILE=$(ls build/libs/*-all.jar)
-          echo "JAR_FILE=$JAR_FILE" >> $GITHUB_ENV
+      - name: Find App JAR
+        id: find_app_jar
+        run: echo "jar_app=app/build/libs/$(ls app/build/libs | grep -- '-all.jar$')" >> $GITHUB_ENV
 
-      - name: Upload Release Asset
+      - name: Upload App JAR
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.JAR_FILE }}
-          asset_name: WD4J-${{ env.new_version }}.jar
+          asset_path: ${{ env.jar_app }}
+          asset_name: WD4J-app-${{ env.new_version }}.jar
+          asset_content_type: application/java-archive
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+
+      - name: Find WD4J JAR
+        id: find_wd4j_jar
+        run: echo "jar_wd4j=wd4j/build/libs/$(ls wd4j/build/libs | grep -- '-all.jar$')" >> $GITHUB_ENV
+
+      - name: Upload WD4J JAR
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.jar_wd4j }}
+          asset_name: WD4J-core-${{ env.new_version }}.jar
+          asset_content_type: application/java-archive
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+
+      - name: Find Playwright-Adapter JAR
+        id: find_adapter_jar
+        run: echo "jar_adapter=playwright-adapter/build/libs/$(ls playwright-adapter/build/libs | grep -- '-all.jar$')" >> $GITHUB_ENV
+
+      - name: Upload Playwright Adapter JAR
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.jar_adapter }}
+          asset_name: WD4J-playwright-adapter-${{ env.new_version }}.jar
           asset_content_type: application/java-archive
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
