@@ -1,7 +1,7 @@
 package de.bund.zrb.manager;
 
-import de.bund.zrb.markerInterfaces.WDModule;
-import de.bund.zrb.websocket.WebSocketManager;
+import de.bund.zrb.api.markerInterfaces.WDModule;
+import de.bund.zrb.api.WebSocketManager;
 
 public class WDLogManager implements WDModule {
 

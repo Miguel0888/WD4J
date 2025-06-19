@@ -1,13 +1,13 @@
 package de.bund.zrb.manager;
 
-import de.bund.zrb.markerInterfaces.WDModule;
-import de.bund.zrb.webdriver.command.request.WDNetworkRequest;
-import de.bund.zrb.webdriver.command.request.parameters.network.AddInterceptParameters;
-import de.bund.zrb.webdriver.command.request.parameters.network.SetCacheBehaviorParameters;
-import de.bund.zrb.webdriver.command.response.WDEmptyResult;
-import de.bund.zrb.webdriver.command.response.WDNetworkResult;
-import de.bund.zrb.webdriver.type.network.WDAuthCredentials;
-import de.bund.zrb.websocket.WebSocketManager;
+import de.bund.zrb.api.markerInterfaces.WDModule;
+import de.bund.zrb.command.request.WDNetworkRequest;
+import de.bund.zrb.command.request.parameters.network.AddInterceptParameters;
+import de.bund.zrb.command.request.parameters.network.SetCacheBehaviorParameters;
+import de.bund.zrb.command.response.WDEmptyResult;
+import de.bund.zrb.command.response.WDNetworkResult;
+import de.bund.zrb.type.network.WDAuthCredentials;
+import de.bund.zrb.api.WebSocketManager;
 
 import java.util.List;
 

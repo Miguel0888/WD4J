@@ -16,7 +16,6 @@
 
 package com.microsoft.playwright;
 
-import com.microsoft.options.*;
 import com.microsoft.playwright.options.*;
 
 import java.nio.file.Path;

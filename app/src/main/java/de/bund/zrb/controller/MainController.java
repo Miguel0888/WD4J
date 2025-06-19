@@ -8,8 +8,8 @@ import java.awt.event.ActionEvent;
 import java.util.*;
 import java.util.function.Consumer;
 
-import BrowserImpl;
-import UserContextImpl;
+import de.bund.zrb.BrowserImpl;
+import de.bund.zrb.UserContextImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

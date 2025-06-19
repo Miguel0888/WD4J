@@ -1,7 +1,7 @@
 package de.bund.zrb.controller;
 
 import de.bund.zrb.Main;
-import helper.RecorderService;
+import de.bund.zrb.helper.RecorderService;
 import org.java_websocket.server.WebSocketServer;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.WebSocket;

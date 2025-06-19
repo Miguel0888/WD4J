@@ -1,10 +1,13 @@
 package de.bund.zrb;
 
+import de.bund.zrb.api.WebSocketManager;
+import de.bund.zrb.command.response.WDSessionResult;
 import de.bund.zrb.manager.*;
-import de.bund.zrb.webdriver.command.response.WDSessionResult;
-import de.bund.zrb.websocket.WebSocketManager;
+import de.bund.zrb.type.session.WDSubscription;
+import de.bund.zrb.type.session.WDSubscriptionRequest;
 
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
 /**
  * This class is the entry point for the low-level WebDriver API. Aggregates all WebDriver Modules at one place.
@@ -37,8 +40,10 @@ public class WebDriver {
 
     private String sessionId;
 
+    private final EventDispatcher eventDispatcher;
+
     // ToDo: Use WebSocket Interface instead of WebSocketImpl, here !!!
-    public WebDriver(WebSocketManager webSocketManager) throws ExecutionException, InterruptedException {
+    public WebDriver(WebSocketManager webSocketManager, EventDispatcher eventDispatcher) throws ExecutionException, InterruptedException {
         this.webSocketManager = webSocketManager;
 
         this.browser = new WDBrowserManager(webSocketManager);
@@ -50,6 +55,9 @@ public class WebDriver {
         this.network = new WDNetworkManager(webSocketManager);
         this.log = new WDLogManager(webSocketManager);
         this.webExtension = new WDWebExtensionManager(webSocketManager);
+
+        this.eventDispatcher = eventDispatcher;
+        webSocketManager.registerEventListener(eventDispatcher); // 🔥 Events aktivieren!
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -160,6 +168,27 @@ public class WebDriver {
     public boolean isConnected() {
         return webSocketManager.isConnected();
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> handler) {
+        return dispatcher.addEventListener(subscriptionRequest, handler, session());
+    }
+
+    public <T> void removeEventListener(String eventType, String browsingContextId, Consumer<T> listener) {
+        dispatcher.removeEventListener(eventType, browsingContextId, listener, session());
+    }
+
+    // ToDo: Not supported yet
+    public <T> void removeEventListener(WDSubscription subscription, Consumer<T> listener) {
+        dispatcher.removeEventListener(subscription, listener, session());
+    }
+
+    @Deprecated // Since it does neither use the subscription id nor the browsing context id, thus terminating all listeners for the event type
+    public <T> void removeEventListener(String eventType, Consumer<T> listener) {
+        dispatcher.removeEventListener(eventType, listener, session());
+    }
+
 
 
 }

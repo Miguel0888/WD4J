@@ -1,14 +1,14 @@
 package de.bund.zrb.manager;
 
-import de.bund.zrb.markerInterfaces.WDModule;
-import de.bund.zrb.webdriver.command.request.WDSessionRequest;
-import de.bund.zrb.webdriver.command.request.parameters.session.parameters.UnsubscribeParameters;
-import de.bund.zrb.webdriver.command.response.WDEmptyResult;
-import de.bund.zrb.webdriver.command.response.WDSessionResult;
-import de.bund.zrb.webdriver.type.browsingContext.WDBrowsingContext;
-import de.bund.zrb.webdriver.type.session.WDSubscription;
-import de.bund.zrb.webdriver.type.session.WDSubscriptionRequest;
-import de.bund.zrb.websocket.WebSocketManager;
+import de.bund.zrb.api.markerInterfaces.WDModule;
+import de.bund.zrb.command.request.WDSessionRequest;
+import de.bund.zrb.command.request.parameters.session.parameters.UnsubscribeParameters;
+import de.bund.zrb.command.response.WDEmptyResult;
+import de.bund.zrb.command.response.WDSessionResult;
+import de.bund.zrb.type.browsingContext.WDBrowsingContext;
+import de.bund.zrb.type.session.WDSubscription;
+import de.bund.zrb.type.session.WDSubscriptionRequest;
+import de.bund.zrb.api.WebSocketManager;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

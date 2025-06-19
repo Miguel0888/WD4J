@@ -1,11 +1,11 @@
 package de.bund.zrb.manager;
 
-import de.bund.zrb.markerInterfaces.WDModule;
-import de.bund.zrb.webdriver.command.request.WDInputRequest;
-import de.bund.zrb.webdriver.command.request.parameters.input.sourceActions.SourceActions;
-import de.bund.zrb.webdriver.command.response.WDEmptyResult;
-import de.bund.zrb.webdriver.type.script.WDRemoteReference;
-import de.bund.zrb.websocket.WebSocketManager;
+import de.bund.zrb.api.markerInterfaces.WDModule;
+import de.bund.zrb.command.request.WDInputRequest;
+import de.bund.zrb.command.request.parameters.input.sourceActions.SourceActions;
+import de.bund.zrb.command.response.WDEmptyResult;
+import de.bund.zrb.type.script.WDRemoteReference;
+import de.bund.zrb.api.WebSocketManager;
 
 import java.util.List;
 

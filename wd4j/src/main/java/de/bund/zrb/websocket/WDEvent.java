@@ -2,7 +2,8 @@ package de.bund.zrb.websocket;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import de.bund.zrb.webdriver.mapping.GsonMapperFactory;
+import de.bund.zrb.api.WebSocketMessage;
+import de.bund.zrb.support.mapping.GsonMapperFactory;
 
 public abstract class WDEvent<T> implements WebSocketMessage {
     private final Gson gson = GsonMapperFactory.getGson();

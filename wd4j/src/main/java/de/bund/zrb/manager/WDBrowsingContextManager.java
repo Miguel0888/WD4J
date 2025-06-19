@@ -1,17 +1,17 @@
 package de.bund.zrb.manager;
 
-import de.bund.zrb.markerInterfaces.WDModule;
-import de.bund.zrb.webdriver.command.request.WDBrowsingContextRequest;
-import de.bund.zrb.webdriver.command.request.parameters.browsingContext.CaptureScreenshotParameters;
-import de.bund.zrb.webdriver.command.request.parameters.browsingContext.CreateType;
-import de.bund.zrb.webdriver.command.request.parameters.browsingContext.SetViewportParameters;
-import de.bund.zrb.webdriver.command.response.WDBrowsingContextResult;
-import de.bund.zrb.webdriver.command.response.WDEmptyResult;
-import de.bund.zrb.webdriver.type.browsingContext.WDBrowsingContext;
-import de.bund.zrb.webdriver.type.browsingContext.WDLocator;
-import de.bund.zrb.webdriver.type.script.WDRemoteReference;
-import de.bund.zrb.webdriver.type.script.WDSerializationOptions;
-import de.bund.zrb.websocket.WebSocketManager;
+import de.bund.zrb.api.markerInterfaces.WDModule;
+import de.bund.zrb.command.request.WDBrowsingContextRequest;
+import de.bund.zrb.command.request.parameters.browsingContext.CaptureScreenshotParameters;
+import de.bund.zrb.command.request.parameters.browsingContext.CreateType;
+import de.bund.zrb.command.request.parameters.browsingContext.SetViewportParameters;
+import de.bund.zrb.command.response.WDBrowsingContextResult;
+import de.bund.zrb.command.response.WDEmptyResult;
+import de.bund.zrb.type.browsingContext.WDBrowsingContext;
+import de.bund.zrb.type.browsingContext.WDLocator;
+import de.bund.zrb.type.script.WDRemoteReference;
+import de.bund.zrb.type.script.WDSerializationOptions;
+import de.bund.zrb.api.WebSocketManager;
 
 import java.util.List;
 

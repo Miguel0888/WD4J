@@ -1,13 +1,13 @@
 package de.bund.zrb.manager;
 
-import de.bund.zrb.markerInterfaces.WDModule;
-import de.bund.zrb.webdriver.command.request.WDWebExtensionRequest;
-import de.bund.zrb.webdriver.command.request.parameters.webExtension.ExtensionData;
-import de.bund.zrb.webdriver.command.response.WDWebExtensionResult;
-import de.bund.zrb.webdriver.type.webExtension.WDExtension;
-import de.bund.zrb.websocket.WebSocketManager;
+import de.bund.zrb.api.markerInterfaces.WDModule;
+import de.bund.zrb.command.request.WDWebExtensionRequest;
+import de.bund.zrb.command.request.parameters.webExtension.ExtensionData;
+import de.bund.zrb.command.response.WDWebExtensionResult;
+import de.bund.zrb.type.webExtension.WDExtension;
+import de.bund.zrb.api.WebSocketManager;
 
-import de.bund.zrb.webdriver.command.response.WDEmptyResult;
+import de.bund.zrb.command.response.WDEmptyResult;
 
 public class WDWebExtensionManager implements WDModule {
 

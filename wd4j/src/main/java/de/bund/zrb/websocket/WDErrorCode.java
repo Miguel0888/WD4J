@@ -1,6 +1,6 @@
 package de.bund.zrb.websocket;
 
-import de.bund.zrb.webdriver.mapping.EnumWrapper;
+import de.bund.zrb.support.mapping.EnumWrapper;
 
 public enum WDErrorCode implements EnumWrapper {
     INVALID_ARGUMENT("invalid argument"),

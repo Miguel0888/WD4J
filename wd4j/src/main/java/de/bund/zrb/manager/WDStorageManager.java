@@ -1,12 +1,12 @@
 package de.bund.zrb.manager;
 
-import de.bund.zrb.markerInterfaces.WDModule;
-import de.bund.zrb.webdriver.command.request.WDStorageRequest;
-import de.bund.zrb.webdriver.command.request.parameters.storage.CookieFilter;
-import de.bund.zrb.webdriver.command.request.parameters.storage.SetCookieParameters;
-import de.bund.zrb.webdriver.command.response.WDStorageResult;
-import de.bund.zrb.webdriver.type.browsingContext.WDBrowsingContext;
-import de.bund.zrb.websocket.WebSocketManager;
+import de.bund.zrb.api.markerInterfaces.WDModule;
+import de.bund.zrb.command.request.WDStorageRequest;
+import de.bund.zrb.command.request.parameters.storage.CookieFilter;
+import de.bund.zrb.command.request.parameters.storage.SetCookieParameters;
+import de.bund.zrb.command.response.WDStorageResult;
+import de.bund.zrb.type.browsingContext.WDBrowsingContext;
+import de.bund.zrb.api.WebSocketManager;
 
 public class WDStorageManager implements WDModule {
 

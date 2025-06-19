@@ -1,12 +1,12 @@
 package de.bund.zrb.manager;
 
-import de.bund.zrb.markerInterfaces.WDModule;
-import de.bund.zrb.webdriver.command.request.WDBrowserRequest;
-import de.bund.zrb.webdriver.command.response.WDBrowserResult;
-import de.bund.zrb.webdriver.command.response.WDEmptyResult;
-import de.bund.zrb.webdriver.type.browser.WDClientWindowInfo;
-import de.bund.zrb.webdriver.type.browser.WDUserContextInfo;
-import de.bund.zrb.websocket.WebSocketManager;
+import de.bund.zrb.api.markerInterfaces.WDModule;
+import de.bund.zrb.command.request.WDBrowserRequest;
+import de.bund.zrb.command.response.WDBrowserResult;
+import de.bund.zrb.command.response.WDEmptyResult;
+import de.bund.zrb.type.browser.WDClientWindowInfo;
+import de.bund.zrb.type.browser.WDUserContextInfo;
+import de.bund.zrb.api.WebSocketManager;
 
 public class WDBrowserManager implements WDModule {
 

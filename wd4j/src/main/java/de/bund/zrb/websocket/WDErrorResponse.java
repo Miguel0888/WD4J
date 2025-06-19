@@ -1,5 +1,7 @@
 package de.bund.zrb.websocket;
 
+import de.bund.zrb.api.WDCommandResponse;
+
 /**
  * Represents an error response from the server. It IS part of the WebDriver protocol.
  */

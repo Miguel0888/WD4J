@@ -1,5 +1,7 @@
 package de.bund.zrb.websocket;
 
+import de.bund.zrb.api.WDCommandResponse;
+
 /**
  * Represents a successful response to a command. It is NOT part of the WebDriver protocol. The protocol
  * defines only the CommandResponse and a separate ErrorResponse. Since an ErrorResponse is technically a
