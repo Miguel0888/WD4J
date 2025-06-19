@@ -1,64 +1,32 @@
-plugins {
-    id 'java'
-    id 'com.github.johnrengelman.shadow' version '8.1.1' //um Fat-Jar mit allen Dependendies zu erzeugen
-}
+// Root-Buildscript
+allprojects {
+    group = 'de.zrb.bund'
+    version = '2.0.0'
 
-//apply plugin: 'com.github.johnrengelman.shadow'
+    repositories {
+        mavenCentral()
+    }
 
+    // UTF-8 Encoding
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+        options.compilerArgs.add('-Xlint:-options')
+    }
 
-group = 'org.example'
-version = '1.0-SNAPSHOT'
+    java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
 
-group = 'WD4J'
-version = '1.0.0'
-
-repositories {
-    mavenCentral() // Hier wird definiert, wo die Abhängigkeiten gesucht werden
-}
-
-dependencies {
-    implementation 'ch.qos.logback:logback-classic:1.2.11' // letzte Java 8-kompatible Version
-    implementation 'org.java-websocket:Java-WebSocket:1.5.2'
-    implementation 'com.google.code.gson:gson:2.8.9'
-    implementation 'org.apache.httpcomponents.client5:httpclient5:5.4.1'
-
-    // Für JSON-Mapper: Finden der Wrapper-Implementierer (kann auch mit einer Klassenliste ersetzt werden)
-    implementation 'org.reflections:reflections:0.10.2'
-
-    testImplementation platform('org.junit:junit-bom:5.10.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-
-    // Only for AppMap Debugging:
-//    implementation 'org.eclipse.jetty:jetty-server:9.4.51.v20230217'
-//    implementation 'org.eclipse.jetty:jetty-servlet:9.4.51.v20230217'
-//    implementation 'com.appland:appmap-agent:latest.release'  // Version prüfen
-//    implementation 'com.appland:appmap-annotation:latest.release'
-
-    implementation 'org.slf4j:slf4j-api:1.7.36'  // SLF4J API für Java 8
-    implementation 'ch.qos.logback:logback-classic:1.2.11'  // Logback als Implementierung
-}
-
-test {
-    useJUnitPlatform()
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-}
-
-jar {
-    manifest {
-        attributes(
-            'Main-Class': 'app.Main' // Die Main-Klasse, die gestartet werden soll
-        )
+    test {
+        useJUnitPlatform()
     }
 }
 
-tasks.withType(JavaCompile) {
-    options.encoding = 'UTF-8'
-}
-
-tasks.withType(JavaCompile) {
-    options.compilerArgs.add('-Xlint:-options')
+subprojects {
+    plugins.withId('java') {
+        dependencies {
+            compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+        }
+    }
 }

@@ -9,7 +9,10 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/app" />
+            <option value="$PROJECT_DIR$/playwright-adapter" />
             <option value="$PROJECT_DIR$/playwright-java" />
+            <option value="$PROJECT_DIR$/wd4j" />
           </set>
         </option>
       </GradleProjectSettings>

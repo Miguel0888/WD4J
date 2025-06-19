@@ -2,3 +2,6 @@ rootProject.name = 'WD4J'
 
 
 include 'playwright-java'
+include 'playwright-adapter'
+include 'app'
+include 'wd4j'

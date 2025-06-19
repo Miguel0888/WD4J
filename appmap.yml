@@ -1,7 +1,0 @@
-language: "java"
-name: "WD4J"
-appmap_dir: "tmp/appmap"
-packages:
-- path: "app"
-- path: "com.microsoft"
-- path: "wd4j"
