@@ -2,12 +2,12 @@ package de.bund.zrb.command.request;
 
 import com.google.gson.Gson;
 import org.junit.jupiter.api.Test;
-import de.bund.zrb.impl.webdriver.command.request.parameters.browser.SetClientWindowStateParameters;
-import de.bund.zrb.impl.webdriver.command.request.parameters.browser.SetClientWindowStateParameters.ClientWindowNamedState;
-import de.bund.zrb.impl.webdriver.command.request.parameters.browser.SetClientWindowStateParameters.ClientWindowRectState;
-import de.bund.zrb.impl.webdriver.command.request.parameters.browser.SetClientWindowStateParameters.ClientWindowNamedState.State;
-import de.bund.zrb.impl.webdriver.type.browser.WDClientWindow;
-import de.bund.zrb.impl.webdriver.mapping.GsonMapperFactory;
+import de.bund.zrb.webdriver.command.request.parameters.browser.SetClientWindowStateParameters;
+import de.bund.zrb.webdriver.command.request.parameters.browser.SetClientWindowStateParameters.ClientWindowNamedState;
+import de.bund.zrb.webdriver.command.request.parameters.browser.SetClientWindowStateParameters.ClientWindowRectState;
+import de.bund.zrb.webdriver.command.request.parameters.browser.SetClientWindowStateParameters.ClientWindowNamedState.State;
+import de.bund.zrb.webdriver.type.browser.WDClientWindow;
+import de.bund.zrb.webdriver.mapping.GsonMapperFactory;
 
 import static org.junit.jupiter.api.Assertions.*;
 

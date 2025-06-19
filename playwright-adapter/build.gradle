@@ -4,6 +4,7 @@ plugins {
 }
 
 dependencies {
+    implementation project(':playwright-java')
     implementation project(':wd4j')
 
     implementation 'ch.qos.logback:logback-classic:1.2.11' // letzte Java 8-kompatible Version

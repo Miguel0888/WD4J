@@ -3,8 +3,20 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '8.1.1' //um Fat-Jar mit allen Dependendies zu erzeugen
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+test {
+    useJUnitPlatform()
+}
+
 dependencies {
+    implementation project(':playwright-adapter')
     implementation project(':playwright-java')
+
+    implementation project(':wd4j')
 
     implementation 'ch.qos.logback:logback-classic:1.2.11' // letzte Java 8-kompatible Version
     implementation 'org.java-websocket:Java-WebSocket:1.5.2'

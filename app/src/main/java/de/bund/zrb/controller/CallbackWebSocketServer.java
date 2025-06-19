@@ -1,5 +1,7 @@
 package de.bund.zrb.controller;
 
+import de.bund.zrb.Main;
+import helper.RecorderService;
 import org.java_websocket.server.WebSocketServer;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.WebSocket;
@@ -45,4 +47,31 @@ public class CallbackWebSocketServer extends WebSocketServer {
     public void onStart() {
         System.out.println("🚀 WebSocket-Server läuft auf ws://localhost:8080");
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Optional (can be located elsewhere)
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    @Deprecated // since JSON Data might be received via Message Events (see WebDriverBiDi ChannelValue)
+    private CallbackWebSocketServer callbackWebSocketServer;
+
+    @Deprecated // since script.ChannelValue might be used for Callbacks (will lead to Message Events)
+    private void toggleCallbackServer(boolean activate) {
+        if (activate) {
+            callbackWebSocketServer = new CallbackWebSocketServer(8080, message -> {
+                Main.getScriptTab().appendLog(message);  // UI-Log aktualisieren
+                RecorderService.getInstance().recordAction(message); // Aktion im Recorder speichern
+            });
+            callbackWebSocketServer.start();
+        } else {
+            try {
+                callbackWebSocketServer.stop();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+
+
 }

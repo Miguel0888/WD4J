@@ -1,8 +1,8 @@
 package de.bund.zrb.mapping;
 
 import com.google.gson.Gson;
-import de.bund.zrb.impl.webdriver.type.browsingContext.WDNavigation;
-import de.bund.zrb.impl.webdriver.type.log.WDLogEntry;
+import de.bund.zrb.webdriver.type.browsingContext.WDNavigation;
+import de.bund.zrb.webdriver.type.log.WDLogEntry;
 
 class GsonMapperFactoryTest {
     public static void main(String[] args) {

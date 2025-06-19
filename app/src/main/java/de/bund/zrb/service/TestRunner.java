@@ -2,8 +2,8 @@ package de.bund.zrb.service;
 
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
-import com.microsoft.Locator;
-import com.microsoft.Page;
+import com.microsoft.playwright.Locator;
+import com.microsoft.playwright.Page;
 
 import java.nio.file.Paths;
 

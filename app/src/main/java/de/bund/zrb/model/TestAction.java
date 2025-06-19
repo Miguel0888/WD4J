@@ -1,6 +1,6 @@
 package de.bund.zrb.model;
 
-import com.microsoft.options.AriaRole;
+import com.microsoft.playwright.options.AriaRole;
 
 import java.util.LinkedHashMap;
 import java.util.List;

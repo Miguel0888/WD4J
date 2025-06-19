@@ -1,23 +1,17 @@
 package de.bund.zrb.controller;
 
+import com.microsoft.playwright.*;
 import de.bund.zrb.Main;
-import wd4j.impl.manager.WDScriptManager;
-import wd4j.impl.playwright.BrowserImpl;
-import wd4j.impl.playwright.PageImpl;
-import wd4j.impl.playwright.UserContextImpl;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.util.*;
 import java.util.function.Consumer;
 
+import BrowserImpl;
+import UserContextImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import wd4j.impl.support.Pages;
-import wd4j.impl.webdriver.command.response.WDBrowsingContextResult;
-import wd4j.impl.webdriver.command.response.WDScriptResult;
-import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
-import wd4j.impl.webdriver.type.browsingContext.WDLocator;
 
 public class MainController {
 

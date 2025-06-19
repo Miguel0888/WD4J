@@ -3,6 +3,15 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '8.1.1' //um Fat-Jar mit allen Dependendies zu erzeugen
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+test {
+    useJUnitPlatform()
+}
+
 dependencies {
 
     implementation 'ch.qos.logback:logback-classic:1.2.11' // letzte Java 8-kompatible Version
@@ -18,12 +27,4 @@ dependencies {
 
     implementation 'org.slf4j:slf4j-api:1.7.36'  // SLF4J API für Java 8
     implementation 'ch.qos.logback:logback-classic:1.2.11'  // Logback als Implementierung
-}
-
-jar {
-    manifest {
-        attributes(
-                'Main-Class': 'de.bund.zrb.Main' // Die Main-Klasse, die gestartet werden soll
-        )
-    }
 }

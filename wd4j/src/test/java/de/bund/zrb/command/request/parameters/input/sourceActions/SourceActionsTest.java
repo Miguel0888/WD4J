@@ -1,9 +1,8 @@
 package de.bund.zrb.command.request.parameters.input.sourceActions;
 
 import com.google.gson.Gson;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import de.bund.zrb.impl.webdriver.mapping.GsonMapperFactory;
+import de.bund.zrb.webdriver.mapping.GsonMapperFactory;
 
 import java.util.Arrays;
 import java.util.List;

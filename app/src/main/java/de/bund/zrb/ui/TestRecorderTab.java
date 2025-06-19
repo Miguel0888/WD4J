@@ -7,7 +7,7 @@ import de.bund.zrb.model.TestSuite;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import com.microsoft.ElementHandle;
+import com.microsoft.playwright.ElementHandle;
 import wd4j.helper.RecorderService;
 import de.bund.zrb.dto.RecordedEvent;
 import wd4j.impl.manager.WDScriptManager;
