@@ -1,6 +1,6 @@
 package wd4j.impl.playwright.options;
 
-import wd4j.api.options.BindingCallback;
+import com.microsoft.options.BindingCallback;
 
 /**
  * NOT IMPLEMENTED YET

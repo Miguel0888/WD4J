@@ -1,6 +1,6 @@
 package wd4j.impl.playwright.options;
 
-import wd4j.api.options.FunctionCallback;
+import com.microsoft.options.FunctionCallback;
 
 /**
  * NOT IMPLEMENTED YET

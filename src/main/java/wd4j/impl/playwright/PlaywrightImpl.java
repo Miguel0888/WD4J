@@ -1,6 +1,6 @@
 package wd4j.impl.playwright;
 
-import wd4j.api.*;
+import com.microsoft.*;
 
 import java.util.List;
 import java.util.ArrayList;

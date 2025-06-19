@@ -1,7 +1,7 @@
 package wd4j.impl.playwright.options;
 
-import wd4j.api.options.FormData;
-import wd4j.api.options.RequestOptions;
+import com.microsoft.options.FormData;
+import com.microsoft.options.RequestOptions;
 
 /**
  * NOT IMPLEMENTED YET

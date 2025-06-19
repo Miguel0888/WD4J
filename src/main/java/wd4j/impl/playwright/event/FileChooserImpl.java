@@ -1,9 +1,9 @@
 package wd4j.impl.playwright.event;
 
-import wd4j.api.ElementHandle;
-import wd4j.api.FileChooser;
-import wd4j.api.Page;
-import wd4j.api.options.FilePayload;
+import com.microsoft.ElementHandle;
+import com.microsoft.FileChooser;
+import com.microsoft.Page;
+import com.microsoft.options.FilePayload;
 
 import java.nio.file.Path;
 

@@ -1,6 +1,7 @@
 package wd4j.impl.playwright.testing;
 
-import wd4j.api.WebSocketFrame;
+import com.microsoft.WebSocketRoute;
+import com.microsoft.WebSocketFrame;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -9,7 +10,7 @@ import java.util.function.Consumer;
  * NOT IMPLEMENTED YET
  */
 // ToDo: Maybe used in WebSocketManager or WebSocketImpl to enable testing of WebSocket communication
-public class WebSocketRouteImpl implements wd4j.api.WebSocketRoute {
+public class WebSocketRouteImpl implements WebSocketRoute {
     /**
      * Closes one side of the WebSocket connection.
      *
@@ -42,7 +43,7 @@ public class WebSocketRouteImpl implements wd4j.api.WebSocketRoute {
      * @since v1.48
      */
     @Override
-    public wd4j.api.WebSocketRoute connectToServer() {
+    public WebSocketRoute connectToServer() {
         throw new UnsupportedOperationException("Not implemented yet");
     }
 

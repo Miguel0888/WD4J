@@ -1,12 +1,11 @@
 package wd4j.impl.playwright.event;
 
-import wd4j.api.Dialog;
-import wd4j.api.Page;
+import com.microsoft.Dialog;
+import com.microsoft.Page;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.browsingContext.WDUserPromptType;
-import wd4j.impl.webdriver.type.session.WDUserPromptHandlerType;
 
 public class DialogImpl implements Dialog {
     private final String contextId;

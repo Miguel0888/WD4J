@@ -7,7 +7,7 @@ import app.model.TestSuite;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import wd4j.api.ElementHandle;
+import com.microsoft.ElementHandle;
 import wd4j.helper.RecorderService;
 import app.dto.RecordedEvent;
 import wd4j.impl.manager.WDScriptManager;

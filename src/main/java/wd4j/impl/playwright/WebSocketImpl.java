@@ -1,9 +1,9 @@
 package wd4j.impl.playwright;
 
-import com.google.gson.Gson;
+import com.microsoft.WebSocket;
+import com.microsoft.WebSocketFrame;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
-import wd4j.api.*;
 
 import java.net.URI;
 import java.util.*;

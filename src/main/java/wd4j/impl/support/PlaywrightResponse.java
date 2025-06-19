@@ -1,11 +1,11 @@
 package wd4j.impl.support;
 
-import wd4j.api.Frame;
-import wd4j.api.Request;
-import wd4j.api.Response;
-import wd4j.api.options.HttpHeader;
-import wd4j.api.options.SecurityDetails;
-import wd4j.api.options.ServerAddr;
+import com.microsoft.Frame;
+import com.microsoft.Request;
+import com.microsoft.Response;
+import com.microsoft.options.HttpHeader;
+import com.microsoft.options.SecurityDetails;
+import com.microsoft.options.ServerAddr;
 import wd4j.impl.markerInterfaces.WDResultData;
 import java.util.Collections;
 import java.util.List;

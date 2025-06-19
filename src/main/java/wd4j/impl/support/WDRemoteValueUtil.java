@@ -1,6 +1,6 @@
 package wd4j.impl.support;
 
-import wd4j.api.options.BoundingBox;
+import com.microsoft.options.BoundingBox;
 import wd4j.impl.webdriver.type.script.WDEvaluateResult;
 import wd4j.impl.webdriver.type.script.WDPrimitiveProtocolValue;
 import wd4j.impl.webdriver.type.script.WDRemoteValue;

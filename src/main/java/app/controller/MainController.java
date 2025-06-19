@@ -1,7 +1,7 @@
 package app.controller;
 
 import app.Main;
-import wd4j.api.*;
+import com.microsoft.*;
 import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.PageImpl;

@@ -1,8 +1,8 @@
 package wd4j.impl.playwright;
 
-import wd4j.api.Browser;
-import wd4j.api.BrowserContext;
-import wd4j.api.BrowserType;
+import com.microsoft.Browser;
+import com.microsoft.BrowserContext;
+import com.microsoft.BrowserType;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;

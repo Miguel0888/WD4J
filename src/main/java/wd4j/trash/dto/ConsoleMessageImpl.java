@@ -1,8 +1,8 @@
 package wd4j.trash.dto;
 
-import wd4j.api.ConsoleMessage;
-import wd4j.api.JSHandle;
-import wd4j.api.Page;
+import com.microsoft.ConsoleMessage;
+import com.microsoft.JSHandle;
+import com.microsoft.Page;
 
 import java.util.List;
 

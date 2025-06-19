@@ -1,9 +1,9 @@
 package wd4j.impl.playwright.testing;
 
-import wd4j.api.APIRequestContext;
-import wd4j.api.APIResponse;
-import wd4j.api.Request;
-import wd4j.api.options.RequestOptions;
+import com.microsoft.APIRequestContext;
+import com.microsoft.APIResponse;
+import com.microsoft.Request;
+import com.microsoft.options.RequestOptions;
 
 /**
  * NOT IMPLEMENTED YET

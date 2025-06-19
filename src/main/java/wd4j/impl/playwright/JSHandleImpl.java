@@ -1,13 +1,11 @@
 package wd4j.impl.playwright;
 
-import wd4j.api.ElementHandle;
-import wd4j.api.JSHandle;
+import com.microsoft.ElementHandle;
+import com.microsoft.JSHandle;
 import wd4j.impl.WebDriver;
-import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.webdriver.type.script.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class JSHandleImpl implements JSHandle {
     protected final WebDriver webDriver;

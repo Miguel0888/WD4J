@@ -1,6 +1,6 @@
 package wd4j.impl.playwright.testing;
 
-import wd4j.api.Video;
+import com.microsoft.Video;
 
 import java.nio.file.Path;
 

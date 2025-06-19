@@ -1,6 +1,6 @@
 package wd4j.impl.playwright.event;
 
-import wd4j.api.Keyboard;
+import com.microsoft.Keyboard;
 import wd4j.impl.manager.WDInputManager;
 import wd4j.impl.webdriver.command.request.parameters.input.sourceActions.KeySourceAction;
 import wd4j.impl.webdriver.command.request.parameters.input.sourceActions.SourceActions;

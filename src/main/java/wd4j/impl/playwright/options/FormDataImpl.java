@@ -1,7 +1,7 @@
 package wd4j.impl.playwright.options;
 
-import wd4j.api.options.FilePayload;
-import wd4j.api.options.FormData;
+import com.microsoft.options.FilePayload;
+import com.microsoft.options.FormData;
 
 import java.nio.file.Path;
 

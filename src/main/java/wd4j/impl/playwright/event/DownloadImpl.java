@@ -1,7 +1,7 @@
 package wd4j.impl.playwright.event;
 
-import wd4j.api.Download;
-import wd4j.api.Page;
+import com.microsoft.Download;
+import com.microsoft.Page;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.webdriver.event.WDBrowsingContextEvent;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;

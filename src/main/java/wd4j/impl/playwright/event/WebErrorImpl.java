@@ -1,7 +1,7 @@
 package wd4j.impl.playwright.event;
 
-import wd4j.api.Page;
-import wd4j.api.WebError;
+import com.microsoft.Page;
+import com.microsoft.WebError;
 
 public class WebErrorImpl implements WebError {
     private final Page page;

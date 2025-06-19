@@ -1,6 +1,6 @@
 package wd4j.impl.playwright;
 
-import wd4j.api.Selectors;
+import com.microsoft.Selectors;
 
 import java.nio.file.Path;
 

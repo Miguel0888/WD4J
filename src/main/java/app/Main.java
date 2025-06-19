@@ -17,7 +17,8 @@ public class Main {
     private static final Map<String, UIComponent> componentsMap = new LinkedHashMap<>();
 
     public static void main(String[] args) {
-        System.setSecurityManager(new AppSecurityManager()); // Setzt den Security Manager
+        // ToDo: Reactivate if finished:
+//        System.setSecurityManager(new AppSecurityManager()); // Setzt den Security Manager
         SwingUtilities.invokeLater(Main::createAndShowGUI);
     }
 

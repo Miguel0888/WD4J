@@ -1,14 +1,14 @@
 package wd4j.impl.playwright;
 
-import wd4j.api.ElementHandle;
-import wd4j.api.FrameLocator;
-import wd4j.api.JSHandle;
-import wd4j.api.Locator;
-import wd4j.api.Page;
-import wd4j.api.options.AriaRole;
-import wd4j.api.options.BoundingBox;
-import wd4j.api.options.FilePayload;
-import wd4j.api.options.SelectOption;
+import com.microsoft.ElementHandle;
+import com.microsoft.FrameLocator;
+import com.microsoft.JSHandle;
+import com.microsoft.Locator;
+import com.microsoft.Page;
+import com.microsoft.options.AriaRole;
+import com.microsoft.options.BoundingBox;
+import com.microsoft.options.FilePayload;
+import com.microsoft.options.SelectOption;
 import wd4j.impl.WebDriver;
 import wd4j.impl.manager.WDScriptManager;
 import wd4j.impl.webdriver.command.request.parameters.browsingContext.CaptureScreenshotParameters;

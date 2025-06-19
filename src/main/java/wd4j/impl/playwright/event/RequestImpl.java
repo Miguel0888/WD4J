@@ -1,11 +1,11 @@
 package wd4j.impl.playwright.event;
 
-import wd4j.api.Frame;
-import wd4j.api.Request;
-import wd4j.api.Response;
-import wd4j.api.options.HttpHeader;
-import wd4j.api.options.Sizes;
-import wd4j.api.options.Timing;
+import com.microsoft.Frame;
+import com.microsoft.Request;
+import com.microsoft.Response;
+import com.microsoft.options.HttpHeader;
+import com.microsoft.options.Sizes;
+import com.microsoft.options.Timing;
 import wd4j.impl.webdriver.event.WDNetworkEvent;
 
 import java.util.Collections;

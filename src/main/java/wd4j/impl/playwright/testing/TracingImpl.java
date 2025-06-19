@@ -1,6 +1,6 @@
 package wd4j.impl.playwright.testing;
 
-import wd4j.api.Tracing;
+import com.microsoft.Tracing;
 
 /**
  * NOT IMPLEMENTED YET

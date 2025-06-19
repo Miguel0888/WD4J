@@ -2,8 +2,8 @@ package app.service;
 
 import app.model.TestAction;
 import app.model.TestCase;
-import wd4j.api.Locator;
-import wd4j.api.Page;
+import com.microsoft.Locator;
+import com.microsoft.Page;
 
 import java.nio.file.Paths;
 

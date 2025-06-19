@@ -1,7 +1,7 @@
 package wd4j.impl.playwright.testing;
 
-import wd4j.api.APIResponse;
-import wd4j.api.options.HttpHeader;
+import com.microsoft.APIResponse;
+import com.microsoft.options.HttpHeader;
 
 import java.util.Collections;
 import java.util.List;

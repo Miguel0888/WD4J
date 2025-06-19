@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
-import wd4j.api.WebSocketFrame;
+import com.microsoft.WebSocketFrame;
 import wd4j.impl.playwright.WebSocketImpl;
 import wd4j.impl.support.EventDispatcher;
 import wd4j.impl.webdriver.mapping.GsonMapperFactory;

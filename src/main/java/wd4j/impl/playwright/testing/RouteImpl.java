@@ -1,8 +1,8 @@
 package wd4j.impl.playwright.testing;
 
-import wd4j.api.APIResponse;
-import wd4j.api.Request;
-import wd4j.api.Route;
+import com.microsoft.APIResponse;
+import com.microsoft.Request;
+import com.microsoft.Route;
 
 /**
  * NOT IMPLEMENTED. Route provides a way to intercept network requests and take action based on the request.

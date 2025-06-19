@@ -1,11 +1,11 @@
 package wd4j.impl.playwright;
 
-import wd4j.api.ElementHandle;
-import wd4j.api.Frame;
-import wd4j.api.options.BoundingBox;
-import wd4j.api.options.ElementState;
-import wd4j.api.options.FilePayload;
-import wd4j.api.options.SelectOption;
+import com.microsoft.ElementHandle;
+import com.microsoft.Frame;
+import com.microsoft.options.BoundingBox;
+import com.microsoft.options.ElementState;
+import com.microsoft.options.FilePayload;
+import com.microsoft.options.SelectOption;
 import wd4j.impl.WebDriver;
 import wd4j.impl.webdriver.type.script.*;
 

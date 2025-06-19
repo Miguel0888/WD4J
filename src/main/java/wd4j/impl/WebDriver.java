@@ -2,8 +2,8 @@ package wd4j.impl;
 
 import app.Main;
 import app.controller.CallbackWebSocketServer;
-import wd4j.api.options.BindingCallback;
-import wd4j.api.options.FunctionCallback;
+import com.microsoft.options.BindingCallback;
+import com.microsoft.options.FunctionCallback;
 import wd4j.helper.RecorderService;
 import wd4j.impl.manager.*;
 import wd4j.impl.playwright.WebSocketImpl;

@@ -1,6 +1,6 @@
 package wd4j.impl.playwright.event;
 
-import wd4j.api.Touchscreen;
+import com.microsoft.Touchscreen;
 
 public class TouchscreenImpl implements Touchscreen {
 

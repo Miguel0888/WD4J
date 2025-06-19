@@ -1,18 +1,15 @@
 package wd4j.impl.playwright.event;
 
-import wd4j.api.ConsoleMessage;
-import wd4j.api.JSHandle;
-import wd4j.api.Page;
-import wd4j.impl.manager.WDBrowsingContextManager;
+import com.microsoft.ConsoleMessage;
+import com.microsoft.JSHandle;
+import com.microsoft.Page;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.PageImpl;
-import wd4j.impl.webdriver.command.request.WDBrowsingContextRequest;
 import wd4j.impl.webdriver.event.WDLogEvent;
 import wd4j.impl.webdriver.event.WDScriptEvent;
 import wd4j.impl.webdriver.type.browsingContext.WDBrowsingContext;
 import wd4j.impl.webdriver.type.log.WDLogEntry;
 import wd4j.impl.webdriver.type.log.WDLogEntry.BaseWDLogEntry;
-import wd4j.impl.webdriver.type.script.WDRemoteValue;
 import wd4j.impl.webdriver.type.script.WDSource;
 import wd4j.impl.webdriver.type.script.WDStackTrace;
 

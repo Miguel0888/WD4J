@@ -4,7 +4,7 @@ package wd4j.impl.support;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import wd4j.api.JSHandle;
+import com.microsoft.JSHandle;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;

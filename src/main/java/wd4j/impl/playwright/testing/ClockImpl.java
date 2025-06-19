@@ -1,6 +1,6 @@
 package wd4j.impl.playwright.testing;
 
-import wd4j.api.Clock;
+import com.microsoft.Clock;
 
 import java.util.Date;
 

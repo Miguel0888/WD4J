@@ -1,10 +1,10 @@
 package wd4j.impl.playwright;
 
-import wd4j.api.*;
-import wd4j.api.options.BindingCallback;
-import wd4j.api.options.Cookie;
-import wd4j.api.options.FunctionCallback;
-import wd4j.api.options.Geolocation;
+import com.microsoft.*;
+import com.microsoft.options.BindingCallback;
+import com.microsoft.options.Cookie;
+import com.microsoft.options.FunctionCallback;
+import com.microsoft.options.Geolocation;
 import wd4j.impl.support.Pages;
 import wd4j.impl.webdriver.type.browser.WDUserContext;
 

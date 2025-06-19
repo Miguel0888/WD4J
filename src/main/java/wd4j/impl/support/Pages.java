@@ -1,6 +1,6 @@
 package wd4j.impl.support;
 
-import wd4j.api.Page;
+import com.microsoft.Page;
 import wd4j.impl.playwright.BrowserImpl;
 import wd4j.impl.playwright.PageImpl;
 import wd4j.impl.playwright.UserContextImpl;
