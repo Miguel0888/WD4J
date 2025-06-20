@@ -1,6 +1,6 @@
 package de.bund.zrb.event;
 
-import com.microsoft.Keyboard;
+import com.microsoft.playwright.Keyboard;
 import de.bund.zrb.manager.WDInputManager;
 import de.bund.zrb.command.request.parameters.input.sourceActions.KeySourceAction;
 import de.bund.zrb.command.request.parameters.input.sourceActions.SourceActions;

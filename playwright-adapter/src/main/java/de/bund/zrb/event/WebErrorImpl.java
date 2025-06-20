@@ -1,7 +1,7 @@
 package de.bund.zrb.event;
 
-import com.microsoft.Page;
-import com.microsoft.WebError;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.WebError;
 
 public class WebErrorImpl implements WebError {
     private final Page page;

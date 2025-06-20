@@ -6,8 +6,6 @@ import de.bund.zrb.command.request.parameters.script.*;
 import de.bund.zrb.type.browser.WDUserContext;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.script.*;
-import de.bund.zrb.webdriver.command.request.parameters.script.*;
-import de.bund.zrb.webdriver.type.script.*;
 
 import java.util.Collections;
 import java.util.List;

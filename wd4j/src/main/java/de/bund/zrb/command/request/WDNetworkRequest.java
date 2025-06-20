@@ -5,8 +5,6 @@ import de.bund.zrb.command.request.helper.WDCommandImpl;
 import de.bund.zrb.command.request.parameters.network.*;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.network.*;
-import de.bund.zrb.webdriver.command.request.parameters.network.*;
-import de.bund.zrb.webdriver.type.network.*;
 
 import java.util.List;
 

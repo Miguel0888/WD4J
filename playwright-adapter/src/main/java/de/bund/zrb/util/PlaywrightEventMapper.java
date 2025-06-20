@@ -1,12 +1,9 @@
 package de.bund.zrb.util;
 
 import com.google.gson.JsonObject;
+import de.bund.zrb.PageImpl;
 import de.bund.zrb.event.*;
-import de.bund.zrb.impl.playwright.event.*;
-import event.*;
-import wd4j.impl.playwright.event.*;
 import de.bund.zrb.api.EventMapper;
-import wd4j.impl.webdriver.event.*;
 import de.bund.zrb.websocket.WDEventNames;
 
 public class PlaywrightEventMapper implements EventMapper {

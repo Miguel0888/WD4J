@@ -1,7 +1,7 @@
 package de.bund.zrb.options;
 
-import com.microsoft.options.FilePayload;
-import com.microsoft.options.FormData;
+import com.microsoft.playwright.options.FilePayload;
+import com.microsoft.playwright.options.FormData;
 
 import java.nio.file.Path;
 

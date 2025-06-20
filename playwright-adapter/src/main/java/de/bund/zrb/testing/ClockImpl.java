@@ -1,6 +1,6 @@
 package de.bund.zrb.testing;
 
-import com.microsoft.Clock;
+import com.microsoft.playwright.Clock;
 
 import java.util.Date;
 

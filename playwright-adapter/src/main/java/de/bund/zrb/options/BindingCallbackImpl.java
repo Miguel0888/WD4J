@@ -1,6 +1,6 @@
 package de.bund.zrb.options;
 
-import com.microsoft.options.BindingCallback;
+import com.microsoft.playwright.options.BindingCallback;
 
 /**
  * NOT IMPLEMENTED YET

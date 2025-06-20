@@ -1,7 +1,7 @@
 package de.bund.zrb.testing;
 
-import com.microsoft.WebSocketRoute;
-import com.microsoft.WebSocketFrame;
+import com.microsoft.playwright.WebSocketRoute;
+import com.microsoft.playwright.WebSocketFrame;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;

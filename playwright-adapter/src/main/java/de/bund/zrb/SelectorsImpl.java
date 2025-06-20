@@ -1,6 +1,6 @@
 package de.bund.zrb;
 
-import com.microsoft.Selectors;
+import com.microsoft.playwright.Selectors;
 
 import java.nio.file.Path;
 

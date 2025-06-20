@@ -1,7 +1,7 @@
 package de.bund.zrb.event;
 
-import com.microsoft.Download;
-import com.microsoft.Page;
+import com.microsoft.playwright.Download;
+import com.microsoft.playwright.Page;
 import de.bund.zrb.BrowserImpl;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.browsingContext.WDNavigationInfo;

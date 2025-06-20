@@ -1,6 +1,6 @@
 package de.bund.zrb;
 
-import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.*;
 import de.bund.zrb.manager.WDScriptManager;
 import de.bund.zrb.api.WebSocketManager;
 import de.bund.zrb.support.Pages;

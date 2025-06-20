@@ -1,5 +1,7 @@
 package de.bund.zrb;
 
+import com.microsoft.playwright.*;
+
 import java.util.List;
 import java.util.ArrayList;
 
@@ -72,7 +74,7 @@ public class PlaywrightImpl implements Playwright {
     /// Methods
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public CreateOptions getCreateOptions() {
+    public Playwright.CreateOptions getCreateOptions() {
         return createOptions;
     }
 

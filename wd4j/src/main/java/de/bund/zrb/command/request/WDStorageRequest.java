@@ -4,7 +4,6 @@ import de.bund.zrb.api.markerInterfaces.WDCommandData;
 import de.bund.zrb.command.request.helper.WDCommandImpl;
 import de.bund.zrb.command.request.parameters.storage.*;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
-import de.bund.zrb.webdriver.command.request.parameters.storage.*;
 
 public class WDStorageRequest {
 

@@ -1,5 +1,6 @@
 package de.bund.zrb;
 
+import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.BindingCallback;
 import com.microsoft.playwright.options.Cookie;
 import com.microsoft.playwright.options.FunctionCallback;
@@ -19,7 +20,7 @@ import java.util.regex.Pattern;
 /** !!! WebDriverBiDi vs. CDP Terminology !!! */
 // The WebDriverBiDi term "UserContext" is equivalent to the CDP term "BrowserContext".
 // IT IS DIFFERENT FROM THE W3C BROWSING CONTEXT MODULE, WHICH IS A NAVIGABLE AKA. PAGE IN CHROMIUM DEVTOOLS PROTOCOL.
-public class UserContextImpl implements BrowserContext{
+public class UserContextImpl implements BrowserContext {
     private final Pages pages; // aka. BrowsingContexts / Navigables in WebDriver BiDi
     private final BrowserImpl browser;
     private boolean isClosed = false; // ToDo: Is this variable really necessary?

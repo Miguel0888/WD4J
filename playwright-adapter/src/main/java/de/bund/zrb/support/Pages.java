@@ -1,5 +1,6 @@
 package de.bund.zrb.support;
 
+import com.microsoft.playwright.Page;
 import de.bund.zrb.BrowserImpl;
 import de.bund.zrb.PageImpl;
 import de.bund.zrb.UserContextImpl;

@@ -9,7 +9,6 @@ import de.bund.zrb.type.browsingContext.WDLocator;
 import de.bund.zrb.type.browsingContext.WDReadinessState;
 import de.bund.zrb.type.script.WDRemoteReference;
 import de.bund.zrb.type.script.WDSerializationOptions;
-import de.bund.zrb.webdriver.command.request.parameters.browsingContext.*;
 
 import java.util.List;
 

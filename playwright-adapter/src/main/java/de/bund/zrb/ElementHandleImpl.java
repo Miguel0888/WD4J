@@ -1,14 +1,12 @@
 package de.bund.zrb;
 
-import com.microsoft.ElementHandle;
-import com.microsoft.Frame;
-import com.microsoft.options.BoundingBox;
-import com.microsoft.options.ElementState;
-import com.microsoft.options.FilePayload;
-import com.microsoft.options.SelectOption;
-import de.bund.zrb.impl.webdriver.type.script.*;
+import com.microsoft.playwright.ElementHandle;
+import com.microsoft.playwright.Frame;
+import com.microsoft.playwright.options.BoundingBox;
+import com.microsoft.playwright.options.ElementState;
+import com.microsoft.playwright.options.FilePayload;
+import com.microsoft.playwright.options.SelectOption;
 import de.bund.zrb.type.script.*;
-import wd4j.impl.webdriver.type.script.*;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -17,6 +15,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import static com.microsoft.playwright.ElementHandle.*;
 import static de.bund.zrb.support.WDRemoteValueUtil.getBoundingBoxFromEvaluateResult;
 
 /**

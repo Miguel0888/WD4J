@@ -1,11 +1,11 @@
 package de.bund.zrb.event;
 
-import com.microsoft.Frame;
-import com.microsoft.Request;
-import com.microsoft.Response;
-import com.microsoft.options.HttpHeader;
-import com.microsoft.options.Sizes;
-import com.microsoft.options.Timing;
+import com.microsoft.playwright.Frame;
+import com.microsoft.playwright.Request;
+import com.microsoft.playwright.Response;
+import com.microsoft.playwright.options.HttpHeader;
+import com.microsoft.playwright.options.Sizes;
+import com.microsoft.playwright.options.Timing;
 import de.bund.zrb.event.WDNetworkEvent;
 
 import java.util.Collections;

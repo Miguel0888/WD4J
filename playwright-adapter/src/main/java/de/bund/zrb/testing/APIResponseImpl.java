@@ -1,7 +1,7 @@
 package de.bund.zrb.testing;
 
-import com.microsoft.APIResponse;
-import com.microsoft.options.HttpHeader;
+import com.microsoft.playwright.APIResponse;
+import com.microsoft.playwright.options.HttpHeader;
 
 import java.util.Collections;
 import java.util.List;

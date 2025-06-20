@@ -1,7 +1,7 @@
 package de.bund.zrb.options;
 
-import com.microsoft.options.FormData;
-import com.microsoft.options.RequestOptions;
+import com.microsoft.playwright.options.FormData;
+import com.microsoft.playwright.options.RequestOptions;
 
 /**
  * NOT IMPLEMENTED YET

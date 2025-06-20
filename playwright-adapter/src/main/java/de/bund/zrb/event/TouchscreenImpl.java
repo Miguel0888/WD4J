@@ -1,6 +1,6 @@
 package de.bund.zrb.event;
 
-import com.microsoft.Touchscreen;
+import com.microsoft.playwright.Touchscreen;
 
 public class TouchscreenImpl implements Touchscreen {
 

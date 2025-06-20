@@ -1,7 +1,7 @@
 package de.bund.zrb.event;
 
-import com.microsoft.JSHandle;
-import com.microsoft.Worker;
+import com.microsoft.playwright.JSHandle;
+import com.microsoft.playwright.Worker;
 import de.bund.zrb.manager.WDScriptManager;
 import de.bund.zrb.event.WDScriptEvent;
 import de.bund.zrb.type.script.WDRealm;

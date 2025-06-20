@@ -1,9 +1,9 @@
 package de.bund.zrb.testing;
 
-import com.microsoft.APIRequestContext;
-import com.microsoft.APIResponse;
-import com.microsoft.Request;
-import com.microsoft.options.RequestOptions;
+import com.microsoft.playwright.APIRequestContext;
+import com.microsoft.playwright.APIResponse;
+import com.microsoft.playwright.Request;
+import com.microsoft.playwright.options.RequestOptions;
 
 /**
  * NOT IMPLEMENTED YET

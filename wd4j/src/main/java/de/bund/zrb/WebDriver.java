@@ -40,10 +40,10 @@ public class WebDriver {
 
     private String sessionId;
 
-    private final EventDispatcher eventDispatcher;
+    private final EventDispatcher dispatcher;
 
     // ToDo: Use WebSocket Interface instead of WebSocketImpl, here !!!
-    public WebDriver(WebSocketManager webSocketManager, EventDispatcher eventDispatcher) throws ExecutionException, InterruptedException {
+    public WebDriver(WebSocketManager webSocketManager, EventDispatcher dispatcher) throws ExecutionException, InterruptedException {
         this.webSocketManager = webSocketManager;
 
         this.browser = new WDBrowserManager(webSocketManager);
@@ -56,8 +56,8 @@ public class WebDriver {
         this.log = new WDLogManager(webSocketManager);
         this.webExtension = new WDWebExtensionManager(webSocketManager);
 
-        this.eventDispatcher = eventDispatcher;
-        webSocketManager.registerEventListener(eventDispatcher); // 🔥 Events aktivieren!
+        this.dispatcher = dispatcher;
+        webSocketManager.registerEventListener(dispatcher); // 🔥 Events aktivieren!
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

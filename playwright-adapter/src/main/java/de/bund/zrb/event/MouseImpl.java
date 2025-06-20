@@ -1,6 +1,6 @@
 package de.bund.zrb.event;
 
-import com.microsoft.Mouse;
+import com.microsoft.playwright.Mouse;
 import de.bund.zrb.manager.WDInputManager;
 import de.bund.zrb.command.request.parameters.input.sourceActions.PointerSourceAction;
 import de.bund.zrb.command.request.parameters.input.sourceActions.SourceActions;

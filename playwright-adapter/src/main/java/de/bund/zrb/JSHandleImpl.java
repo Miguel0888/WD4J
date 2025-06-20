@@ -2,9 +2,7 @@ package de.bund.zrb;
 
 import com.microsoft.playwright.ElementHandle;
 import com.microsoft.playwright.JSHandle;
-import de.bund.zrb.impl.webdriver.type.script.*;
 import de.bund.zrb.type.script.*;
-import wd4j.impl.webdriver.type.script.*;
 
 import java.util.*;
 

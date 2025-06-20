@@ -1,8 +1,8 @@
 package de.bund.zrb.event;
 
-import com.microsoft.ConsoleMessage;
-import com.microsoft.JSHandle;
-import com.microsoft.Page;
+import com.microsoft.playwright.ConsoleMessage;
+import com.microsoft.playwright.JSHandle;
+import com.microsoft.playwright.Page;
 import de.bund.zrb.BrowserImpl;
 import de.bund.zrb.PageImpl;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;

@@ -5,7 +5,6 @@ import de.bund.zrb.api.markerInterfaces.WDModule;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.browsingContext.WDNavigation;
 import de.bund.zrb.type.network.*;
-import de.bund.zrb.webdriver.type.network.*;
 import de.bund.zrb.websocket.WDEvent;
 import de.bund.zrb.websocket.WDEventNames;
 

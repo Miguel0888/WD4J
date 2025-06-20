@@ -1,6 +1,6 @@
 package de.bund.zrb.testing;
 
-import com.microsoft.Tracing;
+import com.microsoft.playwright.Tracing;
 
 /**
  * NOT IMPLEMENTED YET

@@ -1,8 +1,8 @@
-package de.bund.zrb.helper;
+package de.bund.zrb.service;
 
-import de.bund.zrb.model.TestAction;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import de.bund.zrb.model.TestAction;
 import de.bund.zrb.dto.RecordedEvent;
 
 import java.lang.reflect.Type;

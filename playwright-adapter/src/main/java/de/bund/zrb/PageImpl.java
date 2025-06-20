@@ -2,9 +2,7 @@ package de.bund.zrb;
 
 import com.google.gson.JsonObject;
 import com.microsoft.playwright.*;
-import com.microsoft.playwright.options.AriaRole;
-import com.microsoft.playwright.options.BindingCallback;
-import com.microsoft.playwright.options.FunctionCallback;
+import com.microsoft.playwright.options.*;
 import de.bund.zrb.type.script.*;
 import de.bund.zrb.event.FrameImpl;
 import de.bund.zrb.support.PlaywrightResponse;

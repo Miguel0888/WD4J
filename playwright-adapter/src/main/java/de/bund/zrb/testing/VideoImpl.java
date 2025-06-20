@@ -1,6 +1,6 @@
 package de.bund.zrb.testing;
 
-import com.microsoft.Video;
+import com.microsoft.playwright.Video;
 
 import java.nio.file.Path;
 

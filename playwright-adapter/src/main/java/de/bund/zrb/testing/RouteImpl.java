@@ -1,8 +1,8 @@
 package de.bund.zrb.testing;
 
-import com.microsoft.APIResponse;
-import com.microsoft.Request;
-import com.microsoft.Route;
+import com.microsoft.playwright.APIResponse;
+import com.microsoft.playwright.Request;
+import com.microsoft.playwright.Route;
 
 /**
  * NOT IMPLEMENTED. Route provides a way to intercept network requests and take action based on the request.

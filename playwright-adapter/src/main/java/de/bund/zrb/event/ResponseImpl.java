@@ -1,11 +1,11 @@
 package de.bund.zrb.event;
 
-import com.microsoft.Frame;
-import com.microsoft.Request;
-import com.microsoft.Response;
-import com.microsoft.options.HttpHeader;
-import com.microsoft.options.SecurityDetails;
-import com.microsoft.options.ServerAddr;
+import com.microsoft.playwright.Frame;
+import com.microsoft.playwright.Request;
+import com.microsoft.playwright.Response;
+import com.microsoft.playwright.options.HttpHeader;
+import com.microsoft.playwright.options.SecurityDetails;
+import com.microsoft.playwright.options.ServerAddr;
 import de.bund.zrb.event.WDNetworkEvent;
 import de.bund.zrb.type.network.WDBaseParameters;
 import de.bund.zrb.type.network.WDResponseData;

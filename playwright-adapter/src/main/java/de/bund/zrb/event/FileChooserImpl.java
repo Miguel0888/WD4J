@@ -1,9 +1,9 @@
 package de.bund.zrb.event;
 
-import com.microsoft.ElementHandle;
-import com.microsoft.FileChooser;
-import com.microsoft.Page;
-import com.microsoft.options.FilePayload;
+import com.microsoft.playwright.ElementHandle;
+import com.microsoft.playwright.FileChooser;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.options.FilePayload;
 
 import java.nio.file.Path;
 
