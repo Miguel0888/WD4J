@@ -1,5 +1,8 @@
 package de.bund.zrb.model;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
 import java.util.List;
 
 public class TestCase {
@@ -38,5 +41,15 @@ public class TestCase {
 
     public String getName() {
         return name;
+    }
+
+    public JsonObject toPlaywrightJson() {
+        JsonObject root = new JsonObject();
+        JsonArray array = new JsonArray();
+        for (TestAction action : steps) {
+            array.add(action.toPlaywrightJson());
+        }
+        root.add("steps", array);
+        return root;
     }
 }

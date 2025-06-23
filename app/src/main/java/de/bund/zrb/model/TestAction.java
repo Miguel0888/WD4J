@@ -1,5 +1,6 @@
 package de.bund.zrb.model;
 
+import com.google.gson.JsonObject;
 import com.microsoft.playwright.options.AriaRole;
 
 import java.util.LinkedHashMap;
@@ -7,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 public class TestAction {
+    private String user; // z. B. "userA", "userB"
     private boolean selected;
     private String action;
     private String selectedSelector;  // Der tatsächlich verwendete Selektor
@@ -48,6 +50,14 @@ public class TestAction {
 
     public TestAction() {
         // ToDo: Correct?
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    public void setUser(String user) {
+        this.user = user;
     }
 
     public boolean isSelected() {
@@ -173,4 +183,22 @@ public class TestAction {
     public void setLocators(Map<String, String> locators) {
         this.locators = locators;
     }
+
+    public JsonObject toPlaywrightJson() {
+        JsonObject obj = new JsonObject();
+
+        if (user != null) {
+            obj.addProperty("user", user); // Zusätzlicher Key, kompatibel aber von PlayWright ignorierbar
+        }
+
+        obj.addProperty("action", action);
+        obj.addProperty("selector", selectedSelector);
+
+        if (value != null) {
+            obj.addProperty("value", value);
+        }
+
+        return obj;
+    }
+
 }
