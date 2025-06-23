@@ -9,7 +9,7 @@ import java.util.Set;
 public class GsonMapperFactory {
 
     private static final Gson GSON_INSTANCE = createGson();
-    public static final String PACKAGE = "wd4j.impl.webdriver";
+    public static final String PACKAGE = "de.bund.zrb";
 
     private static Gson createGson() {
         GsonBuilder builder = new GsonBuilder();

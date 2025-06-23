@@ -1,6 +1,7 @@
 package de.bund.zrb.mapping;
 
 import com.google.gson.Gson;
+import de.bund.zrb.support.mapping.GsonMapperFactory;
 import de.bund.zrb.type.browsingContext.WDNavigation;
 import de.bund.zrb.type.log.WDLogEntry;
 

@@ -2,6 +2,7 @@ package de.bund.zrb.mapping;
 
 import com.google.gson.Gson;
 import de.bund.zrb.command.request.WDBrowsingContextRequest;
+import de.bund.zrb.support.mapping.GsonMapperFactory;
 
 public class GsonTest {
     public static void main(String[] args) {
