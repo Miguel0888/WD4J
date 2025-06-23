@@ -8,7 +8,7 @@ public final class RequestOptionsImpl implements RequestOptions {
 
     public static RequestOptions create() {
         try {
-            Class<?> impl = Class.forName("de.bund.zrb.impl.playwright.RequestOptionsImpl");
+            Class<?> impl = Class.forName("de.bund.zrb.options.RequestOptionsImpl.");
             return (RequestOptions) impl.getDeclaredMethod("create").invoke(null);
         } catch (Exception e) {
             throw new RuntimeException("Cannot load RequestOptions implementation", e);

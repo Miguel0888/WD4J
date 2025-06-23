@@ -35,7 +35,7 @@ public final class FormDataImpl implements FormData {
 
     public static FormData create() {
         try {
-            Class<?> impl = Class.forName("de.bund.zrb.impl.playwright.FormDataImpl");
+            Class<?> impl = Class.forName("de.bund.zrb.options.FormDataImpl");
             return (FormData) impl.getDeclaredMethod("create").invoke(null);
         } catch (Exception e) {
             throw new RuntimeException("Cannot load FormData implementation", e);

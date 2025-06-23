@@ -7,7 +7,7 @@ public final class PlaywrightImpl {
 
     public static Playwright create(Playwright.CreateOptions options) {
         try {
-            Class<?> impl = Class.forName("de.bund.zrb.impl.playwright.PlaywrightImpl");
+            Class<?> impl = Class.forName("de.bund.zrb.PlaywrightImpl");
             return (Playwright) impl.getMethod("create", Playwright.CreateOptions.class).invoke(null, options);
         } catch (Exception e) {
             throw new RuntimeException("Cannot load implementation", e);
