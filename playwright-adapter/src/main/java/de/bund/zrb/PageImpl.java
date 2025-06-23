@@ -620,36 +620,12 @@ public class PageImpl implements Page {
 
     @Override
     public void exposeBinding(String name, BindingCallback callback, ExposeBindingOptions options) {
-        String preloadCode =
-                "window['" + name + "'] = function(...args) {" +
-                        "  return new Promise(function(resolve, reject) {" +
-                        "    window.__playwright_invokeBinding('" + name + "', args).then(resolve).catch(reject);" +
-                        "  });" +
-                        "};";
-
-        webDriver.script().addPreloadScript(
-                getBrowsingContextId(),
-                preloadCode
-        );
-
-        webDriver.registerBinding(name, callback); // Diese Methode bauen wir gleich!
+        // ToDo
     }
 
     @Override
     public void exposeFunction(String name, FunctionCallback callback) {
-        String preloadCode =
-                "window['" + name + "'] = function(...args) {" +
-                        "  return new Promise(function(resolve, reject) {" +
-                        "    window.__playwright_invoke('" + name + "', args).then(resolve).catch(reject);" +
-                        "  });" +
-                        "};";
-
-        webDriver.script().addPreloadScript(
-                getBrowsingContextId(),
-                preloadCode
-        );
-
-        webDriver.registerFunction(name, callback); // Diese Methode bauen wir gleich!
+        // ToDo
     }
 
     @Override
