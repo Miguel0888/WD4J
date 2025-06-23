@@ -53,10 +53,10 @@ public class CallbackWebSocketServer extends WebSocketServer {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Deprecated // since JSON Data might be received via Message Events (see WebDriverBiDi ChannelValue)
-    private CallbackWebSocketServer callbackWebSocketServer;
+    private static CallbackWebSocketServer callbackWebSocketServer;
 
     @Deprecated // since script.ChannelValue might be used for Callbacks (will lead to Message Events)
-    private void toggleCallbackServer(boolean activate) {
+    static void toggleCallbackServer(boolean activate) {
         if (activate) {
             callbackWebSocketServer = new CallbackWebSocketServer(8080, message -> {
                 Main.getScriptTab().appendLog(message);  // UI-Log aktualisieren

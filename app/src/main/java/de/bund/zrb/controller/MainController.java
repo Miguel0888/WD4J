@@ -181,6 +181,8 @@ public class MainController {
                         throw new IllegalArgumentException("Unsupported browser: " + selectedBrowser);
                 }
 
+                CallbackWebSocketServer.toggleCallbackServer(true); // required since we do not use WD EventsK
+
                 setupPageListeners();  // sorgt dafür, dass neue Seiten automatisch hinzugefügt oder entfernt werden
                 updateUserContextDropdown();
                 updateBrowsingContextDropdown();
