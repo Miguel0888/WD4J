@@ -56,7 +56,7 @@ public class CallbackWebSocketServer extends WebSocketServer {
     private static CallbackWebSocketServer callbackWebSocketServer;
 
     @Deprecated // since script.ChannelValue might be used for Callbacks (will lead to Message Events)
-    static void toggleCallbackServer(boolean activate) {
+    public static void toggleCallbackServer(boolean activate) {
         if (activate) {
             callbackWebSocketServer = new CallbackWebSocketServer(8080, message -> {
                 Main.getScriptTab().appendLog(message);  // UI-Log aktualisieren
