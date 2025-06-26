@@ -59,7 +59,7 @@ public class CallbackWebSocketServer extends WebSocketServer {
     public static void toggleCallbackServer(boolean activate) {
         if (activate) {
             callbackWebSocketServer = new CallbackWebSocketServer(8080, message -> {
-                Main.getScriptTab().appendLog(message);  // UI-Log aktualisieren
+//                Main.getScriptTab().appendLog(message);  // UI-Log aktualisieren
                 RecorderService.getInstance().recordAction(message); // Aktion im Recorder speichern
             });
             callbackWebSocketServer.start();

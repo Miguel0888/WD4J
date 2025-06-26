@@ -6,6 +6,8 @@ import com.google.gson.JsonObject;
 import java.util.List;
 
 public class TestCase {
+    private List<TestAction> steps;
+
     private String name;
     private List<TestAction> given;
     private List<TestAction> when;

@@ -1,5 +1,6 @@
 package de.bund.zrb.ui;
 
+import de.bund.zrb.service.BrowserConfig;
 import de.bund.zrb.service.BrowserServiceImpl;
 
 import javax.swing.*;
@@ -32,7 +33,18 @@ public class TestToolUI {
 
         JMenu browserMenu = new JMenu("Browser");
         JMenuItem launch = new JMenuItem("Starten");
-        launch.addActionListener(e -> browserService.launchBrowser("firefox", false, new java.util.HashMap<>()));
+        launch.addActionListener(e -> {
+            BrowserConfig config = new BrowserConfig();
+            config.setBrowserType("firefox");
+            config.setHeadless(false);
+            config.setNoRemote(false);
+            config.setDisableGpu(false);
+            config.setStartMaximized(true); // oder false
+            config.setUseProfile(false); // oder true, ggf. mit .setProfilePath(...)
+            config.setPort(0); // oder z.B. 9222
+
+            browserService.launchBrowser(config);
+        });
         JMenuItem stop = new JMenuItem("Beenden");
         stop.addActionListener(e -> browserService.terminateBrowser());
         browserMenu.add(launch);

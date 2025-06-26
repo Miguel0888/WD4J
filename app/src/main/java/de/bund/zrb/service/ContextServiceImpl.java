@@ -23,7 +23,6 @@ public class ContextServiceImpl implements ContextService {
         return INSTANCE;
     }
 
-    @Override
     public void createUserContext(String user) {
         if (!userBrowsingContexts.containsKey(user)) {
             userBrowsingContexts.put(user, new ArrayList<>());
@@ -31,7 +30,6 @@ public class ContextServiceImpl implements ContextService {
         }
     }
 
-    @Override
     public void removeUserContext(String user) {
         userBrowsingContexts.remove(user);
         currentContexts.remove(user);
@@ -40,17 +38,14 @@ public class ContextServiceImpl implements ContextService {
         }
     }
 
-    @Override
     public List<String> getUserContexts() {
         return new ArrayList<>(userBrowsingContexts.keySet());
     }
 
-    @Override
     public String getCurrentUserContext() {
         return currentUser;
     }
 
-    @Override
     public void setCurrentUserContext(String user) {
         if (!userBrowsingContexts.containsKey(user)) {
             throw new IllegalArgumentException("Unknown user context: " + user);
@@ -58,7 +53,6 @@ public class ContextServiceImpl implements ContextService {
         currentUser = user;
     }
 
-    @Override
     public void createBrowsingContext(String user) {
         userBrowsingContexts.putIfAbsent(user, new ArrayList<>());
         List<String> contexts = userBrowsingContexts.get(user);
@@ -68,7 +62,6 @@ public class ContextServiceImpl implements ContextService {
         currentContexts.put(user, newContextId);
     }
 
-    @Override
     public void closeBrowsingContext(String user, String contextId) {
         List<String> contexts = userBrowsingContexts.get(user);
         if (contexts != null) {
@@ -79,17 +72,14 @@ public class ContextServiceImpl implements ContextService {
         }
     }
 
-    @Override
     public List<String> getBrowsingContexts(String user) {
         return userBrowsingContexts.getOrDefault(user, Collections.emptyList());
     }
 
-    @Override
     public String getCurrentBrowsingContext(String user) {
         return currentContexts.get(user);
     }
 
-    @Override
     public void setCurrentBrowsingContext(String user, String contextId) {
         List<String> contexts = userBrowsingContexts.get(user);
         if (contexts != null && contexts.contains(contextId)) {
