@@ -2,13 +2,19 @@ package de.bund.zrb.ui;
 
 import de.bund.zrb.service.BrowserConfig;
 import de.bund.zrb.service.BrowserServiceImpl;
+import de.bund.zrb.ui.commandframework.*;
 
 import javax.swing.*;
 import java.awt.*;
 
+/**
+ * TestToolUI with decoupled CommandFramework.
+ */
 public class TestToolUI {
 
     private final BrowserServiceImpl browserService = BrowserServiceImpl.getInstance();
+
+    private final CommandRegistry commandRegistry = new CommandRegistryImpl();
 
     private JFrame frame;
     private JMenuBar menuBar;
@@ -20,7 +26,8 @@ public class TestToolUI {
         frame.setSize(1200, 800);
         frame.setLocationRelativeTo(null);
 
-        menuBar = createMenuBar();
+        registerCommands();
+        menuBar = buildMenuBar();
         mainPanel = createMainPanel();
 
         frame.setJMenuBar(menuBar);
@@ -28,43 +35,69 @@ public class TestToolUI {
         frame.setVisible(true);
     }
 
-    private JMenuBar createMenuBar() {
-        JMenuBar bar = new JMenuBar();
+    private void registerCommands() {
+        commandRegistry.register("browser.start", new Command() {
+            public void execute(CommandContext context) {
+                BrowserConfig config = new BrowserConfig();
+                config.setBrowserType("firefox");
+                config.setHeadless(false);
+                config.setNoRemote(false);
+                config.setDisableGpu(false);
+                config.setStartMaximized(true);
+                config.setUseProfile(false);
+                config.setPort(9222);
 
-        JMenu browserMenu = new JMenu("Browser");
-        JMenuItem launch = new JMenuItem("Starten");
-        launch.addActionListener(e -> {
-            BrowserConfig config = new BrowserConfig();
-            config.setBrowserType("firefox");
-            config.setHeadless(false);
-            config.setNoRemote(false);
-            config.setDisableGpu(false);
-            config.setStartMaximized(true); // oder false
-            config.setUseProfile(false); // oder true, ggf. mit .setProfilePath(...)
-            config.setPort(9222);
-
-            browserService.launchBrowser(config);
+                browserService.launchBrowser(config);
+            }
         });
-        JMenuItem stop = new JMenuItem("Beenden");
-        stop.addActionListener(e -> browserService.terminateBrowser());
-        browserMenu.add(launch);
-        browserMenu.add(stop);
 
-        JMenu navigationMenu = new JMenu("Navigation");
-        JMenuItem newTab = new JMenuItem("Neuer Tab");
-        newTab.addActionListener(e -> browserService.createNewTab());
-        JMenuItem closeTab = new JMenuItem("Tab schließen");
-        closeTab.addActionListener(e -> browserService.closeActiveTab());
-        JMenuItem reload = new JMenuItem("Neu laden");
-        reload.addActionListener(e -> browserService.reload());
-        navigationMenu.add(newTab);
-        navigationMenu.add(closeTab);
-        navigationMenu.add(reload);
+        commandRegistry.register("browser.stop", new Command() {
+            public void execute(CommandContext context) {
+                browserService.terminateBrowser();
+            }
+        });
 
-        bar.add(browserMenu);
-        bar.add(navigationMenu);
+        commandRegistry.register("navigation.newTab", new Command() {
+            public void execute(CommandContext context) {
+                browserService.createNewTab();
+            }
+        });
 
-        return bar;
+        commandRegistry.register("navigation.closeTab", new Command() {
+            public void execute(CommandContext context) {
+                browserService.closeActiveTab();
+            }
+        });
+
+        commandRegistry.register("navigation.reload", new Command() {
+            public void execute(CommandContext context) {
+                browserService.reload();
+            }
+        });
+    }
+
+    private JMenuBar buildMenuBar() {
+        // Menübaum deklarieren
+        MenuBuilder builder = new MenuBuilder();
+
+        MenuBuilder.MenuNode root = builder.getRoot();
+
+        MenuBuilder.MenuNode browserMenu = new MenuBuilder.MenuNode(new MenuItemConfig(null, "Browser", null, null));
+        browserMenu.addChild(new MenuBuilder.MenuNode(new MenuItemConfig("browser.start", "Starten", null, null)));
+        browserMenu.addChild(new MenuBuilder.MenuNode(new MenuItemConfig("browser.stop", "Beenden", null, null)));
+
+        MenuBuilder.MenuNode navigationMenu = new MenuBuilder.MenuNode(new MenuItemConfig(null, "Navigation", null, null));
+        navigationMenu.addChild(new MenuBuilder.MenuNode(new MenuItemConfig("navigation.newTab", "Neuer Tab", null, null)));
+        navigationMenu.addChild(new MenuBuilder.MenuNode(new MenuItemConfig("navigation.closeTab", "Tab schließen", null, null)));
+        navigationMenu.addChild(new MenuBuilder.MenuNode(new MenuItemConfig("navigation.reload", "Neu laden", null, null)));
+
+        root.addChild(browserMenu);
+        root.addChild(navigationMenu);
+
+        // Swing-Adapter verwenden
+        SwingMenuAdapter swingMenuAdapter = new SwingMenuAdapter(commandRegistry);
+
+        return swingMenuAdapter.build(root);
     }
 
     private JPanel createMainPanel() {
@@ -80,12 +113,11 @@ public class TestToolUI {
         return panel;
     }
 
-    // ToDo: Noch sinnvoll mit Funktionalität füllen
     private static class RecorderPanel extends JPanel {
         public RecorderPanel() {
             super(new BorderLayout());
             add(new JLabel("Recorder-Modus: Hier werden Tests aufgezeichnet und editiert."), BorderLayout.NORTH);
-            add(new JScrollPane(new JTable()), BorderLayout.CENTER); // Platzhalter für Action-Tabelle
+            add(new JScrollPane(new JTable()), BorderLayout.CENTER);
         }
     }
 
@@ -93,7 +125,7 @@ public class TestToolUI {
         public RunnerPanel() {
             super(new BorderLayout());
             add(new JLabel("Test Runner: Hier können Tests verwaltet und ausgeführt werden."), BorderLayout.NORTH);
-            add(new JScrollPane(new JList<>()), BorderLayout.CENTER); // Platzhalter für Test Suite Verwaltung
+            add(new JScrollPane(new JList<>()), BorderLayout.CENTER);
         }
     }
 
