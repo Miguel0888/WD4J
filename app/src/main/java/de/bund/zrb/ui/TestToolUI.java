@@ -8,17 +8,14 @@ import javax.swing.*;
 import java.awt.*;
 
 /**
- * TestToolUI with decoupled CommandFramework.
+ * TestToolUI with left & right drawers like MainframeMate.
  */
 public class TestToolUI {
 
     private final BrowserServiceImpl browserService = BrowserServiceImpl.getInstance();
-
     private final CommandRegistry commandRegistry = new CommandRegistryImpl();
 
     private JFrame frame;
-    private JMenuBar menuBar;
-    private JPanel mainPanel;
 
     public void initUI() {
         frame = new JFrame("Web Test Recorder & Runner");
@@ -26,91 +23,65 @@ public class TestToolUI {
         frame.setSize(1200, 800);
         frame.setLocationRelativeTo(null);
 
-        registerCommands();
-        menuBar = buildMenuBar();
-        mainPanel = createMainPanel();
+        frame.setLayout(new BorderLayout());
 
-        frame.setJMenuBar(menuBar);
-        frame.add(mainPanel);
+        registerCommands();
+        frame.setJMenuBar(new JMenuBar());
+
+        // Outer SplitPane: Links und Rest
+        JSplitPane outerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        outerSplit.setOneTouchExpandable(true);
+
+        LeftDrawer leftDrawer = new LeftDrawer(commandRegistry);
+        outerSplit.setLeftComponent(leftDrawer);
+
+        // Inner SplitPane: Center + Rechts
+        JSplitPane innerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        innerSplit.setOneTouchExpandable(true);
+
+        JPanel mainPanel = createMainPanel();
+        innerSplit.setLeftComponent(mainPanel);
+
+        RightDrawer rightDrawer = new RightDrawer(commandRegistry);
+        innerSplit.setRightComponent(rightDrawer);
+
+        outerSplit.setRightComponent(innerSplit);
+
+        // Start-Größen
+        outerSplit.setDividerLocation(200);
+        innerSplit.setDividerLocation(900);
+
+        frame.add(outerSplit, BorderLayout.CENTER);
+
         frame.setVisible(true);
     }
 
-    private void registerCommands() {
-        commandRegistry.register("browser.start", new Command() {
-            public void execute(CommandContext context) {
-                BrowserConfig config = new BrowserConfig();
-                config.setBrowserType("firefox");
-                config.setHeadless(false);
-                config.setNoRemote(false);
-                config.setDisableGpu(false);
-                config.setStartMaximized(true);
-                config.setUseProfile(false);
-                config.setPort(9222);
-
-                browserService.launchBrowser(config);
-            }
-        });
-
-        commandRegistry.register("browser.stop", new Command() {
-            public void execute(CommandContext context) {
-                browserService.terminateBrowser();
-            }
-        });
-
-        commandRegistry.register("navigation.newTab", new Command() {
-            public void execute(CommandContext context) {
-                browserService.createNewTab();
-            }
-        });
-
-        commandRegistry.register("navigation.closeTab", new Command() {
-            public void execute(CommandContext context) {
-                browserService.closeActiveTab();
-            }
-        });
-
-        commandRegistry.register("navigation.reload", new Command() {
-            public void execute(CommandContext context) {
-                browserService.reload();
-            }
-        });
-    }
-
-    private JMenuBar buildMenuBar() {
-        // Menübaum deklarieren
-        MenuBuilder builder = new MenuBuilder();
-
-        MenuBuilder.MenuNode root = builder.getRoot();
-
-        MenuBuilder.MenuNode browserMenu = new MenuBuilder.MenuNode(new MenuItemConfig(null, "Browser", null, null));
-        browserMenu.addChild(new MenuBuilder.MenuNode(new MenuItemConfig("browser.start", "Starten", null, null)));
-        browserMenu.addChild(new MenuBuilder.MenuNode(new MenuItemConfig("browser.stop", "Beenden", null, null)));
-
-        MenuBuilder.MenuNode navigationMenu = new MenuBuilder.MenuNode(new MenuItemConfig(null, "Navigation", null, null));
-        navigationMenu.addChild(new MenuBuilder.MenuNode(new MenuItemConfig("navigation.newTab", "Neuer Tab", null, null)));
-        navigationMenu.addChild(new MenuBuilder.MenuNode(new MenuItemConfig("navigation.closeTab", "Tab schließen", null, null)));
-        navigationMenu.addChild(new MenuBuilder.MenuNode(new MenuItemConfig("navigation.reload", "Neu laden", null, null)));
-
-        root.addChild(browserMenu);
-        root.addChild(navigationMenu);
-
-        // Swing-Adapter verwenden
-        SwingMenuAdapter swingMenuAdapter = new SwingMenuAdapter(commandRegistry);
-
-        return swingMenuAdapter.build(root);
-    }
 
     private JPanel createMainPanel() {
         JPanel panel = new JPanel(new BorderLayout());
 
         JTabbedPane tabbedPane = new JTabbedPane();
-
         tabbedPane.addTab("Recorder", new RecorderPanel());
         tabbedPane.addTab("Test Runner", new RunnerPanel());
 
         panel.add(tabbedPane, BorderLayout.CENTER);
-
         return panel;
+    }
+
+    private void registerCommands() {
+        // Beispiel-Commands
+        commandRegistry.register("testsuite.play", new Command() {
+            public void execute(CommandContext ctx) {
+                String suiteName = (String) ctx.get("suite");
+                System.out.println("Running suite: " + suiteName);
+            }
+        });
+
+        commandRegistry.register("record.start", new Command() {
+            public void execute(CommandContext ctx) {
+                System.out.println("Recording started.");
+            }
+        });
     }
 
     private static class RecorderPanel extends JPanel {
