@@ -2,11 +2,13 @@ package de.bund.zrb.service;
 
 import com.microsoft.playwright.*;
 import de.bund.zrb.BrowserImpl;
+import de.bund.zrb.BrowserTypeImpl;
 import de.bund.zrb.PageImpl;
 import de.bund.zrb.UserContextImpl;
 import de.bund.zrb.command.response.WDScriptResult;
 import de.bund.zrb.controller.CallbackWebSocketServer;
 import de.bund.zrb.manager.WDScriptManager;
+import de.bund.zrb.PlaywrightImpl;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.browsingContext.WDLocator;
 import de.bund.zrb.type.script.WDLocalValue;
@@ -38,31 +40,31 @@ public class BrowserServiceImpl {
     public void launchBrowser(BrowserConfig config) {
         try {
             playwright = Playwright.create();
-            BrowserType.LaunchOptions options = new BrowserType.LaunchOptions()
-                    .setHeadless(config.isHeadless());
+            BrowserType.LaunchOptions options = new BrowserType.LaunchOptions().setHeadless(config.isHeadless());
 
             List<String> args = new ArrayList<>();
-
             if (config.getPort() > 0) {
                 args.add("--remote-debugging-port=" + config.getPort());
             }
-
-            if (config.isNoRemote()) args.add("--no-remote");
-            if (config.isDisableGpu()) args.add("--disable-gpu");
-            if (config.isStartMaximized()) args.add("--start-maximized");
-
+            if (config.isNoRemote()) {
+                args.add("--no-remote");
+            }
+            if (config.isDisableGpu()) {
+                args.add("--disable-gpu");
+            }
+            if (config.isStartMaximized()) {
+                args.add("--start-maximized");
+            }
             if (config.isUseProfile()) {
-                String profilePath = config.getProfilePath();
-                if (profilePath == null || profilePath.trim().isEmpty()) {
-                    profilePath = System.getProperty("java.io.tmpdir") + "temp_profile_" + System.currentTimeMillis();
-                }
-
-                if ("firefox".equalsIgnoreCase(config.getBrowserType())) {
-                    args.add("--profile");
-                    args.add(profilePath);
+                if (config.getProfilePath() != null && !config.getProfilePath().isEmpty()) {
+                    args.add("--user-data-dir=" + config.getProfilePath());
                 } else {
-                    args.add("--user-data-dir=" + profilePath);
+                    args.add("--user-data-dir=" + System.getProperty("java.io.tmpdir") + "temp_profile_" + System.currentTimeMillis());
                 }
+            }
+
+            if (args.isEmpty()) {
+                throw new IllegalArgumentException("Keine Startargumente gesetzt. Stelle sicher, dass die UI-Optionen korrekt übergeben werden.");
             }
 
             options.setArgs(args);
@@ -73,25 +75,16 @@ public class BrowserServiceImpl {
                 options.setFirefoxUserPrefs(firefoxPrefs);
             }
 
-            switch (config.getBrowserType().toLowerCase()) {
-                case "chromium":
-                    browser = (BrowserImpl) playwright.chromium().launch(options);
-                    break;
-                case "firefox":
-                    browser = (BrowserImpl) playwright.firefox().launch(options);
-                    break;
-                case "webkit":
-                    browser = (BrowserImpl) playwright.webkit().launch(options);
-                    break;
-                default:
-                    throw new IllegalArgumentException("Unsupported browser: " + config.getBrowserType());
-            }
+            BrowserTypeImpl browserType = BrowserTypeImpl.newFirefoxInstance((PlaywrightImpl) playwright);
+            browser = (BrowserImpl) browserType.launch(options);
 
             CallbackWebSocketServer.toggleCallbackServer(true);
+
         } catch (Exception ex) {
             throw new RuntimeException("Fehler beim Starten des Browsers", ex);
         }
     }
+
 
     public void terminateBrowser() {
         if (browser != null) {

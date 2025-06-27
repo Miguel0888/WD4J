@@ -41,7 +41,7 @@ public class TestToolUI {
             config.setDisableGpu(false);
             config.setStartMaximized(true); // oder false
             config.setUseProfile(false); // oder true, ggf. mit .setProfilePath(...)
-            config.setPort(0); // oder z.B. 9222
+            config.setPort(9222);
 
             browserService.launchBrowser(config);
         });
