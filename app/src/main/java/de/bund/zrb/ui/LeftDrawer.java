@@ -1,7 +1,5 @@
 package de.bund.zrb.ui;
 
-import de.bund.zrb.ui.commandframework.Command;
-import de.bund.zrb.ui.commandframework.CommandContext;
 import de.bund.zrb.ui.commandframework.CommandRegistry;
 
 import javax.swing.*;
@@ -23,15 +21,13 @@ public class LeftDrawer extends JPanel {
         super(new BorderLayout());
         this.commandRegistry = registry;
 
-        DefaultMutableTreeNode root = new DefaultMutableTreeNode("Testsuites");
-        root.add(new DefaultMutableTreeNode("Suite 1"));
-        root.add(new DefaultMutableTreeNode("Suite 2"));
-        testTree = new JTree(root);
+        testTree = getTreeData();
 
         // 📌 Drag & Drop aktivieren:
         testTree.setDragEnabled(true);
         testTree.setDropMode(DropMode.ON_OR_INSERT);
         testTree.setTransferHandler(new TestSuiteTreeTransferHandler());
+        testTree.setCellRenderer(new TestTreeCellRenderer());
 
         JScrollPane treeScroll = new JScrollPane(testTree);
 
@@ -42,11 +38,8 @@ public class LeftDrawer extends JPanel {
         playButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 Object selected = testTree.getLastSelectedPathComponent();
-                if (selected != null) {
-                    Command playCommand = commandRegistry.getCommand("testsuite.play");
-                    CommandContext ctx = new CommandContext();
-                    ctx.put("suite", selected.toString());
-                    playCommand.execute(ctx);
+                if (selected instanceof TestNode) {
+                    runTest((TestNode) selected);
                 }
             }
         });
@@ -55,6 +48,25 @@ public class LeftDrawer extends JPanel {
 
         add(playButton, BorderLayout.NORTH);
         add(treeScroll, BorderLayout.CENTER);
+    }
+
+    private JTree getTreeData() {
+        final JTree testTree;
+        TestNode root = new TestNode("Testsuites");
+        TestNode suite1 = new TestNode("Suite 1");
+        suite1.add(new TestNode("Test 1.1"));
+        suite1.add(new TestNode("Test 1.2"));
+
+        TestNode suite2 = new TestNode("Suite 2");
+        suite2.add(new TestNode("Test 2.1"));
+
+        root.add(suite1);
+        root.add(suite2);
+
+        testTree = new JTree(root);
+        testTree.setCellRenderer(new TestTreeCellRenderer());
+
+        return testTree;
     }
 
     private void setupContextMenu() {
@@ -124,5 +136,48 @@ public class LeftDrawer extends JPanel {
         return selected != null ? selected : (DefaultMutableTreeNode) testTree.getModel().getRoot();
     }
 
+    private void runTest(TestNode node) {
+        // Blatt oder Suite?
+        if (node.getChildCount() == 0) {
+            simulateResult(node);
+        } else {
+            // Alle Kinder durchlaufen
+            for (int i = 0; i < node.getChildCount(); i++) {
+                runTest((TestNode) node.getChildAt(i));
+            }
+        }
+
+        // Danach Suite-Status berechnen
+        SwingUtilities.invokeLater(() -> updateSuiteStatus(node));
+    }
+
+    private void simulateResult(TestNode node) {
+        Timer timer = new Timer(1000, null); // 1 Sekunde
+        timer.addActionListener(e -> {
+            boolean pass = Math.random() > 0.3; // 70% pass
+            node.setStatus(pass ? TestNode.Status.PASSED : TestNode.Status.FAILED);
+
+            ((DefaultTreeModel) testTree.getModel()).nodeChanged(node);
+            timer.stop();
+        });
+        timer.setRepeats(false);
+        timer.start();
+    }
+
+    private void updateSuiteStatus(TestNode suite) {
+        if (suite.getChildCount() == 0) return;
+
+        boolean hasFail = false;
+        for (int i = 0; i < suite.getChildCount(); i++) {
+            TestNode child = (TestNode) suite.getChildAt(i);
+            if (child.getStatus() == TestNode.Status.FAILED) {
+                hasFail = true;
+                break;
+            }
+        }
+
+        suite.setStatus(hasFail ? TestNode.Status.FAILED : TestNode.Status.PASSED);
+        ((DefaultTreeModel) testTree.getModel()).nodeChanged(suite);
+    }
 
 }
