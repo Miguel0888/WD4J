@@ -1,8 +1,9 @@
 package de.bund.zrb.ui.commands;
 
 import de.bund.zrb.ui.commandframework.MenuCommand;
+import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 
-public class PlayTestSuiteCommand implements MenuCommand {
+public class PlayTestSuiteCommand extends ShortcutMenuCommand {
 
     @Override
     public String getId() {

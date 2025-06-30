@@ -12,7 +12,7 @@ import java.util.*;
 
 public class ShortcutManager {
 
-    private static final File SHORTCUT_FILE = new File(System.getProperty("user.home"), ".mainframemate/shortcut.json");
+    private static final File SHORTCUT_FILE = new File(System.getProperty("user.home"), ".wd4j/shortcut.json");
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Map<String, List<String>> shortcutMap = new HashMap<>();
@@ -25,6 +25,9 @@ public class ShortcutManager {
         try (Reader reader = new InputStreamReader(new FileInputStream(SHORTCUT_FILE), StandardCharsets.UTF_8)) {
             Map<String, List<String>> loaded = GSON.fromJson(reader, Map.class);
             shortcutMap.clear();
+            if(loaded == null) {
+                return;
+            }
             for (Map.Entry<String, List<String>> entry : loaded.entrySet()) {
                 shortcutMap.put(entry.getKey(), entry.getValue());
                 CommandRegistryImpl.getInstance().getById(entry.getKey()).ifPresent(cmd -> cmd.setShortcut(entry.getValue()));

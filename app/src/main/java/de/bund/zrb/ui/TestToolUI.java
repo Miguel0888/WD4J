@@ -5,6 +5,7 @@ import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.ui.commandframework.*;
 import de.bund.zrb.ui.commands.OpenSettingsCommand;
 import de.bund.zrb.ui.commands.PlayTestSuiteCommand;
+import de.bund.zrb.ui.commands.ShowShortcutConfigMenuCommand;
 import de.bund.zrb.ui.commands.StartRecordCommand;
 
 import javax.swing.*;
@@ -28,6 +29,7 @@ public class TestToolUI {
         frame.setLayout(new BorderLayout());
 
         registerCommands();
+        registerShortcuts();
 
         // Menübaum aufbauen (nachdem alle Commands da sind!)
         frame.setJMenuBar(MenuTreeBuilder.buildMenuBar());
@@ -64,6 +66,11 @@ public class TestToolUI {
         frame.setVisible(true);
     }
 
+    private void registerShortcuts() {
+        ShortcutManager.loadShortcuts();
+        ShortcutManager.registerGlobalShortcuts(frame.getRootPane());
+    }
+
     private JPanel createMainPanel() {
         JPanel panel = new JPanel(new BorderLayout());
 
@@ -76,6 +83,7 @@ public class TestToolUI {
     }
 
     private void registerCommands() {
+        commandRegistry.register(new ShowShortcutConfigMenuCommand(frame));
         commandRegistry.register(new OpenSettingsCommand());
         commandRegistry.register(new PlayTestSuiteCommand());
         commandRegistry.register(new StartRecordCommand());

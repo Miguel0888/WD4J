@@ -2,8 +2,9 @@ package de.bund.zrb.ui.commands;
 
 
 import de.bund.zrb.ui.commandframework.MenuCommand;
+import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 
-public class OpenSettingsCommand implements MenuCommand {
+public class OpenSettingsCommand extends ShortcutMenuCommand {
 
     @Override
     public String getId() {
