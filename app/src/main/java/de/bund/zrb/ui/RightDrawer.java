@@ -3,7 +3,9 @@ package de.bund.zrb.ui;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
+import de.bund.zrb.service.RecorderService;
 import de.bund.zrb.service.SettingsService;
+import de.bund.zrb.controller.CallbackWebSocketServer;
 
 import javax.swing.*;
 import java.awt.*;
@@ -19,35 +21,58 @@ public class RightDrawer extends JPanel {
 
         this.actionTable = new ActionTable();
 
-        JButton recordBtn = new JButton("\u2B24"); // gefüllter Kreis
-        recordBtn.setBackground(Color.RED);
-        recordBtn.setFocusPainted(false);
-        recordBtn.addActionListener(e -> startRecording());
+        // ✅ ToggleButton für Record/Stop
+        JToggleButton recordToggle = new JToggleButton("\u2B24"); // gefüllter Kreis
+        recordToggle.setBackground(Color.RED);
+        recordToggle.setFocusPainted(false);
+        recordToggle.setToolTipText("Start/Stop Recording");
 
+        recordToggle.addActionListener(e -> {
+            if (recordToggle.isSelected()) {
+                startRecording();
+                recordToggle.setText("■ Stop");
+                recordToggle.setBackground(Color.GRAY);
+            } else {
+                stopRecording();
+                recordToggle.setText("\u2B24"); // wieder Kreis
+                recordToggle.setBackground(Color.RED);
+            }
+        });
+
+        // Speichern-Button
         JButton saveBtn = new JButton("💾 Speichern als Testsuite");
         saveBtn.addActionListener(e -> saveAsTestSuite());
 
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        topPanel.add(recordBtn);
+        topPanel.add(recordToggle);
         topPanel.add(saveBtn);
 
         add(topPanel, BorderLayout.NORTH);
         add(new JScrollPane(actionTable), BorderLayout.CENTER);
+
+        // 📡 Live-Updates vom RecorderService abonnieren
+        RecorderService.getInstance().addListener(updatedActions -> {
+            actionTable.setActions(updatedActions);
+        });
     }
 
     private void startRecording() {
-        System.out.println("Recording started (Demo) ...");
-        // TODO: Hook in echten Browser-Recorder → z. B. BrowserService.onAction(action -> addAction)
-        // Demo: Dummy-Aktion hinzufügen
-        TestAction action = new TestAction();
-        action.setAction("click");
-        action.setSelectedSelector("#demoButton");
-        action.setValue("Demo-Wert");
-        actionTable.addAction(action);
+        System.out.println("🚦 Recording gestartet …");
+        CallbackWebSocketServer.toggleCallbackServer(true);
+    }
+
+    private void stopRecording() {
+        System.out.println("⏸️ Recording gestoppt.");
+        CallbackWebSocketServer.toggleCallbackServer(false);
     }
 
     private void saveAsTestSuite() {
-        List<TestAction> actions = actionTable.tableModel.getActions();
+        List<TestAction> actions = actionTable.getActions();
+
+        if (actions.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Keine Aktionen zum Speichern vorhanden.", "Hinweis", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
         String suiteName = JOptionPane.showInputDialog(this, "Name der Testsuite:", "Neue Testsuite", JOptionPane.PLAIN_MESSAGE);
         if (suiteName == null || suiteName.trim().isEmpty()) return;
@@ -62,9 +87,10 @@ public class RightDrawer extends JPanel {
         suite.setName(suiteName);
         suite.getTestCases().add(testCase);
 
-        // Speichere Testsuite JSON
+        // Speichern
         SettingsService.getInstance().save("testsuites/" + suiteName + ".json", suite);
 
         JOptionPane.showMessageDialog(this, "Testsuite gespeichert: " + suiteName);
     }
+
 }

@@ -120,8 +120,13 @@ public class ActionTable extends JTable {
     }
 
     /** 🔧 Setzt neue Daten */
-    public void setRowData(List<TestAction> actions) {
+    public void setActions(List<TestAction> actions) {
         tableModel.setRowData(actions);
+    }
+
+    /** 🔧 Gibt alle aktuellen Aktionen der Tabelle zurück */
+    public List<TestAction> getActions() {
+        return tableModel.getActions();
     }
 
     /** 🔧 Custom Renderer für den Header mit Button */
