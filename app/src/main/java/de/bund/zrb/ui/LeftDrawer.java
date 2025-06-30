@@ -1,6 +1,11 @@
 package de.bund.zrb.ui;
 
-import de.bund.zrb.ui.commandframework.CommandRegistry;
+import de.bund.zrb.event.ApplicationEventBus;
+import de.bund.zrb.event.TestSuiteSavedEvent;
+import de.bund.zrb.model.TestAction;
+import de.bund.zrb.model.TestCase;
+import de.bund.zrb.model.TestSuite;
+import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.ui.commandframework.CommandRegistryImpl;
 import de.bund.zrb.ui.commandframework.MenuCommand;
 
@@ -23,6 +28,7 @@ public class LeftDrawer extends JPanel {
         super(new BorderLayout());
 
         testTree = getTreeData();
+        refreshTestSuites();
 
         // 📌 Drag & Drop aktivieren:
         testTree.setDragEnabled(true);
@@ -47,25 +53,46 @@ public class LeftDrawer extends JPanel {
 
         add(playButton, BorderLayout.NORTH);
         add(treeScroll, BorderLayout.CENTER);
+
+        ApplicationEventBus.getInstance().subscribe(event -> {
+            if (event instanceof TestSuiteSavedEvent) {
+                refreshTestSuites(); // deine Methode, um die linke Liste neu zu laden
+            }
+        });
+    }
+
+    private void refreshTestSuites() {
+        TestNode root = new TestNode("Testsuites");
+
+        for (TestSuite suite : TestRegistry.getInstance().getAll()) {
+            TestNode suiteNode = new TestNode(suite.getName());
+            for (TestCase testCase : suite.getTestCases()) {
+                TestNode caseNode = new TestNode(testCase.getName());
+                for (TestAction action : testCase.getWhen()) {
+                    String label = action.getAction();
+                    if (action.getValue() != null && !action.getValue().isEmpty()) {
+                        label += " [" + action.getValue() + "]";
+                    } else if (action.getSelectedSelector() != null) {
+                        label += " [" + action.getSelectedSelector() + "]";
+                    }
+                    TestNode stepNode = new TestNode(label);
+                    caseNode.add(stepNode);
+                }
+                suiteNode.add(caseNode);
+            }
+            root.add(suiteNode);
+        }
+
+        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
+        model.setRoot(root);
+        model.reload();
     }
 
     private JTree getTreeData() {
-        final JTree testTree;
         TestNode root = new TestNode("Testsuites");
-        TestNode suite1 = new TestNode("Suite 1");
-        suite1.add(new TestNode("Test 1.1"));
-        suite1.add(new TestNode("Test 1.2"));
-
-        TestNode suite2 = new TestNode("Suite 2");
-        suite2.add(new TestNode("Test 2.1"));
-
-        root.add(suite1);
-        root.add(suite2);
-
-        testTree = new JTree(root);
-        testTree.setCellRenderer(new TestTreeCellRenderer());
-
-        return testTree;
+        JTree tree = new JTree(root);
+        tree.setCellRenderer(new TestTreeCellRenderer());
+        return tree;
     }
 
     private void setupContextMenu() {

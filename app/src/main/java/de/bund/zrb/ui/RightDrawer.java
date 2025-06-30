@@ -1,11 +1,13 @@
 package de.bund.zrb.ui;
 
+import de.bund.zrb.event.ApplicationEventBus;
+import de.bund.zrb.event.TestSuiteSavedEvent;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.RecorderService;
-import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.controller.CallbackWebSocketServer;
+import de.bund.zrb.service.TestRegistry;
 
 import javax.swing.*;
 import java.awt.*;
@@ -77,20 +79,25 @@ public class RightDrawer extends JPanel {
         String suiteName = JOptionPane.showInputDialog(this, "Name der Testsuite:", "Neue Testsuite", JOptionPane.PLAIN_MESSAGE);
         if (suiteName == null || suiteName.trim().isEmpty()) return;
 
-        TestCase testCase = new TestCase();
-        testCase.setId(UUID.randomUUID().toString());
-        testCase.setName("TestCase-" + suiteName);
-        testCase.setWhen(actions);
-
         TestSuite suite = new TestSuite();
         suite.setId(UUID.randomUUID().toString());
         suite.setName(suiteName);
+
+        TestCase testCase = new TestCase();
+        testCase.setId(UUID.randomUUID().toString());
+        testCase.setName("TestCase - " + suiteName);
+
+        testCase.getWhen().addAll(actions); // ✅ JEDER ACTION = EIN STEP
+
         suite.getTestCases().add(testCase);
 
-        // Speichern
-        SettingsService.getInstance().save("testsuites/" + suiteName + ".json", suite);
+        TestRegistry.getInstance().addSuite(suite);
+        TestRegistry.getInstance().save();
+
+        ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
 
         JOptionPane.showMessageDialog(this, "Testsuite gespeichert: " + suiteName);
     }
+
 
 }

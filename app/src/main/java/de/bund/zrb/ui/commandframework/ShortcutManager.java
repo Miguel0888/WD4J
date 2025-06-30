@@ -2,6 +2,7 @@ package de.bund.zrb.ui.commandframework;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.ui.commandframework.CommandRegistryImpl;
 
 import javax.swing.*;
@@ -20,20 +21,14 @@ public class ShortcutManager {
     private ShortcutManager() {}
 
     public static void loadShortcuts() {
-        if (!SHORTCUT_FILE.exists()) return;
-
-        try (Reader reader = new InputStreamReader(new FileInputStream(SHORTCUT_FILE), StandardCharsets.UTF_8)) {
-            Map<String, List<String>> loaded = GSON.fromJson(reader, Map.class);
-            shortcutMap.clear();
-            if(loaded == null) {
-                return;
-            }
-            for (Map.Entry<String, List<String>> entry : loaded.entrySet()) {
-                shortcutMap.put(entry.getKey(), entry.getValue());
-                CommandRegistryImpl.getInstance().getById(entry.getKey()).ifPresent(cmd -> cmd.setShortcut(entry.getValue()));
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+        Map<String, List<String>> loaded = SettingsService.getInstance().loadShortcuts(Map.class);
+        shortcutMap.clear();
+        if (loaded == null) {
+            return;
+        }
+        for (Map.Entry<String, List<String>> entry : loaded.entrySet()) {
+            shortcutMap.put(entry.getKey(), entry.getValue());
+            CommandRegistryImpl.getInstance().getById(entry.getKey()).ifPresent(cmd -> cmd.setShortcut(entry.getValue()));
         }
     }
 
