@@ -19,8 +19,9 @@ public class RightDrawer extends JPanel {
 
         this.actionTable = new ActionTable();
 
-        JButton recordBtn = new JButton("● Aufnahme starten");
-        recordBtn.setForeground(Color.RED);
+        JButton recordBtn = new JButton("\u2B24"); // gefüllter Kreis
+        recordBtn.setBackground(Color.RED);
+        recordBtn.setFocusPainted(false);
         recordBtn.addActionListener(e -> startRecording());
 
         JButton saveBtn = new JButton("💾 Speichern als Testsuite");
@@ -54,7 +55,7 @@ public class RightDrawer extends JPanel {
         TestCase testCase = new TestCase();
         testCase.setId(UUID.randomUUID().toString());
         testCase.setName("TestCase-" + suiteName);
-        testCase.setThen(actions);
+        testCase.setWhen(actions);
 
         TestSuite suite = new TestSuite();
         suite.setId(UUID.randomUUID().toString());

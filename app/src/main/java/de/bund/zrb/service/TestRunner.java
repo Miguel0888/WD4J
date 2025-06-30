@@ -15,15 +15,15 @@ public class TestRunner {
     }
 
     public void runTest(TestCase testCase) {
-        for (TestAction action : testCase.getGiven()) {
-            executeAction(action);
-        }
+//        for (TestAction action : testCase.getGiven()) {
+//            executeAction(action);
+//        }
         for (TestAction action : testCase.getWhen()) {
             executeAction(action);
         }
-        for (TestAction action : testCase.getThen()) {
-            executeAction(action);
-        }
+//        for (TestAction action : testCase.getThen()) {
+//            executeAction(action);
+//        }
     }
 
     private void executeAction(TestAction action) {
