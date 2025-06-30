@@ -1,8 +1,6 @@
 package de.bund.zrb.ui;
 
-import de.bund.zrb.ui.commandframework.Command;
-import de.bund.zrb.ui.commandframework.CommandContext;
-import de.bund.zrb.ui.commandframework.CommandRegistry;
+import de.bund.zrb.ui.commandframework.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -14,11 +12,10 @@ import java.awt.event.ActionListener;
  */
 public class RightDrawer extends JPanel {
 
-    private final CommandRegistry commandRegistry;
+    private final CommandRegistryImpl commandRegistry = CommandRegistryImpl.getInstance();
 
-    public RightDrawer(CommandRegistry registry) {
+    public RightDrawer() {
         super(new BorderLayout());
-        this.commandRegistry = registry;
 
         JButton recordButton = new JButton("\u2B24"); // gefüllter Kreis
         recordButton.setBackground(Color.RED);
@@ -26,8 +23,8 @@ public class RightDrawer extends JPanel {
 
         recordButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                Command recordCommand = commandRegistry.getCommand("record.start");
-                recordCommand.execute(new CommandContext());
+                MenuCommand recordCommand = commandRegistry.getById("record.start").get();
+                recordCommand.perform();
             }
         });
 

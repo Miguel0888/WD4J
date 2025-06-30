@@ -3,17 +3,20 @@ package de.bund.zrb.ui;
 import de.bund.zrb.service.BrowserConfig;
 import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.ui.commandframework.*;
+import de.bund.zrb.ui.commands.OpenSettingsCommand;
+import de.bund.zrb.ui.commands.PlayTestSuiteCommand;
+import de.bund.zrb.ui.commands.StartRecordCommand;
 
 import javax.swing.*;
 import java.awt.*;
 
 /**
- * TestToolUI with left & right drawers like MainframeMate.
+ * TestToolUI with dynamic ActionToolbar and drawers.
  */
 public class TestToolUI {
 
     private final BrowserServiceImpl browserService = BrowserServiceImpl.getInstance();
-    private final CommandRegistry commandRegistry = new CommandRegistryImpl();
+    private final CommandRegistry commandRegistry = CommandRegistryImpl.getInstance();
 
     private JFrame frame;
 
@@ -22,17 +25,20 @@ public class TestToolUI {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1200, 800);
         frame.setLocationRelativeTo(null);
-
         frame.setLayout(new BorderLayout());
 
         registerCommands();
         frame.setJMenuBar(new JMenuBar());
 
+        // ✅ Nutze deinen ActionToolbar Singleton-Style
+        ActionToolbar toolbar = new ActionToolbar();
+        frame.add(toolbar, BorderLayout.NORTH);
+
         // Outer SplitPane: Links und Rest
         JSplitPane outerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         outerSplit.setOneTouchExpandable(true);
 
-        LeftDrawer leftDrawer = new LeftDrawer(commandRegistry);
+        LeftDrawer leftDrawer = new LeftDrawer();
         outerSplit.setLeftComponent(leftDrawer);
 
         // Inner SplitPane: Center + Rechts
@@ -42,7 +48,7 @@ public class TestToolUI {
         JPanel mainPanel = createMainPanel();
         innerSplit.setLeftComponent(mainPanel);
 
-        RightDrawer rightDrawer = new RightDrawer(commandRegistry);
+        RightDrawer rightDrawer = new RightDrawer();
         innerSplit.setRightComponent(rightDrawer);
 
         outerSplit.setRightComponent(innerSplit);
@@ -56,7 +62,6 @@ public class TestToolUI {
         frame.setVisible(true);
     }
 
-
     private JPanel createMainPanel() {
         JPanel panel = new JPanel(new BorderLayout());
 
@@ -69,20 +74,11 @@ public class TestToolUI {
     }
 
     private void registerCommands() {
-        // Beispiel-Commands
-        commandRegistry.register("testsuite.play", new Command() {
-            public void execute(CommandContext ctx) {
-                String suiteName = (String) ctx.get("suite");
-                System.out.println("Running suite: " + suiteName);
-            }
-        });
-
-        commandRegistry.register("record.start", new Command() {
-            public void execute(CommandContext ctx) {
-                System.out.println("Recording started.");
-            }
-        });
+        commandRegistry.register(new PlayTestSuiteCommand());
+        commandRegistry.register(new StartRecordCommand());
+        commandRegistry.register(new OpenSettingsCommand());
     }
+
 
     private static class RecorderPanel extends JPanel {
         public RecorderPanel() {

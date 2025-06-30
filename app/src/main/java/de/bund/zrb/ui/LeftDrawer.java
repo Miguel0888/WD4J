@@ -1,6 +1,8 @@
 package de.bund.zrb.ui;
 
 import de.bund.zrb.ui.commandframework.CommandRegistry;
+import de.bund.zrb.ui.commandframework.CommandRegistryImpl;
+import de.bund.zrb.ui.commandframework.MenuCommand;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -14,12 +16,11 @@ import java.awt.event.ActionListener;
  */
 public class LeftDrawer extends JPanel {
 
-    private final CommandRegistry commandRegistry;
+    private final CommandRegistryImpl commandRegistry = CommandRegistryImpl.getInstance();
     private final JTree testTree;
 
-    public LeftDrawer(CommandRegistry registry) {
+    public LeftDrawer() {
         super(new BorderLayout());
-        this.commandRegistry = registry;
 
         testTree = getTreeData();
 
@@ -37,10 +38,8 @@ public class LeftDrawer extends JPanel {
 
         playButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                Object selected = testTree.getLastSelectedPathComponent();
-                if (selected instanceof TestNode) {
-                    runTest((TestNode) selected);
-                }
+                MenuCommand playCommand = commandRegistry.getById("testsuite.play").get();
+                playCommand.perform();
             }
         });
 

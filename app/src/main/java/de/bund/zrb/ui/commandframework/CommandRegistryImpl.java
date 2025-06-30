@@ -1,25 +1,45 @@
 package de.bund.zrb.ui.commandframework;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import com.google.gson.Gson;
+import de.bund.zrb.dto.RecordedEvent;
+import de.bund.zrb.service.RecorderService;
 
-/**
- * Default implementation of CommandRegistry.
- */
+import java.util.*;
+
+//ToDo: Change to singleton an pull members up into the interface
 public class CommandRegistryImpl implements CommandRegistry {
 
-    private final Map<String, Command> commands = new HashMap<String, Command>();
+    private static final Map<String, MenuCommand> registry = new LinkedHashMap<>();
 
-    public void register(String id, Command command) {
-        commands.put(id, command);
+    private static CommandRegistryImpl instance;
+
+    private CommandRegistryImpl() {}
+
+    public static CommandRegistryImpl getInstance() {
+        if (instance == null) {
+            synchronized (CommandRegistryImpl.class) {
+                if (instance == null) {
+                    instance = new CommandRegistryImpl();
+                }
+            }
+        }
+        return instance;
     }
 
-    public Command getCommand(String id) {
-        return commands.get(id);
+    @Override
+    public void register(MenuCommand menuCommand) {
+        registry.put(menuCommand.getId(), menuCommand);
     }
 
-    public Map<String, Command> getAllCommands() {
-        return Collections.unmodifiableMap(commands);
+    public Optional<MenuCommand> getById(String id) {
+        return Optional.ofNullable(registry.get(id));
+    }
+
+    public Collection<MenuCommand> getAll() {
+        return Collections.unmodifiableCollection(registry.values());
+    }
+
+    public void clear() {
+        registry.clear();
     }
 }
