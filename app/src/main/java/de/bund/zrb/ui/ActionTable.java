@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 public class ActionTable extends JTable {
-    private final ActionTableModel tableModel;
+    final ActionTableModel tableModel;
     private final JPopupMenu columnMenu;
 
     private final Map<String, Boolean> columnVisibility = new HashMap<>();

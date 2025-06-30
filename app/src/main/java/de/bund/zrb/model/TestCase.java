@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import java.util.List;
 
 public class TestCase {
+    private String id;
     private List<TestAction> steps;
 
     private String name;
@@ -54,4 +55,9 @@ public class TestCase {
         root.add("steps", array);
         return root;
     }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
 }
