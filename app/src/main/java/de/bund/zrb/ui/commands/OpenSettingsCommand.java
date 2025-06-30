@@ -7,7 +7,7 @@ public class OpenSettingsCommand implements MenuCommand {
 
     @Override
     public String getId() {
-        return "open.settings";
+        return "file.settings";
     }
 
     @Override

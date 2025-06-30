@@ -28,7 +28,9 @@ public class TestToolUI {
         frame.setLayout(new BorderLayout());
 
         registerCommands();
-        frame.setJMenuBar(new JMenuBar());
+
+        // Menübaum aufbauen (nachdem alle Commands da sind!)
+        frame.setJMenuBar(MenuTreeBuilder.buildMenuBar());
 
         // ✅ Nutze deinen ActionToolbar Singleton-Style
         ActionToolbar toolbar = new ActionToolbar();
@@ -74,9 +76,9 @@ public class TestToolUI {
     }
 
     private void registerCommands() {
+        commandRegistry.register(new OpenSettingsCommand());
         commandRegistry.register(new PlayTestSuiteCommand());
         commandRegistry.register(new StartRecordCommand());
-        commandRegistry.register(new OpenSettingsCommand());
     }
 
 
