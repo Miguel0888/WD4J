@@ -16,6 +16,35 @@ public class RecorderService {
     private List<RecordedEvent> recordedEvents = new ArrayList<>();
     private final Gson gson = new Gson();
 
+    private final List<RecorderListener> listeners = new ArrayList<>();
+
+    /**
+     * Registriere einen Listener, der bei Änderungen benachrichtigt wird.
+     */
+    public void addListener(RecorderListener listener) {
+        if (listener != null && !listeners.contains(listener)) {
+            listeners.add(listener);
+        }
+    }
+
+    /**
+     * Entferne einen Listener.
+     */
+    public void removeListener(RecorderListener listener) {
+        listeners.remove(listener);
+    }
+
+    /**
+     * Benachrichtige alle Listener mit aktueller Liste.
+     */
+    private void notifyListeners() {
+        List<TestAction> currentActions = getAllTestActionsForDrawer();
+        for (RecorderListener listener : listeners) {
+            listener.onRecorderUpdated(currentActions);
+        }
+    }
+
+
     private RecorderService() {}
 
     public static RecorderService getInstance() {
@@ -37,6 +66,7 @@ public class RecorderService {
             if (events != null) {
                 recordedEvents.addAll(events);
                 System.out.println("📌 Gespeicherte Events: " + events.size());
+            notifyListeners();
             }
         } catch (Exception e) {
             System.err.println("⚠️ Fehler beim Parsen der WebSocket-Daten: " + e.getMessage());
@@ -224,6 +254,7 @@ public class RecorderService {
 
     public void clearRecordedEvents() {
         recordedEvents.clear();
+        notifyListeners();
     }
 
     public void mergeInputEvents() {
@@ -308,6 +339,19 @@ public class RecorderService {
         }
 
         return alternatives;
+    }
+
+    /**
+     * Gibt die gemergten RecordedEvents als TestActions zurück.
+     * Verwendet deine vorhandene convertToTestAction(..).
+     */
+    public List<TestAction> getAllTestActionsForDrawer() {
+        mergeInputEvents();
+        List<TestAction> testActions = new ArrayList<>();
+        for (RecordedEvent event : recordedEvents) {
+            testActions.add(convertToTestAction(event));
+        }
+        return testActions;
     }
 
 }
