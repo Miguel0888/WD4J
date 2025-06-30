@@ -4,13 +4,10 @@ import com.microsoft.playwright.*;
 import de.bund.zrb.BrowserImpl;
 import de.bund.zrb.BrowserTypeImpl;
 import de.bund.zrb.PageImpl;
-import de.bund.zrb.UserContextImpl;
 import de.bund.zrb.command.response.WDScriptResult;
 import de.bund.zrb.controller.CallbackWebSocketServer;
 import de.bund.zrb.manager.WDScriptManager;
 import de.bund.zrb.PlaywrightImpl;
-import de.bund.zrb.type.browsingContext.WDBrowsingContext;
-import de.bund.zrb.type.browsingContext.WDLocator;
 import de.bund.zrb.type.script.WDLocalValue;
 import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
 import de.bund.zrb.type.script.WDRealmInfo;
@@ -18,10 +15,9 @@ import de.bund.zrb.type.script.WDTarget;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.swing.*;
 import java.util.*;
 
-public class BrowserServiceImpl {
+public class BrowserServiceImpl implements BrowserService {
 
     private static final Logger logger = LoggerFactory.getLogger(BrowserServiceImpl.class);
     private static final BrowserServiceImpl INSTANCE = new BrowserServiceImpl();
@@ -37,6 +33,7 @@ public class BrowserServiceImpl {
         return INSTANCE;
     }
 
+    @Override
     public void launchBrowser(BrowserConfig config) {
         try {
             playwright = Playwright.create();
@@ -85,7 +82,7 @@ public class BrowserServiceImpl {
         }
     }
 
-
+    @Override
     public void terminateBrowser() {
         if (browser != null) {
             browser.close();
@@ -95,14 +92,17 @@ public class BrowserServiceImpl {
         }
     }
 
+    @Override
     public void navigate(String url) {
         browser.getPages().getActivePage().navigate(url);
     }
 
+    @Override
     public void createNewTab() {
         browser.newPage();
     }
 
+    @Override
     public void closeActiveTab() {
         PageImpl activePage = browser.getPages().getActivePage();
         if (activePage != null) {
@@ -110,22 +110,27 @@ public class BrowserServiceImpl {
         }
     }
 
+    @Override
     public void goBack() {
         browser.getPages().getActivePage().goBack();
     }
 
+    @Override
     public void goForward() {
         browser.getPages().getActivePage().goForward();
     }
 
+    @Override
     public void reload() {
         browser.getPages().getActivePage().reload();
     }
 
+    @Override
     public byte[] captureScreenshot() {
         return browser.getPages().getActivePage().screenshot();
     }
 
+    @Override
     public void showSelectors(boolean selected) {
         WDScriptManager scriptManager = browser.getWebDriver().script();
         WDScriptResult.GetRealmsResult realmsResult = scriptManager.getRealms();
@@ -139,6 +144,7 @@ public class BrowserServiceImpl {
         }
     }
 
+    @Override
     public void showDomEvents(boolean selected) {
         WDScriptManager scriptManager = browser.getWebDriver().script();
         WDScriptResult.GetRealmsResult realmsResult = scriptManager.getRealms();

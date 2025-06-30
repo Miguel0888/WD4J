@@ -3,10 +3,10 @@ package de.bund.zrb.ui;
 import de.bund.zrb.service.BrowserConfig;
 import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.ui.commandframework.*;
-import de.bund.zrb.ui.commands.OpenSettingsCommand;
-import de.bund.zrb.ui.commands.PlayTestSuiteCommand;
-import de.bund.zrb.ui.commands.ShowShortcutConfigMenuCommand;
-import de.bund.zrb.ui.commands.StartRecordCommand;
+import de.bund.zrb.ui.commands.*;
+import de.bund.zrb.ui.commands.debug.ShowDomEventsCommand;
+import de.bund.zrb.ui.commands.debug.ShowSelectorsCommand;
+import de.bund.zrb.ui.commands.tools.CaptureScreenshotCommand;
 
 import javax.swing.*;
 import java.awt.*;
@@ -87,6 +87,19 @@ public class TestToolUI {
         commandRegistry.register(new OpenSettingsCommand());
         commandRegistry.register(new PlayTestSuiteCommand());
         commandRegistry.register(new StartRecordCommand());
+
+        commandRegistry.register(new LaunchBrowserCommand(browserService));
+        commandRegistry.register(new TerminateBrowserCommand(browserService));
+        commandRegistry.register(new NewTabCommand(browserService));
+        commandRegistry.register(new CloseTabCommand(browserService));
+        commandRegistry.register(new ReloadTabCommand(browserService));
+        commandRegistry.register(new GoBackCommand(browserService));
+        commandRegistry.register(new GoForwardCommand(browserService));
+
+        commandRegistry.register(new CaptureScreenshotCommand(browserService));
+        commandRegistry.register(new ShowSelectorsCommand(browserService));
+        commandRegistry.register(new ShowDomEventsCommand(browserService));
+
     }
 
 
