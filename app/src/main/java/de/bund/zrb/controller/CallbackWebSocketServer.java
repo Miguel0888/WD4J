@@ -1,6 +1,5 @@
 package de.bund.zrb.controller;
 
-import de.bund.zrb.Main;
 import de.bund.zrb.service.RecorderService;
 import org.java_websocket.server.WebSocketServer;
 import org.java_websocket.handshake.ClientHandshake;
@@ -8,13 +7,13 @@ import org.java_websocket.WebSocket;
 import java.net.InetSocketAddress;
 import java.util.function.Consumer;
 
-/**
- * Works as Callback for the Browser. In WebDriverBiDi you could use channels (and messages) alternatively,
- * but the implementation maybe more complex then.
- */
-@Deprecated // since script.ChannelValue might be used for Callbacks (will lead to Message Events)
+@Deprecated
 public class CallbackWebSocketServer extends WebSocketServer {
-    Consumer<String> eventConsumer;
+
+    private static CallbackWebSocketServer callbackWebSocketServer;
+    private static boolean running = false;  // ✅ Zustand speichern
+
+    private final Consumer<String> eventConsumer;
 
     public CallbackWebSocketServer(int port, Consumer<String> eventConsumer) {
         super(new InetSocketAddress(port));
@@ -24,7 +23,7 @@ public class CallbackWebSocketServer extends WebSocketServer {
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         System.out.println("✅ Neue Verbindung: " + conn.getRemoteSocketAddress());
-        conn.send("🔗 Verbindung erfolgreich!"); // Antwort an den Client
+        conn.send("🔗 Verbindung erfolgreich!");
     }
 
     @Override
@@ -48,30 +47,34 @@ public class CallbackWebSocketServer extends WebSocketServer {
         System.out.println("🚀 WebSocket-Server läuft auf ws://localhost:8080");
     }
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Optional (can be located elsewhere)
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    @Deprecated // since JSON Data might be received via Message Events (see WebDriverBiDi ChannelValue)
-    private static CallbackWebSocketServer callbackWebSocketServer;
-
-    @Deprecated // since script.ChannelValue might be used for Callbacks (will lead to Message Events)
-    public static void toggleCallbackServer(boolean activate) {
-        if (activate) {
+    public static synchronized void toggleCallbackServer(boolean activate) {
+        if (activate && !running) {
             callbackWebSocketServer = new CallbackWebSocketServer(8080, message -> {
-//                Main.getScriptTab().appendLog(message);  // UI-Log aktualisieren
-                RecorderService.getInstance().recordAction(message); // Aktion im Recorder speichern
+                RecorderService.getInstance().recordAction(message);
             });
-            callbackWebSocketServer.start();
-        } else {
+            try {
+                callbackWebSocketServer.start();
+                running = true;
+                System.out.println("✅ Recorder gestartet.");
+            } catch (Exception e) {
+                e.printStackTrace();
+                running = false; // Safety
+            }
+        } else if (!activate && running) {
             try {
                 callbackWebSocketServer.stop();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                running = false;
+                System.out.println("⏸️ Recorder gestoppt.");
+            } catch (Exception e) {
+                e.printStackTrace();
+                running = true; // Falls Stop fehlschlägt, Flag bleibt an
             }
+        } else {
+            System.out.println("ℹ️ Keine Änderung: Recorder bleibt im aktuellen Zustand.");
         }
     }
 
-
-
+    public static boolean isRunning() {
+        return running;
+    }
 }

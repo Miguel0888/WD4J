@@ -2,9 +2,7 @@ package de.bund.zrb.ui;
 
 import de.bund.zrb.event.ApplicationEventBus;
 import de.bund.zrb.event.TestSuiteSavedEvent;
-import de.bund.zrb.model.TestAction;
-import de.bund.zrb.model.TestCase;
-import de.bund.zrb.model.TestSuite;
+import de.bund.zrb.model.*;
 import de.bund.zrb.service.RecorderService;
 import de.bund.zrb.controller.CallbackWebSocketServer;
 import de.bund.zrb.service.TestRegistry;
@@ -27,19 +25,26 @@ public class RightDrawer extends JPanel {
         JToggleButton recordToggle = new JToggleButton("\u2B24"); // gefüllter Kreis
         recordToggle.setBackground(Color.RED);
         recordToggle.setFocusPainted(false);
-        recordToggle.setToolTipText("Start/Stop Recording");
+        recordToggle.setToolTipText("Start Recording");
 
         recordToggle.addActionListener(e -> {
-            if (recordToggle.isSelected()) {
+            boolean shouldStart = recordToggle.isSelected();
+
+            if (shouldStart && !CallbackWebSocketServer.isRunning()) {
                 startRecording();
-                recordToggle.setText("■ Stop");
+                recordToggle.setText("\u23F8"); // Unicode Pause-Symbol ⏸️
+                recordToggle.setToolTipText("Stop Recording");
                 recordToggle.setBackground(Color.GRAY);
-            } else {
+            } else if (!shouldStart && CallbackWebSocketServer.isRunning()) {
                 stopRecording();
-                recordToggle.setText("\u2B24"); // wieder Kreis
+                recordToggle.setText("\u2B24");
+                recordToggle.setToolTipText("Start Recording");
                 recordToggle.setBackground(Color.RED);
+            } else {
+                System.out.println("⚠️ Recorder war schon im gewünschten Zustand!");
             }
         });
+
 
         // Speichern-Button
         JButton saveBtn = new JButton("💾 Speichern als Testsuite");
@@ -59,12 +64,10 @@ public class RightDrawer extends JPanel {
     }
 
     private void startRecording() {
-        System.out.println("🚦 Recording gestartet …");
         CallbackWebSocketServer.toggleCallbackServer(true);
     }
 
     private void stopRecording() {
-        System.out.println("⏸️ Recording gestoppt.");
         CallbackWebSocketServer.toggleCallbackServer(false);
     }
 
@@ -79,25 +82,48 @@ public class RightDrawer extends JPanel {
         String suiteName = JOptionPane.showInputDialog(this, "Name der Testsuite:", "Neue Testsuite", JOptionPane.PLAIN_MESSAGE);
         if (suiteName == null || suiteName.trim().isEmpty()) return;
 
-        TestSuite suite = new TestSuite();
-        suite.setId(UUID.randomUUID().toString());
-        suite.setName(suiteName);
+        try {
+            // ✅ Neue Suite mit ID & Name
+            TestSuite suite = new TestSuite();
+            suite.setId(UUID.randomUUID().toString());
+            suite.setName(suiteName);
 
-        TestCase testCase = new TestCase();
-        testCase.setId(UUID.randomUUID().toString());
-        testCase.setName("TestCase - " + suiteName);
+            // Suite-Level GIVEN: z. B. erste URL
+            TestAction firstAction = actions.get(0);
+            if (firstAction.getSelectedSelector() != null && firstAction.getSelectedSelector().startsWith("http")) {
+                suite.getGiven().add(new GivenCondition("url", firstAction.getSelectedSelector()));
+            } else {
+                suite.getGiven().add(new GivenCondition("url", "https://www.example.com"));
+            }
 
-        testCase.getWhen().addAll(actions); // ✅ JEDER ACTION = EIN STEP
+            // Suite-Level THEN: Screenshot
+            suite.getThen().add(new ThenExpectation("screenshot", "final-state.png"));
 
-        suite.getTestCases().add(testCase);
+            // ✅ Case mit allen Steps
+            TestCase testCase = new TestCase();
+            testCase.setId(UUID.randomUUID().toString());
+            testCase.setName("TestCase - " + suiteName);
+            testCase.getWhen().addAll(actions);
 
-        TestRegistry.getInstance().addSuite(suite);
-        TestRegistry.getInstance().save();
+            suite.getTestCases().add(testCase);
 
-        ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
+            // Speichern
+            TestRegistry.getInstance().addSuite(suite);
+            TestRegistry.getInstance().save();
 
-        JOptionPane.showMessageDialog(this, "Testsuite gespeichert: " + suiteName);
+            // Event feuern
+            ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Fehler beim Speichern der Testsuite:\n" + ex.getMessage(),
+                    "Fehler",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
+
+
 
 
 }

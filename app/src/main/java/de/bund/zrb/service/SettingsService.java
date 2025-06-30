@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import java.io.*;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -43,7 +44,7 @@ public class SettingsService {
     }
 
     /** Generic load for any file */
-    public <T> T load(String fileName, Class<T> type) {
+    public <T> T load(String fileName, Type type) {
         Path file = basePath.resolve(fileName);
         if (Files.exists(file)) {
             try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
@@ -55,6 +56,7 @@ public class SettingsService {
             return null;
         }
     }
+
 
     /** Generic save for any file */
     public void save(String fileName, Object data) {
