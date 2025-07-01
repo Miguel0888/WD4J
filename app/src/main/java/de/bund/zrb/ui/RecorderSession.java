@@ -5,12 +5,11 @@ import de.bund.zrb.event.TestSuiteSavedEvent;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
-import de.bund.zrb.service.RecorderListener;
-import de.bund.zrb.service.RecorderService;
-import de.bund.zrb.service.TestRegistry;
+import de.bund.zrb.service.*;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -23,6 +22,7 @@ class RecorderSession extends JPanel implements RecorderListener {
 
     private String contextId;
     private RecorderService recorderService;
+    private UserRegistry.User selectedUser;
 
     public RecorderSession(RightDrawer rightDrawer) {
         super(new BorderLayout(8, 8));
@@ -35,8 +35,8 @@ class RecorderSession extends JPanel implements RecorderListener {
         recordToggle.setToolTipText("Start Recording");
         recordToggle.addActionListener(e -> toggleRecording());
 
-        JButton saveButton = new JButton("Als Testsuite speichern");
-        saveButton.addActionListener(e -> saveAsTestSuite());
+        JButton saveButton = new JButton("Neue Testsuite speichern");
+        saveButton.addActionListener(e -> saveAsNewTestSuite());
 
         JButton addButton = new JButton("+");
         addButton.setFocusable(false);
@@ -58,7 +58,6 @@ class RecorderSession extends JPanel implements RecorderListener {
         downButton.setToolTipText("Markierte Zeilen runterschieben");
         downButton.addActionListener(e -> moveSelectedRows(1));
 
-        // ➕ Dropdown für vorhandene Suites
         suiteDropdown = new JComboBox<>();
         for (TestSuite suite : TestRegistry.getInstance().getAll()) {
             suiteDropdown.addItem(suite.getName());
@@ -66,8 +65,13 @@ class RecorderSession extends JPanel implements RecorderListener {
 
         JButton importButton = new JButton("⤵");
         importButton.setFocusable(false);
-        importButton.setToolTipText("Testsuite importieren und Recorder leeren");
+        importButton.setToolTipText("Testsuite importieren und Recorder füllen");
         importButton.addActionListener(e -> importSuite());
+
+        JButton exportButton = new JButton("⤴");
+        exportButton.setFocusable(false);
+        exportButton.setToolTipText("In gewählte Suite exportieren");
+        exportButton.addActionListener(e -> exportToSuite());
 
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         topPanel.add(recordToggle);
@@ -77,9 +81,10 @@ class RecorderSession extends JPanel implements RecorderListener {
         topPanel.add(upButton);
         topPanel.add(downButton);
 
-        topPanel.add(Box.createHorizontalStrut(40)); // Spacer
+        topPanel.add(Box.createHorizontalStrut(40));
         topPanel.add(suiteDropdown);
         topPanel.add(importButton);
+        topPanel.add(exportButton);
 
         add(topPanel, BorderLayout.NORTH);
         add(new JScrollPane(actionTable), BorderLayout.CENTER);
@@ -92,10 +97,30 @@ class RecorderSession extends JPanel implements RecorderListener {
             this.contextId = rightDrawer.getBrowserService().getBrowser().getPages().getActivePageId();
             this.recorderService = RecorderService.getInstance(contextId);
 
+            // 👉 User wählen
+            List<UserRegistry.User> allUsers = UserRegistry.getInstance().getAll();
+            selectedUser = (UserRegistry.User) JOptionPane.showInputDialog(
+                    this,
+                    "Für welchen Benutzer?",
+                    "Benutzer auswählen",
+                    JOptionPane.PLAIN_MESSAGE,
+                    null,
+                    allUsers.toArray(),
+                    allUsers.isEmpty() ? null : allUsers.get(0)
+            );
+
+            if (selectedUser == null) {
+                recordToggle.setSelected(false);
+                return;
+            }
+
+            // 👉 Context binden
+            UserContextMappingService.getInstance().bindUserToContext(contextId, selectedUser);
+
             rightDrawer.getBrowserService().getRecordingEventRouter().addListener(contextId, recorderService);
             recorderService.addListener(this);
 
-            System.out.println("📌 Start Recording for Context: " + contextId);
+            System.out.println("📌 Start Recording for Context: " + contextId + " mit User: " + selectedUser.getUsername());
 
             recordToggle.setText("\u23F8");
             recordToggle.setToolTipText("Stop Recording");
@@ -103,39 +128,83 @@ class RecorderSession extends JPanel implements RecorderListener {
 
         } else {
             unregister();
-            System.out.println("🛑 Stop Recording for Context: " + contextId);
-
+            System.out.println("🛑 Stop Recording für Context: " + contextId);
             recordToggle.setText("\u2B24");
             recordToggle.setToolTipText("Start Recording");
             recordToggle.setBackground(Color.RED);
         }
     }
 
-    private void saveAsTestSuite() {
+
+    private void saveAsNewTestSuite() {
         if (recorderService == null) {
             System.out.println("⚠️ Kein aktiver RecorderService!");
             return;
         }
 
-        String name = JOptionPane.showInputDialog(this, "Name der Testsuite eingeben:", "Testsuite speichern", JOptionPane.PLAIN_MESSAGE);
+        String name = JOptionPane.showInputDialog(this, "Name der Testsuite eingeben:", "Neue Testsuite speichern", JOptionPane.PLAIN_MESSAGE);
         if (name == null || name.trim().isEmpty()) {
             System.out.println("⚠️ Kein Name eingegeben.");
             return;
         }
 
         List<TestAction> actions = actionTable.getActions();
-        TestCase testCase = new TestCase(name, actions);
-        TestSuite suite = new TestSuite(name, Collections.singletonList(testCase));
+        List<TestCase> testCases = splitIntoTestCases(actions, name);
 
+        TestSuite suite = new TestSuite(name, testCases);
         TestRegistry.getInstance().addSuite(suite);
         TestRegistry.getInstance().save();
 
-        System.out.println("✅ Testsuite gespeichert: " + name);
+        System.out.println("✅ Neue Testsuite gespeichert: " + name);
 
         ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(name));
 
-        // Recorder leeren nach Save
         recorderService.clearRecordedEvents();
+    }
+
+    private void exportToSuite() {
+        if (recorderService == null) return;
+
+        String selectedSuiteName = (String) suiteDropdown.getSelectedItem();
+        if (selectedSuiteName == null) return;
+
+        TestSuite suite = TestRegistry.getInstance().getAll().stream()
+                .filter(s -> s.getName().equals(selectedSuiteName))
+                .findFirst()
+                .orElse(null);
+
+        if (suite == null) return;
+
+        List<TestAction> actions = actionTable.getActions();
+        List<TestCase> newCases = splitIntoTestCases(actions, selectedSuiteName + "_Part");
+
+        suite.getTestCases().addAll(newCases);
+        TestRegistry.getInstance().save();
+
+        System.out.println("✅ Export in bestehende Testsuite: " + selectedSuiteName);
+
+        ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(selectedSuiteName));
+
+        recorderService.clearRecordedEvents();
+    }
+
+    private void importSuite() {
+        String selectedSuiteName = (String) suiteDropdown.getSelectedItem();
+        if (selectedSuiteName == null) return;
+
+        TestSuite suite = TestRegistry.getInstance().getAll().stream()
+                .filter(s -> s.getName().equals(selectedSuiteName))
+                .findFirst()
+                .orElse(null);
+
+        if (suite == null) return;
+
+        List<TestAction> actions = recorderService.getAllTestActionsForDrawer();
+        for (TestCase tc : suite.getTestCases()) {
+            actions.addAll(tc.getWhen());
+        }
+
+        recorderService.setRecordedActions(actions);
     }
 
     private void insertRow() {
@@ -192,23 +261,28 @@ class RecorderSession extends JPanel implements RecorderListener {
         }
     }
 
-    private void importSuite() {
-        String selectedSuiteName = (String) suiteDropdown.getSelectedItem();
-        if (selectedSuiteName == null) return;
+    private List<TestCase> splitIntoTestCases(List<TestAction> actions, String baseName) {
+        List<TestCase> testCases = new ArrayList<>();
+        List<TestAction> current = new ArrayList<>();
+        int counter = 1;
 
-        TestSuite suite = TestRegistry.getInstance().getAll().stream()
-                .filter(s -> s.getName().equals(selectedSuiteName))
-                .findFirst()
-                .orElse(null);
+        for (TestAction action : actions) {
+            current.add(action);
 
-        if (suite == null) return;
-
-        List<TestAction> actions = recorderService.getAllTestActionsForDrawer();
-        for (TestCase tc : suite.getTestCases()) {
-            actions.addAll(tc.getWhen());
+            if (action.getType() == TestAction.ActionType.GIVEN ||
+                    action.getType() == TestAction.ActionType.THEN) {
+                if (!current.isEmpty()) {
+                    testCases.add(new TestCase(baseName + "_" + counter++, new ArrayList<>(current)));
+                    current.clear();
+                }
+            }
         }
 
-        recorderService.setRecordedActions(actions);
+        if (!current.isEmpty()) {
+            testCases.add(new TestCase(baseName + "_" + counter, new ArrayList<>(current)));
+        }
+
+        return testCases;
     }
 
     public void unregister() {

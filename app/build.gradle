@@ -31,6 +31,10 @@ dependencies {
 
     implementation 'org.slf4j:slf4j-api:1.7.36'  // SLF4J API für Java 8
     implementation 'ch.qos.logback:logback-classic:1.2.11'  // Logback als Implementierung
+
+    // Windows Key Store
+    implementation 'net.java.dev.jna:jna:5.13.0'
+    implementation 'net.java.dev.jna:jna-platform:5.13.0'
 }
 
 jar {

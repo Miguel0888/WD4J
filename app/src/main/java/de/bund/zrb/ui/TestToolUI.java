@@ -100,6 +100,9 @@ public class TestToolUI {
         commandRegistry.register(new ShowSelectorsCommand(browserService));
         commandRegistry.register(new ShowDomEventsCommand(browserService));
 
+        commandRegistry.register(new UserRegistryCommand());
+
+
     }
 
 
