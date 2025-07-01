@@ -77,7 +77,15 @@ public class ActionTableModel extends AbstractTableModel {
 
     @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
-        return columnIndex != 0;
+//        return columnIndex != 0;
+        return true;
+    }
+
+    @Override
+    public Class<?> getColumnClass(int columnIndex) {
+        if (columnIndex == 0) return Boolean.class; // Checkbox-Spalte
+        if (columnIndex == 1) return TestAction.ActionType.class; // Dein Enum
+        return String.class;
     }
 
     @Override
@@ -119,6 +127,39 @@ public class ActionTableModel extends AbstractTableModel {
         }
     }
 
+    @Override
+    public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
+        TestAction action = actions.get(rowIndex);
+        switch (columnIndex) {
+            case 0: action.setSelected((Boolean) aValue); break;
+            case 1: action.setType((TestAction.ActionType) aValue); break;
+            case 2: action.setAction((String) aValue); break;
+            case 3: action.setLocatorType((String) aValue); break;
+            case 4: action.setSelectedSelector((String) aValue); break;
+            case 5: action.setValue((String) aValue); break;
+            case 6: action.getLocators().put("xpath", (String) aValue); break;
+            case 7: action.getLocators().put("css", (String) aValue); break;
+            case 8: action.getExtractedAttributes().put("elementId", (String) aValue); break;
+            case 9: action.getExtractedAttributes().put("classes", (String) aValue); break;
+            case 10: action.getExtractedAttributes().put("pagination", (String) aValue); break;
+            case 11: action.getExtractedAttributes().put("inputName", (String) aValue); break;
+            case 12: action.setTimeout(Integer.parseInt(aValue.toString())); break;
+            default:
+                String key = getColumnName(columnIndex);
+                if (action.getExtractedValues().containsKey(key)) {
+                    action.getExtractedValues().put(key, (String) aValue);
+                } else if (action.getExtractedAttributes().containsKey(key)) {
+                    action.getExtractedAttributes().put(key, (String) aValue);
+                } else if (action.getExtractedAriaRoles().containsKey(key)) {
+                    action.getExtractedAriaRoles().put(key, (String) aValue);
+                } else if (action.getExtractedTestIds().containsKey(key)) {
+                    action.getExtractedTestIds().put(key, (String) aValue);
+                }
+                break;
+        }
+        fireTableCellUpdated(rowIndex, columnIndex);
+    }
+
     public List<TestAction> getActions() {
         return actions;
     }
@@ -140,5 +181,10 @@ public class ActionTableModel extends AbstractTableModel {
         actions.addAll(when);
         updateColumnNames();
         fireTableDataChanged();
+    }
+
+    public void insertActionAt(int index, TestAction action) {
+        actions.add(index, action);
+        fireTableRowsInserted(index, index);
     }
 }

@@ -133,6 +133,10 @@ public class ActionTable extends JTable {
         return tableModel.getActions();
     }
 
+    public ActionTableModel getTableModel() {
+        return tableModel;
+    }
+
     /** 🔧 Custom Renderer für den Header mit Button */
     static class ButtonHeaderRenderer extends JLabel implements TableCellRenderer {
         private final JPopupMenu columnMenu;

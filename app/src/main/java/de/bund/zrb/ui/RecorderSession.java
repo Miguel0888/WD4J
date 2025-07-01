@@ -37,9 +37,33 @@ class RecorderSession extends JPanel implements RecorderListener {
         JButton saveButton = new JButton("Als Testsuite speichern");
         saveButton.addActionListener(e -> saveAsTestSuite());
 
+        JButton addButton = new JButton("+");
+        addButton.setFocusable(false);
+        addButton.setToolTipText("Neue Zeile einfügen");
+        addButton.addActionListener(e -> insertRow());
+
+        JButton deleteButton = new JButton("🗑");
+        deleteButton.setFocusable(false);
+        deleteButton.setToolTipText("Markierte Zeilen löschen");
+        deleteButton.addActionListener(e -> deleteSelectedRows());
+
+        JButton upButton = new JButton("▲");
+        upButton.setFocusable(false);
+        upButton.setToolTipText("Markierte Zeilen hochschieben");
+        upButton.addActionListener(e -> moveSelectedRows(-1));
+
+        JButton downButton = new JButton("▼");
+        downButton.setFocusable(false);
+        downButton.setToolTipText("Markierte Zeilen runterschieben");
+        downButton.addActionListener(e -> moveSelectedRows(1));
+
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         topPanel.add(recordToggle);
         topPanel.add(saveButton);
+        topPanel.add(addButton);
+        topPanel.add(deleteButton);
+        topPanel.add(upButton);
+        topPanel.add(downButton);
 
         add(topPanel, BorderLayout.NORTH);
         add(new JScrollPane(actionTable), BorderLayout.CENTER);
@@ -83,17 +107,53 @@ class RecorderSession extends JPanel implements RecorderListener {
             return;
         }
 
-        List<TestAction> actions = recorderService.getAllTestActionsForDrawer();
+        List<TestAction> actions = actionTable.getActions(); // Nutze aktuelle Tabelle!
         TestCase testCase = new TestCase(name, actions);
         TestSuite suite = new TestSuite(name, Collections.singletonList(testCase));
-        
+
         TestRegistry.getInstance().addSuite(suite);
         TestRegistry.getInstance().save();
 
         System.out.println("✅ Testsuite gespeichert: " + name);
 
-        // 👉 Jetzt den Event werfen:
         ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(name));
+    }
+
+    private void insertRow() {
+        int selectedRow = actionTable.getSelectedRow();
+        if (selectedRow < 0) {
+            actionTable.addAction(new TestAction());
+        } else {
+            actionTable.getTableModel().insertActionAt(selectedRow, new TestAction());
+        }
+    }
+
+    private void deleteSelectedRows() {
+        List<TestAction> actions = actionTable.getActions();
+        // Von hinten nach vorne löschen
+        for (int i = actions.size() - 1; i >= 0; i--) {
+            if (actions.get(i).isSelected()) {
+                actionTable.getTableModel().removeAction(i);
+            }
+        }
+    }
+
+    private void moveSelectedRows(int direction) {
+        List<TestAction> actions = actionTable.getActions();
+        if (direction < 0) {
+            for (int i = 1; i < actions.size(); i++) {
+                if (actions.get(i).isSelected() && !actions.get(i - 1).isSelected()) {
+                    Collections.swap(actions, i, i - 1);
+                }
+            }
+        } else {
+            for (int i = actions.size() - 2; i >= 0; i--) {
+                if (actions.get(i).isSelected() && !actions.get(i + 1).isSelected()) {
+                    Collections.swap(actions, i, i + 1);
+                }
+            }
+        }
+        actionTable.setActions(actions);
     }
 
     public void unregister() {
