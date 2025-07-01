@@ -5,7 +5,7 @@ import de.bund.zrb.BrowserImpl;
 import de.bund.zrb.BrowserTypeImpl;
 import de.bund.zrb.PageImpl;
 import de.bund.zrb.command.response.WDScriptResult;
-import de.bund.zrb.controller.CallbackWebSocketServer;
+import de.bund.zrb.controller.RecordingEventRouter;
 import de.bund.zrb.manager.WDScriptManager;
 import de.bund.zrb.PlaywrightImpl;
 import de.bund.zrb.type.script.WDLocalValue;
@@ -74,9 +74,6 @@ public class BrowserServiceImpl implements BrowserService {
 
             BrowserTypeImpl browserType = BrowserTypeImpl.newFirefoxInstance((PlaywrightImpl) playwright);
             browser = (BrowserImpl) browserType.launch(options);
-
-            CallbackWebSocketServer.toggleCallbackServer(true);
-
         } catch (Exception ex) {
             throw new RuntimeException("Fehler beim Starten des Browsers", ex);
         }

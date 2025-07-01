@@ -25,6 +25,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class BrowserImpl implements Browser {
+    public static final String CHANNEL_FOCUS_EVENTS = "focus-events-channel";
+    public static final String CHANNEL_RECORDING_EVENTS = "recording-events-channel";
+
     private final List<WDScriptResult.AddPreloadScriptResult> globalScripts = new ArrayList<>();
     // ToDo: Make pages not static, to be able to handle multiple Browser instances:
     private static /*final*/ Pages pages;
@@ -50,6 +53,10 @@ public class BrowserImpl implements Browser {
         this.webDriver = new WebDriver(webSocketManager, dispatcher).connect(browserType.name());
 
         onContextSwitch(pages::setActivePageId);
+        onRecordingEvent(CHANNEL_RECORDING_EVENTS, message -> {
+            System.out.println("🎯 Recording Event empfangen: " + message);
+            // Optional: Auf Page/Context routen
+        });
         fetchDefaultData();
 
         loadGlobalScripts(); // load JavaScript code relevant for the working Playwright API
@@ -70,8 +77,7 @@ public class BrowserImpl implements Browser {
 
 
         // 🔹 1️⃣ Channel für das Fokus-Tracking anlegen
-        String focusChannelId = "focus-events-channel";  // Feste ID für Fokus-Events
-        WDChannelValue focusChannel = new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(focusChannelId)));
+        WDChannelValue focusChannel = new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(CHANNEL_FOCUS_EVENTS)));
 
         // 🔹 2️⃣ Fokus-Tracking PreloadScript registrieren
         globalScripts.add(webDriver.script().addPreloadScript(
@@ -79,10 +85,14 @@ public class BrowserImpl implements Browser {
                 Collections.singletonList(focusChannel)  // Channel mit übergeben
         ));
 
+        // Recorder Callback analog zum Fokus-Tracker:
+        globalScripts.add(webDriver.script().addPreloadScript(
+                ScriptHelper.loadScript("scripts/callback.js"),
+                Collections.singletonList(new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(CHANNEL_RECORDING_EVENTS))))
+        ));
 
         // Alle weiteren globalen Scripts
         globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/events.js")));
-        globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/callback.js")));
         globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/debug.js"))); // ToDo: Remove
         globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/dragAndDrop.js")));
     }
@@ -128,19 +138,6 @@ public class BrowserImpl implements Browser {
             tree.getContexts().forEach(context -> {
                 System.out.println("BrowsingContext: " + context.getContext().value());
                 currentPages.add(new PageImpl(this, null, context.getContext()));
-
-                // NOT WORKING
-//                // ToDo: Find a solution for all preloaded scripts, without duplicated code
-//                // 🔹 Falls der Tab existierte, muss das Preload-Skript nachträglich gesetzt werden
-//                // 🔹 1️⃣ Channel für das Fokus-Tracking anlegen
-//                String focusChannelId = "focus-events-channel";  // Feste ID für Fokus-Events
-//                WDChannelValue focusChannel = new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(focusChannelId)));
-//                // 🔹 2️⃣ Fokus-Tracking PreloadScript registrieren
-//                webDriver.script().addPreloadScript(
-//                        ScriptHelper.loadScript("scripts/focusTracker.js"),
-//                        Collections.singletonList(focusChannel),  // Channel mit übergeben
-//                        Collections.singletonList(context.getContext())
-//                );
             });
         } catch (WDException ignored) {}
     }
@@ -289,7 +286,7 @@ public class BrowserImpl implements Browser {
     public void onContextSwitch(Consumer<String> handler) {
         if (handler != null) {
             onMessage(message -> {
-                if ("focus-events-channel".equals(message.getParams().getChannel().value())) {
+                if (CHANNEL_FOCUS_EVENTS.equals(message.getParams().getChannel().value())) {
                     WDRemoteValue.ObjectRemoteValue remoteValue = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
 
                     boolean isFocusEvent = remoteValue.getValue().entrySet().stream()
@@ -308,6 +305,38 @@ public class BrowserImpl implements Browser {
             });
         }
     }
+
+    public void onRecordingEvent(String channelName, Consumer<WDScriptEvent.Message> handler) {
+        if (handler != null) {
+            onMessage(message -> {
+                if (channelName.equals(message.getParams().getChannel().value())) {
+                    WDRemoteValue.ObjectRemoteValue remoteValue =
+                            (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
+
+                    // Beispiel: Du kannst hier filtern, ob es überhaupt eine Aktion ist
+                    boolean isClickOrInput = remoteValue.getValue().entrySet().stream()
+                            .anyMatch(entry -> {
+                                if (entry.getKey() instanceof WDPrimitiveProtocolValue.StringValue) {
+                                    String key = ((WDPrimitiveProtocolValue.StringValue) entry.getKey()).getValue();
+                                    if ("action".equals(key)) {
+                                        WDPrimitiveProtocolValue.StringValue action =
+                                                (WDPrimitiveProtocolValue.StringValue) entry.getValue();
+                                        return "click".equals(action.getValue()) || "input".equals(action.getValue());
+                                    }
+                                }
+                                return false;
+                            });
+
+                    if (isClickOrInput) {
+                        String contextId = message.getParams().getSource().getContext().value();
+                        System.out.printf("🎯 Recorder-Event erkannt: Context=%s\n", contextId);
+                        handler.accept(message);
+                    }
+                }
+            });
+        }
+    }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

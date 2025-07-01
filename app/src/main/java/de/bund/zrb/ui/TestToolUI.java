@@ -52,7 +52,7 @@ public class TestToolUI {
         JPanel mainPanel = createMainPanel();
         innerSplit.setLeftComponent(mainPanel);
 
-        RightDrawer rightDrawer = new RightDrawer();
+        RightDrawer rightDrawer = new RightDrawer(browserService);
         innerSplit.setRightComponent(rightDrawer);
 
         outerSplit.setRightComponent(innerSplit);
