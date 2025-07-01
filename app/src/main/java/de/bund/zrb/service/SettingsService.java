@@ -9,6 +9,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Manages all WD4J JSON config files (settings, shortcuts, tests).
@@ -18,10 +20,14 @@ public class SettingsService {
     private static final String APP_FOLDER = ".wd4j";
     private static final String SHORTCUT_FILE_NAME = "shortcut.json";
     private static final String TESTS_FILE_NAME = "tests.json";
+    private static final String SETTINGS_FILE_NAME = "settings.json";
 
     private static SettingsService instance;
+
     private final Gson gson;
     private final Path basePath;
+
+    private Map<String, Object> settingsCache;
 
     private SettingsService() {
         gson = new GsonBuilder().setPrettyPrinting().create();
@@ -34,6 +40,8 @@ public class SettingsService {
                 throw new RuntimeException("Could not create settings folder: " + basePath, e);
             }
         }
+
+        loadSettings();
     }
 
     public static synchronized SettingsService getInstance() {
@@ -43,28 +51,70 @@ public class SettingsService {
         return instance;
     }
 
-    /** Generic load for any file */
+    /** Load the global settings.json into memory. */
+    private void loadSettings() {
+        Path file = basePath.resolve(SETTINGS_FILE_NAME);
+        if (Files.exists(file)) {
+            try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                settingsCache = gson.fromJson(reader, Map.class);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to load settings.json", e);
+            }
+        } else {
+            settingsCache = new HashMap<>();
+        }
+    }
+
+    /** Persist the global settings.json to disk. */
+    private void saveSettings() {
+        Path file = basePath.resolve(SETTINGS_FILE_NAME);
+        try (Writer writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+            gson.toJson(settingsCache, writer);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to save settings.json", e);
+        }
+    }
+
+    /** Get a value by key. */
+    public <T> T get(String key, Class<T> type) {
+        Object value = settingsCache.get(key);
+        if (value == null) {
+            return null;
+        }
+        return gson.fromJson(gson.toJson(value), type);
+    }
+
+    /** Put a value by key and persist immediately. */
+    public void set(String key, Object value) {
+        if (value == null) {
+            settingsCache.remove(key);
+        } else {
+            settingsCache.put(key, value);
+        }
+        saveSettings();
+    }
+
+    /** Generic load for any file (legacy) */
     public <T> T load(String fileName, Type type) {
         Path file = basePath.resolve(fileName);
         if (Files.exists(file)) {
             try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
                 return gson.fromJson(reader, type);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to load settings: " + file, e);
+                throw new RuntimeException("Failed to load: " + file, e);
             }
         } else {
             return null;
         }
     }
 
-
-    /** Generic save for any file */
+    /** Generic save for any file (legacy) */
     public void save(String fileName, Object data) {
         Path file = basePath.resolve(fileName);
         try (Writer writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
             gson.toJson(data, writer);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to save settings: " + file, e);
+            throw new RuntimeException("Failed to save: " + file, e);
         }
     }
 
