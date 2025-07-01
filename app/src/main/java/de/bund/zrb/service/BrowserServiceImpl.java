@@ -99,22 +99,7 @@ public class BrowserServiceImpl implements BrowserService {
 
     @Override
     public String createUserContext(UserRegistry.User user) {
-        if (browser == null) {
-            throw new IllegalStateException("Browser ist nicht gestartet!");
-        }
-
-        // Standard Playwright-API verwenden!
-        BrowserContext context = browser.newContext();
-
-        // User als Key
-        userContexts.put(user.getUsername(), context);
-
-        // Option: gleich Seite öffnen
-        Page page = context.newPage();
-
-        // Für dein Mapping
-        UserContextMappingService.getInstance().bindUserToContext(user.getUsername(), user);
-
+        getOrCreateUserContext(user.getUsername());
         return user.getUsername();
     }
 
@@ -127,17 +112,40 @@ public class BrowserServiceImpl implements BrowserService {
         UserContextMappingService.getInstance().remove(username);
     }
 
+    private BrowserContext getOrCreateUserContext(String username) {
+        return userContexts.computeIfAbsent(username, u -> {
+            if (browser == null) {
+                throw new IllegalStateException("Browser ist nicht gestartet!");
+            }
+
+            BrowserContext context = browser.newContext();
+
+            // Lookup User für Mapping
+            UserRegistry.User user = UserRegistry.getInstance().getAll().stream()
+                    .filter(it -> it.getUsername().equals(u))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("Unbekannter Benutzer: " + u));
+
+            UserContextMappingService.getInstance().bindUserToContext(username, user);
+
+            return context;
+        });
+    }
+
     @Override
     public Page getActivePage(String username) {
-        BrowserContext context = userContexts.get(username);
-        if (context == null) {
-            throw new IllegalStateException("Kein Kontext für Benutzer: " + username);
-        }
+        BrowserContext context = getOrCreateUserContext(username);
         List<Page> pages = context.pages();
         if (pages.isEmpty()) {
             return context.newPage();
         }
         return pages.get(0);
+    }
+
+    @Override
+    public void createNewTab(String username) {
+        BrowserContext context = getOrCreateUserContext(username);
+        context.newPage();
     }
 
     @Override
@@ -149,8 +157,29 @@ public class BrowserServiceImpl implements BrowserService {
     }
 
     @Override
+    public void closeActiveTab(String username) {
+        Page page = getActivePage(username);
+        page.close();
+    }
+
+    @Override
+    public void goBack() {
+        browser.getPages().getActivePage().goBack();
+    }
+
+    @Override
+    public void goBack(String username) {
+        getActivePage(username).goBack();
+    }
+
+    @Override
     public void goForward() {
         browser.getPages().getActivePage().goForward();
+    }
+
+    @Override
+    public void goForward(String username) {
+        getActivePage(username).goForward();
     }
 
     @Override
@@ -159,42 +188,8 @@ public class BrowserServiceImpl implements BrowserService {
     }
 
     @Override
-    public void goBack() {
-        // fallback auf global (bisher)
-        browser.getPages().getActivePage().goBack();
-    }
-
-    @Override
-    public void goBack(String username) {
-        Page page = getActivePage(username);
-        page.goBack();
-    }
-
-    @Override
-    public void goForward(String username) {
-        Page page = getActivePage(username);
-        page.goForward();
-    }
-
-    @Override
     public void reload(String username) {
-        Page page = getActivePage(username);
-        page.reload();
-    }
-
-    @Override
-    public void closeActiveTab(String username) {
-        Page page = getActivePage(username);
-        page.close();
-    }
-
-    @Override
-    public void createNewTab(String username) {
-        BrowserContext context = userContexts.get(username);
-        if (context == null) {
-            throw new IllegalStateException("Kein Kontext für Benutzer: " + username);
-        }
-        context.newPage();
+        getActivePage(username).reload();
     }
 
     @Override
@@ -256,7 +251,7 @@ public class BrowserServiceImpl implements BrowserService {
     }
 
     public RecordingEventRouter getRecordingEventRouter() {
-        if(browser == null) {
+        if (browser == null) {
             return null;
         }
         return browser.getRecordingEventRouter();

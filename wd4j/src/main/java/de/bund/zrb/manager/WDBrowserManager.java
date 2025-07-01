@@ -38,8 +38,8 @@ public class WDBrowserManager implements WDModule {
      *
      * @return The created user context DTO.
      */
-    public WDBrowserResult.CreateUserContextResult createUserContext() {
-        WDBrowserResult.CreateUserContextResult result =
+    public WDUserContextInfo createUserContext() {
+        WDUserContextInfo result =
                 webSocketManager.sendAndWaitForResponse(new WDBrowserRequest.CreateUserContext(), WDUserContextInfo.class);
         System.out.println("User context created: " + result.getUserContext().value());
         return result;

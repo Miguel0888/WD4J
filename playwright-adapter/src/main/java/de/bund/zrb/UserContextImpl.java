@@ -7,6 +7,7 @@ import com.microsoft.playwright.options.FunctionCallback;
 import com.microsoft.playwright.options.Geolocation;
 import de.bund.zrb.support.Pages;
 import de.bund.zrb.type.browser.WDUserContext;
+import de.bund.zrb.type.browser.WDUserContextInfo;
 
 import java.nio.file.Path;
 import java.util.Collections;
@@ -32,7 +33,8 @@ public class UserContextImpl implements BrowserContext {
 
         this.pages = new Pages(browser, this);
 
-        userContext = browser.getWebDriver().browser().createUserContext().getUserContext();
+        WDUserContextInfo info = browser.getWebDriver().browser().createUserContext();
+        userContext = info.getUserContext();
     }
 
     public UserContextImpl(BrowserImpl browser, WDUserContext userContext) {
