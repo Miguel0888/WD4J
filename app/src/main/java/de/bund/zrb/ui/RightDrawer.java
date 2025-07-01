@@ -7,6 +7,7 @@ import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.service.RecorderService;
 import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
 import de.bund.zrb.type.script.WDRemoteValue;
+import de.bund.zrb.type.script.WDSource;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -22,7 +23,7 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Insets;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -139,7 +140,7 @@ public class RightDrawer extends JPanel {
 
             if (shouldStart) {
                 this.contextId = browserService.getBrowser().getPages().getActivePageId();
-                this.recorderService = new RecorderService();
+                this.recorderService = RecorderService.getInstance(contextId);
                 browserService.getRecordingEventRouter().addListener(contextId, this);
 
                 System.out.println("📌 Start Recording for Context: " + contextId);
@@ -167,18 +168,26 @@ public class RightDrawer extends JPanel {
 
         @Override
         public void onRecordingEvent(WDScriptEvent.Message message) {
-//            WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
-            List<RecordedEvent> events = extractRecordedEvents(message);
+            WDSource source = message.getParams().getSource();
+            String contextId = source.getContext().value();
 
-            recorderService.recordAction(events);
+            // Extrahiere Events wie bisher
+            WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
+            List<RecordedEvent> events = extractRecordedEvents(data);
 
+            // Hole den Recorder für diesen Context
+            RecorderService recorder = RecorderService.getInstance(contextId);
+
+            // Trage Events ein
+            recorder.recordAction(events);
+
+            // UI-Update
             SwingUtilities.invokeLater(() -> {
-                actionTable.setActions(recorderService.getAllTestActionsForDrawer());
+                actionTable.setActions(recorder.getAllTestActionsForDrawer());
             });
         }
 
-        private List<RecordedEvent> extractRecordedEvents(WDScriptEvent.Message message) {
-            WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
+        private List<RecordedEvent> extractRecordedEvents(WDRemoteValue.ObjectRemoteValue data) {
             List<RecordedEvent> result = new ArrayList<>();
 
             WDRemoteValue.ArrayRemoteValue eventsArray = null;
@@ -203,9 +212,6 @@ public class RightDrawer extends JPanel {
                     WDRemoteValue.ObjectRemoteValue eventObj = (WDRemoteValue.ObjectRemoteValue) item;
                     RecordedEvent event = new RecordedEvent();
 
-                    event.setContextId(message.getParams().getSource().getContext().value());
-                    event.setRealmId(message.getParams().getSource().getRealm());
-
                     for (Map.Entry<WDRemoteValue, WDRemoteValue> pair : eventObj.getValue().entrySet()) {
                         String key = ((WDPrimitiveProtocolValue.StringValue) pair.getKey()).getValue();
                         WDRemoteValue value = pair.getValue();
@@ -218,26 +224,12 @@ public class RightDrawer extends JPanel {
                                 case "buttonText": event.setButtonText(val); break;
                                 case "xpath": event.setXpath(val); break;
                                 case "classes": event.setClasses(val); break;
-                                case "key": event.setKey(val); break;
-                                case "value": event.setValue(val); break;
-                                default: break;
+                                default: break; // Weitere Keys kannst du hier ergänzen!
                             }
                         }
 
-                        if (value instanceof WDRemoteValue.ObjectRemoteValue) {
-                            WDRemoteValue.ObjectRemoteValue objVal = (WDRemoteValue.ObjectRemoteValue) value;
-                            Map<String, String> map = new LinkedHashMap<>();
-                            for (Map.Entry<WDRemoteValue, WDRemoteValue> attr : objVal.getValue().entrySet()) {
-                                String attrKey = ((WDPrimitiveProtocolValue.StringValue) attr.getKey()).getValue();
-                                if (attr.getValue() instanceof WDPrimitiveProtocolValue.StringValue) {
-                                    String attrVal = ((WDPrimitiveProtocolValue.StringValue) attr.getValue()).getValue();
-                                    map.put(attrKey, attrVal);
-                                }
-                            }
-
-                            if ("aria".equals(key)) event.setAria(map);
-                            if ("attributes".equals(key)) event.setAttributes(map);
-                        }
+                        // Optional: Wenn dein `aria` oder `attributes` wieder ein ObjectRemoteValue ist,
+                        // musst du es rekursiv mappen.
                     }
 
                     result.add(event);
@@ -246,5 +238,7 @@ public class RightDrawer extends JPanel {
 
             return result;
         }
+
+
     }
 }
