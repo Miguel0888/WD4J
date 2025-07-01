@@ -22,6 +22,7 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Insets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -166,8 +167,8 @@ public class RightDrawer extends JPanel {
 
         @Override
         public void onRecordingEvent(WDScriptEvent.Message message) {
-            WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
-            List<RecordedEvent> events = extractRecordedEvents(data);
+//            WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
+            List<RecordedEvent> events = extractRecordedEvents(message);
 
             recorderService.recordAction(events);
 
@@ -176,7 +177,8 @@ public class RightDrawer extends JPanel {
             });
         }
 
-        private List<RecordedEvent> extractRecordedEvents(WDRemoteValue.ObjectRemoteValue data) {
+        private List<RecordedEvent> extractRecordedEvents(WDScriptEvent.Message message) {
+            WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
             List<RecordedEvent> result = new ArrayList<>();
 
             WDRemoteValue.ArrayRemoteValue eventsArray = null;
@@ -201,6 +203,9 @@ public class RightDrawer extends JPanel {
                     WDRemoteValue.ObjectRemoteValue eventObj = (WDRemoteValue.ObjectRemoteValue) item;
                     RecordedEvent event = new RecordedEvent();
 
+                    event.setContextId(message.getParams().getSource().getContext().value());
+                    event.setRealmId(message.getParams().getSource().getRealm());
+
                     for (Map.Entry<WDRemoteValue, WDRemoteValue> pair : eventObj.getValue().entrySet()) {
                         String key = ((WDPrimitiveProtocolValue.StringValue) pair.getKey()).getValue();
                         WDRemoteValue value = pair.getValue();
@@ -213,12 +218,26 @@ public class RightDrawer extends JPanel {
                                 case "buttonText": event.setButtonText(val); break;
                                 case "xpath": event.setXpath(val); break;
                                 case "classes": event.setClasses(val); break;
-                                default: break; // Weitere Keys kannst du hier ergänzen!
+                                case "key": event.setKey(val); break;
+                                case "value": event.setValue(val); break;
+                                default: break;
                             }
                         }
 
-                        // Optional: Wenn dein `aria` oder `attributes` wieder ein ObjectRemoteValue ist,
-                        // musst du es rekursiv mappen.
+                        if (value instanceof WDRemoteValue.ObjectRemoteValue) {
+                            WDRemoteValue.ObjectRemoteValue objVal = (WDRemoteValue.ObjectRemoteValue) value;
+                            Map<String, String> map = new LinkedHashMap<>();
+                            for (Map.Entry<WDRemoteValue, WDRemoteValue> attr : objVal.getValue().entrySet()) {
+                                String attrKey = ((WDPrimitiveProtocolValue.StringValue) attr.getKey()).getValue();
+                                if (attr.getValue() instanceof WDPrimitiveProtocolValue.StringValue) {
+                                    String attrVal = ((WDPrimitiveProtocolValue.StringValue) attr.getValue()).getValue();
+                                    map.put(attrKey, attrVal);
+                                }
+                            }
+
+                            if ("aria".equals(key)) event.setAria(map);
+                            if ("attributes".equals(key)) event.setAttributes(map);
+                        }
                     }
 
                     result.add(event);
@@ -227,7 +246,5 @@ public class RightDrawer extends JPanel {
 
             return result;
         }
-
-
     }
 }

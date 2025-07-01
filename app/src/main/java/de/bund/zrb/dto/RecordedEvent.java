@@ -4,6 +4,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class RecordedEvent {
+    private String contextId;
+    private String realmId;
+
     private String selector;
     private String action;
     private String value;
@@ -29,6 +32,12 @@ public class RecordedEvent {
     }
 
     // Getter & Setter
+    public String getContextId() { return contextId; }
+    public void setContextId(String contextId) { this.contextId = contextId; }
+
+    public String getRealmId() { return realmId; }
+    public void setRealmId(String realmId) { this.realmId = realmId; }
+
     public String getCss() { return selector; }
     public void setCss(String selector) { this.selector = selector; }
 
