@@ -19,6 +19,7 @@ class RecorderSession extends JPanel implements RecorderListener {
     private final RightDrawer rightDrawer;
     private final ActionTable actionTable;
     private final JToggleButton recordToggle;
+    private final JComboBox<String> suiteDropdown;
 
     private String contextId;
     private RecorderService recorderService;
@@ -57,6 +58,17 @@ class RecorderSession extends JPanel implements RecorderListener {
         downButton.setToolTipText("Markierte Zeilen runterschieben");
         downButton.addActionListener(e -> moveSelectedRows(1));
 
+        // ➕ Dropdown für vorhandene Suites
+        suiteDropdown = new JComboBox<>();
+        for (TestSuite suite : TestRegistry.getInstance().getAll()) {
+            suiteDropdown.addItem(suite.getName());
+        }
+
+        JButton importButton = new JButton("⤵");
+        importButton.setFocusable(false);
+        importButton.setToolTipText("Testsuite importieren und Recorder leeren");
+        importButton.addActionListener(e -> importSuite());
+
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         topPanel.add(recordToggle);
         topPanel.add(saveButton);
@@ -64,6 +76,10 @@ class RecorderSession extends JPanel implements RecorderListener {
         topPanel.add(deleteButton);
         topPanel.add(upButton);
         topPanel.add(downButton);
+
+        topPanel.add(Box.createHorizontalStrut(40)); // Spacer
+        topPanel.add(suiteDropdown);
+        topPanel.add(importButton);
 
         add(topPanel, BorderLayout.NORTH);
         add(new JScrollPane(actionTable), BorderLayout.CENTER);
@@ -107,7 +123,7 @@ class RecorderSession extends JPanel implements RecorderListener {
             return;
         }
 
-        List<TestAction> actions = actionTable.getActions(); // Nutze aktuelle Tabelle!
+        List<TestAction> actions = actionTable.getActions();
         TestCase testCase = new TestCase(name, actions);
         TestSuite suite = new TestSuite(name, Collections.singletonList(testCase));
 
@@ -117,29 +133,42 @@ class RecorderSession extends JPanel implements RecorderListener {
         System.out.println("✅ Testsuite gespeichert: " + name);
 
         ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(name));
+
+        // Recorder leeren nach Save
+        recorderService.clearRecordedEvents();
     }
 
     private void insertRow() {
+        if (recorderService == null) return;
+
+        TestAction newAction = new TestAction();
+        newAction.setType(TestAction.ActionType.THEN);
+        newAction.setAction("screenshot");
+
         int selectedRow = actionTable.getSelectedRow();
-        if (selectedRow < 0) {
-            actionTable.addAction(new TestAction());
+        List<TestAction> actions = recorderService.getAllTestActionsForDrawer();
+
+        if (selectedRow < 0 || selectedRow >= actions.size()) {
+            actions.add(newAction);
         } else {
-            actionTable.getTableModel().insertActionAt(selectedRow, new TestAction());
+            actions.add(selectedRow, newAction);
         }
+
+        recorderService.setRecordedActions(actions);
     }
 
     private void deleteSelectedRows() {
-        List<TestAction> actions = actionTable.getActions();
-        // Von hinten nach vorne löschen
-        for (int i = actions.size() - 1; i >= 0; i--) {
-            if (actions.get(i).isSelected()) {
-                actionTable.getTableModel().removeAction(i);
-            }
-        }
+        if (recorderService == null) return;
+
+        List<TestAction> actions = recorderService.getAllTestActionsForDrawer();
+        actions.removeIf(TestAction::isSelected);
+        recorderService.setRecordedActions(actions);
     }
 
     private void moveSelectedRows(int direction) {
-        List<TestAction> actions = actionTable.getActions();
+        if (recorderService == null) return;
+
+        List<TestAction> actions = recorderService.getAllTestActionsForDrawer();
         boolean changed = false;
 
         if (direction < 0) {
@@ -159,14 +188,28 @@ class RecorderSession extends JPanel implements RecorderListener {
         }
 
         if (changed) {
-            // UI updaten
-            actionTable.getTableModel().fireTableDataChanged();
-
-            // 🆕 Reihenfolge in Recorder speichern
             recorderService.setRecordedActions(actions);
         }
     }
 
+    private void importSuite() {
+        String selectedSuiteName = (String) suiteDropdown.getSelectedItem();
+        if (selectedSuiteName == null) return;
+
+        TestSuite suite = TestRegistry.getInstance().getAll().stream()
+                .filter(s -> s.getName().equals(selectedSuiteName))
+                .findFirst()
+                .orElse(null);
+
+        if (suite == null) return;
+
+        List<TestAction> actions = recorderService.getAllTestActionsForDrawer();
+        for (TestCase tc : suite.getTestCases()) {
+            actions.addAll(tc.getWhen());
+        }
+
+        recorderService.setRecordedActions(actions);
+    }
 
     public void unregister() {
         if (contextId != null) {

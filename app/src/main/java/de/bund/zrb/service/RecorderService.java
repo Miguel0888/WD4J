@@ -222,4 +222,8 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
                 Objects.equals(a.getAction(), b.getAction()) &&
                 Objects.equals(a.getLocatorType(), b.getLocatorType());
     }
+
+    public void clearRecordedEvents() {
+        recordedActions.clear();
+    }
 }
