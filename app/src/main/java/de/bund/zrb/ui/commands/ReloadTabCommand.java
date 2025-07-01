@@ -1,6 +1,8 @@
 package de.bund.zrb.ui.commands;
 
 import de.bund.zrb.service.BrowserService;
+import de.bund.zrb.service.UserContextMappingService;
+import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.commandframework.MenuCommand;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 
@@ -24,6 +26,12 @@ public class ReloadTabCommand extends ShortcutMenuCommand {
 
     @Override
     public void perform() {
-        browserService.reload();
+        UserRegistry.User current = UserContextMappingService.getInstance().getCurrentUser();
+        if (current != null) {
+            browserService.reload(current.getUsername());
+        } else {
+            browserService.reload();
+        }
     }
+
 }

@@ -149,11 +149,6 @@ public class BrowserServiceImpl implements BrowserService {
     }
 
     @Override
-    public void goBack() {
-        browser.getPages().getActivePage().goBack();
-    }
-
-    @Override
     public void goForward() {
         browser.getPages().getActivePage().goForward();
     }
@@ -161,6 +156,45 @@ public class BrowserServiceImpl implements BrowserService {
     @Override
     public void reload() {
         browser.getPages().getActivePage().reload();
+    }
+
+    @Override
+    public void goBack() {
+        // fallback auf global (bisher)
+        browser.getPages().getActivePage().goBack();
+    }
+
+    @Override
+    public void goBack(String username) {
+        Page page = getActivePage(username);
+        page.goBack();
+    }
+
+    @Override
+    public void goForward(String username) {
+        Page page = getActivePage(username);
+        page.goForward();
+    }
+
+    @Override
+    public void reload(String username) {
+        Page page = getActivePage(username);
+        page.reload();
+    }
+
+    @Override
+    public void closeActiveTab(String username) {
+        Page page = getActivePage(username);
+        page.close();
+    }
+
+    @Override
+    public void createNewTab(String username) {
+        BrowserContext context = userContexts.get(username);
+        if (context == null) {
+            throw new IllegalStateException("Kein Kontext für Benutzer: " + username);
+        }
+        context.newPage();
     }
 
     @Override

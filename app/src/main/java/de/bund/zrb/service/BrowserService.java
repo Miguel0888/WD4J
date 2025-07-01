@@ -11,21 +11,26 @@ public interface BrowserService {
 
     void navigate(String url);
 
-    void createNewTab();
-
     String createUserContext(UserRegistry.User user);
 
     void closeUserContext(String username);
 
     Page getActivePage(String username);
 
-    void closeActiveTab();
+    void goBack();
+    void goBack(String username);
 
     void goForward();
+    void goForward(String username);
 
     void reload();
+    void reload(String username);
 
-    void goBack();
+    void closeActiveTab();
+    void closeActiveTab(String username);
+
+    void createNewTab();
+    void createNewTab(String username);
 
     byte[] captureScreenshot();
 

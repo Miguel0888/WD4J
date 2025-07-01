@@ -2,6 +2,8 @@ package de.bund.zrb.ui.commands;
 
 
 import de.bund.zrb.service.BrowserService;
+import de.bund.zrb.service.UserContextMappingService;
+import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.commandframework.MenuCommand;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 
@@ -25,6 +27,12 @@ public class CloseTabCommand extends ShortcutMenuCommand {
 
     @Override
     public void perform() {
-        browserService.closeActiveTab();
+        UserRegistry.User current = UserContextMappingService.getInstance().getCurrentUser();
+        if (current != null) {
+            browserService.closeActiveTab(current.getUsername());
+        } else {
+            browserService.closeActiveTab();
+        }
     }
+
 }

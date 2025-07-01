@@ -1,6 +1,8 @@
 package de.bund.zrb.ui.commands;
 
 import de.bund.zrb.service.BrowserService;
+import de.bund.zrb.service.UserContextMappingService;
+import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 
 public class GoBackCommand extends ShortcutMenuCommand {
@@ -23,6 +25,11 @@ public class GoBackCommand extends ShortcutMenuCommand {
 
     @Override
     public void perform() {
-        browserService.goBack();
+        UserRegistry.User current = UserContextMappingService.getInstance().getCurrentUser();
+        if (current != null) {
+            browserService.goBack(current.getUsername());
+        } else {
+            browserService.goBack();
+        }
     }
 }
