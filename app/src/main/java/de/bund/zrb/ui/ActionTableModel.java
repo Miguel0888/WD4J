@@ -14,6 +14,7 @@ public class ActionTableModel extends AbstractTableModel {
     public ActionTableModel() {
         // 🔩 Erste Spalte ist der Schraubenschlüssel für Einstellungen
         addColumn("⚙");  // Symbol bleibt erhalten
+        addColumn("Typ");
         addColumn("Aktion");
         addColumn("Locator-Typ");
         addColumn("Selektor");
@@ -84,17 +85,18 @@ public class ActionTableModel extends AbstractTableModel {
         TestAction action = actions.get(rowIndex);
         switch (columnIndex) {
             case 0: return action.isSelected();
-            case 1: return action.getAction();
-            case 2: return action.getLocatorType();
-            case 3: return action.getSelectedSelector();
-            case 4: return action.getValue();
-            case 5: return action.getLocators().getOrDefault("xpath", "");                  // ✅ XPath
-            case 6: return action.getLocators().getOrDefault("css", "");                    // ✅ CSS
-            case 7: return action.getExtractedAttributes().getOrDefault("elementId", "");   // ✅ Element-ID
-            case 8: return action.getExtractedAttributes().getOrDefault("classes", "");     // ✅ CSS-Klassen
-            case 9: return action.getExtractedAttributes().getOrDefault("pagination", "");  // ✅ Pagination
-            case 10: return action.getExtractedAttributes().getOrDefault("inputName", "");  // ✅ Input-Name
-            case 11: return action.getTimeout();
+            case 1: return action.getType();
+            case 2: return action.getAction();
+            case 3: return action.getLocatorType();
+            case 4: return action.getSelectedSelector();
+            case 5: return action.getValue();
+            case 6: return action.getLocators().getOrDefault("xpath", "");                  // ✅ XPath
+            case 7: return action.getLocators().getOrDefault("css", "");                    // ✅ CSS
+            case 8: return action.getExtractedAttributes().getOrDefault("elementId", "");   // ✅ Element-ID
+            case 9: return action.getExtractedAttributes().getOrDefault("classes", "");     // ✅ CSS-Klassen
+            case 10: return action.getExtractedAttributes().getOrDefault("pagination", "");  // ✅ Pagination
+            case 11: return action.getExtractedAttributes().getOrDefault("inputName", "");  // ✅ Input-Name
+            case 12: return action.getTimeout();
             default:  // Dynamische Spalten
                 // Dynamische Spalten nach den festen Spalten (ab Index 11)
                 String dynamicKey = getColumnName(columnIndex);

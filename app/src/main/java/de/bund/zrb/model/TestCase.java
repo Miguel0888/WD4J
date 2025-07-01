@@ -9,8 +9,13 @@ public class TestCase {
     private String name;
 
     private final List<GivenCondition> given = new ArrayList<>(); // ✅ Given
-    private final List<TestAction> when = new ArrayList<>();      // ✅ Steps / When
+    private final List<TestAction> when;      // ✅ Steps / When
     private final List<ThenExpectation> then = new ArrayList<>(); // ✅ Erwartungen / Then
+
+    public TestCase(String name, List<TestAction> actions) {
+        this.name = name;
+        this.when = actions;
+    }
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }

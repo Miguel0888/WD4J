@@ -1,18 +1,12 @@
 package de.bund.zrb.ui;
 
-import de.bund.zrb.RecordingEventRouter;
-import de.bund.zrb.model.TestAction;
 import de.bund.zrb.service.BrowserServiceImpl;
-import de.bund.zrb.service.RecorderListener;
-import de.bund.zrb.service.RecorderService;
 
 import javax.swing.*;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Insets;
-import java.util.List;
 
 public class RightDrawer extends JPanel {
 
@@ -38,7 +32,7 @@ public class RightDrawer extends JPanel {
     }
 
     private void addNewRecorderSession() {
-        RecorderSession session = new RecorderSession();
+        RecorderSession session = new RecorderSession(this);
         int insertIndex = Math.max(recorderTabs.getTabCount() - 1, 0);
         recorderTabs.insertTab(null, null, session, null, insertIndex);
         recorderTabs.setTabComponentAt(insertIndex, createTabTitle("📝 Recorder", session));
@@ -95,75 +89,7 @@ public class RightDrawer extends JPanel {
         return tabPanel;
     }
 
-    class RecorderSession extends JPanel implements RecorderListener {
-
-        private final ActionTable actionTable;
-        private final JToggleButton recordToggle;
-
-        private String contextId;
-        private RecorderService recorderService;
-
-        public RecorderSession() {
-            super(new BorderLayout(8, 8));
-            this.actionTable = new ActionTable();
-
-            this.recordToggle = new JToggleButton("\u2B24");
-            recordToggle.setBackground(Color.RED);
-            recordToggle.setFocusPainted(false);
-            recordToggle.setToolTipText("Start Recording");
-
-            recordToggle.addActionListener(e -> toggleRecording());
-
-            JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            topPanel.add(recordToggle);
-
-            add(topPanel, BorderLayout.NORTH);
-            add(new JScrollPane(actionTable), BorderLayout.CENTER);
-        }
-
-        private void toggleRecording() {
-            boolean shouldStart = recordToggle.isSelected();
-
-            if (shouldStart) {
-                this.contextId = browserService.getBrowser().getPages().getActivePageId();
-                this.recorderService = RecorderService.getInstance(contextId);
-
-                // Meldet sich beim Router an
-                browserService.getRecordingEventRouter().addListener(contextId, recorderService);
-
-                // Meldet sich beim UI an
-                recorderService.addListener(this);
-
-                System.out.println("📌 Start Recording for Context: " + contextId);
-
-                recordToggle.setText("\u23F8");
-                recordToggle.setToolTipText("Stop Recording");
-                recordToggle.setBackground(Color.GRAY);
-
-            } else {
-                unregister();
-                System.out.println("🛑 Stop Recording for Context: " + contextId);
-
-                recordToggle.setText("\u2B24");
-                recordToggle.setToolTipText("Start Recording");
-                recordToggle.setBackground(Color.RED);
-            }
-        }
-
-        public void unregister() {
-            if (contextId != null) {
-                recorderService.removeListener(this);
-                browserService.getRecordingEventRouter().removeListener(contextId, recorderService);
-                RecorderService.remove(contextId);
-                contextId = null;
-            }
-        }
-
-        @Override
-        public void onRecorderUpdated(List<TestAction> actions) {
-            SwingUtilities.invokeLater(() -> {
-                actionTable.setActions(actions);
-            });
-        }
+    public BrowserServiceImpl getBrowserService() {
+        return browserService;
     }
 }

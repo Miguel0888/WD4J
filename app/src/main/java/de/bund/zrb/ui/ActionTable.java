@@ -92,9 +92,13 @@ public class ActionTable extends JTable {
         columnModel.getColumn(0).setCellEditor(new DefaultCellEditor(new JCheckBox()));
         columnModel.getColumn(0).setCellRenderer(getDefaultRenderer(Boolean.class));
 
+        // Typen-Dropdown
+        JComboBox<TestAction.ActionType> typeComboBox = new JComboBox<>(TestAction.ActionType.values());
+        columnModel.getColumn(1).setCellEditor(new DefaultCellEditor(typeComboBox));
+
         // Aktionen DropDown
         JComboBox<String> actionComboBox = new JComboBox<>(new String[]{"click", "input", "screenshot"});
-        columnModel.getColumn(1).setCellEditor(new DefaultCellEditor(actionComboBox));
+        columnModel.getColumn(2).setCellEditor(new DefaultCellEditor(actionComboBox));
 
         // 🛠️ MouseListener für Klicks im Header hinzufügen
         JTableHeader header = getTableHeader();

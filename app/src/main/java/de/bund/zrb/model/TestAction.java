@@ -9,6 +9,7 @@ import java.util.Map;
 
 public class TestAction {
     private String user; // z. B. "userA", "userB"
+    private ActionType type = ActionType.WHEN; // given | when | then
     private boolean selected;
     private String action;
     private String selectedSelector;  // Der tatsächlich verwendete Selektor
@@ -201,4 +202,15 @@ public class TestAction {
         return obj;
     }
 
+    public ActionType getType() {
+        return type;
+    }
+
+    public void setType(ActionType type) {
+        this.type = type;
+    }
+
+    public enum ActionType {
+        GIVEN, WHEN, THEN;
+    }
 }

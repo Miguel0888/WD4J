@@ -11,6 +11,11 @@ public class TestSuite {
     private final List<ThenExpectation> then = new ArrayList<>();
     private final List<TestCase> testCases = new ArrayList<>();
 
+    public TestSuite(String name, List<TestCase> testCases) {
+        this.name = name;
+        this.testCases.addAll(testCases);
+    }
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
