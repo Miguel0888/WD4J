@@ -37,6 +37,9 @@ public class Pages implements Iterable<PageImpl> {
     }
 
     public String getActivePageId() {
+        if( activePageId == null) {
+            return pages.entrySet().stream().findFirst().get().getValue().getBrowsingContextId();
+        }
         return activePageId;
     }
 

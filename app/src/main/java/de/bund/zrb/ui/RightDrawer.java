@@ -1,12 +1,30 @@
 package de.bund.zrb.ui;
 
+import com.google.gson.Gson;
 import de.bund.zrb.RecordingEventRouter;
 import de.bund.zrb.event.WDScriptEvent;
 import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.service.RecorderService;
+import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
+import de.bund.zrb.type.script.WDRemoteValue;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
+import javax.swing.JToggleButton;
+import javax.swing.SwingUtilities;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.FlowLayout;
+import java.awt.Insets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class RightDrawer extends JPanel {
 
@@ -149,11 +167,43 @@ public class RightDrawer extends JPanel {
 
         @Override
         public void onRecordingEvent(WDScriptEvent.Message message) {
-            recorderService.recordAction(message.toString()); // oder dein JSON-Extractor!
-            // Danach kannst du dein UI updaten:
-            SwingUtilities.invokeLater(() -> {
-                actionTable.setActions(recorderService.getAllTestActionsForDrawer());
-            });
+            WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
+
+            List<Map.Entry<WDRemoteValue, WDRemoteValue>> pairs = new ArrayList<>(data.getValue().entrySet());
+
+            for (Map.Entry<WDRemoteValue, WDRemoteValue> entry : pairs) {
+                String key = ((WDPrimitiveProtocolValue.StringValue) entry.getKey()).getValue();
+                if ("events".equals(key)) {
+                    WDRemoteValue.ArrayRemoteValue eventsArray = (WDRemoteValue.ArrayRemoteValue) entry.getValue();
+
+                    // Umwandeln in normale Map, dann als JSON:
+                    List<Map<String, Object>> plainEvents = new ArrayList<>();
+                    for (WDRemoteValue eventItem : eventsArray.getValue()) {
+                        WDRemoteValue.ObjectRemoteValue eventObject = (WDRemoteValue.ObjectRemoteValue) eventItem;
+
+                        Map<String, Object> eventMap = new LinkedHashMap<>();
+                        for (Map.Entry<WDRemoteValue, WDRemoteValue> ev : eventObject.getValue().entrySet()) {
+                            String evKey = ((WDPrimitiveProtocolValue.StringValue) ev.getKey()).getValue();
+                            WDRemoteValue evValue = ev.getValue();
+                            if (evValue instanceof WDPrimitiveProtocolValue.StringValue) {
+                                eventMap.put(evKey, ((WDPrimitiveProtocolValue.StringValue) evValue).getValue());
+                            } else if (evValue instanceof WDRemoteValue.ObjectRemoteValue) {
+                                // Ignoriere oder erweitere bei Bedarf
+                                eventMap.put(evKey, evValue.toString());
+                            }
+                        }
+                        plainEvents.add(eventMap);
+                    }
+
+                    String json = new Gson().toJson(plainEvents);
+                    recorderService.recordAction(json);
+
+                    SwingUtilities.invokeLater(() -> {
+                        actionTable.setActions(recorderService.getAllTestActionsForDrawer());
+                    });
+                }
+            }
         }
+
     }
 }

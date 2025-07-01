@@ -317,33 +317,12 @@ public class BrowserImpl implements Browser {
         if (handler != null) {
             onMessage(message -> {
                 if (channelName.equals(message.getParams().getChannel().value())) {
-                    WDRemoteValue.ObjectRemoteValue remoteValue =
-                            (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
-
-                    // Beispiel: Du kannst hier filtern, ob es überhaupt eine Aktion ist
-                    boolean isClickOrInput = remoteValue.getValue().entrySet().stream()
-                            .anyMatch(entry -> {
-                                if (entry.getKey() instanceof WDPrimitiveProtocolValue.StringValue) {
-                                    String key = ((WDPrimitiveProtocolValue.StringValue) entry.getKey()).getValue();
-                                    if ("action".equals(key)) {
-                                        WDPrimitiveProtocolValue.StringValue action =
-                                                (WDPrimitiveProtocolValue.StringValue) entry.getValue();
-                                        return "click".equals(action.getValue()) || "input".equals(action.getValue());
-                                    }
-                                }
-                                return false;
-                            });
-
-                    if (isClickOrInput) {
-                        String contextId = message.getParams().getSource().getContext().value();
-                        System.out.printf("🎯 Recorder-Event erkannt: Context=%s\n", contextId);
-                        handler.accept(message);
-                    }
+                    // Kein Filter mehr!
+                    handler.accept(message);
                 }
             });
         }
     }
-
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
