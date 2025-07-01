@@ -15,6 +15,8 @@ import java.util.*;
 
 public class BrowserServiceImpl implements BrowserService {
 
+    private final Map<String, BrowserContext> userContexts = new HashMap<>();
+
     private static final Logger logger = LoggerFactory.getLogger(BrowserServiceImpl.class);
     private static final BrowserServiceImpl INSTANCE = new BrowserServiceImpl();
 
@@ -93,6 +95,49 @@ public class BrowserServiceImpl implements BrowserService {
     @Override
     public void createNewTab() {
         browser.newPage();
+    }
+
+    @Override
+    public String createUserContext(UserRegistry.User user) {
+        if (browser == null) {
+            throw new IllegalStateException("Browser ist nicht gestartet!");
+        }
+
+        // Standard Playwright-API verwenden!
+        BrowserContext context = browser.newContext();
+
+        // User als Key
+        userContexts.put(user.getUsername(), context);
+
+        // Option: gleich Seite öffnen
+        Page page = context.newPage();
+
+        // Für dein Mapping
+        UserContextMappingService.getInstance().bindUserToContext(user.getUsername(), user);
+
+        return user.getUsername();
+    }
+
+    @Override
+    public void closeUserContext(String username) {
+        BrowserContext context = userContexts.remove(username);
+        if (context != null) {
+            context.close();
+        }
+        UserContextMappingService.getInstance().remove(username);
+    }
+
+    @Override
+    public Page getActivePage(String username) {
+        BrowserContext context = userContexts.get(username);
+        if (context == null) {
+            throw new IllegalStateException("Kein Kontext für Benutzer: " + username);
+        }
+        List<Page> pages = context.pages();
+        if (pages.isEmpty()) {
+            return context.newPage();
+        }
+        return pages.get(0);
     }
 
     @Override
