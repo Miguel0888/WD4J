@@ -28,6 +28,8 @@ public class BrowserImpl implements Browser {
     public static final String CHANNEL_FOCUS_EVENTS = "focus-events-channel";
     public static final String CHANNEL_RECORDING_EVENTS = "recording-events-channel";
 
+    private final RecordingEventRouter router = new RecordingEventRouter(); // Dein Router speichert alles
+
     private final List<WDScriptResult.AddPreloadScriptResult> globalScripts = new ArrayList<>();
     // ToDo: Make pages not static, to be able to handle multiple Browser instances:
     private static /*final*/ Pages pages;
@@ -53,13 +55,18 @@ public class BrowserImpl implements Browser {
         this.webDriver = new WebDriver(webSocketManager, dispatcher).connect(browserType.name());
 
         onContextSwitch(pages::setActivePageId);
-        onRecordingEvent(CHANNEL_RECORDING_EVENTS, message -> {
-            System.out.println("🎯 Recording Event empfangen: " + message);
-            // Optional: Auf Page/Context routen
-        });
+        onRecordingEvent(BrowserImpl.CHANNEL_RECORDING_EVENTS, this::handleRecordingEvent);
         fetchDefaultData();
 
         loadGlobalScripts(); // load JavaScript code relevant for the working Playwright API
+    }
+
+    private void handleRecordingEvent(WDScriptEvent.Message message) {
+        router.dispatch(message);
+    }
+
+    public RecordingEventRouter getRecordingEventRouter() {
+        return router;
     }
 
     public static PageImpl getPage(WDBrowsingContext context) {

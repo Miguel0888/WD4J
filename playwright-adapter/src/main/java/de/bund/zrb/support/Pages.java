@@ -36,7 +36,7 @@ public class Pages implements Iterable<PageImpl> {
         return pages.keySet();
     }
 
-    public Object getActivePageId() {
+    public String getActivePageId() {
         return activePageId;
     }
 

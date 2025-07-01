@@ -3,6 +3,7 @@ package de.bund.zrb;
 import com.google.gson.JsonObject;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.*;
+import de.bund.zrb.event.WDScriptEvent;
 import de.bund.zrb.type.script.*;
 import de.bund.zrb.event.FrameImpl;
 import de.bund.zrb.support.PlaywrightResponse;
@@ -1328,5 +1329,4 @@ public class PageImpl implements Page {
     public WebDriver getWebDriver() {
         return webDriver;
     }
-
 }

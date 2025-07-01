@@ -1,13 +1,9 @@
 package de.bund.zrb.service;
 
 import com.microsoft.playwright.*;
-import de.bund.zrb.BrowserImpl;
-import de.bund.zrb.BrowserTypeImpl;
-import de.bund.zrb.PageImpl;
+import de.bund.zrb.*;
 import de.bund.zrb.command.response.WDScriptResult;
-import de.bund.zrb.controller.RecordingEventRouter;
 import de.bund.zrb.manager.WDScriptManager;
-import de.bund.zrb.PlaywrightImpl;
 import de.bund.zrb.type.script.WDLocalValue;
 import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
 import de.bund.zrb.type.script.WDRealmInfo;
@@ -178,6 +174,13 @@ public class BrowserServiceImpl implements BrowserService {
 
     public BrowserImpl getBrowser() {
         return browser;
+    }
+
+    public RecordingEventRouter getRecordingEventRouter() {
+        if(browser == null) {
+            return null;
+        }
+        return browser.getRecordingEventRouter();
     }
 
     public interface ActivePageListener {
