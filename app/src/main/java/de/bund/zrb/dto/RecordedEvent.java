@@ -30,7 +30,7 @@ public class RecordedEvent {
 
     // Getter & Setter
     public String getCss() { return selector; }
-    public void setSelector(String selector) { this.selector = selector; }
+    public void setCss(String selector) { this.selector = selector; }
 
     public String getAction() { return action; }
     public void setAction(String action) { this.action = action; }

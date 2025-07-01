@@ -42,18 +42,10 @@ public class RecorderService {
         }
     }
 
-    public void recordAction(String message) {
-        try {
-            Type listType = new TypeToken<List<RecordedEvent>>() {}.getType();
-            List<RecordedEvent> events = gson.fromJson(message, listType);
-
-            if (events != null) {
-                recordedEvents.addAll(events);
-                System.out.println("📌 Gespeicherte Events: " + events.size());
-                notifyListeners();
-            }
-        } catch (Exception e) {
-            System.err.println("⚠️ Fehler beim Parsen der Daten: " + e.getMessage());
+    public void recordAction(List<RecordedEvent> events) {
+        if (events != null && !events.isEmpty()) {
+            recordedEvents.addAll(events);
+            notifyListeners();
         }
     }
 

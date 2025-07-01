@@ -1,7 +1,7 @@
 package de.bund.zrb.ui;
 
-import com.google.gson.Gson;
 import de.bund.zrb.RecordingEventRouter;
+import de.bund.zrb.dto.RecordedEvent;
 import de.bund.zrb.event.WDScriptEvent;
 import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.service.RecorderService;
@@ -22,7 +22,6 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Insets;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -168,42 +167,67 @@ public class RightDrawer extends JPanel {
         @Override
         public void onRecordingEvent(WDScriptEvent.Message message) {
             WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
+            List<RecordedEvent> events = extractRecordedEvents(data);
 
-            List<Map.Entry<WDRemoteValue, WDRemoteValue>> pairs = new ArrayList<>(data.getValue().entrySet());
+            recorderService.recordAction(events);
 
-            for (Map.Entry<WDRemoteValue, WDRemoteValue> entry : pairs) {
-                String key = ((WDPrimitiveProtocolValue.StringValue) entry.getKey()).getValue();
-                if ("events".equals(key)) {
-                    WDRemoteValue.ArrayRemoteValue eventsArray = (WDRemoteValue.ArrayRemoteValue) entry.getValue();
+            SwingUtilities.invokeLater(() -> {
+                actionTable.setActions(recorderService.getAllTestActionsForDrawer());
+            });
+        }
 
-                    // Umwandeln in normale Map, dann als JSON:
-                    List<Map<String, Object>> plainEvents = new ArrayList<>();
-                    for (WDRemoteValue eventItem : eventsArray.getValue()) {
-                        WDRemoteValue.ObjectRemoteValue eventObject = (WDRemoteValue.ObjectRemoteValue) eventItem;
+        private List<RecordedEvent> extractRecordedEvents(WDRemoteValue.ObjectRemoteValue data) {
+            List<RecordedEvent> result = new ArrayList<>();
 
-                        Map<String, Object> eventMap = new LinkedHashMap<>();
-                        for (Map.Entry<WDRemoteValue, WDRemoteValue> ev : eventObject.getValue().entrySet()) {
-                            String evKey = ((WDPrimitiveProtocolValue.StringValue) ev.getKey()).getValue();
-                            WDRemoteValue evValue = ev.getValue();
-                            if (evValue instanceof WDPrimitiveProtocolValue.StringValue) {
-                                eventMap.put(evKey, ((WDPrimitiveProtocolValue.StringValue) evValue).getValue());
-                            } else if (evValue instanceof WDRemoteValue.ObjectRemoteValue) {
-                                // Ignoriere oder erweitere bei Bedarf
-                                eventMap.put(evKey, evValue.toString());
-                            }
-                        }
-                        plainEvents.add(eventMap);
+            WDRemoteValue.ArrayRemoteValue eventsArray = null;
+
+            for (Map.Entry<WDRemoteValue, WDRemoteValue> entry : data.getValue().entrySet()) {
+                if (entry.getKey() instanceof WDPrimitiveProtocolValue.StringValue) {
+                    String key = ((WDPrimitiveProtocolValue.StringValue) entry.getKey()).getValue();
+                    if ("events".equals(key)) {
+                        eventsArray = (WDRemoteValue.ArrayRemoteValue) entry.getValue();
+                        break;
                     }
-
-                    String json = new Gson().toJson(plainEvents);
-                    recorderService.recordAction(json);
-
-                    SwingUtilities.invokeLater(() -> {
-                        actionTable.setActions(recorderService.getAllTestActionsForDrawer());
-                    });
                 }
             }
+
+            if (eventsArray == null) {
+                System.err.println("⚠️ Keine Events gefunden!");
+                return result;
+            }
+
+            for (WDRemoteValue item : eventsArray.getValue()) {
+                if (item instanceof WDRemoteValue.ObjectRemoteValue) {
+                    WDRemoteValue.ObjectRemoteValue eventObj = (WDRemoteValue.ObjectRemoteValue) item;
+                    RecordedEvent event = new RecordedEvent();
+
+                    for (Map.Entry<WDRemoteValue, WDRemoteValue> pair : eventObj.getValue().entrySet()) {
+                        String key = ((WDPrimitiveProtocolValue.StringValue) pair.getKey()).getValue();
+                        WDRemoteValue value = pair.getValue();
+
+                        if (value instanceof WDPrimitiveProtocolValue.StringValue) {
+                            String val = ((WDPrimitiveProtocolValue.StringValue) value).getValue();
+                            switch (key) {
+                                case "selector": event.setCss(val); break;
+                                case "action": event.setAction(val); break;
+                                case "buttonText": event.setButtonText(val); break;
+                                case "xpath": event.setXpath(val); break;
+                                case "classes": event.setClasses(val); break;
+                                default: break; // Weitere Keys kannst du hier ergänzen!
+                            }
+                        }
+
+                        // Optional: Wenn dein `aria` oder `attributes` wieder ein ObjectRemoteValue ist,
+                        // musst du es rekursiv mappen.
+                    }
+
+                    result.add(event);
+                }
+            }
+
+            return result;
         }
+
 
     }
 }
