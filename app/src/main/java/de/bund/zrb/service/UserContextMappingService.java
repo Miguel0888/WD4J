@@ -9,6 +9,9 @@ public class UserContextMappingService {
 
     private final Map<String, UserRegistry.User> contextUserMap = new HashMap<>();
 
+    // aktuell ausgewählter Benutzer
+    private UserRegistry.User currentUser;
+
     public static UserContextMappingService getInstance() {
         return INSTANCE;
     }
@@ -23,5 +26,13 @@ public class UserContextMappingService {
 
     public void remove(String contextId) {
         contextUserMap.remove(contextId);
+    }
+
+    public UserRegistry.User getCurrentUser() {
+        return currentUser;
+    }
+
+    public void setCurrentUser(UserRegistry.User user) {
+        this.currentUser = user;
     }
 }

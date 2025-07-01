@@ -2,6 +2,7 @@ package de.bund.zrb.ui;
 
 import de.bund.zrb.service.BrowserConfig;
 import de.bund.zrb.service.BrowserServiceImpl;
+import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.commandframework.*;
 import de.bund.zrb.ui.commands.*;
 import de.bund.zrb.ui.commands.debug.ShowDomEventsCommand;
@@ -79,7 +80,18 @@ public class TestToolUI {
         config.setPort(9222);
 
         // Browser automatisch starten
-        browserService.launchBrowser(config);
+        try {
+            browserService.launchBrowser(config);
+        } catch (Exception e) {
+            // Zeige eine Fehlermeldung im Dialog
+            JOptionPane.showMessageDialog(
+                    frame,                                  // Elternkomponente
+                    "Fehler beim Starten des Browsers:\n" + e.getMessage(), // Nachricht
+                    "Browser-Start fehlgeschlagen",         // Dialog-Titel
+                    JOptionPane.ERROR_MESSAGE               // Icon-Typ
+            );
+            e.printStackTrace(); // Optional: für Log-Ausgabe in der Konsole
+        }
 
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
@@ -125,7 +137,7 @@ public class TestToolUI {
         commandRegistry.register(new ShowDomEventsCommand(browserService));
 
         commandRegistry.register(new UserRegistryCommand());
-
+        commandRegistry.register(new UserSelectionCommand(UserRegistry.getInstance()));
 
     }
 
