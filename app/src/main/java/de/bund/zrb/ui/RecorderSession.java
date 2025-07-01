@@ -24,9 +24,10 @@ class RecorderSession extends JPanel implements RecorderListener {
     private RecorderService recorderService;
     private UserRegistry.User selectedUser;
 
-    public RecorderSession(RightDrawer rightDrawer) {
+    RecorderSession(RightDrawer rightDrawer, UserRegistry.User user){
         super(new BorderLayout(8, 8));
         this.rightDrawer = rightDrawer;
+        this.selectedUser = user;
         this.actionTable = new ActionTable();
 
         this.recordToggle = new JToggleButton("\u2B24");
@@ -97,19 +98,8 @@ class RecorderSession extends JPanel implements RecorderListener {
             this.contextId = rightDrawer.getBrowserService().getBrowser().getPages().getActivePageId();
             this.recorderService = RecorderService.getInstance(contextId);
 
-            // 👉 User wählen
-            List<UserRegistry.User> allUsers = UserRegistry.getInstance().getAll();
-            selectedUser = (UserRegistry.User) JOptionPane.showInputDialog(
-                    this,
-                    "Für welchen Benutzer?",
-                    "Benutzer auswählen",
-                    JOptionPane.PLAIN_MESSAGE,
-                    null,
-                    allUsers.toArray(),
-                    allUsers.isEmpty() ? null : allUsers.get(0)
-            );
-
             if (selectedUser == null) {
+                JOptionPane.showMessageDialog(this, "Kein Benutzer zugewiesen!", "Fehler", JOptionPane.ERROR_MESSAGE);
                 recordToggle.setSelected(false);
                 return;
             }

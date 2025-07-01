@@ -1,12 +1,11 @@
 package de.bund.zrb.ui;
 
 import de.bund.zrb.service.BrowserServiceImpl;
+import de.bund.zrb.service.UserRegistry;
 
 import javax.swing.*;
-import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.FlowLayout;
-import java.awt.Insets;
+import java.awt.*;
+import java.util.List;
 
 public class RightDrawer extends JPanel {
 
@@ -20,7 +19,7 @@ public class RightDrawer extends JPanel {
         add(recorderTabs, BorderLayout.CENTER);
 
         addPlusTab();
-        addNewRecorderSession();
+        openTabsForAllUsers();
 
         recorderTabs.addChangeListener(e -> {
             int plusTabIndex = recorderTabs.getTabCount() - 1;
@@ -31,12 +30,48 @@ public class RightDrawer extends JPanel {
         });
     }
 
-    private void addNewRecorderSession() {
-        RecorderSession session = new RecorderSession(this);
+    private void openTabsForAllUsers() {
+        List<UserRegistry.User> users = UserRegistry.getInstance().getAll();
+        if (users.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Keine Benutzer vorhanden! Bitte zuerst Benutzer anlegen.", "Fehler", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        for (UserRegistry.User user : users) {
+            addRecorderTabForUser(user);
+        }
+    }
+
+    private void addRecorderTabForUser(UserRegistry.User user) {
+        RecorderSession session = new RecorderSession(this, user);
         int insertIndex = Math.max(recorderTabs.getTabCount() - 1, 0);
         recorderTabs.insertTab(null, null, session, null, insertIndex);
-        recorderTabs.setTabComponentAt(insertIndex, createTabTitle("📝 Recorder", session));
+        recorderTabs.setTabComponentAt(insertIndex, createTabTitle("📝 " + user.getUsername(), session));
+
+        // ✅ Damit der neue Tab NICHT das Plus-Tab auswählt:
         recorderTabs.setSelectedComponent(session);
+    }
+
+    private void addNewRecorderSession() {
+        List<UserRegistry.User> users = UserRegistry.getInstance().getAll();
+        if (users.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Keine Benutzer vorhanden! Bitte zuerst Benutzer anlegen.", "Fehler", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        UserRegistry.User selectedUser = (UserRegistry.User) JOptionPane.showInputDialog(
+                this,
+                "Bitte wähle einen Benutzer aus:",
+                "Neuer Recorder-Tab",
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                users.toArray(),
+                users.get(0)
+        );
+
+        if (selectedUser != null) {
+            addRecorderTabForUser(selectedUser);
+        }
     }
 
     private void addPlusTab() {

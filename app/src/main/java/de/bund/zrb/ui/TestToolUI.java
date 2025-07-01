@@ -28,6 +28,8 @@ public class TestToolUI {
         frame.setLocationRelativeTo(null);
         frame.setLayout(new BorderLayout());
 
+        initBrowser();
+
         registerCommands();
         registerShortcuts();
 
@@ -64,6 +66,28 @@ public class TestToolUI {
         frame.add(outerSplit, BorderLayout.CENTER);
 
         frame.setVisible(true);
+    }
+
+    private void initBrowser() {
+        BrowserConfig config = new BrowserConfig();
+        config.setBrowserType("firefox");
+        config.setHeadless(false);
+        config.setNoRemote(false);
+        config.setDisableGpu(false);
+        config.setStartMaximized(true);
+        config.setUseProfile(false);
+        config.setPort(9222);
+
+        // Browser automatisch starten
+        browserService.launchBrowser(config);
+
+        frame.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                System.out.println("🛑 Browser wird beendet...");
+                browserService.terminateBrowser();
+            }
+        });
     }
 
     private void registerShortcuts() {
