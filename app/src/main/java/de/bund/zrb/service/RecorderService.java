@@ -10,19 +10,18 @@ import de.bund.zrb.type.script.WDRemoteValue;
 import java.util.*;
 
 /**
- * Ein Recorder speichert Events pro Context.
+ * Ein Recorder speichert TestActions pro Context.
  * Er meldet sich selbst beim RecordingEventRouter an.
  */
 public class RecorderService implements RecordingEventRouter.RecordingEventListener {
 
-    // 🗂 Zentrale Registry pro Context
     private static final Map<String, RecorderService> RECORDERS = new HashMap<>();
 
-    private final List<RecordedEvent> recordedEvents = new ArrayList<>();
+    private final List<TestAction> recordedActions = new ArrayList<>();
     private final List<RecorderListener> listeners = new ArrayList<>();
 
     private RecorderService() {
-        // Nur über getInstance erzeugbar!
+        // nur über getInstance()
     }
 
     public static synchronized RecorderService getInstance(String contextId) {
@@ -47,9 +46,8 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
     }
 
     private void notifyListeners() {
-        List<TestAction> actions = getAllTestActionsForDrawer();
         for (RecorderListener listener : listeners) {
-            listener.onRecorderUpdated(actions);
+            listener.onRecorderUpdated(getAllTestActionsForDrawer());
         }
     }
 
@@ -57,14 +55,30 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
     public void onRecordingEvent(WDScriptEvent.Message message) {
         WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
         List<RecordedEvent> events = extractRecordedEvents(data);
-        recordAction(events);
+
+        for (RecordedEvent event : events) {
+            TestAction action = convertToTestAction(event);
+            action.setRaw(event); // Original speichern
+            recordedActions.add(action);
+        }
+
+        notifyListeners();
     }
 
-    public void recordAction(List<RecordedEvent> events) {
-        if (events != null && !events.isEmpty()) {
-            recordedEvents.addAll(events);
-            notifyListeners();
-        }
+    public void setRecordedActions(List<TestAction> newOrder) {
+        recordedActions.clear();
+        recordedActions.addAll(newOrder);
+        notifyListeners();
+    }
+
+    public List<TestAction> getAllTestActionsForDrawer() {
+        mergeInputEvents(); // optional
+        return new ArrayList<>(recordedActions);
+    }
+
+    public void clearRecordedActions() {
+        recordedActions.clear();
+        notifyListeners();
     }
 
     private List<RecordedEvent> extractRecordedEvents(WDRemoteValue.ObjectRemoteValue data) {
@@ -114,71 +128,6 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         return result;
     }
 
-    public List<TestAction> getAllTestActionsForDrawer() {
-        mergeInputEvents();
-        List<TestAction> actions = new ArrayList<>();
-        for (RecordedEvent e : recordedEvents) {
-            actions.add(convertToTestAction(e));
-        }
-        return actions;
-    }
-
-    public void clearRecordedEvents() {
-        recordedEvents.clear();
-        notifyListeners();
-    }
-
-    public List<RecordedEvent> getRecordedEvents() {
-        return new ArrayList<>(recordedEvents);
-    }
-
-    private void mergeInputEvents() {
-        if (recordedEvents.isEmpty()) return;
-
-        List<RecordedEvent> merged = new ArrayList<>();
-        RecordedEvent lastInput = null;
-        StringBuilder keys = new StringBuilder();
-
-        for (RecordedEvent e : recordedEvents) {
-            if ("input".equals(e.getAction())) {
-                if (lastInput != null && isSameExceptValue(lastInput, e)) {
-                    lastInput.setValue(e.getValue());
-                } else {
-                    if (lastInput != null) merged.add(lastInput);
-                    lastInput = e;
-                }
-            } else if ("press".equals(e.getAction())) {
-                keys.append(e.getKey());
-            } else {
-                if (lastInput != null) {
-                    merged.add(lastInput);
-                    lastInput = null;
-                } else if (keys.length() > 0) {
-                    RecordedEvent keyEvent = new RecordedEvent();
-                    keyEvent.setAction("input");
-                    keyEvent.setKey(keys.toString());
-                    merged.add(keyEvent);
-                    keys.setLength(0);
-                }
-                merged.add(e);
-            }
-        }
-        if (lastInput != null) merged.add(lastInput);
-        recordedEvents.clear();
-        recordedEvents.addAll(merged);
-    }
-
-    private boolean isSameExceptValue(RecordedEvent a, RecordedEvent b) {
-        return Objects.equals(a.getCss(), b.getCss()) &&
-                Objects.equals(a.getAction(), b.getAction()) &&
-                Objects.equals(a.getElementId(), b.getElementId()) &&
-                Objects.equals(a.getClasses(), b.getClasses()) &&
-                Objects.equals(a.getXpath(), b.getXpath()) &&
-                Objects.equals(a.getAria(), b.getAria()) &&
-                Objects.equals(a.getAttributes(), b.getAttributes()) &&
-                Objects.equals(a.getTest(), b.getTest());
-    }
-
     public TestAction convertToTestAction(RecordedEvent event) {
         TestAction action = new TestAction();
         action.setTimeout(3000);
@@ -188,6 +137,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         action.setLocatorType(event.getXpath() != null ? "xpath" : "css");
         action.setSelectedSelector(event.getXpath() != null ? event.getXpath() : event.getCss());
         action.setValue(event.getValue());
+
         if (event.getButtonText() != null) {
             if (action.getValue() == null) {
                 action.setValue(event.getButtonText());
@@ -210,6 +160,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
                 new LinkedHashMap<>(event.getTest()) : new LinkedHashMap<>());
         action.setExtractedAriaRoles(event.getAria() != null ?
                 new LinkedHashMap<>(event.getAria()) : new LinkedHashMap<>());
+
         if (event.getPagination() != null) {
             action.getExtractedAttributes().put("pagination", event.getPagination());
         }
@@ -225,6 +176,50 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         if (event.getNewValue() != null) {
             action.getExtractedAttributes().put("newValue", event.getNewValue());
         }
+
         return action;
+    }
+
+    private void mergeInputEvents() {
+        if (recordedActions.isEmpty()) return;
+
+        List<TestAction> merged = new ArrayList<>();
+        TestAction lastInput = null;
+        StringBuilder keys = new StringBuilder();
+
+        for (TestAction action : recordedActions) {
+            if ("input".equals(action.getAction())) {
+                if (lastInput != null && isSameExceptValue(lastInput, action)) {
+                    lastInput.setValue(action.getValue());
+                } else {
+                    if (lastInput != null) merged.add(lastInput);
+                    lastInput = action;
+                }
+            } else if ("press".equals(action.getAction())) {
+                keys.append(action.getValue());
+            } else {
+                if (lastInput != null) {
+                    merged.add(lastInput);
+                    lastInput = null;
+                } else if (keys.length() > 0) {
+                    TestAction keyAction = new TestAction();
+                    keyAction.setAction("input");
+                    keyAction.setValue(keys.toString());
+                    merged.add(keyAction);
+                    keys.setLength(0);
+                }
+                merged.add(action);
+            }
+        }
+        if (lastInput != null) merged.add(lastInput);
+
+        recordedActions.clear();
+        recordedActions.addAll(merged);
+    }
+
+    private boolean isSameExceptValue(TestAction a, TestAction b) {
+        return Objects.equals(a.getSelectedSelector(), b.getSelectedSelector()) &&
+                Objects.equals(a.getAction(), b.getAction()) &&
+                Objects.equals(a.getLocatorType(), b.getLocatorType());
     }
 }

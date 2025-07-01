@@ -2,6 +2,7 @@ package de.bund.zrb.model;
 
 import com.google.gson.JsonObject;
 import com.microsoft.playwright.options.AriaRole;
+import de.bund.zrb.dto.RecordedEvent;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,6 +22,8 @@ public class TestAction {
     private Map<String, String> extractedTestIds = new LinkedHashMap<>();
     private Map<String, String> extractedAriaRoles = new LinkedHashMap<>();
     private int timeout;
+
+    private RecordedEvent raw; // optional
 
     private List<String> availableCssSelectors;
     private List<String> availableXpathSelectors;
@@ -212,5 +215,13 @@ public class TestAction {
 
     public enum ActionType {
         GIVEN, WHEN, THEN;
+    }
+
+    public RecordedEvent getRaw() {
+        return raw;
+    }
+
+    public void setRaw(RecordedEvent raw) {
+        this.raw = raw;
     }
 }

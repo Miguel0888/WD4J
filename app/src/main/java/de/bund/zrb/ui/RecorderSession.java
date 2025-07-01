@@ -140,21 +140,33 @@ class RecorderSession extends JPanel implements RecorderListener {
 
     private void moveSelectedRows(int direction) {
         List<TestAction> actions = actionTable.getActions();
+        boolean changed = false;
+
         if (direction < 0) {
             for (int i = 1; i < actions.size(); i++) {
                 if (actions.get(i).isSelected() && !actions.get(i - 1).isSelected()) {
                     Collections.swap(actions, i, i - 1);
+                    changed = true;
                 }
             }
         } else {
             for (int i = actions.size() - 2; i >= 0; i--) {
                 if (actions.get(i).isSelected() && !actions.get(i + 1).isSelected()) {
                     Collections.swap(actions, i, i + 1);
+                    changed = true;
                 }
             }
         }
-        actionTable.setActions(actions);
+
+        if (changed) {
+            // UI updaten
+            actionTable.getTableModel().fireTableDataChanged();
+
+            // 🆕 Reihenfolge in Recorder speichern
+            recorderService.setRecordedActions(actions);
+        }
     }
+
 
     public void unregister() {
         if (contextId != null) {
