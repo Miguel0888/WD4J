@@ -1,11 +1,19 @@
 package de.bund.zrb.service;
 
+import de.bund.zrb.RecordingEventRouter;
 import de.bund.zrb.dto.RecordedEvent;
+import de.bund.zrb.event.WDScriptEvent;
 import de.bund.zrb.model.TestAction;
+import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
+import de.bund.zrb.type.script.WDRemoteValue;
 
 import java.util.*;
 
-public class RecorderService {
+/**
+ * Ein Recorder speichert Events pro Context.
+ * Er meldet sich selbst beim RecordingEventRouter an.
+ */
+public class RecorderService implements RecordingEventRouter.RecordingEventListener {
 
     // 🗂 Zentrale Registry pro Context
     private static final Map<String, RecorderService> RECORDERS = new HashMap<>();
@@ -14,10 +22,9 @@ public class RecorderService {
     private final List<RecorderListener> listeners = new ArrayList<>();
 
     private RecorderService() {
-        // Nur private Instanziierung, nur über getInstance erlaubt!
+        // Nur über getInstance erzeugbar!
     }
 
-    // ✅ Liefert Singleton für contextId
     public static synchronized RecorderService getInstance(String contextId) {
         if (contextId == null || contextId.trim().isEmpty()) {
             throw new IllegalArgumentException("ContextId must not be null or empty!");
@@ -29,8 +36,6 @@ public class RecorderService {
         RECORDERS.remove(contextId);
     }
 
-    // === Normaler Instanzcode ===
-
     public void addListener(RecorderListener listener) {
         if (listener != null && !listeners.contains(listener)) {
             listeners.add(listener);
@@ -41,6 +46,20 @@ public class RecorderService {
         listeners.remove(listener);
     }
 
+    private void notifyListeners() {
+        List<TestAction> actions = getAllTestActionsForDrawer();
+        for (RecorderListener listener : listeners) {
+            listener.onRecorderUpdated(actions);
+        }
+    }
+
+    @Override
+    public void onRecordingEvent(WDScriptEvent.Message message) {
+        WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
+        List<RecordedEvent> events = extractRecordedEvents(data);
+        recordAction(events);
+    }
+
     public void recordAction(List<RecordedEvent> events) {
         if (events != null && !events.isEmpty()) {
             recordedEvents.addAll(events);
@@ -48,11 +67,51 @@ public class RecorderService {
         }
     }
 
-    private void notifyListeners() {
-        List<TestAction> actions = getAllTestActionsForDrawer();
-        for (RecorderListener listener : listeners) {
-            listener.onRecorderUpdated(actions);
+    private List<RecordedEvent> extractRecordedEvents(WDRemoteValue.ObjectRemoteValue data) {
+        List<RecordedEvent> result = new ArrayList<>();
+        WDRemoteValue.ArrayRemoteValue eventsArray = null;
+
+        for (Map.Entry<WDRemoteValue, WDRemoteValue> entry : data.getValue().entrySet()) {
+            if (entry.getKey() instanceof WDPrimitiveProtocolValue.StringValue) {
+                String key = ((WDPrimitiveProtocolValue.StringValue) entry.getKey()).getValue();
+                if ("events".equals(key)) {
+                    eventsArray = (WDRemoteValue.ArrayRemoteValue) entry.getValue();
+                    break;
+                }
+            }
         }
+
+        if (eventsArray == null) {
+            System.err.println("⚠️ Keine Events gefunden!");
+            return result;
+        }
+
+        for (WDRemoteValue item : eventsArray.getValue()) {
+            if (item instanceof WDRemoteValue.ObjectRemoteValue) {
+                WDRemoteValue.ObjectRemoteValue eventObj = (WDRemoteValue.ObjectRemoteValue) item;
+                RecordedEvent event = new RecordedEvent();
+
+                for (Map.Entry<WDRemoteValue, WDRemoteValue> pair : eventObj.getValue().entrySet()) {
+                    String key = ((WDPrimitiveProtocolValue.StringValue) pair.getKey()).getValue();
+                    WDRemoteValue value = pair.getValue();
+
+                    if (value instanceof WDPrimitiveProtocolValue.StringValue) {
+                        String val = ((WDPrimitiveProtocolValue.StringValue) value).getValue();
+                        switch (key) {
+                            case "selector": event.setCss(val); break;
+                            case "action": event.setAction(val); break;
+                            case "buttonText": event.setButtonText(val); break;
+                            case "xpath": event.setXpath(val); break;
+                            case "classes": event.setClasses(val); break;
+                        }
+                    }
+                }
+
+                result.add(event);
+            }
+        }
+
+        return result;
     }
 
     public List<TestAction> getAllTestActionsForDrawer() {
@@ -72,8 +131,6 @@ public class RecorderService {
     public List<RecordedEvent> getRecordedEvents() {
         return new ArrayList<>(recordedEvents);
     }
-
-    // === Deine mergeInputEvents und convertToTestAction bleiben unverändert ===
 
     private void mergeInputEvents() {
         if (recordedEvents.isEmpty()) return;
@@ -123,7 +180,6 @@ public class RecorderService {
     }
 
     public TestAction convertToTestAction(RecordedEvent event) {
-        // unverändert wie dein Original
         TestAction action = new TestAction();
         action.setTimeout(3000);
         action.setAction(event.getAction());

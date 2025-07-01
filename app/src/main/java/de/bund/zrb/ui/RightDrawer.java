@@ -1,36 +1,22 @@
 package de.bund.zrb.ui;
 
 import de.bund.zrb.RecordingEventRouter;
-import de.bund.zrb.dto.RecordedEvent;
-import de.bund.zrb.event.WDScriptEvent;
+import de.bund.zrb.model.TestAction;
 import de.bund.zrb.service.BrowserServiceImpl;
+import de.bund.zrb.service.RecorderListener;
 import de.bund.zrb.service.RecorderService;
-import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
-import de.bund.zrb.type.script.WDRemoteValue;
-import de.bund.zrb.type.script.WDSource;
 
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTabbedPane;
-import javax.swing.JToggleButton;
-import javax.swing.SwingUtilities;
+import javax.swing.*;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Insets;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class RightDrawer extends JPanel {
 
     private final BrowserServiceImpl browserService;
-
     private final JTabbedPane recorderTabs = new JTabbedPane();
 
     public RightDrawer(BrowserServiceImpl browserService) {
@@ -109,7 +95,7 @@ public class RightDrawer extends JPanel {
         return tabPanel;
     }
 
-    class RecorderSession extends JPanel implements RecordingEventRouter.RecordingEventListener {
+    class RecorderSession extends JPanel implements RecorderListener {
 
         private final ActionTable actionTable;
         private final JToggleButton recordToggle;
@@ -141,7 +127,12 @@ public class RightDrawer extends JPanel {
             if (shouldStart) {
                 this.contextId = browserService.getBrowser().getPages().getActivePageId();
                 this.recorderService = RecorderService.getInstance(contextId);
-                browserService.getRecordingEventRouter().addListener(contextId, this);
+
+                // Meldet sich beim Router an
+                browserService.getRecordingEventRouter().addListener(contextId, recorderService);
+
+                // Meldet sich beim UI an
+                recorderService.addListener(this);
 
                 System.out.println("📌 Start Recording for Context: " + contextId);
 
@@ -161,84 +152,18 @@ public class RightDrawer extends JPanel {
 
         public void unregister() {
             if (contextId != null) {
-                browserService.getRecordingEventRouter().removeListener(contextId, this);
+                recorderService.removeListener(this);
+                browserService.getRecordingEventRouter().removeListener(contextId, recorderService);
+                RecorderService.remove(contextId);
                 contextId = null;
             }
         }
 
         @Override
-        public void onRecordingEvent(WDScriptEvent.Message message) {
-            WDSource source = message.getParams().getSource();
-            String contextId = source.getContext().value();
-
-            // Extrahiere Events wie bisher
-            WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
-            List<RecordedEvent> events = extractRecordedEvents(data);
-
-            // Hole den Recorder für diesen Context
-            RecorderService recorder = RecorderService.getInstance(contextId);
-
-            // Trage Events ein
-            recorder.recordAction(events);
-
-            // UI-Update
+        public void onRecorderUpdated(List<TestAction> actions) {
             SwingUtilities.invokeLater(() -> {
-                actionTable.setActions(recorder.getAllTestActionsForDrawer());
+                actionTable.setActions(actions);
             });
         }
-
-        private List<RecordedEvent> extractRecordedEvents(WDRemoteValue.ObjectRemoteValue data) {
-            List<RecordedEvent> result = new ArrayList<>();
-
-            WDRemoteValue.ArrayRemoteValue eventsArray = null;
-
-            for (Map.Entry<WDRemoteValue, WDRemoteValue> entry : data.getValue().entrySet()) {
-                if (entry.getKey() instanceof WDPrimitiveProtocolValue.StringValue) {
-                    String key = ((WDPrimitiveProtocolValue.StringValue) entry.getKey()).getValue();
-                    if ("events".equals(key)) {
-                        eventsArray = (WDRemoteValue.ArrayRemoteValue) entry.getValue();
-                        break;
-                    }
-                }
-            }
-
-            if (eventsArray == null) {
-                System.err.println("⚠️ Keine Events gefunden!");
-                return result;
-            }
-
-            for (WDRemoteValue item : eventsArray.getValue()) {
-                if (item instanceof WDRemoteValue.ObjectRemoteValue) {
-                    WDRemoteValue.ObjectRemoteValue eventObj = (WDRemoteValue.ObjectRemoteValue) item;
-                    RecordedEvent event = new RecordedEvent();
-
-                    for (Map.Entry<WDRemoteValue, WDRemoteValue> pair : eventObj.getValue().entrySet()) {
-                        String key = ((WDPrimitiveProtocolValue.StringValue) pair.getKey()).getValue();
-                        WDRemoteValue value = pair.getValue();
-
-                        if (value instanceof WDPrimitiveProtocolValue.StringValue) {
-                            String val = ((WDPrimitiveProtocolValue.StringValue) value).getValue();
-                            switch (key) {
-                                case "selector": event.setCss(val); break;
-                                case "action": event.setAction(val); break;
-                                case "buttonText": event.setButtonText(val); break;
-                                case "xpath": event.setXpath(val); break;
-                                case "classes": event.setClasses(val); break;
-                                default: break; // Weitere Keys kannst du hier ergänzen!
-                            }
-                        }
-
-                        // Optional: Wenn dein `aria` oder `attributes` wieder ein ObjectRemoteValue ist,
-                        // musst du es rekursiv mappen.
-                    }
-
-                    result.add(event);
-                }
-            }
-
-            return result;
-        }
-
-
     }
 }
