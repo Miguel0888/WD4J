@@ -33,8 +33,6 @@ public class BrowserImpl implements Browser {
     private final RecordingEventRouter router;
 
     private final List<WDScriptResult.AddPreloadScriptResult> globalScripts = new ArrayList<>();
-    // ToDo: Make pages not static, to be able to handle multiple Browser instances:
-    private final Pages pages;
 
     private final BrowserTypeImpl browserType;
     private final Process process;
@@ -48,8 +46,7 @@ public class BrowserImpl implements Browser {
     private final PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
 
     public BrowserImpl(BrowserTypeImpl browserType, Process process, WebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
-        this.pages = new Pages(this); // aka. BrowsingContexts / Navigables in WebDriver BiDi
-        router = new RecordingEventRouter(pages);
+        router = new RecordingEventRouter(null); // ToDo
 
         this.browserType = browserType;
         this.process = process;
@@ -75,7 +72,9 @@ public class BrowserImpl implements Browser {
     }
 
     public PageImpl getPage(WDBrowsingContext context) {
-        return pages.get(context.value());
+        List<Page> allPages = getAllPages();
+        if( context == null || context.value() == null) return null;
+        return (PageImpl) allPages.stream().filter(p -> context.value().equals(((PageImpl) p).getBrowsingContextId())).findFirst().orElse(null);
     }
 
     private void loadGlobalScripts() {
@@ -125,7 +124,7 @@ public class BrowserImpl implements Browser {
         fetchDefaultSessionData();
         System.out.println("-----------------------------------");
         System.out.println("Available BrowsingContexts:");
-        fetchDefaultBrowsingContexts(pages, defaultContextId);
+        fetchDefaultBrowsingContexts();
         System.out.println("-----------------------------------");
         // ToDo: Fetch all Pages from every UserContext except the default one
     }
@@ -141,7 +140,7 @@ public class BrowserImpl implements Browser {
         } catch (WDException ignored) {}
     }
 
-    private void fetchDefaultBrowsingContexts(Pages currentPages, String userContextId) {
+    private void fetchDefaultBrowsingContexts() {
         // Get all browsing contexts (pages / tabs) already available
         try {
             // Check if a context is already available
@@ -225,12 +224,11 @@ public class BrowserImpl implements Browser {
      */
     @Override
     public Page newPage(NewPageOptions options) {
-        // ToDo: Hier muss ein neuer UserContext (aka. BrowserContext) erstellt werden, anstatt den Default UserContext zu verwenden
         PageImpl page = new PageImpl(this);
         page.onClose((e) -> {
-            pages.remove(page.getBrowsingContextId());
+            // ToDo: Remover from default context
         });
-        pages.add(page);
+        // ToDo: Add to default context
         return page;
     }
 
