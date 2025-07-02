@@ -28,11 +28,11 @@ public class BrowserImpl implements Browser {
     public static final String CHANNEL_FOCUS_EVENTS = "focus-events-channel";
     public static final String CHANNEL_RECORDING_EVENTS = "recording-events-channel";
 
-    private final RecordingEventRouter router = new RecordingEventRouter(pages);
+    private final RecordingEventRouter router;
 
     private final List<WDScriptResult.AddPreloadScriptResult> globalScripts = new ArrayList<>();
     // ToDo: Make pages not static, to be able to handle multiple Browser instances:
-    private static /*final*/ Pages pages;
+    private final Pages pages;
 
     private final BrowserTypeImpl browserType;
     private final Process process;
@@ -45,13 +45,14 @@ public class BrowserImpl implements Browser {
     public BrowserImpl(BrowserTypeImpl browserType, Process process, WebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
         // ToDo: Make pages not static BUT FINAL, to be able to handle multiple Browser instances, see above:
         this.pages = new Pages(this); // aka. BrowsingContexts / Navigables in WebDriver BiDi
+        router = new RecordingEventRouter(pages);
 
         this.browserType = browserType;
         this.process = process;
 
         // ToDo: May be moved to WD4J partly
         WebSocketManager webSocketManager = new WebSocketManagerImpl(webSocketImpl);
-        dispatcher = new EventDispatcher(new PlaywrightEventMapper());
+        dispatcher = new EventDispatcher(new PlaywrightEventMapper(this));
         this.webDriver = new WebDriver(webSocketManager, dispatcher).connect(browserType.name());
 
         onContextSwitch(pages::setActivePageId);
@@ -69,7 +70,7 @@ public class BrowserImpl implements Browser {
         return router;
     }
 
-    public static PageImpl getPage(WDBrowsingContext context) {
+    public PageImpl getPage(WDBrowsingContext context) {
         return pages.get(context.value());
     }
 

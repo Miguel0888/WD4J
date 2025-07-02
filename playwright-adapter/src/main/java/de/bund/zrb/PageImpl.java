@@ -48,7 +48,7 @@ public class PageImpl implements Page {
      * @param browser
      */
     public PageImpl(BrowserImpl browser) {
-        this(browser, null);
+        this(browser, (WDUserContext) null);
     }
 
     /**
@@ -90,11 +90,11 @@ public class PageImpl implements Page {
         this.userContextId = userContext;
     }
 
-    public PageImpl(WDBrowsingContextEvent.Load load) {
+    public PageImpl(BrowserImpl browser, WDBrowsingContextEvent.Load load) {
         WDBrowsingContext context = load.getParams().getContext();
-        PageImpl existingPage = BrowserImpl.getPage(context); // ToDo: No static access to BrowserImpl, find correct browser via the Connection or SessionId
+        PageImpl existingPage = browser.getPage(context);
 
-        this.browser = existingPage != null ? ((PageImpl) existingPage).getBrowser() : null;
+        this.browser = browser;
         this.webDriver = browser.getWebDriver();
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
@@ -104,12 +104,12 @@ public class PageImpl implements Page {
         this.url = load.getParams().getUrl();
     }
 
-    public PageImpl(WDBrowsingContextEvent.DomContentLoaded domContentLoaded) {
+    public PageImpl(BrowserImpl browser, WDBrowsingContextEvent.DomContentLoaded domContentLoaded) {
         WDBrowsingContext context = domContentLoaded.getParams().getContext();
-        PageImpl existingPage = BrowserImpl.getPage(context);
+        PageImpl existingPage = browser.getPage(context);
 
         // 🔹 Übernahme der bestehenden Browser-Instanz und Session, falls vorhanden
-        this.browser = existingPage != null ? existingPage.getBrowser() : null;
+        this.browser = browser;
         this.webDriver = browser.getWebDriver();
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
@@ -119,12 +119,12 @@ public class PageImpl implements Page {
         this.url = domContentLoaded.getParams().getUrl();
     }
 
-    public PageImpl(WDBrowsingContextEvent.Destroyed destroyed) {
+    public PageImpl(BrowserImpl browser, WDBrowsingContextEvent.Destroyed destroyed) {
         WDBrowsingContext context = destroyed.getParams().getContext();
-        PageImpl existingPage = BrowserImpl.getPage(context);
+        PageImpl existingPage = browser.getPage(context);
 
         // 🔹 Falls die Page existiert, markieren wir sie als geschlossen
-        this.browser = existingPage != null ? existingPage.getBrowser() : null;
+        this.browser = browser;
         this.webDriver = browser.getWebDriver();
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : null;
 
@@ -133,12 +133,12 @@ public class PageImpl implements Page {
         this.url = (existingPage != null) ? existingPage.url() : null;
     }
 
-    public PageImpl(WDBrowsingContextEvent.Created created) {
+    public PageImpl(BrowserImpl browser, WDBrowsingContextEvent.Created created) {
         WDBrowsingContext context = created.getParams().getContext();
-        PageImpl existingPage = BrowserImpl.getPage(context);
+        PageImpl existingPage = browser.getPage(context);
 
         // 🔹 Falls eine existierende Page vorhanden ist, übernehmen wir ihre fehlenden Werte
-        this.browser = existingPage != null ? existingPage.getBrowser() : null;
+        this.browser = browser;
         this.webDriver = browser.getWebDriver();
         this.userContextId = (existingPage != null) ? existingPage.getUserContext() : created.getParams().getUserContext();
 
@@ -687,7 +687,7 @@ public class PageImpl implements Page {
 
             if(parent != null) { // ToDo: Check if this is correct (all children frames only?)
                 if(browsingContext.equals(parent)) {
-                    frames.add(new FrameImpl(this, userContext, clientWindow, url1, children));
+                    frames.add(new FrameImpl(browser, this, userContext, clientWindow, url1, children));
                 }
                 else {
                     throw new PlaywrightException("Parent context does not correspond to the sub frame's context.");

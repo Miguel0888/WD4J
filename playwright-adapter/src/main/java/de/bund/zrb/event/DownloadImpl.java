@@ -19,11 +19,13 @@ public class DownloadImpl implements Download {
     private final long timestamp;
     private final String url;
     private final String filename;
+    private final BrowserImpl browser;
     private Path filePath;
     private boolean isDeleted = false;
     private boolean isCanceled = false;
 
-    public DownloadImpl(WDBrowsingContextEvent.DownloadWillBegin downloadWillBegin) {
+    public DownloadImpl(BrowserImpl browser, WDBrowsingContextEvent.DownloadWillBegin downloadWillBegin) {
+        this.browser = browser;
         if (downloadWillBegin == null) {
             throw new IllegalArgumentException("DownloadWillBegin Event darf nicht null sein.");
         }
@@ -101,7 +103,7 @@ public class DownloadImpl implements Download {
 
     @Override
     public Page page() {
-        return BrowserImpl.getPage(new WDBrowsingContext(contextId));
+        return browser.getPage(new WDBrowsingContext(contextId));
     }
 
     @Override

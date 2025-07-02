@@ -9,7 +9,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public class RecordingEventRouter {
     private final Map<Page, List<RecordingEventListener>> listeners = new HashMap<>();
-    private final Pages pages; // 👉 Deine zentrale Pages Map!
+    private final Pages pages;
 
     public RecordingEventRouter(Pages pages) {
         this.pages = pages; // Pages wird aus BrowserImpl übergeben!

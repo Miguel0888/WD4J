@@ -1,12 +1,19 @@
 package de.bund.zrb.util;
 
 import com.google.gson.JsonObject;
+import de.bund.zrb.BrowserImpl;
 import de.bund.zrb.PageImpl;
 import de.bund.zrb.event.*;
 import de.bund.zrb.api.EventMapper;
 import de.bund.zrb.websocket.WDEventNames;
 
 public class PlaywrightEventMapper implements EventMapper {
+
+    private final BrowserImpl browser;
+
+    public PlaywrightEventMapper(BrowserImpl browser) {
+        this.browser = browser;
+    }
 
     @Override
     public Object apply(String eventType, JsonObject json) {
@@ -18,35 +25,35 @@ public class PlaywrightEventMapper implements EventMapper {
         switch (eventMapping) {
             // 🔹 Browsing Context Events
             case CONTEXT_CREATED:
-                return new PageImpl(new WDBrowsingContextEvent.Created(json));
+                return new PageImpl(browser, new WDBrowsingContextEvent.Created(json));
             case CONTEXT_DESTROYED:
-                return new PageImpl(new WDBrowsingContextEvent.Destroyed(json));
+                return new PageImpl(browser, new WDBrowsingContextEvent.Destroyed(json));
 
             case NAVIGATION_STARTED:
-                return new FrameImpl(new WDBrowsingContextEvent.NavigationStarted(json));
+                return new FrameImpl(browser, new WDBrowsingContextEvent.NavigationStarted(json));
             case NAVIGATION_COMMITTED:
-                return new FrameImpl(new WDBrowsingContextEvent.NavigationCommitted(json)); // ToDo: Correct?
+                return new FrameImpl(browser, new WDBrowsingContextEvent.NavigationCommitted(json)); // ToDo: Correct?
             case NAVIGATION_FAILED:
-                return new FrameImpl(new WDBrowsingContextEvent.NavigationFailed(json));
+                return new FrameImpl(browser, new WDBrowsingContextEvent.NavigationFailed(json));
             case NAVIGATION_ABORTED:
-                return new FrameImpl(new WDBrowsingContextEvent.NavigationAborted(json));
+                return new FrameImpl(browser, new WDBrowsingContextEvent.NavigationAborted(json));
             case FRAGMENT_NAVIGATED:
-                return new FrameImpl(new WDBrowsingContextEvent.FragmentNavigated(json));
+                return new FrameImpl(browser, new WDBrowsingContextEvent.FragmentNavigated(json));
             case HISTORY_UPDATED:
-                return new FrameImpl(new WDBrowsingContextEvent.HistoryUpdated(json));
+                return new FrameImpl(browser, new WDBrowsingContextEvent.HistoryUpdated(json));
 
             case DOM_CONTENT_LOADED:
-                return new PageImpl(new WDBrowsingContextEvent.DomContentLoaded(json));
+                return new PageImpl(browser, new WDBrowsingContextEvent.DomContentLoaded(json));
             case LOAD:
-                return new PageImpl(new WDBrowsingContextEvent.Load(json));
+                return new PageImpl(browser, new WDBrowsingContextEvent.Load(json));
 
             case DOWNLOAD_WILL_BEGIN:
-                return new DownloadImpl(new WDBrowsingContextEvent.DownloadWillBegin(json));
+                return new DownloadImpl(browser, new WDBrowsingContextEvent.DownloadWillBegin(json));
 
             case USER_PROMPT_OPENED:
-                return new DialogImpl(new WDBrowsingContextEvent.UserPromptOpened(json));
+                return new DialogImpl(browser, new WDBrowsingContextEvent.UserPromptOpened(json));
             case USER_PROMPT_CLOSED:
-                return new DialogImpl(new WDBrowsingContextEvent.UserPromptClosed(json));
+                return new DialogImpl(browser, new WDBrowsingContextEvent.UserPromptClosed(json));
 
             // 🔹 Network Events
             case AUTH_REQUIRED: //
@@ -73,7 +80,7 @@ public class PlaywrightEventMapper implements EventMapper {
 
             // 🔹 Log Events
             case ENTRY_ADDED:
-                return new ConsoleMessageImpl(new WDLogEvent.EntryAdded(json));
+                return new ConsoleMessageImpl(browser, new WDLogEvent.EntryAdded(json));
 
             // 🔹 WebSocket Events
 //            case WEBSOCKET_CLOSED:

@@ -11,10 +11,12 @@ public class DialogImpl implements Dialog {
     private final WDUserPromptType type;
     private final String message;
     private final String defaultValue;
+    private final BrowserImpl browser;
     private boolean isAccepted;
     private String promptText;
 
-    public DialogImpl(WDBrowsingContextEvent.UserPromptOpened userPromptOpened) {
+    public DialogImpl(BrowserImpl browser, WDBrowsingContextEvent.UserPromptOpened userPromptOpened) {
+        this.browser = browser;
         if (userPromptOpened == null) {
             throw new IllegalArgumentException("UserPromptOpened Event darf nicht null sein.");
         }
@@ -32,7 +34,8 @@ public class DialogImpl implements Dialog {
         this.promptText = null;
     }
 
-    public DialogImpl(WDBrowsingContextEvent.UserPromptClosed userPromptClosed) {
+    public DialogImpl(BrowserImpl browser, WDBrowsingContextEvent.UserPromptClosed userPromptClosed) {
+        this.browser = browser;
         if (userPromptClosed == null) {
             throw new IllegalArgumentException("UserPromptClosed Event darf nicht null sein.");
         }
@@ -76,7 +79,7 @@ public class DialogImpl implements Dialog {
 
     @Override
     public Page page() {
-        return BrowserImpl.getPage(new WDBrowsingContext(contextId));
+        return browser.getPage(new WDBrowsingContext(contextId));
     }
 
     @Override

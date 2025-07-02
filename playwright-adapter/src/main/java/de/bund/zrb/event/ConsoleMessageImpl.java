@@ -19,8 +19,10 @@ public class ConsoleMessageImpl implements ConsoleMessage {
 
     private final BaseWDLogEntry logEntry; // 🔹 Jetzt sicher gecastet zu `BaseWDLogEntry`
     private final PageImpl page;
+    private final BrowserImpl browser;
 
-    public ConsoleMessageImpl(WDLogEvent.EntryAdded event) {
+    public ConsoleMessageImpl(BrowserImpl browser, WDLogEvent.EntryAdded event) {
+        this.browser = browser;
         WDLogEntry params = event.getParams();
 
         // 🔹 Sicherstellen, dass `params` eine Instanz von `BaseWDLogEntry` ist
@@ -34,16 +36,10 @@ public class ConsoleMessageImpl implements ConsoleMessage {
         WDSource source = logEntry.getSource();
         if (source != null && source.getContext() != null) {
             WDBrowsingContext context = source.getContext();
-            this.page = BrowserImpl.getPage(context);
+            this.page = browser.getPage(context);
         } else {
             this.page = null; // Keine gültige Page gefunden
         }
-    }
-
-    // TODO: Implementierung für `WDScriptEvent.Message` hinzufügen oder verschieben
-    public ConsoleMessageImpl(WDScriptEvent.Message message) {
-        this.logEntry = null;
-        this.page = null; // Keine Page verfügbar
     }
 
     @Override

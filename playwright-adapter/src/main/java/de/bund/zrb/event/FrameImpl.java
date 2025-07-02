@@ -21,6 +21,7 @@ import java.util.regex.Pattern;
 
 public class FrameImpl implements Frame {
 
+    private final BrowserImpl browser;
     private String frameId;
     private PageImpl page;
     private String url;
@@ -28,61 +29,68 @@ public class FrameImpl implements Frame {
     private final List<Frame> childFrames;
 
     // 🔹 Konstruktor für Fragment-Navigation
-    public FrameImpl(WDBrowsingContextEvent.FragmentNavigated fragmentNavigated) {
+    public FrameImpl(BrowserImpl browser, WDBrowsingContextEvent.FragmentNavigated fragmentNavigated) {
+        this.browser = browser;
         this.frameId = fragmentNavigated.getParams().getContext().value();
-        this.page = BrowserImpl.getPage(fragmentNavigated.getParams().getContext());
+        this.page = browser.getPage(fragmentNavigated.getParams().getContext());
         this.url = fragmentNavigated.getParams().getUrl();
         this.isDetached = false;
         this.childFrames = new ArrayList<>();
     }
 
     // 🔹 Konstruktor für Abbruch einer Navigation
-    public FrameImpl(WDBrowsingContextEvent.NavigationAborted navigationAborted) {
+    public FrameImpl(BrowserImpl browser, WDBrowsingContextEvent.NavigationAborted navigationAborted) {
+        this.browser = browser;
         this.frameId = navigationAborted.getParams().getContext().value();
-        this.page = BrowserImpl.getPage(navigationAborted.getParams().getContext());
+        this.page = browser.getPage(navigationAborted.getParams().getContext());
         this.url = navigationAborted.getParams().getUrl();
         this.isDetached = false;
         this.childFrames = new ArrayList<>();
     }
 
     // 🔹 Konstruktor für eine fehlgeschlagene Navigation
-    public FrameImpl(WDBrowsingContextEvent.NavigationFailed navigationFailed) {
+    public FrameImpl(BrowserImpl browser, WDBrowsingContextEvent.NavigationFailed navigationFailed) {
+        this.browser = browser;
         this.frameId = navigationFailed.getParams().getContext().value();
-        this.page = BrowserImpl.getPage(navigationFailed.getParams().getContext());
+        this.page = browser.getPage(navigationFailed.getParams().getContext());
         this.url = navigationFailed.getParams().getUrl();
         this.isDetached = false;
         this.childFrames = new ArrayList<>();
     }
 
     // 🔹 Konstruktor für eine gestartete Navigation
-    public FrameImpl(WDBrowsingContextEvent.NavigationStarted navigationStarted) {
+    public FrameImpl(BrowserImpl browser, WDBrowsingContextEvent.NavigationStarted navigationStarted) {
+        this.browser = browser;
         this.frameId = navigationStarted.getParams().getContext().value();
-        this.page = BrowserImpl.getPage(navigationStarted.getParams().getContext());
+        this.page = browser.getPage(navigationStarted.getParams().getContext());
         this.url = navigationStarted.getParams().getUrl();
         this.isDetached = false;
         this.childFrames = new ArrayList<>();
     }
 
     // 🔹 Konstruktor für eine aktualisierte History
-    public FrameImpl(WDBrowsingContextEvent.HistoryUpdated historyUpdated) {
+    public FrameImpl(BrowserImpl browser, WDBrowsingContextEvent.HistoryUpdated historyUpdated) {
+        this.browser = browser;
         this.frameId = historyUpdated.getParams().getContext().value();
-        this.page = BrowserImpl.getPage(historyUpdated.getParams().getContext());
+        this.page = browser.getPage(historyUpdated.getParams().getContext());
         this.url = historyUpdated.getParams().getUrl();
         this.isDetached = false;
         this.childFrames = new ArrayList<>();
     }
 
     // 🔹 Konstruktor für eine festgeschriebene Navigation
-    public FrameImpl(WDBrowsingContextEvent.NavigationCommitted navigationCommitted) {
+    public FrameImpl(BrowserImpl browser, WDBrowsingContextEvent.NavigationCommitted navigationCommitted) {
+        this.browser = browser;
         this.frameId = navigationCommitted.getParams().getContext().value();
-        this.page = BrowserImpl.getPage(navigationCommitted.getParams().getContext());
+        this.page = browser.getPage(navigationCommitted.getParams().getContext());
         this.url = navigationCommitted.getParams().getUrl();
         this.isDetached = false;
         this.childFrames = new ArrayList<>();
     }
 
     // ToDo: Can user context from sub frames be different from the parent frame / page?
-    public FrameImpl(PageImpl page, WDUserContext userContext, WDClientWindow clientWindow, String url, Collection<WDInfo> children) {
+    public FrameImpl(BrowserImpl browser, PageImpl page, WDUserContext userContext, WDClientWindow clientWindow, String url, Collection<WDInfo> children) {
+        this.browser = browser;
         this.page = page;
         this.url = url;
         this.childFrames = new ArrayList<>(); // ToDo: Implementierung erforderlich
