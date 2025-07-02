@@ -3,11 +3,14 @@ package de.bund.zrb.manager;
 import de.bund.zrb.api.markerInterfaces.WDModule;
 import de.bund.zrb.command.request.WDBrowsingContextRequest;
 import de.bund.zrb.command.request.parameters.browsingContext.CaptureScreenshotParameters;
+import de.bund.zrb.command.request.parameters.browsingContext.CreateParameters;
 import de.bund.zrb.command.request.parameters.browsingContext.CreateType;
 import de.bund.zrb.command.request.parameters.browsingContext.SetViewportParameters;
 import de.bund.zrb.command.response.WDBrowsingContextResult;
 import de.bund.zrb.command.response.WDEmptyResult;
+import de.bund.zrb.type.browser.WDUserContext;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
+import de.bund.zrb.type.browsingContext.WDInfo;
 import de.bund.zrb.type.browsingContext.WDLocator;
 import de.bund.zrb.type.script.WDRemoteReference;
 import de.bund.zrb.type.script.WDSerializationOptions;
@@ -42,6 +45,13 @@ public class WDBrowsingContextManager implements WDModule {
     public WDBrowsingContextResult.CreateResult create() {
         return webSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.Create(CreateType.TAB),
+                WDBrowsingContextResult.CreateResult.class
+        );
+    }
+
+    public WDBrowsingContextResult.CreateResult create(CreateType type, WDBrowsingContext referenceContext, Boolean background, WDUserContext userContext) {
+        return webSocketManager.sendAndWaitForResponse(
+                new WDBrowsingContextRequest.Create(type, referenceContext, background, userContext),
                 WDBrowsingContextResult.CreateResult.class
         );
     }

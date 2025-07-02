@@ -12,6 +12,18 @@ public class UserContextMappingService {
     // aktuell ausgewählter Benutzer
     private UserRegistry.User currentUser;
 
+    private UserContextMappingService() {
+        // Lade Default-User beim Start:
+        String defaultUser = SettingsService.getInstance().get("defaultUser", String.class);
+        if (defaultUser != null) {
+            UserRegistry.User user = UserRegistry.getInstance().getAll().stream()
+                    .filter(u -> u.getUsername().equals(defaultUser))
+                    .findFirst()
+                    .orElse(null);
+            this.currentUser = user;
+        }
+    }
+
     public static UserContextMappingService getInstance() {
         return INSTANCE;
     }

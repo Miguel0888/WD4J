@@ -50,11 +50,10 @@ public class UserContextImpl implements BrowserContext {
         if (isClosed) {
             throw new PlaywrightException("BrowserContext is closed");
         }
-        PageImpl page = new PageImpl(browser);
+        PageImpl page = new PageImpl(browser, this.userContext); // <-- Hier
         pages.add(page);
         return page;
     }
-
 
     @Override
     public void onBackgroundPage(Consumer<Page> handler) {

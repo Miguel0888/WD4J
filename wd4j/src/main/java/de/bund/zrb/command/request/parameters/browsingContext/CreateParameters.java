@@ -7,7 +7,7 @@ import de.bund.zrb.api.WDCommand;
 public class CreateParameters implements WDCommand.Params {
     private final CreateType type;
     private final WDBrowsingContext referenceContext; // optional
-    private final Boolean background; // optional
+    private final Boolean background; // optional, default: false
     private final WDUserContext WDUserContext; // optional
 
     public CreateParameters(CreateType type) {
@@ -17,7 +17,7 @@ public class CreateParameters implements WDCommand.Params {
     public CreateParameters(CreateType type, WDBrowsingContext referenceContext, Boolean background, WDUserContext WDUserContext) {
         this.type = type;
         this.referenceContext = referenceContext;
-        this.background = background;
+        this.background = background != null ? background : false;
         this.WDUserContext = WDUserContext;
     }
 
