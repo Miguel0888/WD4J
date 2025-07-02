@@ -52,6 +52,7 @@ public class UserContextImpl implements BrowserContext {
         }
         PageImpl page = new PageImpl(browser, this.userContext); // <-- Hier
         pages.add(page);
+        browser.getPages().add(page); // auch global registrieren
         return page;
     }
 
@@ -364,15 +365,5 @@ public class UserContextImpl implements BrowserContext {
     @Override
     public Page waitForPage(BrowserContext.WaitForPageOptions options, Runnable callback) {
         return null;
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-
-    public List<PageImpl> getPages() {
-        return (List<PageImpl>) pages.asList();
-    }
-
-    public String getUserContext() {
-        return userContext.value();
     }
 }

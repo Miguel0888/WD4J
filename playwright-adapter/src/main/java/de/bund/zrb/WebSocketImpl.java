@@ -20,7 +20,7 @@ public class WebSocketImpl implements WebSocket {
     private final List<Consumer<WebSocketFrame>> onFrameReceivedListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<WebSocketFrame>> onFrameSentListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<String>> onSocketErrorListeners = new CopyOnWriteArrayList<>();
-    private double timeout = 30_000.0;
+    private double timeout = 30_000.0; // in ms
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// **WebSocket-Event-Listener**
@@ -204,6 +204,8 @@ public class WebSocketImpl implements WebSocket {
     public WebSocketImpl(URI uri, Double timeout) {
         this(uri);
         this.timeout = timeout;
+        // Connection-Lost-Detection-Intervall auf 0 setzen → dann wird keine Ping/Pong-Prüfung gemacht:
+        webSocketClient.setConnectionLostTimeout((int) Math.round(timeout / 1000.0));
     }
 
 

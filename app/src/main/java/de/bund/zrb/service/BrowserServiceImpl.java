@@ -75,7 +75,7 @@ public class BrowserServiceImpl implements BrowserService {
             BrowserTypeImpl browserType = BrowserTypeImpl.newFirefoxInstance((PlaywrightImpl) playwright);
             browser = (BrowserImpl) browserType.launch(options);
         } catch (Exception ex) {
-            throw       new RuntimeException("Fehler beim Starten des Browsers", ex);
+            throw new RuntimeException("Fehler beim Starten des Browsers", ex);
         }
     }
 
