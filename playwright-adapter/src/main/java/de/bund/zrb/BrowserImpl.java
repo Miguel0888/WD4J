@@ -19,6 +19,8 @@ import de.bund.zrb.type.session.WDSubscriptionRequest;
 import de.bund.zrb.websocket.WDException;
 import de.bund.zrb.util.PlaywrightEventMapper;
 
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +44,9 @@ public class BrowserImpl implements Browser {
 
     private final WebDriver webDriver;
 
+    private String activePageId;
+    private final PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
+
     public BrowserImpl(BrowserTypeImpl browserType, Process process, WebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
         this.pages = new Pages(this); // aka. BrowsingContexts / Navigables in WebDriver BiDi
         router = new RecordingEventRouter(pages);
@@ -54,7 +59,7 @@ public class BrowserImpl implements Browser {
         dispatcher = new EventDispatcher(new PlaywrightEventMapper(this));
         this.webDriver = new WebDriver(webSocketManager, dispatcher).connect(browserType.name());
 
-        onContextSwitch(pages::setActivePageId);
+        onContextSwitch(this::setActivePageId);
         onRecordingEvent(BrowserImpl.CHANNEL_RECORDING_EVENTS, this::handleRecordingEvent);
         fetchDefaultData();
 
@@ -143,7 +148,7 @@ public class BrowserImpl implements Browser {
             WDBrowsingContextResult.GetTreeResult tree = webDriver.browsingContext().getTree();
             tree.getContexts().forEach(context -> {
                 System.out.println("BrowsingContext: " + context.getContext().value());
-                currentPages.add(new PageImpl(this, null, context.getContext()));
+// TODO:Save default context here
             });
         } catch (WDException ignored) {}
     }
@@ -262,10 +267,6 @@ public class BrowserImpl implements Browser {
         return webDriver.script();
     }
 
-    public Pages getPages() {
-        return pages;
-    }
-
     public List<UserContextImpl> getUserContextImpls() {
         return userContextImpls;
     }
@@ -342,4 +343,36 @@ public class BrowserImpl implements Browser {
     public <T> void removeEventListener(String eventType, Consumer<T> listener) {
         dispatcher.removeEventListener(eventType, listener, webDriver.session());
     }
+
+    public void setActivePageId(String s) {
+        setActivePageId(s, false);
+    }
+
+    public void setActivePageId(String contextId, boolean isUiInitiated) {
+        if(contextId == null)
+        {
+            return;
+        }
+        this.activePageId = contextId;
+    }
+
+    public String getActivePageId() {
+        return activePageId;
+    }
+
+    public PageImpl getActivePage() {
+        List<Page> allPages = getAllPages();
+        if( activePageId == null) return null;
+        return (PageImpl) allPages.stream().filter(p -> activePageId.equals(((PageImpl) p).getBrowsingContextId())).findFirst().orElse(null);
+    }
+
+    List<Page> getAllPages() {
+        List<Page> all = new ArrayList<>();
+        for (UserContextImpl ctx : userContextImpls) {
+            all.addAll(ctx.pages());
+        }
+        return all;
+    }
+
+
 }

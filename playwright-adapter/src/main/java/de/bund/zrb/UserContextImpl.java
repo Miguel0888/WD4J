@@ -52,7 +52,6 @@ public class UserContextImpl implements BrowserContext {
         }
         PageImpl page = new PageImpl(browser, this.userContext); // <-- Hier
         pages.add(page);
-        browser.getPages().add(page); // auch global registrieren
         return page;
     }
 

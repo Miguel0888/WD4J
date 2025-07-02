@@ -91,7 +91,7 @@ public class BrowserServiceImpl implements BrowserService {
 
     @Override
     public void navigate(String url) {
-        browser.getPages().getActivePage().navigate(url);
+        browser.getActivePage().navigate(url);
     }
 
     @Override
@@ -152,7 +152,7 @@ public class BrowserServiceImpl implements BrowserService {
 
     @Override
     public void closeActiveTab() {
-        PageImpl activePage = browser.getPages().getActivePage();
+        PageImpl activePage = browser.getActivePage();
         if (activePage != null) {
             activePage.close();
         }
@@ -166,7 +166,7 @@ public class BrowserServiceImpl implements BrowserService {
 
     @Override
     public void goBack() {
-        browser.getPages().getActivePage().goBack();
+        browser.getActivePage().goBack();
     }
 
     @Override
@@ -176,7 +176,7 @@ public class BrowserServiceImpl implements BrowserService {
 
     @Override
     public void goForward() {
-        browser.getPages().getActivePage().goForward();
+        browser.getActivePage().goForward();
     }
 
     @Override
@@ -186,7 +186,7 @@ public class BrowserServiceImpl implements BrowserService {
 
     @Override
     public void reload() {
-        browser.getPages().getActivePage().reload();
+        browser.getActivePage().reload();
     }
 
     @Override
@@ -196,7 +196,7 @@ public class BrowserServiceImpl implements BrowserService {
 
     @Override
     public byte[] captureScreenshot() {
-        return browser.getPages().getActivePage().screenshot();
+        return browser.getActivePage().screenshot();
     }
 
     @Override
@@ -228,8 +228,8 @@ public class BrowserServiceImpl implements BrowserService {
     }
 
     public void switchSelectedPage(String newContextId) {
-        if (!Objects.equals(newContextId, browser.getPages().getActivePageId())) {
-            browser.getPages().setActivePageId(newContextId, true);
+        if (!Objects.equals(newContextId, browser.getActivePageId())) {
+            browser.setActivePageId(newContextId, true);
             notifyActivePageChanged(newContextId);
         }
     }

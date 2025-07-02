@@ -50,7 +50,7 @@ public class BrowserEventService {
     }
 
     private PageImpl on() {
-        return browserService.getBrowser().getPages().getActivePage();
+        return browserService.getBrowser().getActivePage();
     }
 
     private void log(String message) {
