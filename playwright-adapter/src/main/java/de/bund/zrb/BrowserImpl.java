@@ -28,7 +28,7 @@ public class BrowserImpl implements Browser {
     public static final String CHANNEL_FOCUS_EVENTS = "focus-events-channel";
     public static final String CHANNEL_RECORDING_EVENTS = "recording-events-channel";
 
-    private final RecordingEventRouter router = new RecordingEventRouter(); // Dein Router speichert alles
+    private final RecordingEventRouter router = new RecordingEventRouter(pages);
 
     private final List<WDScriptResult.AddPreloadScriptResult> globalScripts = new ArrayList<>();
     // ToDo: Make pages not static, to be able to handle multiple Browser instances:

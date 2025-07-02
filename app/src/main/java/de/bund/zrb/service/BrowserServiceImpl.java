@@ -126,7 +126,7 @@ public class BrowserServiceImpl implements BrowserService {
                     .findFirst()
                     .orElseThrow(() -> new IllegalStateException("Unbekannter Benutzer: " + u));
 
-            UserContextMappingService.getInstance().bindUserToContext(username, user);
+            UserContextMappingService.getInstance().bindUserToContext(username, context, user);
 
             return context;
         });
@@ -143,9 +143,9 @@ public class BrowserServiceImpl implements BrowserService {
     }
 
     @Override
-    public void createNewTab(String username) {
+    public Page createNewTab(String username) {
         BrowserContext context = getOrCreateUserContext(username);
-        context.newPage();
+        return context.newPage();
     }
 
     @Override
@@ -246,6 +246,7 @@ public class BrowserServiceImpl implements BrowserService {
         }
     }
 
+    @Override
     public BrowserImpl getBrowser() {
         return browser;
     }

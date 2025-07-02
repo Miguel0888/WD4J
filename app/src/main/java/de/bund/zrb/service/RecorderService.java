@@ -1,5 +1,6 @@
 package de.bund.zrb.service;
 
+import com.microsoft.playwright.Page;
 import de.bund.zrb.RecordingEventRouter;
 import de.bund.zrb.dto.RecordedEvent;
 import de.bund.zrb.event.WDScriptEvent;
@@ -10,29 +11,30 @@ import de.bund.zrb.type.script.WDRemoteValue;
 import java.util.*;
 
 /**
- * Ein Recorder speichert TestActions pro Context.
+ * Ein Recorder speichert TestActions pro Page.
  * Er meldet sich selbst beim RecordingEventRouter an.
  */
 public class RecorderService implements RecordingEventRouter.RecordingEventListener {
 
-    private static final Map<String, RecorderService> RECORDERS = new HashMap<>();
+    private static final Map<Page, RecorderService> RECORDERS = new HashMap<>();
 
+    private final Page page;
     private final List<TestAction> recordedActions = new ArrayList<>();
     private final List<RecorderListener> listeners = new ArrayList<>();
 
-    private RecorderService() {
-        // nur über getInstance()
+    private RecorderService(Page page) {
+        this.page = page;
     }
 
-    public static synchronized RecorderService getInstance(String contextId) {
-        if (contextId == null || contextId.trim().isEmpty()) {
-            throw new IllegalArgumentException("ContextId must not be null or empty!");
+    public static synchronized RecorderService getInstance(Page page) {
+        if (page == null) {
+            throw new IllegalArgumentException("Page must not be null!");
         }
-        return RECORDERS.computeIfAbsent(contextId, k -> new RecorderService());
+        return RECORDERS.computeIfAbsent(page, k -> new RecorderService(page));
     }
 
-    public static synchronized void remove(String contextId) {
-        RECORDERS.remove(contextId);
+    public static synchronized void remove(Page page) {
+        RECORDERS.remove(page);
     }
 
     public void addListener(RecorderListener listener) {
@@ -58,7 +60,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
 
         for (RecordedEvent event : events) {
             TestAction action = convertToTestAction(event);
-            action.setRaw(event); // Original speichern
+            action.setRaw(event); // Save raw event
             recordedActions.add(action);
         }
 
@@ -72,7 +74,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
     }
 
     public List<TestAction> getAllTestActionsForDrawer() {
-        mergeInputEvents(); // optional
+        mergeInputEvents();
         return new ArrayList<>(recordedActions);
     }
 
@@ -96,7 +98,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         }
 
         if (eventsArray == null) {
-            System.err.println("⚠️ Keine Events gefunden!");
+            System.err.println("⚠️ No events found!");
             return result;
         }
 

@@ -1,8 +1,7 @@
 package de.bund.zrb.service;
 
 import com.microsoft.playwright.Page;
-
-import java.util.List;
+import de.bund.zrb.BrowserImpl;
 
 public interface BrowserService {
     void launchBrowser(BrowserConfig config);
@@ -30,11 +29,13 @@ public interface BrowserService {
     void closeActiveTab(String username);
 
     void createNewTab();
-    void createNewTab(String username);
+    Page createNewTab(String username);
 
     byte[] captureScreenshot();
 
     void showSelectors(boolean enabled);
 
     void showDomEvents(boolean enabled);
+
+    BrowserImpl getBrowser();
 }

@@ -1,5 +1,8 @@
 package de.bund.zrb.ui;
 
+import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.Page;
+import de.bund.zrb.PageImpl;
 import de.bund.zrb.event.ApplicationEventBus;
 import de.bund.zrb.event.TestSuiteSavedEvent;
 import de.bund.zrb.model.TestAction;
@@ -20,11 +23,13 @@ class RecorderSession extends JPanel implements RecorderListener {
     private final JToggleButton recordToggle;
     private final JComboBox<String> suiteDropdown;
 
-    private String contextId;
     private RecorderService recorderService;
     private UserRegistry.User selectedUser;
 
-    RecorderSession(RightDrawer rightDrawer, UserRegistry.User user){
+    private Page activePage;
+    private BrowserContext activeContext;
+
+    RecorderSession(RightDrawer rightDrawer, UserRegistry.User user) {
         super(new BorderLayout(8, 8));
         this.rightDrawer = rightDrawer;
         this.selectedUser = user;
@@ -93,24 +98,33 @@ class RecorderSession extends JPanel implements RecorderListener {
 
     private void toggleRecording() {
         boolean shouldStart = recordToggle.isSelected();
+        BrowserService browserService = rightDrawer.getBrowserService();
 
         if (shouldStart) {
-            this.contextId = rightDrawer.getBrowserService().getBrowser().getPages().getActivePageId();
-            this.recorderService = RecorderService.getInstance(contextId);
-
             if (selectedUser == null) {
                 JOptionPane.showMessageDialog(this, "Kein Benutzer zugewiesen!", "Fehler", JOptionPane.ERROR_MESSAGE);
                 recordToggle.setSelected(false);
                 return;
             }
 
-            // 👉 Context binden
-            UserContextMappingService.getInstance().bindUserToContext(contextId, selectedUser);
+            String username = selectedUser.getUsername();
+            browserService.createUserContext(selectedUser);
 
-            rightDrawer.getBrowserService().getRecordingEventRouter().addListener(contextId, recorderService);
+            this.activePage = browserService.createNewTab(username);
+            this.activeContext = activePage.context();
+
+            this.recorderService = RecorderService.getInstance(activePage);
+
+            UserContextMappingService.getInstance().bindUserToContext(selectedUser.getUsername(), activeContext, selectedUser);
+
+            browserService.getBrowser().getRecordingEventRouter().addListener(activePage, recorderService);
             recorderService.addListener(this);
 
-            System.out.println("📌 Start Recording for Context: " + contextId + " mit User: " + selectedUser.getUsername());
+            System.out.println("✅ Recorder gestartet: "
+                    + "User=" + username
+                    + ", Context=" + activeContext
+                    + ", Page=" + activePage
+            );
 
             recordToggle.setText("\u23F8");
             recordToggle.setToolTipText("Stop Recording");
@@ -118,13 +132,22 @@ class RecorderSession extends JPanel implements RecorderListener {
 
         } else {
             unregister();
-            System.out.println("🛑 Stop Recording für Context: " + contextId);
             recordToggle.setText("\u2B24");
             recordToggle.setToolTipText("Start Recording");
             recordToggle.setBackground(Color.RED);
         }
     }
 
+    public void unregister() {
+        if (recorderService != null && activePage != null) {
+            recorderService.removeListener(this);
+            rightDrawer.getBrowserService().getBrowser().getRecordingEventRouter().removeListener(activePage, recorderService);
+            RecorderService.remove(activePage);
+
+            activePage = null;
+            activeContext = null;
+        }
+    }
 
     private void saveAsNewTestSuite() {
         if (recorderService == null) {
@@ -273,15 +296,6 @@ class RecorderSession extends JPanel implements RecorderListener {
         }
 
         return testCases;
-    }
-
-    public void unregister() {
-        if (contextId != null) {
-            recorderService.removeListener(this);
-            rightDrawer.getBrowserService().getRecordingEventRouter().removeListener(contextId, recorderService);
-            RecorderService.remove(contextId);
-            contextId = null;
-        }
     }
 
     @Override
