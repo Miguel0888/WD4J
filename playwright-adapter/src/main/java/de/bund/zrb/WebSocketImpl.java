@@ -20,6 +20,7 @@ public class WebSocketImpl implements WebSocket {
     private final List<Consumer<WebSocketFrame>> onFrameReceivedListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<WebSocketFrame>> onFrameSentListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<String>> onSocketErrorListeners = new CopyOnWriteArrayList<>();
+    private double timeout = 30_000.0;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// **WebSocket-Event-Listener**
@@ -122,8 +123,8 @@ public class WebSocketImpl implements WebSocket {
     public WebSocketFrame waitForFrameReceived(WaitForFrameReceivedOptions options, Runnable callback) {
         callback.run(); // Führt das übergebene Kommando aus.
 
+        Double timeout = options != null && options.timeout != null ? options.timeout: this.timeout;
         Predicate<WebSocketFrame> predicate = options.predicate != null ? options.predicate : frame -> true;
-        long timeout = options.timeout != null ? options.timeout.longValue() : 30_000;
 
         CompletableFuture<WebSocketFrame> future = new CompletableFuture<>();
 
@@ -138,7 +139,12 @@ public class WebSocketImpl implements WebSocket {
 
         try {
             // 3️⃣ Wartet auf das passende Frame oder Timeout
-            return future.get(timeout, TimeUnit.MILLISECONDS);
+            if(timeout == null || timeout == 0)
+            {
+                return future.get(); // no timeout
+            } else {
+                return future.get(timeout.longValue(), TimeUnit.MILLISECONDS);
+            }
         } catch (TimeoutException e) {
             throw new RuntimeException("Timeout while waiting for frame received.");
         } catch (InterruptedException | ExecutionException e) {
@@ -194,6 +200,12 @@ public class WebSocketImpl implements WebSocket {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// **WebSocket-Verwaltung**
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public WebSocketImpl(URI uri, Double timeout) {
+        this(uri);
+        this.timeout = timeout;
+    }
+
 
     public WebSocketImpl(URI uri) {
         this.url = uri.toString();

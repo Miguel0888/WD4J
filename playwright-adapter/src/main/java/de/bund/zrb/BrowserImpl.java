@@ -43,7 +43,6 @@ public class BrowserImpl implements Browser {
     private final WebDriver webDriver;
 
     public BrowserImpl(BrowserTypeImpl browserType, Process process, WebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
-        // ToDo: Make pages not static BUT FINAL, to be able to handle multiple Browser instances, see above:
         this.pages = new Pages(this); // aka. BrowsingContexts / Navigables in WebDriver BiDi
         router = new RecordingEventRouter(pages);
 
@@ -132,7 +131,6 @@ public class BrowserImpl implements Browser {
             webDriver.browser().getUserContexts().getUserContexts().forEach(context -> {
                 System.out.println("UserContext: " + context.getUserContext().value());
                 UserContextImpl uc = new UserContextImpl(this, context.getUserContext());
-//                fetchDefaultBrowsingContexts(uc.getPages(), context.getUserContext().value());
                 userContextImpls.add(uc);
             });
         } catch (WDException ignored) {}

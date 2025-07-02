@@ -107,7 +107,9 @@ public class BrowserTypeImpl implements BrowserType {
         }
 
         try {
-            return connect(websocketUrl + webSocketEndpoint, null);
+            ConnectOptions connectOptions = new ConnectOptions();
+            connectOptions.timeout = options.timeout;
+            return connect(websocketUrl + webSocketEndpoint, connectOptions);
         } catch (Exception e) {
             process.destroyForcibly(); // Erzwinge den Stopp
             throw e;
@@ -132,7 +134,7 @@ public class BrowserTypeImpl implements BrowserType {
     //
     @Override
     public Browser connect(String wsEndpoint, ConnectOptions options) {
-        WebSocketImpl webSocketImpl = new WebSocketImpl(URI.create(wsEndpoint));
+        WebSocketImpl webSocketImpl = new WebSocketImpl(URI.create(wsEndpoint), options.timeout);
         try {
             webSocketImpl.connect();
         } catch (InterruptedException e) {

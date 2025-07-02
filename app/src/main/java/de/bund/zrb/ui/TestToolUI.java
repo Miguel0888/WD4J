@@ -120,7 +120,7 @@ public class TestToolUI {
 
     private void registerCommands() {
         commandRegistry.register(new ShowShortcutConfigMenuCommand(frame));
-        commandRegistry.register(new OpenSettingsCommand());
+        commandRegistry.register(new SettingsCommand());
         commandRegistry.register(new PlayTestSuiteCommand());
         commandRegistry.register(new StartRecordCommand());
 
