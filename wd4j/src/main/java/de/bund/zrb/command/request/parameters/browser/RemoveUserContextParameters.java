@@ -4,13 +4,13 @@ import de.bund.zrb.type.browser.WDUserContext;
 import de.bund.zrb.api.WDCommand;
 
 public class RemoveUserContextParameters implements WDCommand.Params {
-    private final WDUserContext WDUserContext;
+    private final WDUserContext userContext;
 
-    public RemoveUserContextParameters(WDUserContext WDUserContext) {
-        this.WDUserContext = WDUserContext;
+    public RemoveUserContextParameters(WDUserContext userContext) {
+        this.userContext = userContext;
     }
 
     public WDUserContext getUserContext() {
-        return WDUserContext;
+        return userContext;
     }
 }
