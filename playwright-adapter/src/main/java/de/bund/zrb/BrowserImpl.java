@@ -29,6 +29,7 @@ import java.util.function.Consumer;
 public class BrowserImpl implements Browser {
     public static final String CHANNEL_FOCUS_EVENTS = "focus-events-channel";
     public static final String CHANNEL_RECORDING_EVENTS = "recording-events-channel";
+    public static final String DEFAULT_USER_CONTEXT = "default";
 
     private final RecordingEventRouter router;
 
@@ -141,16 +142,39 @@ public class BrowserImpl implements Browser {
     }
 
     private void fetchDefaultBrowsingContexts() {
-        // Get all browsing contexts (pages / tabs) already available
         try {
-            // Check if a context is already available
             WDBrowsingContextResult.GetTreeResult tree = webDriver.browsingContext().getTree();
-            tree.getContexts().forEach(context -> {
-                System.out.println("BrowsingContext: " + context.getContext().value());
-// TODO:Save default context here
+
+            tree.getContexts().forEach(info -> {
+                String contextId = info.getContext().value();
+                String userContextId = info.getUserContext().value();
+
+                System.out.println("BrowsingContext: " + contextId + ", UserContext: " + userContextId);
+
+                // 🔑 Den passenden UserContextImpl finden:
+                Optional<UserContextImpl> userContextOpt = userContextImpls.stream()
+                        .filter(uc -> uc.getUserContext().value().equals(userContextId))
+                        .findFirst();
+
+                if (!userContextOpt.isPresent()) {
+                    System.err.println("⚠️ Kein UserContextImpl für: " + userContextId);
+                    return;
+                }
+
+                UserContextImpl userContext = userContextOpt.get();
+
+                // 🔑 PageImpl bauen:
+                PageImpl page = new PageImpl(this, userContext.getUserContext(), info.getContext());
+
+                // 🔑 In den UserContext eintragen:
+                userContext.pages().add(page);
             });
-        } catch (WDException ignored) {}
+
+        } catch (WDException ex) {
+            ex.printStackTrace();
+        }
     }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -224,11 +248,23 @@ public class BrowserImpl implements Browser {
      */
     @Override
     public Page newPage(NewPageOptions options) {
-        PageImpl page = new PageImpl(this);
+        Optional<UserContextImpl> defaultContextOpt = userContextImpls.stream()
+                .filter(uc -> uc.getUserContext().value().equals(DEFAULT_USER_CONTEXT))
+                .findFirst();
+
+        if (!defaultContextOpt.isPresent()) {
+            throw new IllegalStateException("Kein default UserContext vorhanden!");
+        }
+
+        UserContextImpl defaultContext = defaultContextOpt.get();
+
+        PageImpl page = (PageImpl) defaultContext.newPage();
+
         page.onClose((e) -> {
-            // ToDo: Remover from default context
+            defaultContext.pages().remove(page);
+            System.out.println("🔒 Page entfernt: " + page.getBrowsingContextId());
         });
-        // ToDo: Add to default context
+
         return page;
     }
 

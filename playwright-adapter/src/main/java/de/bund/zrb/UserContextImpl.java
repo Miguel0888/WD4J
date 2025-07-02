@@ -52,6 +52,13 @@ public class UserContextImpl implements BrowserContext {
         }
         PageImpl page = new PageImpl(browser, this.userContext); // <-- Hier
         pages.add(page);
+
+        // Beim Schließen wieder austragen:
+        page.onClose((e) -> {
+            pages.remove(page.getBrowsingContextId());
+            System.out.println("🔒 Removed closed Page: " + page.getBrowsingContextId());
+        });
+
         return page;
     }
 
@@ -364,5 +371,9 @@ public class UserContextImpl implements BrowserContext {
     @Override
     public Page waitForPage(BrowserContext.WaitForPageOptions options, Runnable callback) {
         return null;
+    }
+
+    public WDUserContext getUserContext() {
+        return userContext;
     }
 }
