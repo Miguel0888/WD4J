@@ -542,7 +542,12 @@ public class PageImpl implements Page {
 
     @Override
     public BrowserContext context() {
-        return null;
+        return browser.getUserContextImpls().stream()
+                .filter(uc -> uc.getUserContext().equals(this.userContextId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "No UserContextImpl found for Page with contextId=" + this.userContextId.value()
+                ));
     }
 
     @Override
