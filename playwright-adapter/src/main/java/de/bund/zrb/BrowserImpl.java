@@ -47,7 +47,7 @@ public class BrowserImpl implements Browser {
     private final PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
 
     public BrowserImpl(BrowserTypeImpl browserType, Process process, WebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
-        router = new RecordingEventRouter(null); // ToDo
+        router = new RecordingEventRouter(this); // ToDo
 
         this.browserType = browserType;
         this.process = process;

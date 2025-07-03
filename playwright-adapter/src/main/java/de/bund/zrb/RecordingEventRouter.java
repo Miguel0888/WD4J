@@ -2,22 +2,26 @@ package de.bund.zrb;
 
 import com.microsoft.playwright.Page;
 import de.bund.zrb.event.WDScriptEvent;
-import de.bund.zrb.support.Pages;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class RecordingEventRouter {
     private final Map<Page, List<RecordingEventListener>> listeners = new HashMap<>();
-    private final Pages pages;
+    private final BrowserImpl browser;
 
-    public RecordingEventRouter(Pages pages) {
-        this.pages = pages; // Pages wird aus BrowserImpl übergeben!
+    public RecordingEventRouter(BrowserImpl browser) {
+        this.browser = browser; // Pages wird aus BrowserImpl übergeben!
     }
 
     public synchronized void dispatch(WDScriptEvent.Message message) {
         String contextId = message.getParams().getSource().getContext().value();
-        Page page = pages.get(contextId);
+
+        Page page = browser.getAllPages().stream()
+                .filter(p -> contextId.equals(((PageImpl) p).getBrowsingContextId()))
+                .findFirst()
+                .orElse(null);
+
         if (page == null) {
             System.err.println("⚠️ Keine Page für contextId gefunden: " + contextId);
             return;
