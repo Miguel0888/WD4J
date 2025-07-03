@@ -29,23 +29,35 @@ public class RecordingEventRouter {
 
         if (page == null) {
             System.err.println("⚠️ Keine Page für contextId gefunden: " + contextId);
-            return;
-        }
-
-        // ➜ Page-spezifisch
-        List<RecordingEventListener> pageList = pageListeners.get(page);
-        if (pageList != null) {
-            for (RecordingEventListener l : pageList) {
-                l.onRecordingEvent(message);
+        } else {
+            List<RecordingEventListener> pageList = pageListeners.get(page);
+            if (pageList != null) {
+                for (RecordingEventListener l : pageList) {
+                    l.onRecordingEvent(message);
+                }
             }
         }
 
-        // ➜ Context-spezifisch
-        BrowserContext context = page.context();
-        List<RecordingEventListener> contextList = contextListeners.get(context);
-        if (contextList != null) {
-            for (RecordingEventListener l : contextList) {
-                l.onRecordingEvent(message);
+        // ➜ Context-spezifisch IMMER probieren!
+        BrowserContext context = null;
+        if (page != null) {
+            context = page.context();
+        } else {
+            // Fallback: Context direkt anhand contextId auflösen
+            context = browser.contexts().stream()
+                    .filter(ctx -> ((UserContextImpl) ctx).getUserContext().value().equals(contextId))
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        if (context == null) {
+            System.err.println("⚠️ Kein Context für contextId gefunden: " + contextId);
+        } else {
+            List<RecordingEventListener> contextList = contextListeners.get(context);
+            if (contextList != null) {
+                for (RecordingEventListener l : contextList) {
+                    l.onRecordingEvent(message);
+                }
             }
         }
     }

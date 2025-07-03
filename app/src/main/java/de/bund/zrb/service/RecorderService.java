@@ -16,25 +16,25 @@ import java.util.*;
  */
 public class RecorderService implements RecordingEventRouter.RecordingEventListener {
 
-    private static final Map<Page, RecorderService> RECORDERS = new HashMap<>();
+    private static final Map<Object, RecorderService> RECORDERS = new HashMap<>();
 
-    private final Page page;
     private final List<TestAction> recordedActions = new ArrayList<>();
     private final List<RecorderListener> listeners = new ArrayList<>();
 
-    private RecorderService(Page page) {
-        this.page = page;
-    }
+    private final Object key; // kann Page ODER BrowserContext sein
 
-    public static synchronized RecorderService getInstance(Page page) {
-        if (page == null) {
-            throw new IllegalArgumentException("Page must not be null!");
+    private RecorderService(Object key) {
+        this.key = key;
+    }
+    public static synchronized RecorderService getInstance(Object key) {
+        if (key == null) {
+            throw new IllegalArgumentException("Key must not be null! Use Page or Context.");
         }
-        return RECORDERS.computeIfAbsent(page, k -> new RecorderService(page));
+        return RECORDERS.computeIfAbsent(key, k -> new RecorderService(key));
     }
 
-    public static synchronized void remove(Page page) {
-        RECORDERS.remove(page);
+    public static synchronized void remove(Object key) {
+        RECORDERS.remove(key);
     }
 
     public void addListener(RecorderListener listener) {

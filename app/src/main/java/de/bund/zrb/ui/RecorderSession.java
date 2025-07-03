@@ -110,21 +110,32 @@ class RecorderSession extends JPanel implements RecorderListener {
             String username = selectedUser.getUsername();
             browserService.createUserContext(selectedUser);
 
-            this.activePage = browserService.createNewTab(username);
-            this.activeContext = activePage.context();
+            this.activeContext = UserContextMappingService.getInstance().getContextForUser(username);
 
-            this.recorderService = RecorderService.getInstance(activePage);
+            // ⚠️ Hier unterscheiden:
+            boolean contextMode = true; // z.B. über Checkbox oder Config
 
-            UserContextMappingService.getInstance().bindUserToContext(selectedUser.getUsername(), activeContext, selectedUser);
+            if (!contextMode) {
+                this.activePage = browserService.createNewTab(username);
+                this.activeContext = activePage.context();
+                this.recorderService = RecorderService.getInstance(activePage);
+                browserService.getBrowser().getRecordingEventRouter().addPageListener(activePage, recorderService);
 
-            browserService.getBrowser().getRecordingEventRouter().addPageListener(activePage, recorderService);
+                System.out.println("✅ Recorder gestartet: Page-Mode "
+                        + "User=" + username
+                        + ", Context=" + activeContext
+                        + ", Page=" + activePage);
+            } else {
+                this.activeContext = UserContextMappingService.getInstance().getContextForUser(username);
+                this.recorderService = RecorderService.getInstance(activeContext);
+                browserService.getBrowser().getRecordingEventRouter().addContextListener(activeContext, recorderService);
+
+                System.out.println("✅ Recorder gestartet: Context-Mode "
+                        + "User=" + username
+                        + ", Context=" + activeContext);
+            }
+
             recorderService.addListener(this);
-
-            System.out.println("✅ Recorder gestartet: "
-                    + "User=" + username
-                    + ", Context=" + activeContext
-                    + ", Page=" + activePage
-            );
 
             recordToggle.setText("\u23F8");
             recordToggle.setToolTipText("Stop Recording");
@@ -138,16 +149,25 @@ class RecorderSession extends JPanel implements RecorderListener {
         }
     }
 
+
     public void unregister() {
-        if (recorderService != null && activePage != null) {
+        if (recorderService != null) {
             recorderService.removeListener(this);
-            rightDrawer.getBrowserService().getBrowser().getRecordingEventRouter().removePageListener(activePage, recorderService);
-            RecorderService.remove(activePage);
+
+            BrowserService browserService = rightDrawer.getBrowserService();
+            if (activePage != null) {
+                browserService.getBrowser().getRecordingEventRouter().removePageListener(activePage, recorderService);
+                RecorderService.remove(activePage);
+            } else if (activeContext != null) {
+                browserService.getBrowser().getRecordingEventRouter().removeContextListener(activeContext, recorderService);
+                RecorderService.remove(activeContext); // nur wenn du dein Service-Mapping dafür angepasst hast!
+            }
 
             activePage = null;
             activeContext = null;
         }
     }
+
 
     private void saveAsNewTestSuite() {
         if (recorderService == null) {
