@@ -1,17 +1,22 @@
 package de.bund.zrb;
 
+import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
 import de.bund.zrb.event.WDScriptEvent;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class RecordingEventRouter {
-    private final Map<Page, List<RecordingEventListener>> listeners = new HashMap<>();
+
+    private final Map<Page, List<RecordingEventListener>> pageListeners = new HashMap<>();
+    private final Map<BrowserContext, List<RecordingEventListener>> contextListeners = new HashMap<>();
     private final BrowserImpl browser;
 
     public RecordingEventRouter(BrowserImpl browser) {
-        this.browser = browser; // Pages wird aus BrowserImpl übergeben!
+        this.browser = browser;
     }
 
     public synchronized void dispatch(WDScriptEvent.Message message) {
@@ -27,26 +32,52 @@ public class RecordingEventRouter {
             return;
         }
 
-        List<RecordingEventListener> pageListeners = listeners.get(page);
-        if (pageListeners != null) {
-            for (RecordingEventListener listener : pageListeners) {
-                listener.onRecordingEvent(message);
+        // ➜ Page-spezifisch
+        List<RecordingEventListener> pageList = pageListeners.get(page);
+        if (pageList != null) {
+            for (RecordingEventListener l : pageList) {
+                l.onRecordingEvent(message);
+            }
+        }
+
+        // ➜ Context-spezifisch
+        BrowserContext context = page.context();
+        List<RecordingEventListener> contextList = contextListeners.get(context);
+        if (contextList != null) {
+            for (RecordingEventListener l : contextList) {
+                l.onRecordingEvent(message);
             }
         }
     }
 
-    public synchronized void addListener(Page page, RecordingEventListener listener) {
-        listeners
+    public synchronized void addPageListener(Page page, RecordingEventListener listener) {
+        pageListeners
                 .computeIfAbsent(page, id -> new CopyOnWriteArrayList<>())
                 .add(listener);
     }
 
-    public synchronized void removeListener(Page page, RecordingEventListener listener) {
-        List<RecordingEventListener> pageListeners = listeners.get(page);
-        if (pageListeners != null) {
-            pageListeners.remove(listener);
-            if (pageListeners.isEmpty()) {
-                listeners.remove(page);
+    public synchronized void removePageListener(Page page, RecordingEventListener listener) {
+        List<RecordingEventListener> list = pageListeners.get(page);
+        if (list != null) {
+            list.remove(listener);
+            if (list.isEmpty()) {
+                pageListeners.remove(page);
+            }
+        }
+    }
+
+    public synchronized void addContextListener(BrowserContext context, RecordingEventListener listener) {
+        contextListeners
+                .computeIfAbsent(context, id -> new CopyOnWriteArrayList<>())
+                .add(listener);
+    }
+
+    public synchronized void removeContextListener(BrowserContext context, RecordingEventListener listener) {
+        List<RecordingEventListener> list = contextListeners.get(context);
+        if (list != null) {
+            list.remove(listener);
+            if (list.isEmpty()) {
+                contextListeners.remove(context);
             }
         }
     }

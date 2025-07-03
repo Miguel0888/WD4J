@@ -117,7 +117,7 @@ class RecorderSession extends JPanel implements RecorderListener {
 
             UserContextMappingService.getInstance().bindUserToContext(selectedUser.getUsername(), activeContext, selectedUser);
 
-            browserService.getBrowser().getRecordingEventRouter().addListener(activePage, recorderService);
+            browserService.getBrowser().getRecordingEventRouter().addPageListener(activePage, recorderService);
             recorderService.addListener(this);
 
             System.out.println("✅ Recorder gestartet: "
@@ -141,7 +141,7 @@ class RecorderSession extends JPanel implements RecorderListener {
     public void unregister() {
         if (recorderService != null && activePage != null) {
             recorderService.removeListener(this);
-            rightDrawer.getBrowserService().getBrowser().getRecordingEventRouter().removeListener(activePage, recorderService);
+            rightDrawer.getBrowserService().getBrowser().getRecordingEventRouter().removePageListener(activePage, recorderService);
             RecorderService.remove(activePage);
 
             activePage = null;
