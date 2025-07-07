@@ -115,30 +115,18 @@ public class LocatorImpl implements Locator {
 
     @Override
     public List<Locator> all() {
-        try {
-            // ToDo: Das lässt sich vielleicht mit LocateNodes und / oder CallFunction viel einfacher lösen ??
+        WDLocator<?> locator = createWDLocator(selector);
+        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver()
+                .browsingContext().locateNodes(page.getBrowsingContextId(), locator, Long.MAX_VALUE);
 
-            WDBrowsingContextResult.GetTreeResult response = page.getBrowser().getWebDriver().browsingContext().getTree(page.getBrowsingContextId());
-
-            if(response == null) {
-                throw new RuntimeException("Failed to locate elements: Response is null");
-            }
-            Collection<WDInfo> contexts = response.getContexts();
-            if(contexts == null) {
-                throw new RuntimeException("Failed to locate elements: Contexts are null");
-            }
-
-            List<Locator> locators = new ArrayList<>();
-            for (WDInfo context : contexts) {
-                System.out.println("Context: " + context);
-                // ToDo: Implement!
-            }
-
-            return locators;
-
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to locate elements: " + e.getMessage(), e);
+        List<Locator> locators = new ArrayList<>();
+        int index = 1;
+        for (WDRemoteValue.NodeRemoteValue ignored : nodes.getNodes()) {
+            String nthSelector = String.format("%s >> nth=%d", selector, index - 1);
+            locators.add(new LocatorImpl(webDriver, page, nthSelector));
+            index++;
         }
+        return locators;
     }
 
     @Override
@@ -186,9 +174,39 @@ public class LocatorImpl implements Locator {
     @Override
     public Locator and(Locator locator) {
         if (!(locator instanceof LocatorImpl)) {
-            throw new IllegalArgumentException("Locator must be of type LocatorImpl.");
+            throw new IllegalArgumentException("Locator must be LocatorImpl");
         }
-        return new LocatorImpl(webDriver, page, this.selector + " and " + ((LocatorImpl) locator).selector); // ToDo: Check this!
+        LocatorImpl other = (LocatorImpl) locator;
+
+        // 1. Hole Nodes für beide Selektoren
+        WDBrowsingContextResult.LocateNodesResult nodesThis = page.getBrowser().getWebDriver()
+                .browsingContext().locateNodes(page.getBrowsingContextId(), createWDLocator(this.selector));
+        WDBrowsingContextResult.LocateNodesResult nodesOther = page.getBrowser().getWebDriver()
+                .browsingContext().locateNodes(page.getBrowsingContextId(), createWDLocator(other.selector));
+
+        // 2. Schnittmenge bilden (z.B. via Handle-Id)
+        List<WDRemoteValue.NodeRemoteValue> both = new ArrayList<>();
+        for (WDRemoteValue.NodeRemoteValue n1 : nodesThis.getNodes()) {
+            for (WDRemoteValue.NodeRemoteValue n2 : nodesOther.getNodes()) {
+                if (n1.getHandle().equals(n2.getHandle())) {
+                    both.add(n1);
+                }
+            }
+        }
+
+        if (both.isEmpty()) {
+            throw new RuntimeException("No nodes matched both conditions.");
+        }
+
+        // 3. Gib neuen Locator zurück (für Einfachheit: ersten Node)
+        WDHandle h = new WDHandle(both.get(0).getHandle().value());
+        WDSharedId sid = both.get(0).getSharedId();
+        WDRemoteReference.SharedReference ref = new WDRemoteReference.SharedReference(sid, h);
+        ElementHandleImpl newHandle = new ElementHandleImpl(webDriver, ref, new WDTarget.ContextTarget(page.getBrowsingContext()));
+
+        LocatorImpl result = new LocatorImpl(webDriver, page, this.selector + " + " + other.selector);
+        result.elementHandle = newHandle;
+        return result;
     }
 
     @Override
@@ -252,9 +270,7 @@ public class LocatorImpl implements Locator {
     public int count() {
         WDLocator<?> locator = createWDLocator(selector);
         WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver().browsingContext().locateNodes(
-                page.getBrowsingContextId(),
-                locator
-        );
+                page.getBrowsingContextId(), locator);
         return nodes.getNodes().size();
     }
 
@@ -340,12 +356,14 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Locator filter(FilterOptions options) {
-        return null;
+        String newSelector = this.selector + ":has-text('" + options.getText() + "')";
+        return new LocatorImpl(webDriver, page, newSelector);
     }
+
 
     @Override
     public Locator first() {
-        return null;
+        return this.nth(0);
     }
 
     @Override
@@ -570,7 +588,9 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Locator last() {
-        return null;
+        // Du kannst auch mit locateNodes() ermitteln:
+        int count = this.count();
+        return this.nth(count - 1);
     }
 
     @Override
@@ -591,9 +611,46 @@ public class LocatorImpl implements Locator {
     @Override
     public Locator or(Locator locator) {
         if (!(locator instanceof LocatorImpl)) {
-            throw new IllegalArgumentException("Locator must be of type LocatorImpl.");
+            throw new IllegalArgumentException("Locator must be LocatorImpl.");
         }
-        return new LocatorImpl(webDriver, page, this.selector + ", " + ((LocatorImpl) locator).selector); // ToDo: Check this!
+        LocatorImpl other = (LocatorImpl) locator;
+
+        // 1️⃣ Hole beide Node-Mengen
+        WDBrowsingContextResult.LocateNodesResult nodesThis = page.getBrowser().getWebDriver()
+                .browsingContext().locateNodes(page.getBrowsingContextId(), createWDLocator(this.selector));
+        WDBrowsingContextResult.LocateNodesResult nodesOther = page.getBrowser().getWebDriver()
+                .browsingContext().locateNodes(page.getBrowsingContextId(), createWDLocator(other.selector));
+
+        // 2️⃣ Kombiniere ohne Duplikate
+        List<WDRemoteValue.NodeRemoteValue> union = new ArrayList<>(nodesThis.getNodes());
+        for (WDRemoteValue.NodeRemoteValue n : nodesOther.getNodes()) {
+            boolean already = false;
+            for (WDRemoteValue.NodeRemoteValue u : union) {
+                if (n.getHandle().equals(u.getHandle())) {
+                    already = true;
+                    break;
+                }
+            }
+            if (!already) {
+                union.add(n);
+            }
+        }
+
+        if (union.isEmpty()) {
+            throw new RuntimeException("No nodes matched either condition.");
+        }
+
+        // 3️⃣ Liefere Union als eigenen Locator
+        // Falls du mehrere brauchst: gib Liste oder neuen Multi-Locator
+        // Für einfaches Beispiel: nur erster Node
+        WDHandle handle = new WDHandle(union.get(0).getHandle().value());
+        WDSharedId sharedId = union.get(0).getSharedId();
+        WDRemoteReference.SharedReference reference = new WDRemoteReference.SharedReference(sharedId, handle);
+        ElementHandleImpl newHandle = new ElementHandleImpl(webDriver, reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
+
+        LocatorImpl result = new LocatorImpl(webDriver, page, this.selector + " | " + other.selector);
+        result.elementHandle = newHandle;
+        return result;
     }
 
     @Override
