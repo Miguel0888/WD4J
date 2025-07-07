@@ -32,6 +32,8 @@ public class LocatorImpl implements Locator {
 
     private ElementHandleImpl elementHandle; // Wird erst beim ersten Zugriff gesetzt
 
+    private FilterOptions filterOptions; // optional
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Constructors
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -64,34 +66,47 @@ public class LocatorImpl implements Locator {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private void resolveElementHandle() {
-        if (elementHandle == null) {
-            WDLocator<?> locator = createWDLocator(selector);
-            WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver().browsingContext().locateNodes(
-                    page.getBrowsingContextId(),
-                    locator
-            );
-            if (nodes.getNodes().isEmpty()) {
-                throw new RuntimeException("No nodes found for selector: " + selector);
-            }
-            WDHandle handle = new WDHandle(nodes.getNodes().get(0).getHandle().value());
-            WDSharedId sharedId = nodes.getNodes().get(0).getSharedId();
-            if(sharedId != null) {
-                WDRemoteReference.SharedReference reference = new WDRemoteReference.SharedReference(sharedId, handle);
-                elementHandle = new ElementHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
-            }
-            else if(handle != null) {
-                WDRemoteReference.RemoteObjectReference reference = new WDRemoteReference.RemoteObjectReference(handle, sharedId);
-                new JSHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
-                throw new RuntimeException("No sharedId found for selector: " + selector + " handle: " + handle);
-            }
-            else {
-                throw new RuntimeException("No handle found for selector: " + selector);
-            }
+        if (elementHandle != null) {
+            return;
+        }
 
+        WDLocator<?> locator = createWDLocator(selector);
 
+        // Schritt 1: Hole alle passenden Nodes
+        WDBrowsingContextResult.LocateNodesResult locateNodesResult =
+                page.getBrowser().getWebDriver().browsingContext().locateNodes(
+                        page.getBrowsingContextId(),
+                        locator,
+                        Long.MAX_VALUE
+                );
 
+        List<WDRemoteValue.NodeRemoteValue> nodes = locateNodesResult.getNodes();
+
+        // Schritt 2: Falls Filter gesetzt, filtere Nodes
+        if (filterOptions != null) {
+            nodes = applyFilter(nodes);
+        }
+
+        if (nodes.isEmpty()) {
+            throw new RuntimeException("No nodes found for selector: " + selector);
+        }
+
+        WDRemoteValue.NodeRemoteValue node = nodes.get(0);
+        WDHandle handle = new WDHandle(node.getHandle().value());
+        WDSharedId sharedId = node.getSharedId();
+
+        if (sharedId != null) {
+            WDRemoteReference.SharedReference reference = new WDRemoteReference.SharedReference(sharedId, handle);
+            elementHandle = new ElementHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
+        } else if (handle != null) {
+            WDRemoteReference.RemoteObjectReference reference = new WDRemoteReference.RemoteObjectReference(handle, sharedId);
+            new JSHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
+            throw new RuntimeException("No sharedId found for selector: " + selector + " handle: " + handle);
+        } else {
+            throw new RuntimeException("No handle found for selector: " + selector);
         }
     }
+
 
 
     public static WDLocator<?> createWDLocator(String selector) {
@@ -356,8 +371,16 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Locator filter(FilterOptions options) {
-        String newSelector = this.selector + ":has-text('" + options.getText() + "')";
-        return new LocatorImpl(webDriver, page, newSelector);
+        if (options == null) {
+            throw new IllegalArgumentException("FilterOptions must not be null");
+        }
+
+        LocatorImpl filtered = new LocatorImpl(webDriver, page, this.selector);
+
+        // FilterInfo speichert die Bedingungen
+        filtered.filterOptions = options;
+
+        return filtered;
     }
 
 
@@ -928,5 +951,94 @@ public class LocatorImpl implements Locator {
         }
         return new WDTarget.RealmTarget(realm);
     }
+
+    private List<WDRemoteValue.NodeRemoteValue> applyFilter(List<WDRemoteValue.NodeRemoteValue> nodes) {
+        List<WDRemoteValue.NodeRemoteValue> result = new ArrayList<>();
+
+        for (WDRemoteValue.NodeRemoteValue node : nodes) {
+            boolean include = true;
+
+            // Filter: hasText
+            if (filterOptions.hasText != null) {
+                String innerText = evaluateInnerText(node);
+                if (filterOptions.hasText instanceof String) {
+                    include = innerText.toLowerCase().contains(((String) filterOptions.hasText).toLowerCase());
+                } else if (filterOptions.hasText instanceof Pattern) {
+                    include = ((Pattern) filterOptions.hasText).matcher(innerText).find();
+                }
+            }
+
+            // Filter: hasNotText
+            if (filterOptions.hasNotText != null) {
+                String innerText = evaluateInnerText(node);
+                boolean hasNot = false;
+                if (filterOptions.hasNotText instanceof String) {
+                    hasNot = innerText.toLowerCase().contains(((String) filterOptions.hasNotText).toLowerCase());
+                } else if (filterOptions.hasNotText instanceof Pattern) {
+                    hasNot = ((Pattern) filterOptions.hasNotText).matcher(innerText).find();
+                }
+                if (hasNot) {
+                    include = false;
+                }
+            }
+
+            // Filter: has
+            if (filterOptions.has != null && filterOptions.has instanceof LocatorImpl) {
+                LocatorImpl inner = (LocatorImpl) filterOptions.has;
+                List<WDRemoteValue.NodeRemoteValue> innerNodes = inner.locateNodesInSubtree(node);
+                if (innerNodes.isEmpty()) {
+                    include = false;
+                }
+            }
+
+            // Filter: hasNot
+            if (filterOptions.hasNot != null && filterOptions.hasNot instanceof LocatorImpl) {
+                LocatorImpl inner = (LocatorImpl) filterOptions.hasNot;
+                List<WDRemoteValue.NodeRemoteValue> innerNodes = inner.locateNodesInSubtree(node);
+                if (!innerNodes.isEmpty()) {
+                    include = false;
+                }
+            }
+
+            if (include) {
+                result.add(node);
+            }
+        }
+
+        return result;
+    }
+
+    private String evaluateInnerText(WDRemoteValue.NodeRemoteValue node) {
+        WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
+                page.getBrowsingContextId(),
+                node.getSharedId().value(),
+                WDScriptManager.DomQuery.GET_INNER_TEXT
+        );
+        return getStringFromEvaluateResult(result);
+    }
+
+    private List<WDRemoteValue.NodeRemoteValue> locateNodesInSubtree(WDRemoteValue.NodeRemoteValue parent) {
+        WDLocator<?> locator = createWDLocator(this.selector);
+
+        List<WDRemoteReference.SharedReference> startNodes = Collections.singletonList(parent.getSharedIdReference());
+
+        WDBrowsingContextResult.LocateNodesResult result = page.getBrowser().getWebDriver()
+                .browsingContext()
+                .locateNodes(
+                        page.getBrowsingContext(),
+                        locator,
+                        null, // maxNodeCount
+                        null, // WDSerializationOptions
+                        startNodes // <-- Subtree-Start!
+                );
+
+        return result.getNodes();
+    }
+
+
+
+
+
+
 
 }

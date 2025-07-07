@@ -339,11 +339,15 @@ public interface WDRemoteValue {
             return value;
         }
 
+         public WDRemoteReference.SharedReference getSharedIdReference() {
+             return new WDRemoteReference.SharedReference(this.getSharedId(), this.getHandle());
+         }
+
         @Override
         public String asString() {
             return value.getNodeValue() != null ? value.getNodeValue() : "";
         }
-    }
+     }
 
     class WindowProxyRemoteValue extends BaseRemoteValue {
         WindowProxyProperties value;
