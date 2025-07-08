@@ -107,21 +107,46 @@ public class LocatorImpl implements Locator {
         }
     }
 
-
-
     public static WDLocator<?> createWDLocator(String selector) {
         if (selector.startsWith("/") || selector.startsWith("(")) {
             return new WDLocator.XPathLocator(selector);
         } else if (selector.startsWith("text=")) {
             return new WDLocator.InnerTextLocator(selector.substring(5));
         } else if (selector.startsWith("aria=")) {
-            String name = selector.substring(5);
-            String role = null; // ToDo: Implement
+            String rest = selector.substring(5).trim();
+            String role = null;
+            String name = null;
+
+            // Beispiel: aria=button[name="Senden"]
+            int nameStart = rest.indexOf("[name=");
+            if (nameStart >= 0) {
+                role = rest.substring(0, nameStart).trim();
+                String namePart = rest.substring(nameStart);
+                name = parseNameFromBrackets(namePart);
+            } else if (rest.startsWith("[")) {
+                // Beispiel: aria=[name="Senden"]
+                name = parseNameFromBrackets(rest);
+            } else {
+                // Nur Rolle
+                role = rest.isEmpty() ? null : rest;
+            }
+
             WDLocator.AccessibilityLocator.Value value = new WDLocator.AccessibilityLocator.Value(name, role);
             return new WDLocator.AccessibilityLocator(value);
         } else {
             return new WDLocator.CssLocator(selector);
         }
+    }
+
+    private static String parseNameFromBrackets(String bracketPart) {
+        // Erwartet: [name="Senden"]
+        int eq = bracketPart.indexOf('=');
+        int quote1 = bracketPart.indexOf('"', eq);
+        int quote2 = bracketPart.indexOf('"', quote1 + 1);
+        if (eq >= 0 && quote1 >= 0 && quote2 >= 0) {
+            return bracketPart.substring(quote1 + 1, quote2);
+        }
+        return null;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

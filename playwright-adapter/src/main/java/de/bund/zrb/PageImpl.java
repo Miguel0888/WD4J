@@ -493,14 +493,38 @@ public class PageImpl implements Page {
     }
 
     @Override
-    public void check(String selector, CheckOptions options) {
+    public void check(String selector, Page.CheckOptions pageOptions) {
+        Locator.CheckOptions locatorOptions = new Locator.CheckOptions();
+        if (pageOptions != null) {
+            locatorOptions.setForce(pageOptions.force);
+            locatorOptions.setNoWaitAfter(pageOptions.noWaitAfter);
+            locatorOptions.setPosition(pageOptions.position);
+            locatorOptions.setTimeout(pageOptions.timeout);
+            locatorOptions.setTrial(pageOptions.trial);
+        }
 
+        locator(selector, null).check(locatorOptions);
     }
+
 
     @Override
-    public void click(String selector, ClickOptions options) {
+    public void click(String selector, Page.ClickOptions pageOptions) {
+        // Konvertiere Page.ClickOptions → Locator.ClickOptions
+        Locator.ClickOptions locatorOptions = new Locator.ClickOptions();
+        if (pageOptions != null) {
+            locatorOptions.setButton(pageOptions.button);
+            locatorOptions.setClickCount(pageOptions.clickCount);
+            locatorOptions.setDelay(pageOptions.delay);
+            locatorOptions.setModifiers(pageOptions.modifiers);
+            locatorOptions.setPosition(pageOptions.position);
+            locatorOptions.setTimeout(pageOptions.timeout);
+            locatorOptions.setTrial(pageOptions.trial);
+        }
 
+        locator(selector, null).click(locatorOptions);
     }
+
+
 
     @Override
     public void close() {
@@ -551,38 +575,65 @@ public class PageImpl implements Page {
     }
 
     @Override
-    public void dblclick(String selector, DblclickOptions options) {
-
+    public void dblclick(String selector, DblclickOptions pageOptions) {
+        Locator.DblclickOptions locatorOptions = new Locator.DblclickOptions();
+        if (pageOptions != null) {
+            locatorOptions.setButton(pageOptions.button);
+            locatorOptions.setDelay(pageOptions.delay);
+            locatorOptions.setModifiers(pageOptions.modifiers);
+            locatorOptions.setPosition(pageOptions.position);
+            locatorOptions.setTimeout(pageOptions.timeout);
+            locatorOptions.setForce(pageOptions.force);
+            locatorOptions.setNoWaitAfter(pageOptions.noWaitAfter);
+            locatorOptions.setTrial(pageOptions.trial);
+        }
+        locator(selector, null).dblclick(locatorOptions);
     }
 
     @Override
-    public void dispatchEvent(String selector, String type, Object eventInit, DispatchEventOptions options) {
-
+    public void dispatchEvent(String selector, String type, Object eventInit, DispatchEventOptions pageOptions) {
+        Locator.DispatchEventOptions locatorOptions = new Locator.DispatchEventOptions();
+        if (pageOptions != null) {
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
+        locator(selector, null).dispatchEvent(type, eventInit, locatorOptions);
     }
 
     @Override
-    public void dragAndDrop(String source, String target, DragAndDropOptions options) {
-
+    public void dragAndDrop(String source, String target, DragAndDropOptions pageOptions) {
+        Locator.DragToOptions locatorOptions = new Locator.DragToOptions();
+        if (pageOptions != null) {
+            locatorOptions.setForce(pageOptions.force);
+            locatorOptions.setNoWaitAfter(pageOptions.noWaitAfter);
+            locatorOptions.setTimeout(pageOptions.timeout);
+            locatorOptions.setTrial(pageOptions.trial);
+        }
+        locator(source, null).dragTo(locator(target, null), locatorOptions);
     }
 
     @Override
     public void emulateMedia(EmulateMediaOptions options) {
-
+        // ToDo: Wird oft direkt am BrowserContext gemacht!
+        throw new UnsupportedOperationException("emulateMedia is not yet supported for this driver");
     }
 
     @Override
-    public Object evalOnSelector(String selector, String expression, Object arg, EvalOnSelectorOptions options) {
-        return null;
+    public Object evalOnSelector(String selector, String expression, Object arg, EvalOnSelectorOptions pageOptions) {
+        Locator locator = locator(selector, null);
+        if (pageOptions != null && Boolean.TRUE.equals(pageOptions.strict)) {
+            locator = locator.first();
+        }
+        return locator.evaluate(expression, arg);
     }
 
     @Override
     public Object evalOnSelectorAll(String selector, String expression, Object arg) {
-        return null;
+        return locator(selector, null).evaluateAll(expression, arg);
     }
 
     @Override
     public Object evaluate(String expression, Object arg) {
-        return null;
+        return evaluateHandle(expression, arg).jsonValue();
     }
 
     @Override
@@ -630,25 +681,35 @@ public class PageImpl implements Page {
         throw new RuntimeException("evaluateHandle failed: unexpected result type");
     }
 
-
     @Override
     public void exposeBinding(String name, BindingCallback callback, ExposeBindingOptions options) {
-        // ToDo
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @Override
     public void exposeFunction(String name, FunctionCallback callback) {
-        // ToDo
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @Override
-    public void fill(String selector, String value, FillOptions options) {
+    public void fill(String selector, String value, Page.FillOptions pageOptions) {
+        Locator.FillOptions locatorOptions = new Locator.FillOptions();
+        if (pageOptions != null) {
+            locatorOptions.setForce(pageOptions.force);
+            locatorOptions.setNoWaitAfter(pageOptions.noWaitAfter);
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
 
+        locator(selector, null).fill(value, locatorOptions);
     }
 
     @Override
-    public void focus(String selector, FocusOptions options) {
-
+    public void focus(String selector, Page.FocusOptions pageOptions) {
+        Locator.FocusOptions locatorOptions = new Locator.FocusOptions();
+        if (pageOptions != null) {
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
+        locator(selector, null).focus(locatorOptions);
     }
 
     @Override
@@ -709,88 +770,130 @@ public class PageImpl implements Page {
 
     @Override
     public Locator getByAltText(String text, GetByAltTextOptions options) {
-        return null;
+        String selector = "alt=\"" + text + "\"";
+        return locator(selector, null);
     }
 
     @Override
     public Locator getByAltText(Pattern text, GetByAltTextOptions options) {
-        return null;
+        String selector = "alt=/" + text.pattern() + "/";
+        return locator(selector, null);
     }
 
     @Override
     public Locator getByLabel(String text, GetByLabelOptions options) {
-//        // Nutze WebDriver BiDi "script.evaluate" um das Element mit aria-label oder label zu finden
-//        String script = """
-//            (parent, labelText) => {
-//                let elements = parent.querySelectorAll("input, textarea, select");
-//                return Array.from(elements).find(el =>
-//                    el.getAttribute("aria-label") === labelText ||
-//                    document.querySelector(`label[for="${el.id}"]`)?.textContent === labelText
-//                );
-//            }
-//        """;
-//
-//        CompletableFuture<WebSocketFrame> futureResponse = webSocketImpl.send(
-//                new Script.Evaluate(context.getContextId(), script, List.of(this.selector, labelText))
-//        );
-//
-//        // Den neuen Locator basierend auf dem gefundenen Element zurückgeben
-//        return futureResponse.thenApply(frame -> {
-//            JsonObject jsonResponse = new Gson().fromJson(frame.text(), JsonObject.class);
-//            JsonElement elementId = jsonResponse.get("result");
-//            return new LocatorImpl(elementId.getAsString(), context.getContextId(), webSocketImpl);
-//        }).join();
-        return null;
+        String selector = "label=\"" + text + "\"";
+        if (options != null && options.exact != null && options.exact) {
+            selector += " exact";
+        }
+        return locator(selector, null);
     }
 
     @Override
     public Locator getByLabel(Pattern text, GetByLabelOptions options) {
-        return null;
+        String selector = "label=/" + text.pattern() + "/";
+        if (options != null && options.exact != null && options.exact) {
+            selector += " exact";
+        }
+        return locator(selector, null);
     }
 
     @Override
     public Locator getByPlaceholder(String text, GetByPlaceholderOptions options) {
-        return null;
+        String selector = "placeholder=\"" + text + "\"";
+        if (options != null && options.exact != null && options.exact) {
+            selector += " exact";
+        }
+        return locator(selector, null);
     }
 
     @Override
     public Locator getByPlaceholder(Pattern text, GetByPlaceholderOptions options) {
-        return null;
+        String selector = "placeholder=/" + text.pattern() + "/";
+        if (options != null && options.exact != null && options.exact) {
+            selector += " exact";
+        }
+        return locator(selector, null);
     }
 
     @Override
     public Locator getByRole(AriaRole role, GetByRoleOptions options) {
-        return null;
+        String selector = "aria/" + role.name().toLowerCase();
+
+        if (options != null) {
+            StringBuilder sb = new StringBuilder(selector);
+
+            if (options.name != null) {
+                sb.append("[name=\"").append(options.name).append("\"]");
+            }
+            if (options.checked != null) {
+                sb.append("[checked=").append(options.checked).append("]");
+            }
+            if (options.selected != null) {
+                sb.append("[selected=").append(options.selected).append("]");
+            }
+            if (options.expanded != null) {
+                sb.append("[expanded=").append(options.expanded).append("]");
+            }
+            if (options.includeHidden != null && options.includeHidden) {
+                sb.append("[include-hidden]");
+            }
+            if (options.level != null) {
+                sb.append("[level=").append(options.level).append("]");
+            }
+            if (options.pressed != null) {
+                sb.append("[pressed=").append(options.pressed).append("]");
+            }
+            selector = sb.toString();
+        }
+
+        return locator(selector, null);
     }
 
     @Override
     public Locator getByTestId(String testId) {
-        return null;
+        String selector = "data-testid=\"" + testId + "\"";
+        return locator(selector, null);
     }
 
     @Override
     public Locator getByTestId(Pattern testId) {
-        return null;
+        String selector = "data-testid=/" + testId.pattern() + "/";
+        return locator(selector, null);
     }
 
     @Override
     public Locator getByText(String text, GetByTextOptions options) {
-        return null;
+        String selector = "text=\"" + text + "\"";
+
+        if (options != null && options.exact != null && options.exact) {
+            selector += " exact";
+        }
+
+        return locator(selector, null);
     }
 
     @Override
     public Locator getByText(Pattern text, GetByTextOptions options) {
-        return null;
+        String selector = "text=/" + text.pattern() + "/";
+
+        if (options != null && options.exact != null && options.exact) {
+            selector += " exact";
+        }
+
+        return locator(selector, null);
     }
 
     @Override
     public Locator getByTitle(String text, GetByTitleOptions options) {
-        return null;
+        String selector = "title=\"" + text + "\"";
+        return locator(selector, null);
     }
 
     @Override
     public Locator getByTitle(Pattern text, GetByTitleOptions options) {
-        return null;
+        String selector = "title=/" + text.pattern() + "/";
+        return locator(selector, null);
     }
 
     @Override
@@ -829,58 +932,102 @@ public class PageImpl implements Page {
     }
 
     @Override
-    public void hover(String selector, HoverOptions options) {
-
+    public void hover(String selector, Page.HoverOptions pageOptions) {
+        Locator.HoverOptions locatorOptions = new Locator.HoverOptions();
+        if (pageOptions != null) {
+            locatorOptions.setForce(pageOptions.force);
+            locatorOptions.setModifiers(pageOptions.modifiers);
+            locatorOptions.setPosition(pageOptions.position);
+            locatorOptions.setTimeout(pageOptions.timeout);
+            locatorOptions.setTrial(pageOptions.trial);
+        }
+        locator(selector, null).hover(locatorOptions);
     }
 
     @Override
-    public String innerHTML(String selector, InnerHTMLOptions options) {
-        return "";
+    public String innerHTML(String selector, Page.InnerHTMLOptions pageOptions) {
+        Locator.InnerHTMLOptions locatorOptions = new Locator.InnerHTMLOptions();
+        if (pageOptions != null) {
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
+        return locator(selector).innerHTML(locatorOptions);
     }
 
     @Override
-    public String innerText(String selector, InnerTextOptions options) {
-        return "";
+    public String innerText(String selector, Page.InnerTextOptions pageOptions) {
+        Locator.InnerTextOptions locatorOptions = new Locator.InnerTextOptions();
+        if (pageOptions != null) {
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
+        return locator(selector).innerText(locatorOptions);
     }
 
     @Override
-    public String inputValue(String selector, InputValueOptions options) {
-        return "";
+    public String inputValue(String selector, Page.InputValueOptions pageOptions) {
+        Locator.InputValueOptions locatorOptions = new Locator.InputValueOptions();
+        if (pageOptions != null) {
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
+        return locator(selector).inputValue(locatorOptions);
     }
 
     @Override
-    public boolean isChecked(String selector, IsCheckedOptions options) {
-        return false;
+    public boolean isChecked(String selector, Page.IsCheckedOptions pageOptions) {
+        Locator.IsCheckedOptions locatorOptions = new Locator.IsCheckedOptions();
+        if (pageOptions != null) {
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
+        return locator(selector).isChecked(locatorOptions);
     }
 
     @Override
     public boolean isClosed() {
-        return false;
+        return this.isClosed;
     }
 
     @Override
-    public boolean isDisabled(String selector, IsDisabledOptions options) {
-        return false;
+    public boolean isDisabled(String selector, Page.IsDisabledOptions pageOptions) {
+        Locator.IsDisabledOptions locatorOptions = new Locator.IsDisabledOptions();
+        if (pageOptions != null) {
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
+        return locator(selector).isDisabled(locatorOptions);
     }
 
     @Override
-    public boolean isEditable(String selector, IsEditableOptions options) {
-        return false;
+    public boolean isEditable(String selector, Page.IsEditableOptions pageOptions) {
+        Locator.IsEditableOptions locatorOptions = new Locator.IsEditableOptions();
+        if (pageOptions != null) {
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
+        return locator(selector).isEditable(locatorOptions);
     }
 
     @Override
-    public boolean isEnabled(String selector, IsEnabledOptions options) {
-        return false;
+    public boolean isEnabled(String selector, Page.IsEnabledOptions pageOptions) {
+        Locator.IsEnabledOptions locatorOptions = new Locator.IsEnabledOptions();
+        if (pageOptions != null) {
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
+        return locator(selector).isEnabled(locatorOptions);
     }
 
     @Override
-    public boolean isHidden(String selector, IsHiddenOptions options) {
-        return false;
+    public boolean isHidden(String selector, Page.IsHiddenOptions pageOptions) {
+        Locator.IsHiddenOptions locatorOptions = new Locator.IsHiddenOptions();
+        if (pageOptions != null) {
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
+        return locator(selector).isHidden(locatorOptions);
     }
 
     @Override
-    public boolean isVisible(String selector, IsVisibleOptions options) {
-        return false;
+    public boolean isVisible(String selector, Page.IsVisibleOptions pageOptions) {
+        Locator.IsVisibleOptions locatorOptions = new Locator.IsVisibleOptions();
+        if (pageOptions != null) {
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
+        return locator(selector).isVisible(locatorOptions);
     }
 
     @Override
@@ -927,8 +1074,15 @@ public class PageImpl implements Page {
     }
 
     @Override
-    public void press(String selector, String key, PressOptions options) {
+    public void press(String selector, String key, Page.PressOptions pageOptions) {
+        Locator.PressOptions locatorOptions = new Locator.PressOptions();
+        if (pageOptions != null) {
+            locatorOptions.setDelay(pageOptions.delay);
+            locatorOptions.setNoWaitAfter(pageOptions.noWaitAfter);
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
 
+        locator(selector, null).press(key, locatorOptions);
     }
 
     @Override
@@ -1065,8 +1219,16 @@ public class PageImpl implements Page {
     }
 
     @Override
-    public void setChecked(String selector, boolean checked, SetCheckedOptions options) {
-
+    public void setChecked(String selector, boolean checked, Page.SetCheckedOptions pageOptions) {
+        Locator.SetCheckedOptions locatorOptions = new Locator.SetCheckedOptions();
+        if (pageOptions != null) {
+            locatorOptions.setForce(pageOptions.force);
+            locatorOptions.setNoWaitAfter(pageOptions.noWaitAfter);
+            locatorOptions.setPosition(pageOptions.position);
+            locatorOptions.setTimeout(pageOptions.timeout);
+            locatorOptions.setTrial(pageOptions.trial);
+        }
+        locator(selector, null).setChecked(checked, locatorOptions);
     }
 
     @Override
@@ -1115,8 +1277,16 @@ public class PageImpl implements Page {
     }
 
     @Override
-    public void tap(String selector, TapOptions options) {
-
+    public void tap(String selector, Page.TapOptions pageOptions) {
+        Locator.TapOptions locatorOptions = new Locator.TapOptions();
+        if (pageOptions != null) {
+            locatorOptions.setForce(pageOptions.force);
+            locatorOptions.setModifiers(pageOptions.modifiers);
+            locatorOptions.setPosition(pageOptions.position);
+            locatorOptions.setTimeout(pageOptions.timeout);
+            locatorOptions.setTrial(pageOptions.trial);
+        }
+        locator(selector, null).tap(locatorOptions);
     }
 
     @Override
@@ -1135,13 +1305,27 @@ public class PageImpl implements Page {
     }
 
     @Override
-    public void type(String selector, String text, TypeOptions options) {
-
+    public void type(String selector, String text, Page.TypeOptions pageOptions) {
+        Locator.TypeOptions locatorOptions = new Locator.TypeOptions();
+        if (pageOptions != null) {
+            locatorOptions.setDelay(pageOptions.delay);
+            locatorOptions.setNoWaitAfter(pageOptions.noWaitAfter);
+            locatorOptions.setTimeout(pageOptions.timeout);
+        }
+        locator(selector, null).type(text, locatorOptions);
     }
 
     @Override
-    public void uncheck(String selector, UncheckOptions options) {
-
+    public void uncheck(String selector, Page.UncheckOptions pageOptions) {
+        Locator.UncheckOptions locatorOptions = new Locator.UncheckOptions();
+        if (pageOptions != null) {
+            locatorOptions.setForce(pageOptions.force);
+            locatorOptions.setNoWaitAfter(pageOptions.noWaitAfter);
+            locatorOptions.setPosition(pageOptions.position);
+            locatorOptions.setTimeout(pageOptions.timeout);
+            locatorOptions.setTrial(pageOptions.trial);
+        }
+        locator(selector, null).uncheck(locatorOptions);
     }
 
     @Override
