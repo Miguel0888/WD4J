@@ -5,6 +5,7 @@ import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.*;
 import de.bund.zrb.command.request.parameters.browsingContext.CreateType;
 import de.bund.zrb.event.WDScriptEvent;
+import de.bund.zrb.type.browsingContext.WDNavigationInfo;
 import de.bund.zrb.type.script.*;
 import de.bund.zrb.event.FrameImpl;
 import de.bund.zrb.support.PlaywrightResponse;
@@ -341,58 +342,135 @@ public class PageImpl implements Page {
         }
     }
 
+    @Override
+    public void onDownload(Consumer<Download> handler) {
+        if (handler != null) {
+            WDSubscriptionRequest request = new WDSubscriptionRequest(WDEventNames.DOWNLOAD_WILL_BEGIN.getName(), this.getBrowsingContextId(), null);
+            webDriver.addEventListener(request, handler);
+        }
+    }
+
+    @Override
+    public void offDownload(Consumer<Download> handler) {
+        if (handler != null) {
+            webDriver.removeEventListener(WDEventNames.DOWNLOAD_WILL_BEGIN.getName(), getBrowsingContextId(), handler);
+        }
+    }
+
+    @Override
+    public void onFileChooser(Consumer<FileChooser> handler) {
+        if (handler != null) {
+            WDSubscriptionRequest request = new WDSubscriptionRequest(WDEventNames.FILE_DIALOG_OPENED.getName(), this.getBrowsingContextId(), null);
+            webDriver.addEventListener(request, handler);
+        }
+    }
+
+    @Override
+    public void offFileChooser(Consumer<FileChooser> handler) {
+        if (handler != null) {
+            webDriver.removeEventListener(WDEventNames.FILE_DIALOG_OPENED.getName(), getBrowsingContextId(), handler);
+        }
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Advanced Features, not directly supported by WebDriver
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
-    public void onDownload(Consumer<Download> handler) {
-
-    }
-
-    @Override
-    public void offDownload(Consumer<Download> handler) {
-
-    }
-
-    @Override
-    public void onFileChooser(Consumer<FileChooser> handler) {
-
-    }
-
-    @Override
-    public void offFileChooser(Consumer<FileChooser> handler) {
-
-    }
-
-    @Override
     public void onFrameAttached(Consumer<Frame> handler) {
+        if (handler != null) {
+            WDSubscriptionRequest request = new WDSubscriptionRequest(WDEventNames.CONTEXT_CREATED.getName(), null, null);
+            webDriver.addEventListener(request, event -> {
+                WDBrowsingContextEvent.Created created = JsonToPlaywrightMapper.mapToInterface((JsonObject) event, WDBrowsingContextEvent.Created.class);
+                WDInfo info = created.getParams();
 
+                if (info.getParent() != null) {
+                    Frame frame = new FrameImpl(
+                            browser,
+                            this,
+                            info.getUserContext(),
+                            info.getClientWindow(),
+                            info.getUrl(),
+                            info.getChildren()
+                    );
+                    handler.accept(frame);
+                }
+            });
+        }
     }
 
     @Override
     public void offFrameAttached(Consumer<Frame> handler) {
-
+        if (handler != null) {
+            webDriver.removeEventListener(WDEventNames.CONTEXT_CREATED.getName(), null, handler);
+        }
     }
 
     @Override
     public void onFrameDetached(Consumer<Frame> handler) {
+        if (handler != null) {
+            WDSubscriptionRequest request = new WDSubscriptionRequest(WDEventNames.CONTEXT_DESTROYED.getName(), null, null);
+            webDriver.addEventListener(request, event -> {
+                WDBrowsingContextEvent.Destroyed destroyed = JsonToPlaywrightMapper.mapToInterface((JsonObject) event, WDBrowsingContextEvent.Destroyed.class);
+                WDInfo info = destroyed.getParams();
 
+                if (info.getParent() != null) {
+                    Frame frame = new FrameImpl(
+                            browser,
+                            this,
+                            info.getUserContext(),
+                            info.getClientWindow(),
+                            info.getUrl(),
+                            info.getChildren()
+                    );
+                    handler.accept(frame);
+                }
+            });
+        }
     }
 
     @Override
     public void offFrameDetached(Consumer<Frame> handler) {
-
+        if (handler != null) {
+            webDriver.removeEventListener(WDEventNames.CONTEXT_DESTROYED.getName(), null, handler);
+        }
     }
 
     @Override
     public void onFrameNavigated(Consumer<Frame> handler) {
+        if (handler != null) {
+            WDSubscriptionRequest request = new WDSubscriptionRequest(WDEventNames.NAVIGATION_STARTED.getName(), null, null);
+            webDriver.addEventListener(request, event -> {
+                WDBrowsingContextEvent.NavigationStarted started =
+                        JsonToPlaywrightMapper.mapToInterface((JsonObject) event, WDBrowsingContextEvent.NavigationStarted.class);
+                WDNavigationInfo navInfo = started.getParams();
 
+                // Hole den Tree für genau diesen Context
+                WDBrowsingContextResult.GetTreeResult tree =
+                        webDriver.browsingContext().getTree(navInfo.getContext(), 1L);
+
+                for (WDInfo info : tree.getContexts()) {
+                    if (info.getParent() != null) {
+                        Frame frame = new FrameImpl(
+                                browser,
+                                this,
+                                info.getUserContext(),
+                                info.getClientWindow(),
+                                info.getUrl(),
+                                info.getChildren()
+                        );
+                        handler.accept(frame);
+                    }
+                }
+            });
+        }
     }
 
     @Override
     public void offFrameNavigated(Consumer<Frame> handler) {
-
+        if (handler != null) {
+            webDriver.removeEventListener(WDEventNames.NAVIGATION_STARTED.getName(), null, handler);
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1375,17 +1453,88 @@ public class PageImpl implements Page {
 
     @Override
     public Download waitForDownload(WaitForDownloadOptions options, Runnable callback) {
-        return null;
+        final Download[] result = new Download[1];
+
+        Consumer<Download> listener = download -> result[0] = download;
+
+        this.onDownload(listener);
+
+        if (callback != null) {
+            callback.run();
+        }
+
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
+
+        while (result[0] == null && System.currentTimeMillis() - start < timeout) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        this.offDownload(listener);
+
+        if (result[0] == null) {
+            throw new PlaywrightException("Timeout exceeded while waiting for download");
+        }
+
+        return result[0];
     }
 
     @Override
     public FileChooser waitForFileChooser(WaitForFileChooserOptions options, Runnable callback) {
-        return null;
+        final FileChooser[] result = new FileChooser[1];
+
+        Consumer<FileChooser> listener = fileChooser -> result[0] = fileChooser;
+
+        this.onFileChooser(listener);
+
+        if (callback != null) {
+            callback.run();
+        }
+
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
+
+        while (result[0] == null && System.currentTimeMillis() - start < timeout) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        this.offFileChooser(listener);
+
+        if (result[0] == null) {
+            throw new PlaywrightException("Timeout exceeded while waiting for file chooser");
+        }
+
+        return result[0];
     }
 
     @Override
     public JSHandle waitForFunction(String expression, Object arg, WaitForFunctionOptions options) {
-        return null;
+        long timeout = options != null &&  options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
+
+        while (System.currentTimeMillis() - start < timeout) {
+            Object result = this.evaluate(expression, arg);
+            if (result instanceof Boolean && (Boolean) result) {
+                return evaluateHandle(expression, arg);
+            }
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        throw new PlaywrightException("Timeout exceeded while waiting for function");
     }
 
     @Override
@@ -1395,7 +1544,33 @@ public class PageImpl implements Page {
 
     @Override
     public Response waitForNavigation(WaitForNavigationOptions options, Runnable callback) {
-        return null;
+        final Response[] responseHolder = new Response[1];
+        Consumer<Page> listener = page -> responseHolder[0] = new PlaywrightResponse<>(null);
+
+        this.onLoad(listener);
+
+        if (callback != null) {
+            callback.run();
+        }
+
+        // Wait until navigation event received
+        long timeout = options != null &&  options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
+        while (responseHolder[0] == null && System.currentTimeMillis() - start < timeout) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        this.offLoad(listener);
+
+        if (responseHolder[0] == null) {
+            throw new PlaywrightException("Timeout exceeded while waiting for navigation");
+        }
+
+        return responseHolder[0];
     }
 
     @Override
@@ -1405,77 +1580,435 @@ public class PageImpl implements Page {
 
     @Override
     public Request waitForRequest(String urlOrPredicate, WaitForRequestOptions options, Runnable callback) {
-        return null;
+        final Request[] result = new Request[1];
+
+        Consumer<Request> listener = request -> {
+            if (request.url().equals(urlOrPredicate)) {
+                result[0] = request;
+            }
+        };
+
+        this.onRequest(listener);
+
+        if (callback != null) {
+            callback.run();
+        }
+
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
+
+        while (result[0] == null && System.currentTimeMillis() - start < timeout) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        this.offRequest(listener);
+
+        if (result[0] == null) {
+            throw new PlaywrightException("Timeout exceeded while waiting for request: " + urlOrPredicate);
+        }
+
+        return result[0];
+    }
+
+
+    @Override
+    public Request waitForRequest(Pattern urlPattern, WaitForRequestOptions options, Runnable callback) {
+        final Request[] result = new Request[1];
+
+        Consumer<Request> listener = request -> {
+            if (urlPattern.matcher(request.url()).matches()) {
+                result[0] = request;
+            }
+        };
+
+        this.onRequest(listener);
+
+        if (callback != null) {
+            callback.run();
+        }
+
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
+
+        while (result[0] == null && System.currentTimeMillis() - start < timeout) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        this.offRequest(listener);
+
+        if (result[0] == null) {
+            throw new PlaywrightException("Timeout exceeded while waiting for request matching pattern: " + urlPattern.pattern());
+        }
+
+        return result[0];
     }
 
     @Override
-    public Request waitForRequest(Pattern urlOrPredicate, WaitForRequestOptions options, Runnable callback) {
-        return null;
-    }
+    public Request waitForRequest(Predicate<Request> requestPredicate, WaitForRequestOptions options, Runnable callback) {
+        final Request[] result = new Request[1];
 
-    @Override
-    public Request waitForRequest(Predicate<Request> urlOrPredicate, WaitForRequestOptions options, Runnable callback) {
-        return null;
+        Consumer<Request> listener = request -> {
+            if (requestPredicate.test(request)) {
+                result[0] = request;
+            }
+        };
+
+        this.onRequest(listener);
+
+        if (callback != null) {
+            callback.run();
+        }
+
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
+
+        while (result[0] == null && System.currentTimeMillis() - start < timeout) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        this.offRequest(listener);
+
+        if (result[0] == null) {
+            throw new PlaywrightException("Timeout exceeded while waiting for request with predicate");
+        }
+
+        return result[0];
     }
 
     @Override
     public Request waitForRequestFinished(WaitForRequestFinishedOptions options, Runnable callback) {
-        return null;
+        final Request[] result = new Request[1];
+
+        Consumer<Request> listener = request -> result[0] = request;
+
+        this.onRequestFinished(listener);
+
+        if (callback != null) {
+            callback.run();
+        }
+
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
+
+        while (result[0] == null && System.currentTimeMillis() - start < timeout) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        this.offRequestFinished(listener);
+
+        if (result[0] == null) {
+            throw new PlaywrightException("Timeout exceeded while waiting for request to finish");
+        }
+
+        return result[0];
     }
 
     @Override
     public Response waitForResponse(String urlOrPredicate, WaitForResponseOptions options, Runnable callback) {
-        return null;
+        final Response[] result = new Response[1];
+
+        Consumer<Response> listener = response -> {
+            if (response.url().equals(urlOrPredicate)) {
+                result[0] = response;
+            }
+        };
+
+        this.onResponse(listener);
+
+        if (callback != null) {
+            callback.run();
+        }
+
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
+
+        while (result[0] == null && System.currentTimeMillis() - start < timeout) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        this.offResponse(listener);
+
+        if (result[0] == null) {
+            throw new PlaywrightException("Timeout exceeded while waiting for response: " + urlOrPredicate);
+        }
+
+        return result[0];
     }
 
     @Override
-    public Response waitForResponse(Pattern urlOrPredicate, WaitForResponseOptions options, Runnable callback) {
-        return null;
+    public Response waitForResponse(Pattern urlPattern, WaitForResponseOptions options, Runnable callback) {
+        final Response[] result = new Response[1];
+
+        Consumer<Response> listener = response -> {
+            if (urlPattern.matcher(response.url()).matches()) {
+                result[0] = response;
+            }
+        };
+
+        this.onResponse(listener);
+
+        if (callback != null) {
+            callback.run();
+        }
+
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
+
+        while (result[0] == null && System.currentTimeMillis() - start < timeout) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        this.offResponse(listener);
+
+        if (result[0] == null) {
+            throw new PlaywrightException("Timeout exceeded while waiting for response matching pattern: " + urlPattern.pattern());
+        }
+
+        return result[0];
     }
 
     @Override
-    public Response waitForResponse(Predicate<Response> urlOrPredicate, WaitForResponseOptions options, Runnable callback) {
-        return null;
+    public Response waitForResponse(Predicate<Response> responsePredicate, WaitForResponseOptions options, Runnable callback) {
+        final Response[] result = new Response[1];
+
+        Consumer<Response> listener = response -> {
+            if (responsePredicate.test(response)) {
+                result[0] = response;
+            }
+        };
+
+        this.onResponse(listener);
+
+        if (callback != null) {
+            callback.run();
+        }
+
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
+
+        while (result[0] == null && System.currentTimeMillis() - start < timeout) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        this.offResponse(listener);
+
+        if (result[0] == null) {
+            throw new PlaywrightException("Timeout exceeded while waiting for response with predicate");
+        }
+
+        return result[0];
     }
 
     @Override
     public ElementHandle waitForSelector(String selector, WaitForSelectorOptions options) {
-        return null;
+        long timeout = options != null &&  options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+
+        long start = System.currentTimeMillis();
+        while (System.currentTimeMillis() - start < timeout) {
+            ElementHandle handle = querySelector(selector, null);
+            if (handle != null) {
+                return handle;
+            }
+            try {
+                Thread.sleep(50); // Poll alle 50 ms
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        throw new PlaywrightException("Timeout exceeded while waiting for selector: " + selector);
     }
+
 
     @Override
     public void waitForCondition(BooleanSupplier condition, WaitForConditionOptions options) {
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
 
+        while (System.currentTimeMillis() - start < timeout) {
+            if (condition.getAsBoolean()) {
+                return;
+            }
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        throw new PlaywrightException("Timeout exceeded while waiting for condition");
     }
 
     @Override
     public void waitForTimeout(double timeout) {
-
+        long millis = (long) timeout; // Hier brauchst du keinen Double-Wrapper, ist primitive
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Override
-    public void waitForURL(String url, WaitForURLOptions options) {
+    public void waitForURL(String expectedUrl, WaitForURLOptions options) {
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
 
+        while (System.currentTimeMillis() - start < timeout) {
+            String currentUrl = this.url();
+            if (currentUrl != null && currentUrl.equals(expectedUrl)) {
+                return;
+            }
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        throw new PlaywrightException("Timeout exceeded while waiting for URL: " + expectedUrl);
     }
 
     @Override
-    public void waitForURL(Pattern url, WaitForURLOptions options) {
+    public void waitForURL(Pattern expectedUrlPattern, WaitForURLOptions options) {
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
 
+        while (System.currentTimeMillis() - start < timeout) {
+            String currentUrl = this.url();
+            if (currentUrl != null && expectedUrlPattern.matcher(currentUrl).matches()) {
+                return;
+            }
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        throw new PlaywrightException("Timeout exceeded while waiting for URL pattern: " + expectedUrlPattern.pattern());
     }
 
     @Override
-    public void waitForURL(Predicate<String> url, WaitForURLOptions options) {
+    public void waitForURL(Predicate<String> urlPredicate, WaitForURLOptions options) {
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
 
+        while (System.currentTimeMillis() - start < timeout) {
+            String currentUrl = this.url();
+            if (currentUrl != null && urlPredicate.test(currentUrl)) {
+                return;
+            }
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        throw new PlaywrightException("Timeout exceeded while waiting for URL with predicate");
     }
 
     @Override
     public WebSocket waitForWebSocket(WaitForWebSocketOptions options, Runnable callback) {
-        return null;
+        final WebSocket[] result = new WebSocket[1];
+        Consumer<WebSocket> listener = ws -> result[0] = ws;
+
+        this.onWebSocket(listener);
+
+        if (callback != null) {
+            callback.run();
+        }
+
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
+
+        while (result[0] == null && System.currentTimeMillis() - start < timeout) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        this.offWebSocket(listener);
+
+        if (result[0] == null) {
+            throw new PlaywrightException("Timeout exceeded while waiting for WebSocket");
+        }
+
+        return result[0];
     }
 
     @Override
     public Worker waitForWorker(WaitForWorkerOptions options, Runnable callback) {
-        return null;
+        final Worker[] result = new Worker[1];
+        Consumer<Worker> listener = worker -> result[0] = worker;
+
+        this.onWorker(listener);
+
+        if (callback != null) {
+            callback.run();
+        }
+
+        long timeout = options != null && options.timeout != null ? (long) options.timeout.doubleValue() : 30_000L;
+        long start = System.currentTimeMillis();
+
+        while (result[0] == null && System.currentTimeMillis() - start < timeout) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        this.offWorker(listener);
+
+        if (result[0] == null) {
+            throw new PlaywrightException("Timeout exceeded while waiting for Worker");
+        }
+
+        return result[0];
     }
 
     @Override

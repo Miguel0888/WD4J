@@ -33,7 +33,11 @@ public enum WDEventNames {
     REALM_DESTROYED("script.realmDestroyed"),
 
     // 🔹 Log Events
-    ENTRY_ADDED("log.entryAdded");
+    ENTRY_ADDED("log.entryAdded"),
+
+    // 🔹 Input Events
+    FILE_DIALOG_OPENED("input.fileDialogOpened");
+
 
     // 🔹 Weitere Module (Session, Browser Storage, Input, WebExtension) haben aktuell laut W3C-Spec keine Events
 
