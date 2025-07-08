@@ -3,8 +3,10 @@ package de.bund.zrb;
 import com.google.gson.JsonObject;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.*;
+import de.bund.zrb.command.request.parameters.browsingContext.CaptureScreenshotParameters;
 import de.bund.zrb.command.request.parameters.browsingContext.CreateType;
 import de.bund.zrb.event.WDScriptEvent;
+import de.bund.zrb.support.ScreenshotPreprocessor;
 import de.bund.zrb.type.browsingContext.WDNavigationInfo;
 import de.bund.zrb.type.script.*;
 import de.bund.zrb.event.FrameImpl;
@@ -1258,12 +1260,112 @@ public class PageImpl implements Page {
 
     }
 
+    /**
+     * Takes a screenshot of the current browsing context.
+     * <p>
+     * Diese Implementierung unterstützt die Playwright-Screenshot-Parameter, soweit sie mit dem
+     * BiDi-Standard kompatibel sind:
+     * <ul>
+     *   <li>{@code fullPage}: mapped to {@code Origin} (viewport or document)</li>
+     *   <li>{@code type} and {@code quality}: mapped to {@code ImageFormat}</li>
+     *   <li>{@code clip}: mapped to {@code BoxClipRectangle}</li>
+     *   <li>{@code path}: wenn gesetzt, wird das Bild lokal gespeichert</li>
+     * </ul>
+     *
+     * <p>
+     * <strong>Extras:</strong>
+     * <ul>
+     *   <li>{@code animations = DISABLED}: stoppt CSS-Animationen & Transitionen vor dem Screenshot</li>
+     *   <li>{@code caret = HIDE}: blendet den Text-Cursor aus</li>
+     *   <li>{@code mask + maskColor}: überlagert bestimmte Elemente mit farbigen Overlays</li>
+     * </ul>
+     *
+     * <p>
+     * Diese Features werden durch JavaScript-Injection umgesetzt. Nach dem Screenshot musst du
+     * {@link #restorePreprocessingStyles()} aufrufen, um die Seite wieder in den Ursprungszustand zu bringen.
+     *
+     * @param options die Screenshot-Optionen (können {@code null} sein)
+     * @return das Screenshot-Bild als Byte-Array (PNG oder JPEG, je nach {@code type})
+     * @throws PlaywrightException wenn das Speichern fehlschlägt oder der BiDi-Befehl scheitert
+     */
     @Override
     public byte[] screenshot(ScreenshotOptions options) {
-        // ToDo: Use options
-        WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult = browser.getWebDriver().browsingContext().captureScreenshot(getBrowsingContextId());
-        String base64Image = captureScreenshotResult.getData();
-        return Base64.getDecoder().decode(base64Image);
+        // ---------------------------------------------------------------
+        // Playwright-like Preprocessing (optional)
+        // ---------------------------------------------------------------
+        if (options != null) {
+            ScreenshotPreprocessor.Evaluator evaluator = script -> this.evaluate(script, null);
+
+            if (options.animations == ScreenshotAnimations.DISABLED) {
+                ScreenshotPreprocessor.disableAnimations(evaluator);
+            }
+
+            if (options.caret == ScreenshotCaret.HIDE) {
+                ScreenshotPreprocessor.hideCaret(evaluator);
+            }
+
+            if (options.mask != null && !options.mask.isEmpty()) {
+                ScreenshotPreprocessor.applyMask(options.mask, options.maskColor, evaluator);
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Standard Screenshot BiDi
+        // ---------------------------------------------------------------
+        WDBrowsingContext context = new WDBrowsingContext(getBrowsingContextId());
+
+        // Origin bestimmen: fullPage = document, sonst viewport
+        CaptureScreenshotParameters.Origin origin = CaptureScreenshotParameters.Origin.VIEWPORT;
+        if (options != null && Boolean.TRUE.equals(options.fullPage)) {
+            origin = CaptureScreenshotParameters.Origin.DOCUMENT;
+        }
+
+        // ImageFormat bestimmen: type + optional quality
+        CaptureScreenshotParameters.ImageFormat imageFormat = null;
+        if (options != null && options.type != null) {
+            String type = options.type.name().toLowerCase();
+            if ("jpeg".equals(type) && options.quality != null) {
+                float quality = options.quality.floatValue() / 100.0f; // Playwright: 0..1
+                imageFormat = new CaptureScreenshotParameters.ImageFormat(type, quality);
+            } else {
+                imageFormat = new CaptureScreenshotParameters.ImageFormat(type);
+            }
+        }
+
+        // Clip bestimmen, falls gesetzt
+        CaptureScreenshotParameters.ClipRectangle clip = null;
+        if (options != null && options.clip != null) {
+            clip = new CaptureScreenshotParameters.ClipRectangle.BoxClipRectangle(
+                    (int) options.clip.x,
+                    (int) options.clip.y,
+                    (int) options.clip.width,
+                    (int) options.clip.height
+            );
+        }
+
+        // Screenshot ausführen
+        WDBrowsingContextResult.CaptureScreenshotResult result =
+                browser.getWebDriver().browsingContext().captureScreenshot(context, origin, imageFormat, clip);
+
+        byte[] imageBytes = Base64.getDecoder().decode(result.getData());
+
+        // Speichere auf Disk, falls Pfad gesetzt
+        if (options != null && options.path != null) {
+            try {
+                java.nio.file.Files.write(options.path, imageBytes);
+            } catch (java.io.IOException e) {
+                throw new PlaywrightException("Failed to write screenshot to: " + options.path, e);
+            }
+        }
+
+        return imageBytes;
+    }
+
+    /**
+     * Entfernt ALLE Preprocessing-Styles & Masken, die durch Screenshot-Optionen gesetzt wurden.
+     */
+    public void restorePreprocessingStyles() {
+        ScreenshotPreprocessor.restore(script -> this.evaluate(script, null));
     }
 
     @Override
