@@ -1,4 +1,30 @@
-(() => {
+function(sendMessage) {
+    console.log("✅ recorder.js gestartet");
+    console.log("✅ BiDi sendMessage:", sendMessage);
+
+    if (typeof sendMessage !== "function") {
+        console.error("🚨 WebDriver BiDi: Kein gültiger Message-Channel übergeben!");
+        return;
+    }
+
+    // Binde den BiDi-Channel in deine Events-API ein:
+    window.sendJsonDataAsArray = function (eventDataArray) {
+        if (!Array.isArray(eventDataArray)) {
+            console.error("🚨 sendJsonDataAsArray erwartet ein JSON-Array!");
+            return;
+        }
+
+        try {
+            console.log(`📤 Sende ${eventDataArray.length} Events über BiDi`);
+            sendMessage({
+                type: "recording-event",
+                events: eventDataArray
+            });
+        } catch (error) {
+            console.error("🚨 Fehler beim Senden über BiDi:", error);
+        }
+    };
+
     let tooltip;
     let isTooltipEnabled = false;
     let isDomObserverEnabled = false;
@@ -258,10 +284,10 @@
     function watchPrimeFacesAjax() {
         if (window.PrimeFaces) {
             console.log('✅ PrimeFaces erkannt – AJAX-Events werden überwacht');
-            PrimeFaces.ajax.Queue.add = function(cfg) {
+            PrimeFaces.ajax.Queue.add = function (cfg) {
                 console.log('📡 PrimeFaces AJAX-Request gestartet:', cfg);
             };
-            PrimeFaces.ajax.Queue.remove = function(cfg) {
+            PrimeFaces.ajax.Queue.remove = function (cfg) {
                 console.log('✅ PrimeFaces AJAX-Request abgeschlossen:', cfg);
                 rebindEventListeners();
             };
@@ -449,14 +475,14 @@
 
     /////////////////////////////////////////// Toggles ///////////////////////////////////////////
 
-    window.toggleTooltip = function(enable) {
+    window.toggleTooltip = function (enable) {
         isTooltipEnabled = enable;
         if (!enable && tooltip) {
             tooltip.style.display = 'none';
         }
     };
 
-    window.toggleDomObserver = function(enable) {
+    window.toggleDomObserver = function (enable) {
         isDomObserverEnabled = enable;
     };
-})
+}

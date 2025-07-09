@@ -7,8 +7,6 @@ function(sendMessage) {
         return;
     }
 
-    window.sendBiDiMessage = sendMessage;
-
     window.addEventListener("focus", () => {
         console.log("📢 Fenster hat Fokus!");
         let message = {
@@ -17,7 +15,7 @@ function(sendMessage) {
             url: window.location.href
         };
         console.log("🚀 Sende Nachricht über BiDi:", message);  // Debugging-Log
-        window.sendBiDiMessage(message);
+        sendMessage(message);
     });
 
     window.addEventListener("blur", () => {
@@ -28,7 +26,7 @@ function(sendMessage) {
             url: window.location.href
         };
         console.log("🚀 Sende Nachricht über BiDi:", message);  // Debugging-Log
-        window.sendBiDiMessage(message);
+        sendMessage(message);
     });
 
     console.log("✅ Fokus-Tracker-Skript erfolgreich geladen!");

@@ -76,32 +76,21 @@ public class BrowserImpl implements Browser {
     }
 
     private void loadGlobalScripts() {
-//        // Channel für Callback anlegen
-//        String channelId = UUID.randomUUID().toString(); // Zufällige ID für den Channel
-//        WDChannelValue channel = new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(channelId)));
-//        String callbackScript = ScriptHelper.loadScript("scripts/callback.js")
-//                .replace("<CHANNEL_ID>", channelId);
-//        // Callback-Script für die Kommunikation mit dem Playwright-Server (über Message Events)
-//        globalScripts.add(webDriver.script().addPreloadScript(callbackScript, Collections.singletonList(channel)));
-
-
-        // 🔹 1️⃣ Channel für das Fokus-Tracking anlegen
-        WDChannelValue focusChannel = new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(CHANNEL_FOCUS_EVENTS)));
-
-        // 🔹 2️⃣ Fokus-Tracking PreloadScript registrieren
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ///  Events
         globalScripts.add(webDriver.script().addPreloadScript(
                 ScriptHelper.loadScript("scripts/focusTracker.js"),
-                Collections.singletonList(focusChannel)  // Channel mit übergeben
+                Collections.singletonList(new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(CHANNEL_FOCUS_EVENTS))))  // Channel mit übergeben
         ));
 
         // Recorder Callback analog zum Fokus-Tracker:
         globalScripts.add(webDriver.script().addPreloadScript(
-                ScriptHelper.loadScript("scripts/callback.js"),
+                ScriptHelper.loadScript("scripts/recorder.js"),
                 Collections.singletonList(new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(CHANNEL_RECORDING_EVENTS))))
         ));
 
-        // Alle weiteren globalen Scripts
-        globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/events.js")));
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ///  Alle weiteren globalen Scripts
         globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/debug.js"))); // ToDo: Remove
         globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/dragAndDrop.js")));
     }
