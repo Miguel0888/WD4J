@@ -50,8 +50,8 @@ public class WDScriptRequest {
      * collected, as there can be other handles or strong ECMAScript references.
      */
     public static class Disown extends WDCommandImpl<DisownParameters> implements WDCommandData {
-        public Disown(List<WDHandle> WDHandles, WDTarget WDTarget) {
-            super("script.disown", new DisownParameters(WDHandles, WDTarget));
+        public Disown(List<WDHandle> WDHandles, WDTarget target) {
+            super("script.disown", new DisownParameters(WDHandles, target));
         }
     }
 

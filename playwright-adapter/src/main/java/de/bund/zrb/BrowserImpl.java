@@ -7,13 +7,10 @@ import de.bund.zrb.support.Pages;
 import de.bund.zrb.support.ScriptHelper;
 import de.bund.zrb.command.response.WDBrowsingContextResult;
 import de.bund.zrb.command.response.WDScriptResult;
+import de.bund.zrb.type.script.*;
 import de.bund.zrb.websocket.WDEventNames;
 import de.bund.zrb.event.WDScriptEvent;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
-import de.bund.zrb.type.script.WDChannel;
-import de.bund.zrb.type.script.WDChannelValue;
-import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
-import de.bund.zrb.type.script.WDRemoteValue;
 import de.bund.zrb.type.session.WDSubscription;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
 import de.bund.zrb.websocket.WDException;
@@ -168,6 +165,12 @@ public class BrowserImpl implements Browser {
 
                 // 🔑 In den UserContext eintragen:
                 userContext.pages().add(page);
+
+                // 🔑 Direkt prüfen, ob der Kontext aktiv ist:
+                if (isContextFocused(info.getContext())) {
+                    this.activePageId = contextId;
+                    System.out.println("Initial activePageId: " + activePageId);
+                }
             });
 
         } catch (WDException ex) {
@@ -408,5 +411,18 @@ public class BrowserImpl implements Browser {
         return all;
     }
 
+    public boolean isContextFocused(WDBrowsingContext ctx) {
+        WDEvaluateResult eval = webDriver.script().evaluate("document.hasFocus();",
+                new WDTarget.ContextTarget(ctx),
+                true
+        );
+        if (eval instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            WDRemoteValue value = ((WDEvaluateResult.WDEvaluateResultSuccess) eval).getResult();
+            if (value instanceof WDPrimitiveProtocolValue.BooleanValue) {
+                return (( WDPrimitiveProtocolValue.BooleanValue) value).getValue();
+            }
+        }
+        return false;
+    }
 
 }

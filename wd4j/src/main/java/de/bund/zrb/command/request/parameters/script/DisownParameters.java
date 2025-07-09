@@ -7,19 +7,19 @@ import de.bund.zrb.api.WDCommand;
 import java.util.List;
 
 public class DisownParameters implements WDCommand.Params {
-    private final List<WDHandle> WDHandles;
-    private final WDTarget WDTarget;
+    private final List<WDHandle> handles;
+    private final WDTarget target;
 
-    public DisownParameters(List<WDHandle> WDHandles, WDTarget WDTarget) {
-        this.WDHandles = WDHandles;
-        this.WDTarget = WDTarget;
+    public DisownParameters(List<WDHandle> handles, WDTarget target) {
+        this.handles = handles;
+        this.target = target;
     }
 
     public List<WDHandle> getHandles() {
-        return WDHandles;
+        return handles;
     }
 
     public WDTarget getTarget() {
-        return WDTarget;
+        return target;
     }
 }

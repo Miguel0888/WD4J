@@ -107,17 +107,17 @@ public class WDScriptManager implements WDModule {
     /**
      * Disowns the given handles in the specified context.
      *
-     * @param WDTarget The ID of the context.
+     * @param target The ID of the context.
      * @param WDHandles   The list of handles to disown.
      * @throws RuntimeException if the operation fails.
      */
-    public void disown(List<WDHandle> WDHandles, WDTarget WDTarget) {
+    public void disown(List<WDHandle> WDHandles, WDTarget target) {
         if (WDHandles == null || WDHandles.isEmpty()) {
             throw new IllegalArgumentException("Handles list must not be null or empty.");
         }
 
         webSocketManager.sendAndWaitForResponse(
-                new WDScriptRequest.Disown(WDHandles, WDTarget),
+                new WDScriptRequest.Disown(WDHandles, target),
                 WDEmptyResult.class
         );
     }

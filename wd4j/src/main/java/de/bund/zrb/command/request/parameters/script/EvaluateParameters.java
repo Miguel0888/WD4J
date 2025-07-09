@@ -7,7 +7,7 @@ import de.bund.zrb.api.WDCommand;
 
 public class EvaluateParameters implements WDCommand.Params {
     private final String expression;
-    private final WDTarget WDTarget;
+    private final WDTarget target;
     private final boolean awaitPromise;
     private final WDResultOwnership WDResultOwnership; // Optional
     private final WDSerializationOptions WDSerializationOptions; // Optional
@@ -23,7 +23,7 @@ public class EvaluateParameters implements WDCommand.Params {
 
     public EvaluateParameters(String expression, WDTarget target, boolean awaitPromise, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions, boolean userActivation) {
         this.expression = expression;
-        this.WDTarget = target;
+        this.target = target;
         this.awaitPromise = awaitPromise;
         this.WDResultOwnership = resultOwnership;
         this.WDSerializationOptions = serializationOptions;
@@ -35,7 +35,7 @@ public class EvaluateParameters implements WDCommand.Params {
     }
 
     public WDTarget getTarget() {
-        return WDTarget;
+        return target;
     }
 
     public boolean getAwaitPromise() {
