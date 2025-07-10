@@ -40,6 +40,7 @@ public class TestSuitePlayer {
             case "click":
                 page.locator(action.getSelectedSelector()).click();
                 break;
+            case "input":
             case "fill":
                 Locator locator = page.locator(action.getSelectedSelector());
                 locator.fill(action.getValue());
