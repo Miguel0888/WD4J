@@ -110,19 +110,19 @@ public class WDBrowsingContextRequest {
         public LocateNodes(String contextId, WDLocator locator) {
             super("browsingContext.locateNodes", new LocateNodesParameters(new WDBrowsingContext(contextId), locator));
         }
-        public LocateNodes(String contextId, WDLocator locator, Long maxNodeCount) {
+        public LocateNodes(String contextId, WDLocator locator, Integer maxNodeCount) {
             super("browsingContext.locateNodes", new LocateNodesParameters(new WDBrowsingContext(contextId), locator, maxNodeCount, null, null));
         }
-        public LocateNodes(String contextId, WDLocator locator, Long maxNodeCount, WDSerializationOptions serializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
+        public LocateNodes(String contextId, WDLocator locator, Integer maxNodeCount, WDSerializationOptions serializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
             super("browsingContext.locateNodes", new LocateNodesParameters(new WDBrowsingContext(contextId), locator, maxNodeCount, serializationOptions, startNodes));
         }
         public LocateNodes(WDBrowsingContext context, WDLocator locator) {
             super("browsingContext.locateNodes", new LocateNodesParameters(context, locator));
         }
-        public LocateNodes(WDBrowsingContext context, WDLocator locator, Long maxNodeCount) {
+        public LocateNodes(WDBrowsingContext context, WDLocator locator, Integer maxNodeCount) {
             super("browsingContext.locateNodes", new LocateNodesParameters(context, locator, maxNodeCount, null, null));
         }
-        public LocateNodes(WDBrowsingContext context, WDLocator locator, Long maxNodeCount, WDSerializationOptions serializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
+        public LocateNodes(WDBrowsingContext context, WDLocator locator, Integer maxNodeCount, WDSerializationOptions serializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
             super("browsingContext.locateNodes", new LocateNodesParameters(context, locator, maxNodeCount, serializationOptions, startNodes));
         }
     }

@@ -140,6 +140,14 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         action.setSelectedSelector(event.getXpath() != null ? event.getXpath() : event.getCss());
         action.setValue(event.getValue());
 
+        // 🔑 Hier User setzen:
+        UserRegistry.User currentUser = UserContextMappingService.getInstance().getCurrentUser();
+        if (currentUser != null) {
+            action.setUser(currentUser.getUsername());
+        } else {
+            System.err.println("⚠️ Kein aktueller User im MappingService gefunden!");
+        }
+
         if (event.getButtonText() != null) {
             if (action.getValue() == null) {
                 action.setValue(event.getButtonText());

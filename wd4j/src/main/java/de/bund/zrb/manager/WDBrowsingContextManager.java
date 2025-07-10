@@ -209,7 +209,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @param locator  The CSS selector to locate nodes or the like.
      * @return The response containing the located nodes.
      */
-    public WDBrowsingContextResult.LocateNodesResult locateNodes(String contextId, WDLocator locator, Long maxNodeCount) {
+    public WDBrowsingContextResult.LocateNodesResult locateNodes(String contextId, WDLocator locator, Integer maxNodeCount) {
         return webSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.LocateNodes(contextId, locator, maxNodeCount),
                 WDBrowsingContextResult.LocateNodesResult.class
@@ -224,7 +224,7 @@ public class WDBrowsingContextManager implements WDModule {
      *                                @return The response containing the located nodes.
      * @return The response containing the located nodes.
      */
-    public WDBrowsingContextResult.LocateNodesResult locateNodes(WDBrowsingContext context, WDLocator locator, Long maxNodeCount) {
+    public WDBrowsingContextResult.LocateNodesResult locateNodes(WDBrowsingContext context, WDLocator locator, Integer maxNodeCount) {
         return webSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.LocateNodes(context, locator, maxNodeCount),
                 WDBrowsingContextResult.LocateNodesResult.class
@@ -239,7 +239,7 @@ public class WDBrowsingContextManager implements WDModule {
      *                                @return The response containing the located nodes.
      * @return The response containing the located nodes.
      */
-    public WDBrowsingContextResult.LocateNodesResult locateNodes(WDBrowsingContext context, WDLocator locator, Long maxNodeCount, WDSerializationOptions WDSerializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
+    public WDBrowsingContextResult.LocateNodesResult locateNodes(WDBrowsingContext context, WDLocator locator, Integer maxNodeCount, WDSerializationOptions WDSerializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
         return webSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.LocateNodes(context, locator, maxNodeCount, WDSerializationOptions, startNodes),
                 WDBrowsingContextResult.LocateNodesResult.class

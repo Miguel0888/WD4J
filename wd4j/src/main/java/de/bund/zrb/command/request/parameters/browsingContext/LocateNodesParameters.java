@@ -11,7 +11,7 @@ import java.util.List;
 public class LocateNodesParameters implements WDCommand.Params {
     private final WDBrowsingContext context;
     private final WDLocator locator;
-    private final Long maxNodeCount; // optional
+    private final Integer maxNodeCount; // optional
     private final WDSerializationOptions serializationOptions; // optional
     private final List<WDRemoteReference.SharedReference> startNodes; // optional
 
@@ -19,7 +19,7 @@ public class LocateNodesParameters implements WDCommand.Params {
         this(context, locator, null, null, null);
     }
 
-    public LocateNodesParameters(WDBrowsingContext context, WDLocator locator, Long maxNodeCount, WDSerializationOptions serializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
+    public LocateNodesParameters(WDBrowsingContext context, WDLocator locator, Integer maxNodeCount, WDSerializationOptions serializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
         this.context = context;
         this.locator = locator;
         this.maxNodeCount = maxNodeCount;
@@ -35,7 +35,7 @@ public class LocateNodesParameters implements WDCommand.Params {
         return locator;
     }
 
-    public Long getMaxNodeCount() {
+    public Integer getMaxNodeCount() {
         return maxNodeCount;
     }
 

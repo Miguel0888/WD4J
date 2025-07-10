@@ -77,7 +77,7 @@ public class LocatorImpl implements Locator {
                 page.getBrowser().getWebDriver().browsingContext().locateNodes(
                         page.getBrowsingContextId(),
                         locator,
-                        Long.MAX_VALUE
+                        Integer.MAX_VALUE
                 );
 
         List<WDRemoteValue.NodeRemoteValue> nodes = locateNodesResult.getNodes();
@@ -157,7 +157,7 @@ public class LocatorImpl implements Locator {
     public List<Locator> all() {
         WDLocator<?> locator = createWDLocator(selector);
         WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver()
-                .browsingContext().locateNodes(page.getBrowsingContextId(), locator, Long.MAX_VALUE);
+                .browsingContext().locateNodes(page.getBrowsingContextId(), locator, Integer.MAX_VALUE);
 
         List<Locator> locators = new ArrayList<>();
         int index = 1;
@@ -175,7 +175,7 @@ public class LocatorImpl implements Locator {
         WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver().browsingContext().locateNodes(
                 page.getBrowsingContextId(),
                 locator,
-                Long.MAX_VALUE
+                Integer.MAX_VALUE
         );
 
         List<String> innerTexts = new ArrayList<>();
@@ -196,7 +196,7 @@ public class LocatorImpl implements Locator {
         WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver().browsingContext().locateNodes(
                 page.getBrowsingContextId(),
                 locator,
-                Long.MAX_VALUE
+                Integer.MAX_VALUE
         );
 
         List<String> textContents = new ArrayList<>();
