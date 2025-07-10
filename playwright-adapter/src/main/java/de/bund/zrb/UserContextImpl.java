@@ -376,4 +376,8 @@ public class UserContextImpl implements BrowserContext {
     public WDUserContext getUserContext() {
         return userContext;
     }
+
+    public void register(PageImpl page) {
+        pages.add(page);
+    }
 }

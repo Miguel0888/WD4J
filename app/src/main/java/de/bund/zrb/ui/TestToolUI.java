@@ -126,6 +126,7 @@ public class TestToolUI {
 
         commandRegistry.register(new LaunchBrowserCommand(browserService));
         commandRegistry.register(new TerminateBrowserCommand(browserService));
+        commandRegistry.register(new SwitchTabCommand(browserService));
         commandRegistry.register(new NewTabCommand(browserService));
         commandRegistry.register(new CloseTabCommand(browserService));
         commandRegistry.register(new ReloadTabCommand(browserService));

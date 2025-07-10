@@ -2,6 +2,9 @@ package de.bund.zrb.service;
 
 import com.microsoft.playwright.Page;
 import de.bund.zrb.BrowserImpl;
+import de.bund.zrb.type.browser.WDUserContext;
+
+import java.util.List;
 
 public interface BrowserService {
     void launchBrowser(BrowserConfig config);
@@ -38,4 +41,5 @@ public interface BrowserService {
     void showDomEvents(boolean enabled);
 
     BrowserImpl getBrowser();
+
 }

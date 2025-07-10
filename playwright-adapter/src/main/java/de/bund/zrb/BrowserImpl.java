@@ -7,6 +7,8 @@ import de.bund.zrb.support.Pages;
 import de.bund.zrb.support.ScriptHelper;
 import de.bund.zrb.command.response.WDBrowsingContextResult;
 import de.bund.zrb.command.response.WDScriptResult;
+import de.bund.zrb.type.browser.WDUserContext;
+import de.bund.zrb.type.browser.WDUserContextInfo;
 import de.bund.zrb.type.script.*;
 import de.bund.zrb.websocket.WDEventNames;
 import de.bund.zrb.event.WDScriptEvent;
@@ -153,7 +155,7 @@ public class BrowserImpl implements Browser {
                 PageImpl page = new PageImpl(this, userContext.getUserContext(), info.getContext());
 
                 // 🔑 In den UserContext eintragen:
-                userContext.pages().add(page);
+                userContext.register(page);
 
                 // 🔑 Direkt prüfen, ob der Kontext aktiv ist:
                 if (isContextFocused(info.getContext())) {
