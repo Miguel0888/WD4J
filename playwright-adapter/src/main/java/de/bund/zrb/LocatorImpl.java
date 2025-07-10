@@ -92,7 +92,10 @@ public class LocatorImpl implements Locator {
         }
 
         WDRemoteValue.NodeRemoteValue node = nodes.get(0);
-        WDHandle handle = new WDHandle(node.getHandle().value());
+        WDHandle handle = null;
+        if (node.getHandle() != null) {
+            handle = new WDHandle(node.getHandle().value());
+        }
         WDSharedId sharedId = node.getSharedId();
 
         if (sharedId != null) {
