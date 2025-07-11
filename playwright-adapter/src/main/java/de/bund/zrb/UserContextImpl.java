@@ -27,7 +27,6 @@ public class UserContextImpl implements BrowserContext {
     private boolean isClosed = false; // ToDo: Is this variable really necessary?
 
     private final WDUserContext userContext; // ToDo: If found, it should be used to create a new page with this id
-    private double defaultTimeout = 30_000; // ms
 
     public UserContextImpl(BrowserImpl browser) {
         this.browser = browser;
@@ -311,7 +310,7 @@ public class UserContextImpl implements BrowserContext {
 
     @Override
     public void setDefaultTimeout(double timeout) {
-        this.defaultTimeout = timeout;
+
     }
 
     @Override
@@ -380,9 +379,5 @@ public class UserContextImpl implements BrowserContext {
 
     public void register(PageImpl page) {
         pages.add(page);
-    }
-
-    public double getDefaultTimeout() {
-        return defaultTimeout;
     }
 }

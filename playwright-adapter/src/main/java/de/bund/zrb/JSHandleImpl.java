@@ -9,12 +9,12 @@ import java.util.*;
 public class JSHandleImpl implements JSHandle {
     protected final WebDriver webDriver;
     protected final WDRemoteReference<?> remoteReference;
-    protected final WDTarget target;
+    protected final WDTarget target; // can be RealmTarget or ContextTarget (to avoid conversion to RealmTarget when not necessary)
     protected boolean disposed = false;
 
-    public JSHandleImpl(WebDriver webDriver, WDRemoteReference<?> remoteReference, WDTarget target) {
+    public JSHandleImpl(WebDriver webDriver, WDRemoteReference<?> remoteObjectReference, WDTarget target) {
         this.webDriver = webDriver;
-        this.remoteReference = remoteReference;
+        this.remoteReference = remoteObjectReference;
         this.target = target;
     }
 
@@ -32,6 +32,7 @@ public class JSHandleImpl implements JSHandle {
 
     @Override
     public ElementHandle asElement() {
+
         if (remoteReference instanceof WDRemoteReference.SharedReference) {
             return new ElementHandleImpl(webDriver, (WDRemoteReference.SharedReference) remoteReference, target);
         } else if (remoteReference instanceof WDRemoteReference.RemoteObjectReference) {
@@ -41,137 +42,85 @@ public class JSHandleImpl implements JSHandle {
                 return new ElementHandleImpl(webDriver, sharedRef, target);
             }
         }
+        // ToDo: Maybe request the missing sharedId from the browser..
         return null;
     }
 
     @Override
     public void dispose() {
         if (disposed) return;
-        if (remoteReference instanceof WDRemoteReference.RemoteObjectReference) {
-            webDriver.script().disown(Collections.singletonList(getHandle()), target);
-        }
+        webDriver.script().disown(Collections.singletonList(getHandle()), target);
         disposed = true;
     }
 
+    /**
+     * Evaluates the JavaScript expression in the browser context.
+     *
+     * @param expression JavaScript expression to be evaluated in the browser context. If the expression evaluates to a function, the function is
+     * automatically invoked.
+     * @param arg Optional argument to pass to {@code expression}.
+     *
+     * @return The corresponding Webdriver object (WDRemoteValue)
+     */
     @Override
     public Object evaluate(String expression, Object arg) {
         checkDisposed();
-
-        List<WDLocalValue> args = new ArrayList<>();
-        if (arg != null) {
-            args.add(WDLocalValue.fromObject(arg));
+        WDEvaluateResult result = webDriver.script().evaluate(expression, target, true);
+        if(result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            return ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
         }
-
-        WDEvaluateResult result = webDriver.script().callFunction(
-                expression,
-                true,
-                target,
-                args,
-                remoteReference,
-                WDResultOwnership.ROOT,
-                null
-        );
-
-        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue remote = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
-            if (remote instanceof WDPrimitiveProtocolValue) {
-                return unwrapPrimitive((WDPrimitiveProtocolValue) remote);
-            }
-            return remote;
-        }
-
-        throw new RuntimeException("evaluate failed");
+        return null;
     }
 
     @Override
     public JSHandle evaluateHandle(String expression, Object arg) {
+        // ToDo: Implement this
+//        checkDisposed();
+//        WDTarget target = new WDTarget.RealmTarget(realm);
+//        List<WDLocalValue> args = Collections.singletonList(new WDRemoteReference.RemoteObjectReference(handle));
+//        WDEvaluateResult result = scriptManager.callFunction(expression, true, target, args);
+//        if(result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+//            return new JSHandleImpl(new WDHandle(((WDEvaluateResult.WDEvaluateResultSuccess)result).getResult().getHandle().value()), realm);
+//        }
+        return null;
+    }
+
+    @Override
+    public Map<String, JSHandle> getProperties() {
         checkDisposed();
+        String script = "(obj) => Object.entries(obj).reduce((acc, [key, val]) => { acc[key] = val; return acc; }, {});";
+        JSHandle resultHandle = evaluateHandle(script, null);
 
-        List<WDLocalValue> args = new ArrayList<>();
-        if (arg != null) {
-            args.add(WDLocalValue.fromObject(arg));
+        if (!(resultHandle instanceof JSHandleImpl)) {
+            throw new RuntimeException("Unexpected type for properties retrieval.");
         }
 
-        WDEvaluateResult result = webDriver.script().callFunction(
-                expression,
-                true,
-                target,
-                args,
-                remoteReference,
-                WDResultOwnership.ROOT,
-                null
-        );
+        return ((JSHandleImpl) resultHandle).extractProperties();
+    }
 
-        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue remote = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
-            if (remote instanceof WDRemoteReference.SharedReference) {
-                return new JSHandleImpl(webDriver, (WDRemoteReference.SharedReference) remote, target);
-            }
-            if (remote instanceof WDRemoteReference.RemoteObjectReference) {
-                return new JSHandleImpl(webDriver, (WDRemoteReference.RemoteObjectReference) remote, target);
-            }
-            throw new RuntimeException("evaluateHandle: Unexpected primitive. Use evaluate() instead.");
-        }
-
-        throw new RuntimeException("evaluateHandle failed");
+    @Override
+    public JSHandle getProperty(String propertyName) {
+        checkDisposed();
+        String script = "(obj, key) => obj[key]";
+        return evaluateHandle(script, propertyName);
     }
 
     @Override
     public Object jsonValue() {
         checkDisposed();
-
-        WDEvaluateResult result = webDriver.script().callFunction(
-                "obj => obj",
-                true,
-                target,
-                Collections.emptyList(),
-                remoteReference,
-                WDResultOwnership.ROOT,
-                null
-        );
-
-        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue remote = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
-            if (remote instanceof WDPrimitiveProtocolValue) {
-                return unwrapPrimitive((WDPrimitiveProtocolValue) remote);
-            }
-            return remote;
-        }
-
-        throw new RuntimeException("jsonValue failed");
-    }
-
-    private Object unwrapPrimitive(WDPrimitiveProtocolValue primitive) {
-        if (primitive instanceof WDPrimitiveProtocolValue.StringValue) {
-            return ((WDPrimitiveProtocolValue.StringValue) primitive).getValue();
-        }
-        if (primitive instanceof WDPrimitiveProtocolValue.BooleanValue) {
-            return ((WDPrimitiveProtocolValue.BooleanValue) primitive).getValue();
-        }
-        if (primitive instanceof WDPrimitiveProtocolValue.NumberValue) {
-            return ((WDPrimitiveProtocolValue.NumberValue) primitive).asObject();
-        }
-        if (primitive instanceof WDPrimitiveProtocolValue.NullValue) {
-            return null;
-        }
-        if (primitive instanceof WDPrimitiveProtocolValue.UndefinedValue) {
-            return null;
-        }
-        if (primitive instanceof WDPrimitiveProtocolValue.BigIntValue) {
-            return ((WDPrimitiveProtocolValue.BigIntValue) primitive).getValue();
-        }
-        throw new RuntimeException("Unknown primitive type: " + primitive);
+        return evaluate("JSON.stringify", null);
     }
 
     @Override
-    public Map<String, JSHandle> getProperties() {
-        throw new UnsupportedOperationException("getProperties not implemented yet.");
+    public String toString() {
+        return "JSHandleImpl{" +
+                "handle=" + getHandle().value() +
+                // ToDo: Implement this
+//                ", realm=" + target() +
+                '}';
     }
 
-    @Override
-    public JSHandle getProperty(String propertyName) {
-        throw new UnsupportedOperationException("getProperty not implemented yet.");
-    }
+    // 🔹 Hilfsmethoden
 
     private void checkDisposed() {
         if (disposed) {
@@ -179,11 +128,31 @@ public class JSHandleImpl implements JSHandle {
         }
     }
 
-    @Override
-    public String toString() {
-        return "JSHandleImpl{" +
-                "remoteReference=" + remoteReference +
-                ", target=" + target +
-                '}';
+    private boolean isElementHandle() {
+        String script = "(obj) => obj instanceof Element";
+        return Boolean.TRUE.equals(evaluate(script, null));
+    }
+
+    private Map<String, JSHandle> extractProperties() {
+        Map<String, JSHandle> properties = new HashMap<>();
+        WDEvaluateResult evaluate = webDriver.script().evaluate("obj => Object.entries(obj)", target, true);
+        WDRemoteValue remoteValue;
+        if(evaluate instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            remoteValue = ((WDEvaluateResult.WDEvaluateResultSuccess) evaluate).getResult();
+        } else {
+            return properties;
+        }
+
+//        WDLocalValue<?> localValue; // ToDo: Implement this
+//
+//        if (localValue instanceof WDLocalValue.ObjectLocalValue) {
+//            Map<WDLocalValue<?>, WDLocalValue<?>> values = ((WDLocalValue.ObjectLocalValue) localValue).getValue();
+//            for (Map.Entry<WDLocalValue<?>, WDLocalValue<?>> entry : values.entrySet()) {
+//                String key = convertWDLocalValue(entry.getKey()).toString();
+//                JSHandle valueHandle = new JSHandleImpl(new WDHandle(entry.getValue().toString()), realm);
+//                properties.put(key, valueHandle);
+//            }
+//        }
+        return properties;
     }
 }
