@@ -1,12 +1,11 @@
 package de.bund.zrb.ui.commands;
 
-import com.microsoft.playwright.Browser;
 import de.bund.zrb.model.TestSuite;
-import de.bund.zrb.service.BrowserServiceImpl;
+import de.bund.zrb.service.TestPlayerService;
 import de.bund.zrb.service.TestRegistry;
-import de.bund.zrb.ui.TestSuitePlayer;
-import de.bund.zrb.ui.commandframework.MenuCommand;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
+
+import java.util.List;
 
 public class PlayTestSuiteCommand extends ShortcutMenuCommand {
 
@@ -24,13 +23,15 @@ public class PlayTestSuiteCommand extends ShortcutMenuCommand {
     public void perform() {
         System.out.println("▶ Starte Playback...");
 
-        TestSuite suite = TestRegistry.getInstance().getAll().get(0); // TODO: Aus UI nehmen!
-        TestSuitePlayer player = new TestSuitePlayer();
+        List<TestSuite> suitesToRun = TestPlayerService.getInstance().getSuitesToRun();
+        if (suitesToRun == null || suitesToRun.isEmpty()) {
+            System.out.println("⚠️ Keine Suiten markiert!");
+            return;
+        }
 
-        player.runSuite(suite);
+        TestPlayerService.getInstance().runSuites(suitesToRun);
 
         System.out.println("✅ Playback beendet");
     }
-
 
 }

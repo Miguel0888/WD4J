@@ -1,15 +1,45 @@
-package de.bund.zrb.ui;
+package de.bund.zrb.service;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
-import de.bund.zrb.service.BrowserServiceImpl;
+import de.bund.zrb.ui.LeftDrawer;
 
-public class TestSuitePlayer {
+import java.util.List;
 
+public class TestPlayerService {
+
+    private static final TestPlayerService INSTANCE = new TestPlayerService();
     private final BrowserServiceImpl browserService = BrowserServiceImpl.getInstance();
+
+    private LeftDrawer drawerRef;
+
+    private TestPlayerService() {}
+
+    public static TestPlayerService getInstance() {
+        return INSTANCE;
+    }
+
+    public void registerDrawer(LeftDrawer drawer) {
+        this.drawerRef = drawer;
+    }
+
+    public List<TestSuite> getSuitesToRun() {
+        if (drawerRef != null) {
+            return drawerRef.getSelectedSuites();
+        } else {
+            System.err.println("⚠️ Kein LeftDrawer registriert!");
+            return null;
+        }
+    }
+
+    public void runSuites(List<TestSuite> suites) {
+        for (TestSuite suite : suites) {
+            runSuite(suite);
+        }
+    }
 
     public void runSuite(TestSuite suite) {
         for (TestCase testCase : suite.getTestCases()) {
@@ -30,7 +60,6 @@ public class TestSuitePlayer {
             return;
         }
 
-        // Hole Page sicher über den Service
         Page page = browserService.getActivePage(username);
 
         switch (action.getAction()) {
@@ -55,4 +84,5 @@ public class TestSuitePlayer {
                 System.out.println("⚠️ Nicht unterstützte Action: " + action.getAction());
         }
     }
+
 }

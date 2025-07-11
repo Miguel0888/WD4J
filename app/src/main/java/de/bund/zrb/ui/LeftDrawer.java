@@ -5,6 +5,7 @@ import de.bund.zrb.event.TestSuiteSavedEvent;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
+import de.bund.zrb.service.TestPlayerService;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.ui.commandframework.CommandRegistryImpl;
 import de.bund.zrb.ui.commandframework.MenuCommand;
@@ -12,9 +13,13 @@ import de.bund.zrb.ui.commandframework.MenuCommand;
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
-import java.awt.*;
+import javax.swing.tree.TreePath;
+import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Left drawer: tree view + green play button + drag & drop.
@@ -59,6 +64,8 @@ public class LeftDrawer extends JPanel {
                 refreshTestSuites(); // deine Methode, um die linke Liste neu zu laden
             }
         });
+
+        TestPlayerService.getInstance().registerDrawer(this);
     }
 
     private void refreshTestSuites() {
@@ -204,6 +211,32 @@ public class LeftDrawer extends JPanel {
 
         suite.setStatus(hasFail ? TestNode.Status.FAILED : TestNode.Status.PASSED);
         ((DefaultTreeModel) testTree.getModel()).nodeChanged(suite);
+    }
+
+    public List<TestSuite> getSelectedSuites() {
+        // Wenn Root markiert: alles
+        // Wenn Suites markiert: nur die
+        TreePath[] paths = testTree.getSelectionPaths();
+        if (paths == null || paths.length == 0) {
+            return TestRegistry.getInstance().getAll();
+        }
+
+        List<TestSuite> selected = new ArrayList<>();
+        for (TreePath path : paths) {
+            Object node = path.getLastPathComponent();
+            if (node instanceof TestNode) {
+                String suiteName = ((TestNode) node).toString();
+                for (TestSuite suite : TestRegistry.getInstance().getAll()) {
+                    if (suite.getName().equals(suiteName)) {
+                        selected.add(suite);
+                    }
+                }
+            }
+        }
+        if (selected.isEmpty()) {
+            return TestRegistry.getInstance().getAll();
+        }
+        return selected;
     }
 
 }

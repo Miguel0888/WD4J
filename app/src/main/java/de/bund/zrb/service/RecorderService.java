@@ -120,6 +120,8 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
                             case "xpath": event.setXpath(val); break;
                             case "classes": event.setClasses(val); break;
                             case "value": event.setValue(val); break;
+                            case "inputName": event.setInputName(val); break;
+                            case "elementId": event.setElementId(val); break;
                         }
 
                     }
@@ -163,6 +165,9 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
             } else {
                 action.getExtractedValues().put("key", event.getKey());
             }
+        }
+        if (event.getElementId() != null) {
+            action.getExtractedAttributes().put("elementId", event.getElementId());
         }
         action.setExtractedValues(event.getExtractedValues() != null ?
                 new LinkedHashMap<>(event.getExtractedValues()) : new LinkedHashMap<>());
