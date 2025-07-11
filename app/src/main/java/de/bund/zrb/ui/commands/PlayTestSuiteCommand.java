@@ -23,13 +23,7 @@ public class PlayTestSuiteCommand extends ShortcutMenuCommand {
     public void perform() {
         System.out.println("▶ Starte Playback...");
 
-        List<TestSuite> suitesToRun = TestPlayerService.getInstance().getSuitesToRun();
-        if (suitesToRun == null || suitesToRun.isEmpty()) {
-            System.out.println("⚠️ Keine Suiten markiert!");
-            return;
-        }
-
-        TestPlayerService.getInstance().runSuites(suitesToRun);
+        TestPlayerService.getInstance().runSuites();
 
         System.out.println("✅ Playback beendet");
     }

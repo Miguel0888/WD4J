@@ -24,7 +24,7 @@ import java.util.List;
 /**
  * Left drawer: tree view + green play button + drag & drop.
  */
-public class LeftDrawer extends JPanel {
+public class LeftDrawer extends JPanel implements TestPlayerUi {
 
     private final CommandRegistryImpl commandRegistry = CommandRegistryImpl.getInstance();
     private final JTree testTree;
@@ -160,44 +160,19 @@ public class LeftDrawer extends JPanel {
         }
     }
 
-    private DefaultMutableTreeNode getSelectedNode() {
-        return (DefaultMutableTreeNode) testTree.getLastSelectedPathComponent();
+    @Override
+    public TestNode getSelectedNode() {
+        return (TestNode) testTree.getLastSelectedPathComponent();
     }
 
-    private DefaultMutableTreeNode getSelectedNodeOrRoot() {
-        DefaultMutableTreeNode selected = getSelectedNode();
-        return selected != null ? selected : (DefaultMutableTreeNode) testTree.getModel().getRoot();
+    @Override
+    public void updateNodeStatus(TestNode node, boolean passed) {
+        node.setStatus(passed ? TestNode.Status.PASSED : TestNode.Status.FAILED);
+        ((DefaultTreeModel) testTree.getModel()).nodeChanged(node);
     }
 
-    private void runTest(TestNode node) {
-        // Blatt oder Suite?
-        if (node.getChildCount() == 0) {
-            simulateResult(node);
-        } else {
-            // Alle Kinder durchlaufen
-            for (int i = 0; i < node.getChildCount(); i++) {
-                runTest((TestNode) node.getChildAt(i));
-            }
-        }
-
-        // Danach Suite-Status berechnen
-        SwingUtilities.invokeLater(() -> updateSuiteStatus(node));
-    }
-
-    private void simulateResult(TestNode node) {
-        Timer timer = new Timer(1000, null); // 1 Sekunde
-        timer.addActionListener(e -> {
-            boolean pass = Math.random() > 0.3; // 70% pass
-            node.setStatus(pass ? TestNode.Status.PASSED : TestNode.Status.FAILED);
-
-            ((DefaultTreeModel) testTree.getModel()).nodeChanged(node);
-            timer.stop();
-        });
-        timer.setRepeats(false);
-        timer.start();
-    }
-
-    private void updateSuiteStatus(TestNode suite) {
+    @Override
+    public void updateSuiteStatus(TestNode suite) {
         if (suite.getChildCount() == 0) return;
 
         boolean hasFail = false;
@@ -212,7 +187,18 @@ public class LeftDrawer extends JPanel {
         suite.setStatus(hasFail ? TestNode.Status.FAILED : TestNode.Status.PASSED);
         ((DefaultTreeModel) testTree.getModel()).nodeChanged(suite);
     }
+    @Override
+    public TestNode getRootNode() {
+        return (TestNode) testTree.getModel().getRoot();
+    }
 
+
+    private DefaultMutableTreeNode getSelectedNodeOrRoot() {
+        DefaultMutableTreeNode selected = getSelectedNode();
+        return selected != null ? selected : (DefaultMutableTreeNode) testTree.getModel().getRoot();
+    }
+
+    @Override
     public List<TestSuite> getSelectedSuites() {
         // Wenn Root markiert: alles
         // Wenn Suites markiert: nur die
