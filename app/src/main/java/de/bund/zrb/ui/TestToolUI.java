@@ -133,7 +133,7 @@ public class TestToolUI {
         commandRegistry.register(new GoBackCommand(browserService));
         commandRegistry.register(new GoForwardCommand(browserService));
 
-        commandRegistry.register(new CaptureScreenshotCommand(browserService));
+        commandRegistry.register(new CaptureScreenshotCommand());
         commandRegistry.register(new ShowSelectorsCommand(browserService));
         commandRegistry.register(new ShowDomEventsCommand(browserService));
 
