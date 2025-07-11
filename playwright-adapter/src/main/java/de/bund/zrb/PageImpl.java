@@ -719,31 +719,36 @@ public class PageImpl implements Page {
     @Override
     public JSHandle evaluateHandle(String expression, Object arg) {
         WDEvaluateResult result;
-        WDTarget target = new WDTarget.ContextTarget(browsingContext); // oder RealmTarget
+        WDTarget target = new WDTarget.ContextTarget(browsingContext);
+
+        List<WDLocalValue> args = Collections.emptyList();
+        WDRemoteReference thisObject = null;
+
+        if (arg != null) {
+            if (arg instanceof ElementHandleImpl) {
+                thisObject = ((ElementHandleImpl) arg).getRemoteReference();
+            } else {
+                args = Collections.singletonList(WDLocalValue.fromObject(arg));
+            }
+        }
 
         if (isFunctionExpression(expression)) {
-            // Verwende callFunction wenn Argumente vorhanden sind
-            List<WDLocalValue> args = arg != null
-                    ? Collections.singletonList(WDLocalValue.fromObject(arg))
-                    : Collections.emptyList();
-
             result = webDriver.script().callFunction(
                     expression,
-                    true, // awaitPromise
+                    true,
                     target,
                     args,
-                    null, // thisObject
+                    thisObject, // ❗ hier muss dein ElementHandle landen!
                     WDResultOwnership.ROOT,
-                    null // serializationOptions
+                    null
             );
         } else {
-            // Normales evaluate ohne Argumente
             result = webDriver.script().evaluate(
                     expression,
                     target,
                     true,
                     WDResultOwnership.ROOT,
-                    null // sandbox
+                    null
             );
         }
 
@@ -751,15 +756,17 @@ public class PageImpl implements Page {
             WDRemoteValue remote = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
 
             if (remote instanceof WDRemoteReference.SharedReference) {
-                return new JSHandleImpl(webDriver, ((WDRemoteReference.SharedReference) remote), target);
-            }
-            else if(remote instanceof WDRemoteReference.RemoteObjectReference) { // ToDo: Check if this is correct, should always be a SharedReference!
-                return new JSHandleImpl(webDriver, ((WDRemoteReference.RemoteObjectReference) remote), target);
+                return new JSHandleImpl(webDriver, (WDRemoteReference.SharedReference) remote, target);
+            } else if (remote instanceof WDRemoteReference.RemoteObjectReference) {
+                return new JSHandleImpl(webDriver, (WDRemoteReference.RemoteObjectReference) remote, target);
+            } else {
+                throw new RuntimeException("evaluateHandle: Unexpected primitive. Use evaluate() instead.");
             }
         }
 
-        throw new RuntimeException("evaluateHandle failed: unexpected result type");
+        throw new RuntimeException("evaluateHandle failed");
     }
+
 
     @Override
     public void exposeBinding(String name, BindingCallback callback, ExposeBindingOptions options) {
