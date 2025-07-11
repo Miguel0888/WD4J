@@ -119,7 +119,9 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
                             case "buttonText": event.setButtonText(val); break;
                             case "xpath": event.setXpath(val); break;
                             case "classes": event.setClasses(val); break;
+                            case "value": event.setValue(val); break;
                         }
+
                     }
                 }
 
