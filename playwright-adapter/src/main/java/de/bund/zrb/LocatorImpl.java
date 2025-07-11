@@ -5,14 +5,13 @@ import com.microsoft.playwright.FrameLocator;
 import com.microsoft.playwright.JSHandle;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
-import com.microsoft.playwright.options.AriaRole;
-import com.microsoft.playwright.options.BoundingBox;
-import com.microsoft.playwright.options.FilePayload;
-import com.microsoft.playwright.options.SelectOption;
+import com.microsoft.playwright.options.*;
 import de.bund.zrb.manager.WDScriptManager;
 import de.bund.zrb.command.request.parameters.browsingContext.CaptureScreenshotParameters;
 import de.bund.zrb.command.response.WDBrowsingContextResult;
 import de.bund.zrb.command.response.WDScriptResult;
+import de.bund.zrb.support.ActionabilityCheck;
+import de.bund.zrb.support.ActionabilityRequirement;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.browsingContext.WDInfo;
 import de.bund.zrb.type.browsingContext.WDLocator;
@@ -385,16 +384,37 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void fill(String value, FillOptions options) {
-        // ToDo: Use Options
         resolveElementHandle();
+
+        // 1️⃣ Timeout:
+        double timeout = ((UserContextImpl) page.context()).getDefaultTimeout();
+        if (options != null && options.timeout != null) {
+            timeout = options.timeout;
+        }
+
+        // 2️⃣ Force:
+        boolean force = options != null && Boolean.TRUE.equals(options.force);
+
+        // 3️⃣ Actionability Check, nur wenn !force
+        if (!force) {
+            waitForActionability(ActionabilityCheck.FILL, timeout);
+        }
+
+        // 4️⃣ Jetzt wirklich ausführen:
         List<WDLocalValue> args = new ArrayList<>();
         args.add(new WDPrimitiveProtocolValue.StringValue(value));
+
         page.getBrowser().getScriptManager().executeDomAction(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
                 elementHandle.getRemoteReference(),
                 WDScriptManager.DomAction.INPUT,
                 args
         );
+
+        // 5️⃣ NoWaitAfter – könnte hier steuern, ob du `waitForNavigation` o.ä. weglässt.
+        if (options != null && Boolean.TRUE.equals(options.noWaitAfter)) {
+            // Zum Beispiel keine Navigation/Netzwerk-Warte auslösen.
+        }
     }
 
     @Override
@@ -953,15 +973,145 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void waitFor(WaitForOptions options) {
-        // ToDo: Use Options
+        resolveElementHandle();
 
-        // ToDo: Implement... use the State & Timeout from the options
+        WaitForSelectorState state = options != null && options.state != null
+                ? options.state
+                : WaitForSelectorState.VISIBLE;
+        double timeout = options != null && options.timeout != null
+                ? options.timeout
+                : 30000;
+
+        long start = System.currentTimeMillis();
+
+        while (true) {
+            boolean success = false;
+
+            switch (state) {
+                case ATTACHED:
+                    success = elementHandle != null;
+                    break;
+
+                case DETACHED:
+                    success = !(Boolean) page.evaluate(
+                            "(function() { return !!this.isConnected; })",
+                            elementHandle);
+                    break;
+
+                case VISIBLE:
+                    success = (Boolean) page.evaluate(
+                            "(function() { " +
+                                    "const rect = this.getBoundingClientRect(); " +
+                                    "return !!(rect.width && rect.height) && window.getComputedStyle(this).visibility !== 'hidden'; " +
+                                    "})",
+                            elementHandle);
+                    break;
+
+                case HIDDEN:
+                    success = (Boolean) page.evaluate(
+                            "(function() { " +
+                                    "const rect = this.getBoundingClientRect(); " +
+                                    "return rect.width === 0 || rect.height === 0 || window.getComputedStyle(this).visibility === 'hidden'; " +
+                                    "})",
+                            elementHandle);
+                    break;
+            }
+
+            if (success) {
+                return;
+            }
+
+            if ((System.currentTimeMillis() - start) > timeout) {
+                throw new RuntimeException("Timeout waiting for state: " + state);
+            }
+
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
+
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Helper Methods
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public void waitForActionability(ActionabilityCheck check, double timeout) {
+        resolveElementHandle();
+
+        EnumSet<ActionabilityRequirement> requirements = check.getRequirements();
+
+        // 1️⃣ Sichtbarkeit prüfen, falls gefordert
+        if (requirements.contains(ActionabilityRequirement.VISIBLE)) {
+            waitFor(new WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(timeout));
+        }
+
+        // 2️⃣ Stabilität prüfen, falls gefordert
+        if (requirements.contains(ActionabilityRequirement.STABLE)) {
+            waitForStable(timeout);
+        }
+
+        // 3️⃣ Events erreichbar? enabled? editable? → per JS prüfen
+        if (requirements.contains(ActionabilityRequirement.ENABLED)) {
+            boolean enabled = (Boolean) page.evaluate("el => !el.disabled", elementHandle);
+            if (!enabled) throw new RuntimeException("Element is disabled!");
+        }
+
+        if (requirements.contains(ActionabilityRequirement.EDITABLE)) {
+            boolean editable = (Boolean) page.evaluate(
+                    "el => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el.isContentEditable",
+                    elementHandle);
+            if (!editable) throw new RuntimeException("Element is not editable!");
+        }
+
+        if (requirements.contains(ActionabilityRequirement.RECEIVES_EVENTS)) {
+            boolean receivesEvents = (Boolean) page.evaluate(
+                    "el => { " +
+                            "const rect = el.getBoundingClientRect();" +
+                            "return rect.width > 0 && rect.height > 0;" +
+                            "}",
+                    elementHandle);
+            if (!receivesEvents) throw new RuntimeException("Element does not receive events!");
+        }
+    }
+
+    private void waitForStable(double timeout) {
+        long start = System.currentTimeMillis();
+        double[] lastRect = getBoundingBox();
+
+        while (true) {
+            double[] rect = getBoundingBox();
+            if (Arrays.equals(rect, lastRect)) {
+                return;
+            }
+            lastRect = rect;
+
+            if ((System.currentTimeMillis() - start) > timeout) {
+                throw new RuntimeException("Timeout waiting for stability");
+            }
+
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private double[] getBoundingBox() {
+        Map<String, Object> box = (Map<String, Object>) page.evaluate(
+                "el => { const r = el.getBoundingClientRect(); return {x: r.x, y: r.y, w: r.width, h: r.height}; }",
+                elementHandle);
+        return new double[] {
+                (double) box.get("x"),
+                (double) box.get("y"),
+                (double) box.get("w"),
+                (double) box.get("h")
+        };
+    }
 
     @Deprecated // since WebDriver directly accepts the BrowsingContext and looks up the Window Realm on its own
     public WDTarget.RealmTarget getRealmTarget(WDRealmType realmType) {
