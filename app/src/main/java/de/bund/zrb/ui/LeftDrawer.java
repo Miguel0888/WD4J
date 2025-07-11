@@ -82,7 +82,7 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
                     } else if (action.getSelectedSelector() != null) {
                         label += " [" + action.getSelectedSelector() + "]";
                     }
-                    TestNode stepNode = new TestNode(label);
+                    TestNode stepNode = new TestNode(label, action);
                     caseNode.add(stepNode);
                 }
                 suiteNode.add(caseNode);
