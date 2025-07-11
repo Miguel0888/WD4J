@@ -72,6 +72,13 @@ public class TestPlayerService {
 
             Page page = browserService.getActivePage(username);
 
+            // ToDo: Später an PlayWrigh-API weiterreichen, damit immer nur so lange wie nötig gewartet wird:
+            long timeout = action.getTimeout();
+            if (timeout > 0) {
+                System.out.println("⏳ Warte global " + timeout + " ms vor Action...");
+                Thread.sleep(timeout);
+            }
+
             switch (action.getAction()) {
                 case "navigate":
                     page.navigate(action.getValue());
