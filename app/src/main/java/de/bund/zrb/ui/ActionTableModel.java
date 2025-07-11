@@ -11,9 +11,18 @@ public class ActionTableModel extends AbstractTableModel {
     private final List<TestAction> actions = new ArrayList<>();
     private final List<TableColumn> columns = new ArrayList<>();
 
+    // 🔑 Zentrales Mapping: interne Keys -> Überschrift
+    private static final LinkedHashMap<String, String> FIXED_COLUMNS = new LinkedHashMap<>();
+    static {
+        FIXED_COLUMNS.put("elementId", "Element-ID");
+        FIXED_COLUMNS.put("classes", "CSS-Klassen");
+        FIXED_COLUMNS.put("pagination", "Pagination");
+        FIXED_COLUMNS.put("inputName", "Input-Name");
+    }
+
     public ActionTableModel() {
-        // 🔩 Erste Spalte ist der Schraubenschlüssel für Einstellungen
-        addColumn("⚙");  // Symbol bleibt erhalten
+        // 🔩 Erste festen Spalten
+        addColumn("⚙");
         addColumn("Typ");
         addColumn("Aktion");
         addColumn("Locator-Typ");
@@ -21,21 +30,19 @@ public class ActionTableModel extends AbstractTableModel {
         addColumn("Wert");
         addColumn("XPath");
         addColumn("CSS");
-        addColumn("Element-ID");
-        addColumn("CSS-Klassen");
-        addColumn("Pagination");
-        addColumn("Input-Name");
+
+        // 🔩 Mapping-Spalten aus FIXED_COLUMNS
+        FIXED_COLUMNS.values().forEach(this::addColumn);
+
         addColumn("Wartezeit");
     }
 
-    /** 🛠 Spalte hinzufügen */
     private void addColumn(String name) {
         TableColumn column = new TableColumn(columns.size(), 75);
         column.setHeaderValue(name);
         columns.add(column);
     }
 
-    /** 🔄 Aktualisiert Spalten mit dynamischen Werten */
     void updateColumnNames() {
         Set<String> dynamicKeys = actions.stream()
                 .flatMap(action -> {
@@ -47,6 +54,7 @@ public class ActionTableModel extends AbstractTableModel {
                     return keys.stream();
                 })
                 .distinct()
+                .filter(key -> !FIXED_COLUMNS.containsKey(key))
                 .filter(key -> columns.stream().noneMatch(col -> nameEquals(col, key)))
                 .collect(Collectors.toSet());
 
@@ -77,14 +85,13 @@ public class ActionTableModel extends AbstractTableModel {
 
     @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
-//        return columnIndex != 0;
         return true;
     }
 
     @Override
     public Class<?> getColumnClass(int columnIndex) {
-        if (columnIndex == 0) return Boolean.class; // Checkbox-Spalte
-        if (columnIndex == 1) return TestAction.ActionType.class; // Dein Enum
+        if (columnIndex == 0) return Boolean.class;
+        if (columnIndex == 1) return TestAction.ActionType.class;
         return String.class;
     }
 
@@ -98,32 +105,24 @@ public class ActionTableModel extends AbstractTableModel {
             case 3: return action.getLocatorType();
             case 4: return action.getSelectedSelector();
             case 5: return action.getValue();
-            case 6: return action.getLocators().getOrDefault("xpath", "");                  // ✅ XPath
-            case 7: return action.getLocators().getOrDefault("css", "");                    // ✅ CSS
-            case 8: return action.getExtractedAttributes().getOrDefault("elementId", "");   // ✅ Element-ID
-            case 9: return action.getExtractedAttributes().getOrDefault("classes", "");     // ✅ CSS-Klassen
-            case 10: return action.getExtractedAttributes().getOrDefault("pagination", "");  // ✅ Pagination
-            case 11: return action.getExtractedAttributes().getOrDefault("inputName", "");  // ✅ Input-Name
-            case 12: return action.getTimeout();
-            default:  // Dynamische Spalten
-                // Dynamische Spalten nach den festen Spalten (ab Index 11)
-                String dynamicKey = getColumnName(columnIndex);
-
-                // Prüfe dynamische Werte aus den verschiedenen Maps
-                if (action.getExtractedValues() != null && action.getExtractedValues().containsKey(dynamicKey)) {
-                    return action.getExtractedValues().get(dynamicKey);
+            case 6: return action.getLocators().getOrDefault("xpath", "");
+            case 7: return action.getLocators().getOrDefault("css", "");
+            default:
+                int mappingStart = 8;
+                int mappingEnd = mappingStart + FIXED_COLUMNS.size();
+                if (columnIndex >= mappingStart && columnIndex < mappingEnd) {
+                    String key = getFixedKeyByIndex(columnIndex - mappingStart);
+                    return action.getExtractedAttributes().getOrDefault(key, "");
+                } else if (columnIndex == mappingEnd) {
+                    return action.getTimeout();
+                } else {
+                    String dynamicKey = getColumnName(columnIndex);
+                    if (action.getExtractedValues().containsKey(dynamicKey)) return action.getExtractedValues().get(dynamicKey);
+                    if (action.getExtractedAttributes().containsKey(dynamicKey)) return action.getExtractedAttributes().get(dynamicKey);
+                    if (action.getExtractedAriaRoles().containsKey(dynamicKey)) return action.getExtractedAriaRoles().get(dynamicKey);
+                    if (action.getExtractedTestIds().containsKey(dynamicKey)) return action.getExtractedTestIds().get(dynamicKey);
+                    return "";
                 }
-                if (action.getExtractedAttributes() != null && action.getExtractedAttributes().containsKey(dynamicKey)) {
-                    return action.getExtractedAttributes().get(dynamicKey);
-                }
-                if (action.getExtractedAriaRoles() != null && action.getExtractedAriaRoles().containsKey(dynamicKey)) {
-                    return action.getExtractedAriaRoles().get(dynamicKey);
-                }
-                if (action.getExtractedTestIds() != null && action.getExtractedTestIds().containsKey(dynamicKey)) {
-                    return action.getExtractedTestIds().get(dynamicKey);
-                }
-
-                return "";
         }
     }
 
@@ -139,25 +138,33 @@ public class ActionTableModel extends AbstractTableModel {
             case 5: action.setValue((String) aValue); break;
             case 6: action.getLocators().put("xpath", (String) aValue); break;
             case 7: action.getLocators().put("css", (String) aValue); break;
-            case 8: action.getExtractedAttributes().put("elementId", (String) aValue); break;
-            case 9: action.getExtractedAttributes().put("classes", (String) aValue); break;
-            case 10: action.getExtractedAttributes().put("pagination", (String) aValue); break;
-            case 11: action.getExtractedAttributes().put("inputName", (String) aValue); break;
-            case 12: action.setTimeout(Integer.parseInt(aValue.toString())); break;
             default:
-                String key = getColumnName(columnIndex);
-                if (action.getExtractedValues().containsKey(key)) {
-                    action.getExtractedValues().put(key, (String) aValue);
-                } else if (action.getExtractedAttributes().containsKey(key)) {
+                int mappingStart = 8;
+                int mappingEnd = mappingStart + FIXED_COLUMNS.size();
+                if (columnIndex >= mappingStart && columnIndex < mappingEnd) {
+                    String key = getFixedKeyByIndex(columnIndex - mappingStart);
                     action.getExtractedAttributes().put(key, (String) aValue);
-                } else if (action.getExtractedAriaRoles().containsKey(key)) {
-                    action.getExtractedAriaRoles().put(key, (String) aValue);
-                } else if (action.getExtractedTestIds().containsKey(key)) {
-                    action.getExtractedTestIds().put(key, (String) aValue);
+                } else if (columnIndex == mappingEnd) {
+                    action.setTimeout(Integer.parseInt(aValue.toString()));
+                } else {
+                    String key = getColumnName(columnIndex);
+                    if (action.getExtractedValues().containsKey(key)) {
+                        action.getExtractedValues().put(key, (String) aValue);
+                    } else if (action.getExtractedAttributes().containsKey(key)) {
+                        action.getExtractedAttributes().put(key, (String) aValue);
+                    } else if (action.getExtractedAriaRoles().containsKey(key)) {
+                        action.getExtractedAriaRoles().put(key, (String) aValue);
+                    } else if (action.getExtractedTestIds().containsKey(key)) {
+                        action.getExtractedTestIds().put(key, (String) aValue);
+                    }
                 }
                 break;
         }
         fireTableCellUpdated(rowIndex, columnIndex);
+    }
+
+    private String getFixedKeyByIndex(int index) {
+        return new ArrayList<>(FIXED_COLUMNS.keySet()).get(index);
     }
 
     public List<TestAction> getActions() {
@@ -185,6 +192,7 @@ public class ActionTableModel extends AbstractTableModel {
 
     public void insertActionAt(int index, TestAction action) {
         actions.add(index, action);
+        updateColumnNames();
         fireTableRowsInserted(index, index);
     }
 }
