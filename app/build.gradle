@@ -35,6 +35,10 @@ dependencies {
     // Windows Key Store
     implementation 'net.java.dev.jna:jna:5.13.0'
     implementation 'net.java.dev.jna:jna-platform:5.13.0'
+
+    // otp auth
+    implementation 'com.warrenstrange:googleauth:1.4.0'
+
 }
 
 jar {

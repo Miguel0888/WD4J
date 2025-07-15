@@ -32,6 +32,9 @@ public interface BrowserService {
     void closeActiveTab(String username);
 
     void createNewTab();
+
+    Page getActivePage();
+
     Page createNewTab(String username);
 
     byte[] captureScreenshot();

@@ -1,6 +1,9 @@
 package de.bund.zrb.ui;
 
+import de.bund.zrb.service.ToolsRegistry;
+import de.bund.zrb.service.TotpService;
 import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.ui.components.OtpTestDialog;
 import de.bund.zrb.util.WindowsCryptoUtil;
 
 import javax.swing.*;
@@ -90,9 +93,19 @@ public class UserManagementDialog extends JDialog {
         gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
         content.add(new JLabel("2FA (optional):"), gbc);
 
+        // Panel mit Textfeld + Button
+        JPanel otpPanel = new JPanel(new BorderLayout(5, 0));
+        otpPanel.add(otpField, BorderLayout.CENTER);
+
+        // Button mit Unicode-Symbol und Tooltip
+        JButton testOtpButton = new JButton("⏱"); // Alternative: 🔍
+        testOtpButton.setToolTipText("Aktuellen OTP-Code anzeigen");
+        testOtpButton.setMargin(new Insets(2, 6, 2, 6)); // Kompakte Darstellung
+        otpPanel.add(testOtpButton, BorderLayout.EAST);
+
         gbc.gridx = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
-        content.add(otpField, gbc);
+        content.add(otpPanel, gbc);
 
         // Buttons
         row++;
@@ -151,6 +164,17 @@ public class UserManagementDialog extends JDialog {
             UserRegistry.getInstance().removeUser(selected);
             refreshUserList();
         });
+
+        testOtpButton.addActionListener(e -> {
+            UserRegistry.User selected = (UserRegistry.User) userCombo.getSelectedItem();
+            if (selected == null || selected.getOtpSecret() == null || selected.getOtpSecret().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Kein OTP-Secret hinterlegt für diesen Benutzer.", "Hinweis", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+
+            new OtpTestDialog(this, selected).setVisible(true);
+        });
+
     }
 
     private void refreshUserList() {

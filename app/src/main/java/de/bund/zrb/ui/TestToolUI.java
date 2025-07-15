@@ -8,6 +8,7 @@ import de.bund.zrb.ui.commands.*;
 import de.bund.zrb.ui.commands.debug.ShowDomEventsCommand;
 import de.bund.zrb.ui.commands.debug.ShowSelectorsCommand;
 import de.bund.zrb.ui.commands.tools.CaptureScreenshotCommand;
+import de.bund.zrb.ui.commands.tools.ShowOtpDialogCommand;
 
 import javax.swing.*;
 import java.awt.*;
@@ -134,6 +135,7 @@ public class TestToolUI {
         commandRegistry.register(new GoForwardCommand(browserService));
 
         commandRegistry.register(new CaptureScreenshotCommand());
+        commandRegistry.register(new ShowOtpDialogCommand());
         commandRegistry.register(new ShowSelectorsCommand(browserService));
         commandRegistry.register(new ShowDomEventsCommand(browserService));
 

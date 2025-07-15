@@ -12,7 +12,7 @@ public class ToolsRegistry {
 
     private ToolsRegistry() {
         this.screenshotTool = new ScreenshotTool(BrowserServiceImpl.getInstance());
-        this.twoFaTool = new TwoFaTool(BrowserServiceImpl.getInstance());
+        this.twoFaTool = new TwoFaTool(BrowserServiceImpl.getInstance(), TotpService.getInstance());
     }
 
     public static ToolsRegistry getInstance() {

@@ -145,6 +145,11 @@ public class BrowserServiceImpl implements BrowserService {
     }
 
     @Override
+    public Page getActivePage() {
+        return browser.getActivePage();
+    }
+
+    @Override
     public Page createNewTab(String username) {
         BrowserContext context = getOrCreateUserContext(username);
         return context.newPage();
