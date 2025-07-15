@@ -6,6 +6,7 @@ import de.bund.zrb.ui.components.AnimatedTimerCircle;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.datatransfer.StringSelection;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -42,7 +43,28 @@ public class OtpTestDialog extends JDialog {
         JPanel centerPanel = new JPanel(new BorderLayout(15, 0));
         centerPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         centerPanel.add(timerCircle, BorderLayout.WEST);
-        centerPanel.add(otpCodeLabel, BorderLayout.CENTER);
+        // OTP-Code + Copy-Button nebeneinander
+        JPanel otpCodePanel = new JPanel(new BorderLayout());
+
+        otpCodePanel.add(otpCodeLabel, BorderLayout.CENTER);
+
+        // Copy-to-Clipboard-Button mit Unicode-Symbol
+        JButton copyButton = new JButton("📋");
+        copyButton.setToolTipText("OTP in Zwischenablage kopieren");
+        copyButton.setMargin(new Insets(2, 6, 2, 6));
+        copyButton.addActionListener(e -> {
+            String otpText = otpCodeLabel.getText();
+            if (!otpText.isEmpty()) {
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(
+                        new StringSelection(otpText), null
+                );
+                copyButton.setToolTipText("Kopiert ✔");
+            }
+        });
+
+        otpCodePanel.add(copyButton, BorderLayout.EAST);
+
+        centerPanel.add(otpCodePanel, BorderLayout.CENTER);
 
         // Schließen-Button
         JButton closeButton = new JButton("Schließen");
