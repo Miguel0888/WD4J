@@ -141,7 +141,7 @@ public class TestToolUI {
 
         commandRegistry.register(new UserRegistryCommand());
         commandRegistry.register(new UserSelectionCommand(UserRegistry.getInstance()));
-        commandRegistry.register(new NavigationHomeCommand(BrowserServiceImpl.getInstance()));
+        commandRegistry.register(new NavigationHomeCommand());
 
 
     }

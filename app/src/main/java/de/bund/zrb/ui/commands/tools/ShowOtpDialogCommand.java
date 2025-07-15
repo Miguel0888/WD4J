@@ -1,7 +1,6 @@
 package de.bund.zrb.ui.commands.tools;
 
-import de.bund.zrb.PageImpl;
-import de.bund.zrb.service.BrowserServiceImpl;
+import de.bund.zrb.service.ToolsRegistry;
 import de.bund.zrb.service.UserContextMappingService;
 import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
@@ -24,20 +23,7 @@ public class ShowOtpDialogCommand extends ShortcutMenuCommand {
 
     @Override
     public void perform() {
-        UserRegistry.User user = UserContextMappingService.getInstance().getCurrentUser();
-
-        if (user == null) {
-            JOptionPane.showMessageDialog(null, "Kein Benutzer für aktiven Kontext gefunden.", "Fehler", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        if (user.getOtpSecret() == null || user.getOtpSecret().isEmpty()) {
-            JOptionPane.showMessageDialog(null, "Benutzer hat kein OTP-Secret.", "Hinweis", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-
-        Window parent = getActiveWindow();
-        new OtpTestDialog(parent, user).setVisible(true);
+        ToolsRegistry.getInstance().twoFaTool().showOtpDialog(getActiveWindow());
     }
 
     private Window getActiveWindow() {
