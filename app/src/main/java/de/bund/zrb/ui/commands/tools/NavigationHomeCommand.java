@@ -1,4 +1,4 @@
-package de.bund.zrb.ui.commands;
+package de.bund.zrb.ui.commands.tools;
 
 import de.bund.zrb.service.ToolsRegistry;
 import de.bund.zrb.service.UserContextMappingService;

@@ -17,6 +17,7 @@ public class UserManagementDialog extends JDialog {
     private final JTextField usernameField;
     private final JPasswordField passwordField;
     private final JTextField startPageField;
+    private final JTextField loginPageField;
     private final JTextField otpField;
 
     private final DefaultComboBoxModel<UserRegistry.User> comboModel;
@@ -33,6 +34,7 @@ public class UserManagementDialog extends JDialog {
         usernameField = new JTextField(20);
         passwordField = new JPasswordField(20);
         startPageField = new JTextField(20);
+        loginPageField = new JTextField(20);
         otpField = new JTextField(20);
 
         JButton saveButton = new JButton("Speichern");
@@ -87,6 +89,26 @@ public class UserManagementDialog extends JDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
         content.add(startPageField, gbc);
 
+        // Loginseite
+        row++;
+        gbc.gridx = 0; gbc.gridy = row;
+        gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+        content.add(new JLabel("Login-Seite:"), gbc);
+
+        // Panel mit Textfeld + Button
+        JPanel loginPanel  = new JPanel(new BorderLayout(5, 0));
+        loginPanel.add(loginPageField, BorderLayout.CENTER);
+
+        // Button mit Unicode-Symbol und Tooltip
+        JButton configButton = new JButton("🛠");
+        configButton.setToolTipText("Login-Felder konfigurieren");
+        configButton.setMargin(new Insets(2, 6, 2, 6));
+        loginPanel.add(configButton, BorderLayout.EAST);
+
+        gbc.gridx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+        content.add(loginPanel , gbc);
+
         // 2FA
         row++;
         gbc.gridx = 0; gbc.gridy = row;
@@ -133,12 +155,13 @@ public class UserManagementDialog extends JDialog {
                 usernameField.setText(selected.getUsername());
                 passwordField.setText(selected.getDecryptedPassword());
                 startPageField.setText(selected.getStartPage());
+                loginPageField.setText(selected.getLoginPage());
                 otpField.setText(selected.getOtpSecret());
             }
         });
 
         newButton.addActionListener(e -> {
-            UserRegistry.User newUser = new UserRegistry.User("Neuer Benutzer", "", "", "");
+            UserRegistry.User newUser = new UserRegistry.User("Neuer Benutzer", "", "", "", null);
             UserRegistry.getInstance().addUser(newUser);
             refreshUserList();
             userCombo.setSelectedItem(newUser);
@@ -151,6 +174,7 @@ public class UserManagementDialog extends JDialog {
             selected.setUsername(usernameField.getText());
             selected.setEncryptedPassword(WindowsCryptoUtil.encrypt(new String(passwordField.getPassword())));
             selected.setStartPage(startPageField.getText());
+            selected.setLoginPage(loginPageField.getText());
             selected.setOtpSecret(otpField.getText());
 
             UserRegistry.getInstance().save();
@@ -173,6 +197,34 @@ public class UserManagementDialog extends JDialog {
             }
 
             new OtpTestDialog(this, selected).setVisible(true);
+        });
+
+        configButton.addActionListener(e -> {
+            UserRegistry.User user = (UserRegistry.User) userCombo.getSelectedItem();
+            if (user == null) return;
+
+            UserRegistry.User.LoginConfig config = user.getLoginConfig();
+
+            JTextField usernameField = new JTextField(config.getUsernameSelector(), 25);
+            JTextField passwordField = new JTextField(config.getPasswordSelector(), 25);
+            JTextField submitField = new JTextField(config.getSubmitSelector(), 25);
+
+            JPanel panel = new JPanel(new GridLayout(0, 1));
+            panel.add(new JLabel("Username-Feld (Selector):"));
+            panel.add(usernameField);
+            panel.add(new JLabel("Passwort-Feld (Selector):"));
+            panel.add(passwordField);
+            panel.add(new JLabel("Login-Button (Selector):"));
+            panel.add(submitField);
+
+            int result = JOptionPane.showConfirmDialog(
+                    this, panel, "Login-Konfiguration", JOptionPane.OK_CANCEL_OPTION);
+
+            if (result == JOptionPane.OK_OPTION) {
+                config.setUsernameSelector(usernameField.getText().trim());
+                config.setPasswordSelector(passwordField.getText().trim());
+                config.setSubmitSelector(submitField.getText().trim());
+            }
         });
 
     }

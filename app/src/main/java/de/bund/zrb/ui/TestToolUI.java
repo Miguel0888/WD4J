@@ -8,6 +8,8 @@ import de.bund.zrb.ui.commands.*;
 import de.bund.zrb.ui.commands.debug.ShowDomEventsCommand;
 import de.bund.zrb.ui.commands.debug.ShowSelectorsCommand;
 import de.bund.zrb.ui.commands.tools.CaptureScreenshotCommand;
+import de.bund.zrb.ui.commands.tools.LoginUserCommand;
+import de.bund.zrb.ui.commands.tools.NavigationHomeCommand;
 import de.bund.zrb.ui.commands.tools.ShowOtpDialogCommand;
 
 import javax.swing.*;
@@ -142,6 +144,7 @@ public class TestToolUI {
         commandRegistry.register(new UserRegistryCommand());
         commandRegistry.register(new UserSelectionCommand(UserRegistry.getInstance()));
         commandRegistry.register(new NavigationHomeCommand());
+        commandRegistry.register(new LoginUserCommand());
 
 
     }
