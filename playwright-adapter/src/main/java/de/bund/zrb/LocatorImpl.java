@@ -1064,24 +1064,42 @@ public class LocatorImpl implements Locator {
 
         // 3️⃣ Events erreichbar? enabled? editable? → per JS prüfen
         if (requirements.contains(ActionabilityRequirement.ENABLED)) {
-            boolean enabled = (Boolean) page.evaluate("el => !el.disabled", elementHandle);
+            Object result = page.evaluate("el => !el.disabled", elementHandle);
+            boolean enabled;
+            if (result instanceof WDPrimitiveProtocolValue.BooleanValue) {
+                enabled = ((WDPrimitiveProtocolValue.BooleanValue) result).getValue();
+            } else {
+                throw new IllegalStateException("Expected boolean result but got: " + result);
+            }
             if (!enabled) throw new RuntimeException("Element is disabled!");
         }
 
         if (requirements.contains(ActionabilityRequirement.EDITABLE)) {
-            boolean editable = (Boolean) page.evaluate(
+            Object result = page.evaluate(
                     "el => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el.isContentEditable",
                     elementHandle);
+            boolean editable;
+            if (result instanceof WDPrimitiveProtocolValue.BooleanValue) {
+                editable = ((WDPrimitiveProtocolValue.BooleanValue) result).getValue();
+            } else {
+                throw new IllegalStateException("Expected boolean result but got: " + result);
+            }
             if (!editable) throw new RuntimeException("Element is not editable!");
         }
 
         if (requirements.contains(ActionabilityRequirement.RECEIVES_EVENTS)) {
-            boolean receivesEvents = (Boolean) page.evaluate(
+            Object result = page.evaluate(
                     "el => { " +
                             "const rect = el.getBoundingClientRect();" +
                             "return rect.width > 0 && rect.height > 0;" +
                             "}",
                     elementHandle);
+            boolean receivesEvents;
+            if (result instanceof WDPrimitiveProtocolValue.BooleanValue) {
+                receivesEvents = ((WDPrimitiveProtocolValue.BooleanValue) result).getValue();
+            } else {
+                throw new IllegalStateException("Expected boolean result but got: " + result);
+            }
             if (!receivesEvents) throw new RuntimeException("Element does not receive events!");
         }
     }
