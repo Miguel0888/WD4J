@@ -3,6 +3,7 @@ package de.bund.zrb;
 import com.microsoft.playwright.ElementHandle;
 import com.microsoft.playwright.JSHandle;
 import de.bund.zrb.type.script.*;
+import de.bund.zrb.util.WebDriverUtil;
 
 import java.util.*;
 
@@ -65,10 +66,24 @@ public class JSHandleImpl implements JSHandle {
     @Override
     public Object evaluate(String expression, Object arg) {
         checkDisposed();
-        WDEvaluateResult result = webDriver.script().evaluate(expression, target, true);
-        if(result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            return ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
+
+        if (WebDriverUtil.isFunctionExpression(expression)) {
+            // Ausdruck ist eine echte Funktion → callFunction verwenden
+            List<WDLocalValue> arguments = Collections.singletonList(WDLocalValue.fromObject(arg));
+            WDEvaluateResult result = webDriver.script().callFunction(expression, true, target, arguments, remoteReference);
+
+            if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+                return ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
+            }
+        } else {
+            // Ausdruck ist KEINE Funktion → evaluate verwenden (Argument wird ignoriert!)
+            WDEvaluateResult result = webDriver.script().evaluate(expression, target, true);
+
+            if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+                return ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
+            }
         }
+
         return null;
     }
 

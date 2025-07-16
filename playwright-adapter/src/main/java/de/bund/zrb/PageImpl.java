@@ -5,7 +5,6 @@ import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.*;
 import de.bund.zrb.command.request.parameters.browsingContext.CaptureScreenshotParameters;
 import de.bund.zrb.command.request.parameters.browsingContext.CreateType;
-import de.bund.zrb.event.WDScriptEvent;
 import de.bund.zrb.support.ScreenshotPreprocessor;
 import de.bund.zrb.type.browsingContext.WDNavigationInfo;
 import de.bund.zrb.type.script.*;
@@ -18,6 +17,7 @@ import de.bund.zrb.event.WDBrowsingContextEvent;
 import de.bund.zrb.type.browser.WDClientWindow;
 import de.bund.zrb.type.browsingContext.WDInfo;
 import de.bund.zrb.type.browsingContext.WDLocator;
+import de.bund.zrb.util.WebDriverUtil;
 import de.bund.zrb.websocket.WDEventNames;
 import de.bund.zrb.support.JsonToPlaywrightMapper;
 import de.bund.zrb.type.browser.WDUserContext;
@@ -721,7 +721,7 @@ public class PageImpl implements Page {
         WDEvaluateResult result;
         WDTarget target = new WDTarget.ContextTarget(browsingContext); // oder RealmTarget
 
-        if (isFunctionExpression(expression)) {
+        if (WebDriverUtil.isFunctionExpression(expression)) {
             // Verwende callFunction wenn Argumente vorhanden sind
             List<WDLocalValue> args = arg != null
                     ? Collections.singletonList(WDLocalValue.fromObject(arg))
@@ -2145,17 +2145,6 @@ public class PageImpl implements Page {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Helper Methods
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /**
-     * Prüft, ob der übergebene Ausdruck eine Funktion ist. Wird benötigt, um zu entscheiden, ob ein `callFunction` oder
-     * ein `evaluate`-Befehl ausgeführt werden soll.
-     *
-     * @param expr
-     * @return
-     */
-    private boolean isFunctionExpression(String expr) {
-        return expr != null && expr.trim().matches("^\\(?\\s*[^)]*\\)?\\s*=>.*");
-    }
 
     public WebDriver getWebDriver() {
         return webDriver;

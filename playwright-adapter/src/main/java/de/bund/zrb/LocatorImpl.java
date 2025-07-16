@@ -102,7 +102,7 @@ public class LocatorImpl implements Locator {
             elementHandle = new ElementHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
         } else if (handle != null) {
             WDRemoteReference.RemoteObjectReference reference = new WDRemoteReference.RemoteObjectReference(handle, sharedId);
-            new JSHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
+            new JSHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext())); // ToDo
             throw new RuntimeException("No sharedId found for selector: " + selector + " handle: " + handle);
         } else {
             throw new RuntimeException("No handle found for selector: " + selector);
