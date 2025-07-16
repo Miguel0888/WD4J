@@ -1053,7 +1053,14 @@ public class LocatorImpl implements Locator {
 
         EnumSet<ActionabilityRequirement> requirements = check.getRequirements();
 
-        // 1️⃣ Sichtbarkeit prüfen, falls gefordert
+        if (requirements.contains(ActionabilityRequirement.VISIBLE)) {
+            waitFor(new WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(timeout));
+        }
+
+        if (requirements.contains(ActionabilityRequirement.STABLE)) {
+            waitForStable(timeout);
+        }
+
         if (requirements.contains(ActionabilityRequirement.ENABLED)) {
             boolean enabled = WebDriverUtil.asBoolean(
                     elementHandle.evaluate("function() { return !this.disabled; }")
@@ -1061,7 +1068,6 @@ public class LocatorImpl implements Locator {
             if (!enabled) throw new RuntimeException("Element is disabled!");
         }
 
-        // 2️⃣ Stabilität prüfen, falls gefordert
         if (requirements.contains(ActionabilityRequirement.EDITABLE)) {
             boolean editable = WebDriverUtil.asBoolean(
                     elementHandle.evaluate("function() { " +
@@ -1072,7 +1078,6 @@ public class LocatorImpl implements Locator {
             if (!editable) throw new RuntimeException("Element is not editable!");
         }
 
-        // 3️⃣ Events erreichbar? enabled? editable? → per JS prüfen
         if (requirements.contains(ActionabilityRequirement.RECEIVES_EVENTS)) {
             boolean receives = WebDriverUtil.asBoolean(
                     elementHandle.evaluate("function() { " +
@@ -1080,35 +1085,6 @@ public class LocatorImpl implements Locator {
                             "return r.width>0 && r.height>0; }")
             );
             if (!receives) throw new RuntimeException("Element does not receive events!");
-        }
-
-        if (requirements.contains(ActionabilityRequirement.EDITABLE)) {
-            Object result = page.evaluate(
-                    "el => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el.isContentEditable",
-                    elementHandle);
-            boolean editable;
-            if (result instanceof WDPrimitiveProtocolValue.BooleanValue) {
-                editable = ((WDPrimitiveProtocolValue.BooleanValue) result).getValue();
-            } else {
-                throw new IllegalStateException("Expected boolean result but got: " + result);
-            }
-            if (!editable) throw new RuntimeException("Element is not editable!");
-        }
-
-        if (requirements.contains(ActionabilityRequirement.RECEIVES_EVENTS)) {
-            Object result = page.evaluate(
-                    "el => { " +
-                            "const rect = el.getBoundingClientRect();" +
-                            "return rect.width > 0 && rect.height > 0;" +
-                            "}",
-                    elementHandle);
-            boolean receivesEvents;
-            if (result instanceof WDPrimitiveProtocolValue.BooleanValue) {
-                receivesEvents = ((WDPrimitiveProtocolValue.BooleanValue) result).getValue();
-            } else {
-                throw new IllegalStateException("Expected boolean result but got: " + result);
-            }
-            if (!receivesEvents) throw new RuntimeException("Element does not receive events!");
         }
     }
 
