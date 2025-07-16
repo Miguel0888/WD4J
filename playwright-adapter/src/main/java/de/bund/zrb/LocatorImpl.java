@@ -16,6 +16,7 @@ import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.browsingContext.WDInfo;
 import de.bund.zrb.type.browsingContext.WDLocator;
 import de.bund.zrb.type.script.*;
+import de.bund.zrb.util.WebDriverUtil;
 
 import java.nio.file.Path;
 import java.util.*;
@@ -1053,25 +1054,32 @@ public class LocatorImpl implements Locator {
         EnumSet<ActionabilityRequirement> requirements = check.getRequirements();
 
         // 1️⃣ Sichtbarkeit prüfen, falls gefordert
-        if (requirements.contains(ActionabilityRequirement.VISIBLE)) {
-            waitFor(new WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(timeout));
+        if (requirements.contains(ActionabilityRequirement.ENABLED)) {
+            boolean enabled = WebDriverUtil.asBoolean(
+                    elementHandle.evaluate("function() { return !this.disabled; }")
+            );
+            if (!enabled) throw new RuntimeException("Element is disabled!");
         }
 
         // 2️⃣ Stabilität prüfen, falls gefordert
-        if (requirements.contains(ActionabilityRequirement.STABLE)) {
-            waitForStable(timeout);
+        if (requirements.contains(ActionabilityRequirement.EDITABLE)) {
+            boolean editable = WebDriverUtil.asBoolean(
+                    elementHandle.evaluate("function() { " +
+                            "return this instanceof HTMLInputElement || " +
+                            "this instanceof HTMLTextAreaElement || " +
+                            "this.isContentEditable; }")
+            );
+            if (!editable) throw new RuntimeException("Element is not editable!");
         }
 
         // 3️⃣ Events erreichbar? enabled? editable? → per JS prüfen
-        if (requirements.contains(ActionabilityRequirement.ENABLED)) {
-            Object result = page.evaluate("el => !el.disabled", elementHandle);
-            boolean enabled;
-            if (result instanceof WDPrimitiveProtocolValue.BooleanValue) {
-                enabled = ((WDPrimitiveProtocolValue.BooleanValue) result).getValue();
-            } else {
-                throw new IllegalStateException("Expected boolean result but got: " + result);
-            }
-            if (!enabled) throw new RuntimeException("Element is disabled!");
+        if (requirements.contains(ActionabilityRequirement.RECEIVES_EVENTS)) {
+            boolean receives = WebDriverUtil.asBoolean(
+                    elementHandle.evaluate("function() { " +
+                            "const r=this.getBoundingClientRect();" +
+                            "return r.width>0 && r.height>0; }")
+            );
+            if (!receives) throw new RuntimeException("Element does not receive events!");
         }
 
         if (requirements.contains(ActionabilityRequirement.EDITABLE)) {
