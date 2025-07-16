@@ -999,19 +999,29 @@ public class LocatorImpl implements Locator {
                     break;
 
                 case VISIBLE:
-                    success = (Boolean) elementHandle.evaluate(
-                            "element => { const rect = element.getBoundingClientRect(); " +
-                                    "return !!(rect.width && rect.height) && window.getComputedStyle(element).visibility !== 'hidden'; }"
-                    );
+                    Object result = elementHandle.evaluate("function() { const rect = this.getBoundingClientRect(); " +
+                            "return !!(rect.width && rect.height) && window.getComputedStyle(this).visibility !== 'hidden'; }");
+
+                    if (result instanceof WDPrimitiveProtocolValue.BooleanValue) {
+                        success = ((WDPrimitiveProtocolValue.BooleanValue) result).getValue(); // oder .value, je nach Feldnamen
+                    } else {
+                        throw new IllegalStateException("Expected boolean result but got: " + result);
+                    }
                     break;
 
                 case HIDDEN:
-                    success = (Boolean) page.evaluate(
-                            "(function() { " +
+                    Object hiddenResult = elementHandle.evaluate(
+                            "function() { " +
                                     "const rect = this.getBoundingClientRect(); " +
                                     "return rect.width === 0 || rect.height === 0 || window.getComputedStyle(this).visibility === 'hidden'; " +
-                                    "})",
-                            elementHandle);
+                                    "}"
+                    );
+
+                    if (hiddenResult instanceof WDPrimitiveProtocolValue.BooleanValue) {
+                        success = ((WDPrimitiveProtocolValue.BooleanValue) hiddenResult).getValue();
+                    } else {
+                        throw new IllegalStateException("Expected boolean result but got: " + hiddenResult);
+                    }
                     break;
             }
 

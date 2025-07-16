@@ -69,7 +69,9 @@ public class JSHandleImpl implements JSHandle {
 
         if (WebDriverUtil.isFunctionExpression(expression)) {
             // Ausdruck ist eine echte Funktion → callFunction verwenden
-            List<WDLocalValue> arguments = Collections.singletonList(WDLocalValue.fromObject(arg));
+            List<WDLocalValue> arguments = (arg != null) ?
+                    Collections.singletonList(WDLocalValue.fromObject(arg)) :
+                    null;
             WDEvaluateResult result = webDriver.script().callFunction(expression, true, target, arguments, remoteReference);
 
             if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
@@ -128,10 +130,20 @@ public class JSHandleImpl implements JSHandle {
 
     @Override
     public String toString() {
+        String handleInfo = null;
+
+        if (remoteReference instanceof WDRemoteReference.RemoteObjectReference) {
+            WDHandle handle = ((WDRemoteReference.RemoteObjectReference) remoteReference).getHandle();
+            handleInfo = handle != null ? handle.value() : "null";
+        } else if (remoteReference instanceof WDRemoteReference.SharedReference) {
+            WDSharedId sharedId = ((WDRemoteReference.SharedReference) remoteReference).getSharedId();
+            handleInfo = sharedId != null ? sharedId.value() : "shared:null";
+        } else {
+            handleInfo = "unknown";
+        }
+
         return "JSHandleImpl{" +
-                "handle=" + getHandle().value() +
-                // ToDo: Implement this
-//                ", realm=" + target() +
+                "handle=" + handleInfo +
                 '}';
     }
 
