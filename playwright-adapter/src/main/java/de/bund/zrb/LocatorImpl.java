@@ -993,18 +993,16 @@ public class LocatorImpl implements Locator {
                     break;
 
                 case DETACHED:
-                    success = !(Boolean) page.evaluate(
-                            "(function() { return !!this.isConnected; })",
-                            elementHandle);
+                    success = !(Boolean) elementHandle.evaluate(
+                            "(element) => element.isConnected"
+                    );
                     break;
 
                 case VISIBLE:
-                    success = (Boolean) page.evaluate(
-                            "(function() { " +
-                                    "const rect = this.getBoundingClientRect(); " +
-                                    "return !!(rect.width && rect.height) && window.getComputedStyle(this).visibility !== 'hidden'; " +
-                                    "})",
-                            elementHandle);
+                    success = (Boolean) elementHandle.evaluate(
+                            "element => { const rect = element.getBoundingClientRect(); " +
+                                    "return !!(rect.width && rect.height) && window.getComputedStyle(element).visibility !== 'hidden'; }"
+                    );
                     break;
 
                 case HIDDEN:
