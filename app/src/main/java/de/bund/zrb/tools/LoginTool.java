@@ -39,6 +39,19 @@ public class LoginTool extends AbstractUserTool {
         }
 
         System.out.println("🔐 Führe Login durch für " + user.getUsername());
+
+//        // ToDo: Später an PlayWrigh-API weiterreichen, damit immer nur so lange wie nötig gewartet wird:
+//        long timeout = 5_000;
+//        if (timeout > 0) {
+//            System.out.println("⏳ Warte global " + timeout + " ms vor Action...");
+//            try {
+//                Thread.sleep(timeout);
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+//        }
+
+        page.locator(config.getUsernameSelector()).waitFor();
         page.fill(config.getUsernameSelector(), user.getUsername());
         page.fill(config.getPasswordSelector(), user.getDecryptedPassword());
         page.click(config.getSubmitSelector());

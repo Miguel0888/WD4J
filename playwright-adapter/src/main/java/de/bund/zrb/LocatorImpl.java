@@ -974,8 +974,7 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void waitFor(WaitForOptions options) {
-        resolveElementHandle();
-
+        // Hole den Zielzustand und das Timeout
         WaitForSelectorState state = options != null && options.state != null
                 ? options.state
                 : WaitForSelectorState.VISIBLE;
@@ -985,7 +984,23 @@ public class LocatorImpl implements Locator {
 
         long start = System.currentTimeMillis();
 
+        // Retry-Loop mit 100ms-Polling
         while (true) {
+            try {
+                resolveElementHandle();
+            } catch (RuntimeException e) {
+                if (state == WaitForSelectorState.ATTACHED) {
+                    // bei ATTACHED: Element ist einfach noch nicht da → nicht schlimm
+                } else {
+                    // bei anderen States: wenn resolve scheitert, kann kein Handle evaluiert werden
+                    if ((System.currentTimeMillis() - start) > timeout) {
+                        throw new RuntimeException("Timeout waiting for state: " + state, e);
+                    }
+                    sleepQuietly(100);
+                    continue;
+                }
+            }
+
             boolean success = false;
 
             switch (state) {
@@ -993,36 +1008,28 @@ public class LocatorImpl implements Locator {
                     success = elementHandle != null;
                     break;
 
-                case DETACHED:
-                    success = !(Boolean) elementHandle.evaluate(
-                            "(element) => element.isConnected"
-                    );
-                    break;
-
                 case VISIBLE:
-                    Object result = elementHandle.evaluate("function() { const rect = this.getBoundingClientRect(); " +
-                            "return !!(rect.width && rect.height) && window.getComputedStyle(this).visibility !== 'hidden'; }");
-
-                    if (result instanceof WDPrimitiveProtocolValue.BooleanValue) {
-                        success = ((WDPrimitiveProtocolValue.BooleanValue) result).getValue(); // oder .value, je nach Feldnamen
-                    } else {
-                        throw new IllegalStateException("Expected boolean result but got: " + result);
-                    }
+                    success = WebDriverUtil.asBoolean(elementHandle.evaluate(
+                            "function() { " +
+                                    "  const rect = this.getBoundingClientRect(); " +
+                                    "  return rect.width > 0 && rect.height > 0 && window.getComputedStyle(this).visibility !== 'hidden'; " +
+                                    "}"
+                    ));
                     break;
 
                 case HIDDEN:
-                    Object hiddenResult = elementHandle.evaluate(
+                    success = WebDriverUtil.asBoolean(elementHandle.evaluate(
                             "function() { " +
-                                    "const rect = this.getBoundingClientRect(); " +
-                                    "return rect.width === 0 || rect.height === 0 || window.getComputedStyle(this).visibility === 'hidden'; " +
+                                    "  const rect = this.getBoundingClientRect(); " +
+                                    "  return rect.width === 0 || rect.height === 0 || window.getComputedStyle(this).visibility === 'hidden'; " +
                                     "}"
-                    );
+                    ));
+                    break;
 
-                    if (hiddenResult instanceof WDPrimitiveProtocolValue.BooleanValue) {
-                        success = ((WDPrimitiveProtocolValue.BooleanValue) hiddenResult).getValue();
-                    } else {
-                        throw new IllegalStateException("Expected boolean result but got: " + hiddenResult);
-                    }
+                case DETACHED:
+                    success = WebDriverUtil.asBoolean(elementHandle.evaluate(
+                            "function() { return !this.isConnected; }"
+                    ));
                     break;
             }
 
@@ -1034,15 +1041,9 @@ public class LocatorImpl implements Locator {
                 throw new RuntimeException("Timeout waiting for state: " + state);
             }
 
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            sleepQuietly(100);
         }
     }
-
-
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Helper Methods
@@ -1223,8 +1224,14 @@ public class LocatorImpl implements Locator {
         return result.getNodes();
     }
 
-
-
+    private void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
+    }
 
 
 
