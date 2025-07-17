@@ -974,6 +974,12 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void waitFor(WaitForOptions options) {
+        try {
+            Thread.sleep(3_000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
         // Hole den Zielzustand und das Timeout
         WaitForSelectorState state = options != null && options.state != null
                 ? options.state

@@ -85,8 +85,7 @@ public class TestPlayerService {
                     break;
                 case "click":
                     Locator clickLocator = page.locator(action.getSelectedSelector());
-//                    clickLocator.waitFor(new Locator.WaitForOptions().setTimeout(action.getTimeout()));
-                    Thread.sleep(action.getTimeout());
+                    clickLocator.waitFor(new Locator.WaitForOptions().setTimeout(action.getTimeout()));
                     clickLocator.click();
                     break;
                 case "input":
