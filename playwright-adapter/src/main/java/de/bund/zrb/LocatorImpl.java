@@ -974,12 +974,6 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void waitFor(WaitForOptions options) {
-        try {
-            Thread.sleep(3_000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
         // Hole den Zielzustand und das Timeout
         WaitForSelectorState state = options != null && options.state != null
                 ? options.state
@@ -1040,6 +1034,12 @@ public class LocatorImpl implements Locator {
             }
 
             if (success) {
+                // 🆕 Stability-Wait (nur bei VISIBLE sinnvoll)
+                if (state == WaitForSelectorState.VISIBLE) {
+                    elementHandle.evaluate(
+                            "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+                    );
+                }
                 return;
             }
 
@@ -1050,6 +1050,7 @@ public class LocatorImpl implements Locator {
             sleepQuietly(100);
         }
     }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Helper Methods
