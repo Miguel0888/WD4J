@@ -980,7 +980,7 @@ public class LocatorImpl implements Locator {
                 : WaitForSelectorState.VISIBLE;
         double timeout = options != null && options.timeout != null
                 ? options.timeout
-                : 30000;
+                : 30_000;
 
         long start = System.currentTimeMillis();
 

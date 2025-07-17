@@ -71,25 +71,28 @@ public class TestPlayerService {
             }
 
             Page page = browserService.getActivePage(username);
-
-            // ToDo: Später an PlayWrigh-API weiterreichen, damit immer nur so lange wie nötig gewartet wird:
-            long timeout = action.getTimeout();
-            if (timeout > 0) {
-                System.out.println("⏳ Warte global " + timeout + " ms vor Action...");
-                Thread.sleep(timeout);
-            }
+//
+//            // ToDo: Später an PlayWrigh-API weiterreichen, damit immer nur so lange wie nötig gewartet wird:
+//            long timeout = action.getTimeout();
+//            if (timeout > 0) {
+//                System.out.println("⏳ Warte global " + timeout + " ms vor Action...");
+//                Thread.sleep(timeout);
+//            }
 
             switch (action.getAction()) {
                 case "navigate":
-                    page.navigate(action.getValue());
+                    page.navigate(action.getValue(), new Page.NavigateOptions().setTimeout(action.getTimeout()));
                     break;
                 case "click":
-                    page.locator(action.getSelectedSelector()).click();
+                    Locator clickLocator = page.locator(action.getSelectedSelector());
+                    clickLocator.waitFor(new Locator.WaitForOptions().setTimeout(action.getTimeout()));
+                    clickLocator.click();
                     break;
                 case "input":
                 case "fill":
-                    Locator locator = page.locator(action.getSelectedSelector());
-                    locator.fill(action.getValue());
+                    Locator fillLocator = page.locator(action.getSelectedSelector());
+                    fillLocator.waitFor(new Locator.WaitForOptions().setTimeout(action.getTimeout()));
+                    fillLocator.fill(action.getValue());
                     break;
                 case "wait":
                     long waitTime = Long.parseLong(action.getValue());

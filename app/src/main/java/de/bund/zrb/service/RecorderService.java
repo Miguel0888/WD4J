@@ -136,7 +136,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
 
     public TestAction convertToTestAction(RecordedEvent event) {
         TestAction action = new TestAction();
-        action.setTimeout(3000);
+        action.setTimeout(30_000);
         action.setAction(event.getAction());
         action.getLocators().put("xpath", event.getXpath());
         action.getLocators().put("css", event.getCss());
