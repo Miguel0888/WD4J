@@ -300,14 +300,32 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void click(ClickOptions options) {
-        // ToDo: Use Options
         resolveElementHandle();
+
+        // 1️⃣ Timeout bestimmen
+        double timeout = ((UserContextImpl) page.context()).getDefaultTimeout();
+        if (options != null && options.timeout != null) {
+            timeout = options.timeout;
+        }
+
+        // 2️⃣ Force prüfen
+        boolean force = options != null && Boolean.TRUE.equals(options.force);
+
+        // 3️⃣ Actionability nur prüfen wenn force = false
+        if (!force) {
+            waitForActionability(ActionabilityCheck.CLICK, timeout);
+        }
+
+        // 4️⃣ Jetzt klicken
         page.getBrowser().getScriptManager().executeDomAction(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
                 elementHandle.getRemoteReference(),
                 WDScriptManager.DomAction.CLICK
         );
+
+        // 5️⃣ Optionale "noWaitAfter"-Behandlung, falls relevant
     }
+
 
     @Override
     public int count() {
@@ -1120,15 +1138,47 @@ public class LocatorImpl implements Locator {
     }
 
     private double[] getBoundingBox() {
-        Map<String, Object> box = (Map<String, Object>) page.evaluate(
-                "el => { const r = el.getBoundingClientRect(); return {x: r.x, y: r.y, w: r.width, h: r.height}; }",
-                elementHandle);
+        Object result = elementHandle.evaluate(
+                "function() { const r = this.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }"
+        );
+
+        if (!(result instanceof WDRemoteValue.ObjectRemoteValue)) {
+            throw new IllegalStateException("Expected ObjectRemoteValue, but got: " + result.getClass().getName());
+        }
+
+        Map<WDRemoteValue, WDRemoteValue> objectMap = ((WDRemoteValue.ObjectRemoteValue) result).getValue();
+
         return new double[] {
-                (double) box.get("x"),
-                (double) box.get("y"),
-                (double) box.get("w"),
-                (double) box.get("h")
+                extractNumber(objectMap, "x"),
+                extractNumber(objectMap, "y"),
+                extractNumber(objectMap, "w"),
+                extractNumber(objectMap, "h")
         };
+    }
+
+    private double extractNumber(Map<WDRemoteValue, WDRemoteValue> map, String key) {
+        for (Map.Entry<WDRemoteValue, WDRemoteValue> entry : map.entrySet()) {
+            WDRemoteValue k = entry.getKey();
+            WDRemoteValue v = entry.getValue();
+
+            if (k instanceof WDPrimitiveProtocolValue.StringValue) {
+                String kStr = ((WDPrimitiveProtocolValue.StringValue) k).getValue();
+                if (key.equals(kStr)) {
+                    if (v instanceof WDPrimitiveProtocolValue.NumberValue) {
+                        String raw = ((WDPrimitiveProtocolValue.NumberValue) v).getValue();
+                        try {
+                            return Double.parseDouble(raw);
+                        } catch (NumberFormatException e) {
+                            throw new IllegalStateException("Invalid number format for key '" + key + "': " + raw);
+                        }
+                    } else {
+                        throw new IllegalStateException("Expected NumberValue for key '" + key + "', but got: " + v.getClass().getSimpleName());
+                    }
+                }
+            }
+        }
+
+        throw new IllegalStateException("Key '" + key + "' not found in object map");
     }
 
     @Deprecated // since WebDriver directly accepts the BrowsingContext and looks up the Window Realm on its own
