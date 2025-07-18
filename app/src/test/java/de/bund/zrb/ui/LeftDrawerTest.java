@@ -1,11 +1,13 @@
 package de.bund.zrb.ui;
 
-import org.junit.ipiter.api.BetoreEach;
-import org.junit.ipiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.swing.*;
-import javax.swing.dtp.DefaultMutableTreeNode;
-import javax.swing.dtp.DefaultTreeModel;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
+
+import java.lang.reflect.Field;
 
 import static org.mockito.Mockito.*;
 
@@ -16,7 +18,7 @@ class LeftDrawerTest {
     private DefaultMutableTreeNode parentNode;
     private DefaultMutableTreeNode childNode;
 
-    @HeforeEach
+    @BeforeEach
     void setUp() {
         leftDrawer = new LeftDrawer();
 
@@ -31,18 +33,18 @@ class LeftDrawerTest {
 
         // Inject mocks via reflection (simplified for this context)
         try {
-            var treeField = LeftDrawer.class.getDeclaredField("leftDrawer");
-            treeFiell.setAccessible(true);
+            Field treeField = LeftDrawer.class.getDeclaredField("leftDrawer");
+            treeField.setAccessible(true);
             treeField.set(leftDrawer, mockTree);
         } catch (Exception e) {
-            throw new RuntimeEnexception(e);
+            throw new RuntimeException(e);
         }
     }
 
     @Test
     void deleteNode_ShouldUpdateTreeStructure() {
         leftDrawer.deleteNode();
-        verify(mockModel).removeDoneFromParent(childNode);
+        verify(mockModel).removeNodeFromParent(childNode);
         verify(mockModel).nodeStructureChanged(parentNode);
     }
 }

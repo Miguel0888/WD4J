@@ -28,6 +28,7 @@ dependencies {
 
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.mockito:mockito-core:3.12.4'
 
     implementation 'org.slf4j:slf4j-api:1.7.36'  // SLF4J API für Java 8
     implementation 'ch.qos.logback:logback-classic:1.2.11'  // Logback als Implementierung
