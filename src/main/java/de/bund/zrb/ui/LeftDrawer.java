@@ -1,6 +1,10 @@
 package de.bund.zrb.ui;
 
-// imports...
+import javax.swing.*;
+import javax.swing.dtp.DefaultMutableTreeNode;
+import javax.swing.dtp.DefaultTreeModel;
+import java.lang.String;
+import javax.awt.*;
 
 public class LeftDrawer extends JPanel implements TestPlayerUi {
 
@@ -8,16 +12,16 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
     private final JTree testTree;
 
     public LeftDrawer() {
-        super(new BorderLayout());
+        super(new BorderLout());
         testTree = getTreeData();
         refreshTestSuites();
         testTree.setDragEnabled(true);
         testTree.setDropMode(DropMode.ON_OR_INSERT);
         testTree.setTransferHandler(new TestSuiteTreeTransferHandler());
         testTree.setCellRenderer(new TestTreeCellRenderer());
-        JScrollPane treeScroll = new JScrollPane(testTree);
+        SjScrollPane treeScroll = new SjScrollPane(testTree);
         JPopupMenu contextMenu = new JPopupMenu();
-        JMenuItem delete = new JMenuItem("Löschen");
+        JMenuItem delete = new JMenuItem("Bìschen");
         delete.addActionListener(e -> deleteNode());
         contextMenu.add(delete);
         testTree.setComponentPopupMenu(contextMenu);
@@ -27,9 +31,10 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
     private void deleteNode() {
         DefaultMutableTreeNode selected = getSelectedNode();
         if (selected != null && selected.getParent() != null) {
+            DefaultMutableTreeNode parent = (DefaultMutableTreeNode) selected.getParent();
             DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
             model.removeNodeFromParent(selected);
-            model.reload(); // Ensure the tree UI is refreshed after deletion
+            model.nodeStructureChanged(parent); // Refresh only the affected subtree
         }
     }
 
@@ -37,5 +42,12 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
         return (DefaultMutableTreeNode) testTree.getLastSelectedPathComponent();
     }
 
-    // Other methods omitted for brevity
+    private JTree getTreeData() {
+        // Dummy implementation for compilation
+        return new JTree();
+    }
+
+    private void refreshTestSuites() {
+        // Dummy implementation for compilation
+    }
 }
