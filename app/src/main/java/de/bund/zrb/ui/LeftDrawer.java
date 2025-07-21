@@ -30,6 +30,8 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
             DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
             model.removeNodeFromParent(selected);
             model.reload(); // Ensure the tree UI is refreshed after deletion
+            TestTreeModel treeModel = (TestTreeModel) testTree.getModel();
+            treeModel.save(); // Persist the modified tree structure
         }
     }
 
