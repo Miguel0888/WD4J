@@ -224,4 +224,25 @@ public class TestAction {
     public void setRaw(RecordedEvent raw) {
         this.raw = raw;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        TestAction that = (TestAction) o;
+
+        if (action != null ? !action.equals(that.action) : that.action != null) return false;
+        if (selectedSelector != null ? !selectedSelector.equals(that.selectedSelector) : that.selectedSelector != null)
+            return false;
+        return locatorType != null ? locatorType.equals(that.locatorType) : that.locatorType == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = action != null ? action.hashCode() : 0;
+        result = 31 * result + (selectedSelector != null ? selectedSelector.hashCode() : 0);
+        result = 31 * result + (locatorType != null ? locatorType.hashCode() : 0);
+        return result;
+    }
 }
