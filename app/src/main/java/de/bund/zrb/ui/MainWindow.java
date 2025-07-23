@@ -18,7 +18,7 @@ import java.awt.*;
 /**
  * TestToolUI with dynamic ActionToolbar and drawers.
  */
-public class TestToolUI {
+public class MainWindow {
 
     private final BrowserServiceImpl browserService = BrowserServiceImpl.getInstance();
     private final CommandRegistry commandRegistry = CommandRegistryImpl.getInstance();
@@ -167,6 +167,6 @@ public class TestToolUI {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new TestToolUI().initUI());
+        SwingUtilities.invokeLater(() -> new MainWindow().initUI());
     }
 }
