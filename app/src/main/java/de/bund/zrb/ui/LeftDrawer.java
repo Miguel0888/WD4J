@@ -17,8 +17,6 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -36,7 +34,7 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
         super(new BorderLayout());
 
         testTree = getTreeData();
-        refreshTestSuites();
+        refreshTestSuites(null);
 
         // 📌 Drag & Drop aktivieren:
         testTree.setDragEnabled(true);
@@ -74,14 +72,14 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
 
         ApplicationEventBus.getInstance().subscribe(event -> {
             if (event instanceof TestSuiteSavedEvent) {
-                refreshTestSuites(); // deine Methode, um die linke Liste neu zu laden
+                refreshTestSuites((String) event.getPayload()); // die Methode, um die Liste neu zu laden
             }
         });
 
         TestPlayerService.getInstance().registerDrawer(this);
     }
 
-    private void refreshTestSuites() {
+    private void refreshTestSuites(String name) {
         TestNode root = new TestNode("Testsuites");
 
         for (TestSuite suite : TestRegistry.getInstance().getAll()) {
@@ -267,7 +265,13 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
         if (ref instanceof TestAction) {
             tab = new ActionEditorTab((TestAction) ref);
         } else if (ref instanceof TestCase) {
-            tab = new CaseEditorTab((TestCase) ref);
+            TestNode parent = (TestNode) node.getParent();
+            Object suiteRef = parent.getModelRef();
+            if (suiteRef instanceof TestSuite) {
+                tab = new CaseEditorTab((TestSuite) suiteRef, (TestCase) ref);
+            } else {
+                tab = new CaseEditorTab(null, (TestCase) ref); // fallback
+            }
         } else if (ref instanceof TestSuite) {
             tab = new SuiteEditorTab((TestSuite) ref);
         }
@@ -283,4 +287,5 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
             }
         }
     }
+
 }

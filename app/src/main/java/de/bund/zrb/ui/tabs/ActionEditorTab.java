@@ -5,84 +5,85 @@ import de.bund.zrb.model.TestAction;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 public class ActionEditorTab extends AbstractEditorTab<TestAction> {
 
     public ActionEditorTab(TestAction action) {
-        super("Action: " + action.getAction(), action);
+        super("Edit Action", action);
+        setLayout(new BorderLayout());
 
-        setLayout(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(4, 8, 4, 8);
-        gbc.gridx = 0;
-        gbc.gridy = 0;
+        JPanel formPanel = new JPanel(new GridLayout(0, 2, 8, 8));
+        formPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        add(new JLabel("Action:"), gbc);
-        gbc.gridx = 1;
-        JTextField actionField = new JTextField(action.getAction());
-        add(actionField, gbc);
+        Set<String> knownActions = new TreeSet<>();
+        knownActions.add("click");
+        knownActions.add("input");
+        knownActions.add("select");
 
-        gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Value:"), gbc);
-        gbc.gridx = 1;
-        JTextField valueField = new JTextField(action.getValue() != null ? action.getValue() : "");
-        add(valueField, gbc);
+        Set<String> locatorTypes = new TreeSet<>();
+        locatorTypes.add("xpath");
+        locatorTypes.add("css");
+        locatorTypes.add("id");
+        locatorTypes.add("role");
+        locatorTypes.add("text");
+        locatorTypes.add("label");
 
-        gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Selector:"), gbc);
-        gbc.gridx = 1;
-        JComboBox<String> selectorBox = new JComboBox<String>();
+        // Felder
+        formPanel.add(new JLabel("Action:"));
+        JComboBox<String> actionBox = new JComboBox<>(knownActions.toArray(new String[0]));
+        actionBox.setEditable(true);
+        actionBox.setSelectedItem(action.getAction());
+        formPanel.add(actionBox);
+
+        formPanel.add(new JLabel("Value:"));
+        JTextField valueField = new JTextField(action.getValue());
+        formPanel.add(valueField);
+
+        formPanel.add(new JLabel("Locator Type:"));
+        JComboBox<String> locatorBox = new JComboBox<>(locatorTypes.toArray(new String[0]));
+        locatorBox.setEditable(true);
+        locatorBox.setSelectedItem(action.getLocatorType());
+        formPanel.add(locatorBox);
+
+        formPanel.add(new JLabel("Selector:"));
+        JComboBox<String> selectorBox = new JComboBox<>();
         selectorBox.setEditable(true);
         if (action.getSelectedSelector() != null) {
             selectorBox.addItem(action.getSelectedSelector());
         }
-        for (Map.Entry<String, String> entry : action.getLocators().entrySet()) {
-            selectorBox.addItem(entry.getValue());
+        for (String sel : action.getLocators().values()) {
+            if (sel != null && !sel.trim().isEmpty() && selectorBox.getItemCount() < 10) {
+                selectorBox.addItem(sel);
+            }
         }
         selectorBox.setSelectedItem(action.getSelectedSelector());
-        add(selectorBox, gbc);
+        formPanel.add(selectorBox);
 
-        gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Locator Type:"), gbc);
-        gbc.gridx = 1;
-        JComboBox<String> locatorTypeBox = new JComboBox<String>(new String[]{
-                "css", "xpath", "id", "text", "role", "label", "placeholder", "altText"
-        });
-        locatorTypeBox.setEditable(true);
-        if (action.getLocatorType() != null) {
-            locatorTypeBox.setSelectedItem(action.getLocatorType());
-        }
-        add(locatorTypeBox, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Timeout (ms):"), gbc);
-        gbc.gridx = 1;
+        formPanel.add(new JLabel("Timeout (ms):"));
         JTextField timeoutField = new JTextField(String.valueOf(action.getTimeout()));
-        add(timeoutField, gbc);
+        formPanel.add(timeoutField);
 
-        gbc.gridx = 0;
-        gbc.gridy++;
-        gbc.gridwidth = 2;
-        JButton applyBtn = new JButton("Speichern");
-        applyBtn.addActionListener(new AbstractAction() {
-            @Override
+        add(formPanel, BorderLayout.NORTH);
+
+        // Speichern-Button
+        JButton saveButton = new JButton("Speichern");
+        saveButton.addActionListener(new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
-                action.setAction(actionField.getText().trim());
+                action.setAction((String) actionBox.getSelectedItem());
                 action.setValue(valueField.getText().trim());
+                action.setLocatorType((String) locatorBox.getSelectedItem());
                 action.setSelectedSelector((String) selectorBox.getSelectedItem());
-                action.setLocatorType((String) locatorTypeBox.getSelectedItem());
                 try {
                     action.setTimeout(Integer.parseInt(timeoutField.getText().trim()));
                 } catch (NumberFormatException ignored) {}
                 JOptionPane.showMessageDialog(ActionEditorTab.this, "Änderungen gespeichert.");
             }
         });
-        add(applyBtn, gbc);
+
+        JPanel southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        southPanel.add(saveButton);
+        add(southPanel, BorderLayout.SOUTH);
     }
 }

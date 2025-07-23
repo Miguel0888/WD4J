@@ -1,5 +1,7 @@
 package de.bund.zrb.ui.tabs;
 
+import de.bund.zrb.event.ApplicationEventBus;
+import de.bund.zrb.event.TestSuiteSavedEvent;
 import de.bund.zrb.model.*;
 
 import javax.swing.*;
@@ -11,13 +13,18 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
 
     private final DefaultListModel<Object> stepListModel = new DefaultListModel<>();
     private final JList<Object> stepList = new JList<>(stepListModel);
+    private final JPanel detailPanel = new JPanel(new BorderLayout());
+    private final TestSuite suite;
 
-    public CaseEditorTab(TestCase testCase) {
+    public CaseEditorTab(TestSuite suiteRef, TestCase testCase) {
         super("Test Case: " + testCase.getName(), testCase);
+        this.suite = suiteRef;
 
         setLayout(new BorderLayout());
 
         stepList.setCellRenderer(new StepListRenderer());
+        stepList.addListSelectionListener(e -> updateDetailPanel(stepList.getSelectedValue()));
+
         JScrollPane scrollPane = new JScrollPane(stepList);
 
         JToolBar toolbar = new JToolBar();
@@ -55,8 +62,12 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
             }
         }));
 
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, scrollPane, detailPanel);
+        split.setResizeWeight(0.3);
+        split.setOneTouchExpandable(true);
+
         add(toolbar, BorderLayout.NORTH);
-        add(scrollPane, BorderLayout.CENTER);
+        add(split, BorderLayout.CENTER);
 
         reloadList();
     }
@@ -78,6 +89,7 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
             getModel().getThen().add((ThenExpectation) step);
         }
         reloadList();
+        ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suite.getName()));
     }
 
     private void deleteStep() {
@@ -88,20 +100,22 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
             else if (step instanceof TestAction) getModel().getWhen().remove(step);
             else if (step instanceof ThenExpectation) getModel().getThen().remove(step);
             reloadList();
+            detailPanel.removeAll();
+            detailPanel.revalidate();
+            detailPanel.repaint();
+            ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suite.getName()));
         }
     }
 
     private void moveStep(int direction) {
         int index = stepList.getSelectedIndex();
-        if (index < 0 || (direction == -1 && index == 0) || (direction == 1 && index == stepListModel.size() - 1)) {
-            return;
-        }
+        if (index < 0 || (direction == -1 && index == 0) || (direction == 1 && index == stepListModel.size() - 1)) return;
+
         Object current = stepListModel.get(index);
         stepListModel.remove(index);
         stepListModel.add(index + direction, current);
         stepList.setSelectedIndex(index + direction);
 
-        // Update model order (naiv: löschen und neu einfügen)
         if (current instanceof GivenCondition) {
             List<GivenCondition> list = getModel().getGiven();
             list.remove(current);
@@ -115,6 +129,21 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
             list.remove(current);
             list.add(index + direction, (ThenExpectation) current);
         }
+
+        ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(null));
+    }
+
+    private void updateDetailPanel(Object selected) {
+        detailPanel.removeAll();
+        if (selected instanceof TestAction) {
+            detailPanel.add(new ActionEditorTab((TestAction) selected), BorderLayout.CENTER);
+        } else if (selected instanceof GivenCondition) {
+            detailPanel.add(new JLabel("Given editor (TODO)"), BorderLayout.CENTER); // Placeholder
+        } else if (selected instanceof ThenExpectation) {
+            detailPanel.add(new JLabel("Then editor (TODO)"), BorderLayout.CENTER); // Placeholder
+        }
+        detailPanel.revalidate();
+        detailPanel.repaint();
     }
 
     private JButton createToolbarButton(String text, AbstractAction action) {
@@ -127,13 +156,9 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
             JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-            if (value instanceof GivenCondition) {
-                label.setText("Given: " + value.toString());
-            } else if (value instanceof TestAction) {
-                label.setText("When: " + ((TestAction) value).getAction());
-            } else if (value instanceof ThenExpectation) {
-                label.setText("Then: " + value.toString());
-            }
+            if (value instanceof GivenCondition) label.setText("Given: " + value);
+            else if (value instanceof TestAction) label.setText("When: " + ((TestAction) value).getAction());
+            else if (value instanceof ThenExpectation) label.setText("Then: " + value);
             return label;
         }
     }

@@ -6,6 +6,7 @@ import java.util.List;
 public class TestSuite {
     private String id;
     private String name;
+    private String description; // optional
 
     private final List<GivenCondition> given = new ArrayList<>();
     private final List<ThenExpectation> then = new ArrayList<>();
@@ -25,4 +26,13 @@ public class TestSuite {
     public List<GivenCondition> getGiven() { return given; }
     public List<ThenExpectation> getThen() { return then; }
     public List<TestCase> getTestCases() { return testCases; }
+
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
 }
