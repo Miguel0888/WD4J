@@ -11,6 +11,9 @@ import de.bund.zrb.ui.commands.tools.CaptureScreenshotCommand;
 import de.bund.zrb.ui.commands.tools.LoginUserCommand;
 import de.bund.zrb.ui.commands.tools.NavigationHomeCommand;
 import de.bund.zrb.ui.commands.tools.ShowOtpDialogCommand;
+import de.bund.zrb.ui.components.EditorPanel;
+import de.bund.zrb.ui.tabs.RecorderPanel;
+import de.bund.zrb.ui.tabs.RunnerPanel;
 
 import javax.swing.*;
 import java.awt.*;
@@ -114,6 +117,7 @@ public class MainWindow {
         JPanel panel = new JPanel(new BorderLayout());
 
         JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane.addTab("Editor", new EditorPanel());
         tabbedPane.addTab("Recorder", new RecorderPanel());
         tabbedPane.addTab("Test Runner", new RunnerPanel());
 
@@ -147,23 +151,6 @@ public class MainWindow {
         commandRegistry.register(new LoginUserCommand());
 
 
-    }
-
-
-    private static class RecorderPanel extends JPanel {
-        public RecorderPanel() {
-            super(new BorderLayout());
-            add(new JLabel("Recorder-Modus: Hier werden Tests aufgezeichnet und editiert."), BorderLayout.NORTH);
-            add(new JScrollPane(new JTable()), BorderLayout.CENTER);
-        }
-    }
-
-    private static class RunnerPanel extends JPanel {
-        public RunnerPanel() {
-            super(new BorderLayout());
-            add(new JLabel("Test Runner: Hier können Tests verwaltet und ausgeführt werden."), BorderLayout.NORTH);
-            add(new JScrollPane(new JList<>()), BorderLayout.CENTER);
-        }
     }
 
     public static void main(String[] args) {
