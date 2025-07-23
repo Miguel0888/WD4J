@@ -117,8 +117,6 @@ public class MainWindow {
         JPanel panel = new JPanel(new BorderLayout());
 
         JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.addTab("Editor", new EditorPanel());
-        tabbedPane.addTab("Recorder", new RecorderPanel());
         tabbedPane.addTab("Test Runner", new RunnerPanel());
 
         panel.add(tabbedPane, BorderLayout.CENTER);
