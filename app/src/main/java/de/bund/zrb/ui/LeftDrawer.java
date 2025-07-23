@@ -7,15 +7,20 @@ import de.bund.zrb.service.TestPlayerService;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.ui.commandframework.CommandRegistryImpl;
 import de.bund.zrb.ui.commandframework.MenuCommand;
+import de.bund.zrb.ui.tabs.ActionEditorTab;
+import de.bund.zrb.ui.tabs.CaseEditorTab;
+import de.bund.zrb.ui.tabs.SuiteEditorTab;
+import de.bund.zrb.ui.tabs.UIHelper;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
-import java.awt.BorderLayout;
-import java.awt.Color;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,17 +44,27 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
         testTree.setTransferHandler(new TestSuiteTreeTransferHandler());
         testTree.setCellRenderer(new TestTreeCellRenderer());
 
+        testTree.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    TreePath path = testTree.getPathForLocation(e.getX(), e.getY());
+                    if (path != null) {
+                        TestNode node = (TestNode) path.getLastPathComponent();
+                        openEditorTab(node);
+                    }
+                }
+            }
+        });
+
         JScrollPane treeScroll = new JScrollPane(testTree);
 
         JButton playButton = new JButton("▶");
         playButton.setBackground(Color.GREEN);
         playButton.setFocusPainted(false);
 
-        playButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
+        playButton.addActionListener(e -> {
                 MenuCommand playCommand = commandRegistry.getById("testsuite.play").get();
                 playCommand.perform();
-            }
         });
 
         setupContextMenu();
@@ -242,5 +257,30 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
             return TestRegistry.getInstance().getAll();
         }
         return selected;
+    }
+
+    private void openEditorTab(TestNode node) {
+        Object ref = node.getModelRef();
+        JComponent tab = null;
+        String title = node.toString();
+
+        if (ref instanceof TestAction) {
+            tab = new ActionEditorTab((TestAction) ref);
+        } else if (ref instanceof TestCase) {
+            tab = new CaseEditorTab((TestCase) ref);
+        } else if (ref instanceof TestSuite) {
+            tab = new SuiteEditorTab((TestSuite) ref);
+        }
+
+        if (tab != null) {
+            Component parent = SwingUtilities.getWindowAncestor(this);
+            if (parent instanceof JFrame) {
+                JTabbedPane tabbedPane = UIHelper.findTabbedPane((JFrame) parent);
+                if (tabbedPane != null) {
+                    tabbedPane.addTab(title, tab);
+                    tabbedPane.setSelectedComponent(tab);
+                }
+            }
+        }
     }
 }
