@@ -3,6 +3,7 @@ package de.bund.zrb.ui.tabs;
 import de.bund.zrb.event.ApplicationEventBus;
 import de.bund.zrb.event.TestSuiteSavedEvent;
 import de.bund.zrb.model.*;
+import de.bund.zrb.service.TestRegistry;
 
 import javax.swing.*;
 import java.awt.*;
@@ -89,6 +90,7 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
             getModel().getThen().add((ThenExpectation) step);
         }
         reloadList();
+        TestRegistry.getInstance().save();
         ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suite.getName()));
     }
 

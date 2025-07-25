@@ -5,6 +5,7 @@ import de.bund.zrb.event.TestSuiteSavedEvent;
 import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.model.ThenExpectation;
+import de.bund.zrb.service.TestRegistry;
 
 import javax.swing.*;
 import java.awt.*;
@@ -54,6 +55,7 @@ public class SuiteEditorTab extends AbstractEditorTab<TestSuite> {
             public void actionPerformed(ActionEvent e) {
                 suite.setName(nameField.getText());
                 suite.setDescription(descriptionArea.getText());
+                TestRegistry.getInstance().save();
                 ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suite.getName()));
             }
         });

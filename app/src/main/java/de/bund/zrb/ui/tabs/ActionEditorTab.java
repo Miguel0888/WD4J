@@ -1,6 +1,7 @@
 package de.bund.zrb.ui.tabs;
 
 import de.bund.zrb.model.TestAction;
+import de.bund.zrb.service.TestRegistry;
 
 import javax.swing.*;
 import java.awt.*;
@@ -78,6 +79,7 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                 try {
                     action.setTimeout(Integer.parseInt(timeoutField.getText().trim()));
                 } catch (NumberFormatException ignored) {}
+                TestRegistry.getInstance().save();
                 JOptionPane.showMessageDialog(ActionEditorTab.this, "Änderungen gespeichert.");
             }
         });
