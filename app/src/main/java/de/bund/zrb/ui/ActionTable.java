@@ -84,30 +84,36 @@ public class ActionTable extends JTable {
         }
     }
 
-    /** 🟢 Setzt die Spalteneditoren für DropDowns */
+    /** Setzt die Spalteneditoren für DropDowns */
     private void setUpEditors() {
         TableColumnModel columnModel = getColumnModel();
 
-        // 🟢 Checkbox-Editor setzen
+        // Checkbox-Editor bleibt unverändert
         columnModel.getColumn(0).setCellEditor(new DefaultCellEditor(new JCheckBox()));
         columnModel.getColumn(0).setCellRenderer(getDefaultRenderer(Boolean.class));
 
-        // Typen-Dropdown
+        // Typen-Dropdown (GIVEN/WHEN/THEN)
         JComboBox<TestAction.ActionType> typeComboBox = new JComboBox<>(TestAction.ActionType.values());
         columnModel.getColumn(1).setCellEditor(new DefaultCellEditor(typeComboBox));
 
-        // Aktionen DropDown
-        JComboBox<String> actionComboBox = new JComboBox<>(new String[]{"click", "input", "screenshot"});
+        // Aktionen DropDown – neue Aktionen ergänzt
+        JComboBox<String> actionComboBox =
+                new JComboBox<>(new String[]{ "click", "input", "select", "check", "radio", "screenshot" });
         columnModel.getColumn(2).setCellEditor(new DefaultCellEditor(actionComboBox));
 
-        // 🛠️ MouseListener für Klicks im Header hinzufügen
+        // Wert-Editor: erlaubt Freitext und bietet „OTP“ zur Auswahl
+        JComboBox<String> valueComboBox = new JComboBox<>(new String[]{ "OTP" });
+        valueComboBox.setEditable(true);
+        columnModel.getColumn(5).setCellEditor(new DefaultCellEditor(valueComboBox));
+
+        // Listener für den Spaltenkopf bleibt unverändert
         JTableHeader header = getTableHeader();
         header.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 int column = columnAtPoint(evt.getPoint());
                 if (column == 0) {
-                    columnMenu.show(header, evt.getX(), evt.getY()); // 🛠️ Popup-Menü anzeigen
+                    columnMenu.show(header, evt.getX(), evt.getY());
                 }
             }
         });
