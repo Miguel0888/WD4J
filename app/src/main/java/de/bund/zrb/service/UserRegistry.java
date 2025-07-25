@@ -46,6 +46,15 @@ public class UserRegistry {
         }
     }
 
+    public User getUser(String userId) {
+        for (User user : users) {
+            if (userId.equals(user.getUsername())) {
+                return user;
+            }
+        }
+        return null;
+    }
+
     public static class User {
         private String username;
         private String encryptedPassword;

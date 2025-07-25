@@ -3,6 +3,8 @@ package de.bund.zrb.model;
 import com.google.gson.JsonObject;
 import com.microsoft.playwright.options.AriaRole;
 import de.bund.zrb.dto.RecordedEvent;
+import de.bund.zrb.service.TotpService;
+import de.bund.zrb.service.UserRegistry;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -85,6 +87,17 @@ public class TestAction {
     }
 
     public String getValue() {
+        if (value != null && "OTP".equals(value)) {
+            String userId = getUser();
+            if (userId != null) {
+                UserRegistry.User user = UserRegistry.getInstance().getUser(userId);
+                if (user != null && user.getOtpSecret() != null) {
+                    return String.format("%06d",
+                            TotpService.getInstance().generateCurrentOtp(user.getOtpSecret()));
+                }
+            }
+            return "######"; // fallback bei Fehler
+        }
         return value;
     }
 
