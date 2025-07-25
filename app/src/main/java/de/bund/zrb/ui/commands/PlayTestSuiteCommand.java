@@ -1,13 +1,19 @@
 package de.bund.zrb.ui.commands;
 
-import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.TestPlayerService;
-import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
+import de.bund.zrb.ui.tabs.RunnerPanel;
 
-import java.util.List;
+import javax.swing.*;
 
 public class PlayTestSuiteCommand extends ShortcutMenuCommand {
+
+    private final JTabbedPane tabbedPane;
+
+    public PlayTestSuiteCommand(JTabbedPane tabbedPane) {
+        super();
+        this.tabbedPane = tabbedPane;
+    }
 
     @Override
     public String getId() {
@@ -23,9 +29,18 @@ public class PlayTestSuiteCommand extends ShortcutMenuCommand {
     public void perform() {
         System.out.println("▶ Starte Playback...");
 
+        // Tab öffnen
+        RunnerPanel runnerPanel = new RunnerPanel();
+        tabbedPane.addTab("Runner", runnerPanel);
+        tabbedPane.setSelectedComponent(runnerPanel);
+
+        // Protokollierung starten
+        runnerPanel.appendLog("🟢 Playback gestartet");
+
         TestPlayerService.getInstance().runSuites();
 
-        System.out.println("✅ Playback beendet");
+        runnerPanel.appendLog("✅ Playback beendet");
     }
+
 
 }

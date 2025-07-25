@@ -27,6 +27,7 @@ public class MainWindow {
     private final CommandRegistry commandRegistry = CommandRegistryImpl.getInstance();
 
     private JFrame frame;
+    private JTabbedPane tabbedPane = new JTabbedPane();
 
     public void initUI() {
         frame = new JFrame("Web Test Recorder & Runner");
@@ -116,9 +117,6 @@ public class MainWindow {
     private JPanel createMainPanel() {
         JPanel panel = new JPanel(new BorderLayout());
 
-        JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.addTab("Test Runner", new RunnerPanel());
-
         panel.add(tabbedPane, BorderLayout.CENTER);
         return panel;
     }
@@ -126,7 +124,7 @@ public class MainWindow {
     private void registerCommands() {
         commandRegistry.register(new ShowShortcutConfigMenuCommand(frame));
         commandRegistry.register(new SettingsCommand());
-        commandRegistry.register(new PlayTestSuiteCommand());
+        commandRegistry.register(new PlayTestSuiteCommand(tabbedPane));
         commandRegistry.register(new StartRecordCommand());
 
         commandRegistry.register(new LaunchBrowserCommand(browserService));
