@@ -6,12 +6,10 @@ import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.TestPlayerUi;
-import de.bund.zrb.ui.components.log.StepLog;
-import de.bund.zrb.ui.components.log.SuiteLog;
-import de.bund.zrb.ui.components.log.TestCaseLog;
-import de.bund.zrb.ui.components.log.TestExecutionLogger;
+import de.bund.zrb.ui.components.log.*;
 
 import javax.swing.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class TestPlayerService {
@@ -51,55 +49,47 @@ public class TestPlayerService {
 
         TestNode node = drawerRef.getSelectedNode();
         if (node == null) {
-            node = drawerRef.getRootNode(); // ✅ Wenn nix markiert ist → Root
+            node = drawerRef.getRootNode(); // fallback
         }
 
-        String suiteName = node.toString();
-        currentSuiteLog = new SuiteLog(suiteName);
-        runNodeRecursive(node);
-        logger.append(currentSuiteLog);
-    }
-
-    private void runNodeRecursive(TestNode node) {
-        if (node.getChildCount() == 0) {
-            // Blattknoten: Action ausführen und loggen
-            boolean passed = playLeafAction(node);
-            drawerRef.updateNodeStatus(node, passed);
-            return;
+        LogComponent log = buildLogTree(node);
+        logger.append(log);
         }
 
+    private LogComponent buildLogTree(TestNode node) {
         Object model = node.getModelRef();
-        if (model instanceof de.bund.zrb.model.TestCase) {
-            currentTestCaseLog = new TestCaseLog(node.toString());
-            currentSuiteLog.addChild(currentTestCaseLog);
+
+        if (model instanceof TestAction) {
+            TestAction action = (TestAction) model;
+            playSingleAction(action); // führt die Aktion aus
+            return new StepLog(action.getType().name(), buildStepText(action));
         }
 
+        List<LogComponent> children = new ArrayList<>();
         for (int i = 0; i < node.getChildCount(); i++) {
-            runNodeRecursive((TestNode) node.getChildAt(i));
+            LogComponent childLog = buildLogTree((TestNode) node.getChildAt(i));
+            if (childLog != null) {
+                children.add(childLog);
+            }
         }
 
         if (model instanceof de.bund.zrb.model.TestCase) {
-            currentTestCaseLog = null;
+            TestCaseLog caseLog = new TestCaseLog(node.toString());
+            for (LogComponent step : children) {
+                caseLog.addStep(step);
+            }
+
+            drawerRef.updateSuiteStatus(node);
+            return caseLog;
         }
 
+        // fallback für Root oder Suite
+        SuiteLog suiteLog = new SuiteLog(node.toString());
+        for (LogComponent component : children) {
+            suiteLog.addChild(component);
+        }
         drawerRef.updateSuiteStatus(node);
-    }
-
-
-    private boolean playLeafAction(TestNode node) {
-        TestAction action = node.getAction();
-        if (action == null) {
-            System.err.println("⚠️ Keine Action im Blattknoten gefunden!");
-            return false;
-        }
-
-        // Logging vorbereiten
-        StepLog stepLog = new StepLog(action.getType().name(), buildStepText(action));
-        if (currentTestCaseLog != null) {
-            currentTestCaseLog.addStep(stepLog);
-        }
-
-        return playSingleAction(action);
+        return suiteLog;
     }
 
     private String buildStepText(TestAction action) {
