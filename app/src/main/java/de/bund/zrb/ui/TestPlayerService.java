@@ -38,58 +38,38 @@ public class TestPlayerService {
     }
 
     public void runSuites() {
-        if (drawerRef == null) {
-            System.err.println("⚠️ Kein Drawer registriert!");
-            return;
-        }
-        if (logger == null) {
-            System.err.println("⚠️ Kein Logger registriert!");
-            return;
-        }
+        if (drawerRef == null || logger == null) return;
 
         TestNode node = drawerRef.getSelectedNode();
         if (node == null) {
-            node = drawerRef.getRootNode(); // fallback
+            node = drawerRef.getRootNode();
         }
 
-        LogComponent log = buildLogTree(node);
-        logger.append(log);
-        }
+        logger.append(new SuiteLog("🟢 Playback gestartet"));
 
-    private LogComponent buildLogTree(TestNode node) {
+        runNodeStepByStep(node);
+
+        logger.append(new SuiteLog("✅ Playback beendet"));
+    }
+
+    private void runNodeStepByStep(TestNode node) {
         Object model = node.getModelRef();
 
         if (model instanceof TestAction) {
             TestAction action = (TestAction) model;
-            playSingleAction(action); // führt die Aktion aus
-            return new StepLog(action.getType().name(), buildStepText(action));
+            playSingleAction(action);
+            logger.append(new StepLog(action.getType().name(), buildStepText(action)));
+            drawerRef.updateNodeStatus(node, true); // ggf. Fehlerhandling ergänzen
+            return;
         }
 
-        List<LogComponent> children = new ArrayList<>();
+        logger.append(new SuiteLog(node.toString())); // sofort loggen
+
         for (int i = 0; i < node.getChildCount(); i++) {
-            LogComponent childLog = buildLogTree((TestNode) node.getChildAt(i));
-            if (childLog != null) {
-                children.add(childLog);
-            }
+            runNodeStepByStep((TestNode) node.getChildAt(i));
         }
 
-        if (model instanceof de.bund.zrb.model.TestCase) {
-            TestCaseLog caseLog = new TestCaseLog(node.toString());
-            for (LogComponent step : children) {
-                caseLog.addStep(step);
-            }
-
-            drawerRef.updateSuiteStatus(node);
-            return caseLog;
-        }
-
-        // fallback für Root oder Suite
-        SuiteLog suiteLog = new SuiteLog(node.toString());
-        for (LogComponent component : children) {
-            suiteLog.addChild(component);
-        }
         drawerRef.updateSuiteStatus(node);
-        return suiteLog;
     }
 
     private String buildStepText(TestAction action) {
