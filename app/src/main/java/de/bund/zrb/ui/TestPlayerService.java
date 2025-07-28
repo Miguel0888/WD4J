@@ -20,8 +20,8 @@ public class TestPlayerService {
     private TestPlayerUi drawerRef;
     private TestExecutionLogger logger;
 
-    private SuiteLog currentSuiteLog;
-    private TestCaseLog currentTestCaseLog;
+    private volatile boolean stopped = false;
+    private volatile boolean running = false;
 
     private TestPlayerService() {}
 
@@ -37,7 +37,13 @@ public class TestPlayerService {
         this.logger = logger;
     }
 
+    public void stopPlayback() {
+        stopped = true;
+    }
+
     public void runSuites() {
+        stopped = false;
+        running = true;
         if (drawerRef == null || logger == null) return;
 
         TestNode node = drawerRef.getSelectedNode();
@@ -45,14 +51,20 @@ public class TestPlayerService {
             node = drawerRef.getRootNode();
         }
 
-        logger.append(new SuiteLog("🟢 Playback gestartet"));
+        logger.append(new SuiteLog("*** Playback gestartet ***"));
 
         runNodeStepByStep(node);
 
-        logger.append(new SuiteLog("✅ Playback beendet"));
+        if (!stopped) {
+            logger.append(new SuiteLog("✅ Playback beendet"));
+        } else {
+            logger.append(new SuiteLog("⏹ Playback gestoppt"));
+        }
+
     }
 
     private void runNodeStepByStep(TestNode node) {
+        if (stopped) return;
         Object model = node.getModelRef();
 
         if (model instanceof TestAction) {

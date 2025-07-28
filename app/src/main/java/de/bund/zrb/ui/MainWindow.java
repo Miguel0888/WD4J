@@ -122,6 +122,7 @@ public class MainWindow {
         commandRegistry.register(new ShowShortcutConfigMenuCommand(frame));
         commandRegistry.register(new SettingsCommand());
         commandRegistry.register(new PlayTestSuiteCommand(tabbedPane));
+        commandRegistry.register(new StopPlaybackCommand());
         commandRegistry.register(new StartRecordCommand());
 
         commandRegistry.register(new LaunchBrowserCommand(browserService));

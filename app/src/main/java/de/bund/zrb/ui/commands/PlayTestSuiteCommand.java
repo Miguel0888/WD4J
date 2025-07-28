@@ -35,14 +35,9 @@ public class PlayTestSuiteCommand extends ShortcutMenuCommand {
         tabbedPane.addTab("Runner", runnerPanel);
         tabbedPane.setSelectedComponent(runnerPanel);
 
-        // Protokollierung starten
-        runnerPanel.appendLog("🟢 Playback gestartet");
-
+        // Test Starten
         new Thread(() -> {
             TestPlayerService.getInstance().runSuites();
-            SwingUtilities.invokeLater(() ->
-                    runnerPanel.appendLog("✅ Playback beendet")
-            );
         }).start();
     }
 
