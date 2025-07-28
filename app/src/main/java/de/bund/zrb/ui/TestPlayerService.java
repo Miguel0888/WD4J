@@ -62,22 +62,29 @@ public class TestPlayerService {
 
     private void runNodeRecursive(TestNode node) {
         if (node.getChildCount() == 0) {
+            // Blattknoten: Action ausführen und loggen
             boolean passed = playLeafAction(node);
             drawerRef.updateNodeStatus(node, passed);
-        } else {
-            TestCaseLog previous = currentTestCaseLog;
-            currentTestCaseLog = new TestCaseLog(node.toString());
-
-            for (int i = 0; i < node.getChildCount(); i++) {
-                runNodeRecursive((TestNode) node.getChildAt(i));
-            }
-
-            currentSuiteLog.addChild(currentTestCaseLog);
-            currentTestCaseLog = previous;
-
-            drawerRef.updateSuiteStatus(node);
+            return;
         }
+
+        Object model = node.getModelRef();
+        if (model instanceof de.bund.zrb.model.TestCase) {
+            currentTestCaseLog = new TestCaseLog(node.toString());
+            currentSuiteLog.addChild(currentTestCaseLog);
+        }
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            runNodeRecursive((TestNode) node.getChildAt(i));
+        }
+
+        if (model instanceof de.bund.zrb.model.TestCase) {
+            currentTestCaseLog = null;
+        }
+
+        drawerRef.updateSuiteStatus(node);
     }
+
 
     private boolean playLeafAction(TestNode node) {
         TestAction action = node.getAction();
