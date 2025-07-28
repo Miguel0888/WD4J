@@ -31,6 +31,7 @@ public class PlayTestSuiteCommand extends ShortcutMenuCommand {
 
         // Tab öffnen
         RunnerPanel runnerPanel = new RunnerPanel();
+        TestPlayerService.getInstance().registerLogger(runnerPanel.getLogger());
         tabbedPane.addTab("Runner", runnerPanel);
         tabbedPane.setSelectedComponent(runnerPanel);
 

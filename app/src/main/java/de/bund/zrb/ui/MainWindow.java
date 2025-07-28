@@ -11,9 +11,6 @@ import de.bund.zrb.ui.commands.tools.CaptureScreenshotCommand;
 import de.bund.zrb.ui.commands.tools.LoginUserCommand;
 import de.bund.zrb.ui.commands.tools.NavigationHomeCommand;
 import de.bund.zrb.ui.commands.tools.ShowOtpDialogCommand;
-import de.bund.zrb.ui.components.EditorPanel;
-import de.bund.zrb.ui.tabs.RecorderPanel;
-import de.bund.zrb.ui.tabs.RunnerPanel;
 
 import javax.swing.*;
 import java.awt.*;

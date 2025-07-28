@@ -6,6 +6,10 @@ import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.TestPlayerUi;
+import de.bund.zrb.ui.components.log.StepLog;
+import de.bund.zrb.ui.components.log.SuiteLog;
+import de.bund.zrb.ui.components.log.TestCaseLog;
+import de.bund.zrb.ui.components.log.TestExecutionLogger;
 
 import javax.swing.*;
 import java.util.List;
@@ -16,6 +20,10 @@ public class TestPlayerService {
     private final BrowserServiceImpl browserService = BrowserServiceImpl.getInstance();
 
     private TestPlayerUi drawerRef;
+    private TestExecutionLogger logger;
+
+    private SuiteLog currentSuiteLog;
+    private TestCaseLog currentTestCaseLog;
 
     private TestPlayerService() {}
 
@@ -27,9 +35,17 @@ public class TestPlayerService {
         this.drawerRef = playerUi;
     }
 
+    public void registerLogger(TestExecutionLogger logger) {
+        this.logger = logger;
+    }
+
     public void runSuites() {
         if (drawerRef == null) {
-            System.err.println("⚠️ Kein LeftDrawer registriert!");
+            System.err.println("⚠️ Kein Drawer registriert!");
+            return;
+        }
+        if (logger == null) {
+            System.err.println("⚠️ Kein Logger registriert!");
             return;
         }
 
@@ -38,7 +54,10 @@ public class TestPlayerService {
             node = drawerRef.getRootNode(); // ✅ Wenn nix markiert ist → Root
         }
 
+        String suiteName = node.toString();
+        currentSuiteLog = new SuiteLog(suiteName);
         runNodeRecursive(node);
+        logger.append(currentSuiteLog);
     }
 
     private void runNodeRecursive(TestNode node) {
@@ -46,20 +65,47 @@ public class TestPlayerService {
             boolean passed = playLeafAction(node);
             drawerRef.updateNodeStatus(node, passed);
         } else {
+            TestCaseLog previous = currentTestCaseLog;
+            currentTestCaseLog = new TestCaseLog(node.toString());
+
             for (int i = 0; i < node.getChildCount(); i++) {
                 runNodeRecursive((TestNode) node.getChildAt(i));
             }
+
+            currentSuiteLog.addChild(currentTestCaseLog);
+            currentTestCaseLog = previous;
+
             drawerRef.updateSuiteStatus(node);
         }
     }
 
     private boolean playLeafAction(TestNode node) {
-        TestAction action = node.getAction(); // ✅ jetzt sauber direkt im Node!
+        TestAction action = node.getAction();
         if (action == null) {
             System.err.println("⚠️ Keine Action im Blattknoten gefunden!");
             return false;
         }
+
+        // Logging vorbereiten
+        StepLog stepLog = new StepLog(action.getType().name(), buildStepText(action));
+        if (currentTestCaseLog != null) {
+            currentTestCaseLog.addStep(stepLog);
+        }
+
         return playSingleAction(action);
+    }
+
+    private String buildStepText(TestAction action) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("User: ").append(action.getUser()).append(" | ");
+        sb.append("Aktion: ").append(action.getAction());
+        if (action.getSelectedSelector() != null) {
+            sb.append(" @").append(action.getSelectedSelector());
+        }
+        if (action.getValue() != null) {
+            sb.append(" → ").append(action.getValue());
+        }
+        return sb.toString();
     }
 
     public boolean playSingleAction(TestAction action) {
