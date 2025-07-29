@@ -6,7 +6,8 @@ import java.util.List;
 public class TestCaseLog implements LogComponent {
 
     private final String name;
-    private final List<LogComponent> steps = new ArrayList<>();
+    private LogComponent suite;
+    private List<LogComponent> steps = new ArrayList<>();
 
     public TestCaseLog(String name) {
         this.name = name;
@@ -37,7 +38,22 @@ public class TestCaseLog implements LogComponent {
     }
 
     @Override
+    public LogComponent getParent() {
+        return suite;
+    }
+
+    @Override
     public List<LogComponent> getChildren() {
         return steps;
+    }
+
+    @Override
+    public void setParent(LogComponent parent) {
+        this.suite = parent;
+    }
+
+    @Override
+    public void setChildren(List<LogComponent> children) {
+        this.steps = children;
     }
 }

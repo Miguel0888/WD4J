@@ -1,5 +1,6 @@
 package de.bund.zrb.ui.components.log;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -7,6 +8,9 @@ public class StepLog implements LogComponent {
 
     private final String phase;
     private final String content;
+
+    private LogComponent parent;
+    private List<LogComponent> children = new ArrayList<>();
 
     public StepLog(String phase, String content) {
         this.phase = phase;
@@ -24,8 +28,23 @@ public class StepLog implements LogComponent {
     }
 
     @Override
+    public LogComponent getParent() {
+        return parent;
+    }
+
+    @Override
     public List<LogComponent> getChildren() {
-        return Collections.emptyList();
+        return children;
+    }
+
+    @Override
+    public void setParent(LogComponent parent) {
+        this.parent = parent;
+    }
+
+    @Override
+    public void setChildren(List<LogComponent> children) {
+        this.children = children;
     }
 
     private String escape(String s) {

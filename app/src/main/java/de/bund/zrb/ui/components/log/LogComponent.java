@@ -7,5 +7,11 @@ public interface LogComponent {
 
     String getName();
 
+    LogComponent getParent();
+
     List<LogComponent> getChildren();
+
+    void setParent(LogComponent parent);
+
+    void setChildren(List<LogComponent> children);
 }

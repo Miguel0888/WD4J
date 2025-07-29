@@ -6,7 +6,8 @@ import java.util.List;
 public class SuiteLog implements LogComponent {
 
     private final String name;
-    private final List<LogComponent> children = new ArrayList<>();
+    private LogComponent parent = null;
+    private List<LogComponent> children = new ArrayList<>();
 
     public SuiteLog(String name) {
         this.name = name;
@@ -37,7 +38,22 @@ public class SuiteLog implements LogComponent {
     }
 
     @Override
+    public LogComponent getParent() {
+        return parent;
+    }
+
+    @Override
     public List<LogComponent> getChildren() {
         return children;
+    }
+
+    @Override
+    public void setParent(LogComponent parent) {
+        this.parent = parent;
+    }
+
+    @Override
+    public void setChildren(List<LogComponent> children) {
+        this.children = children;
     }
 }

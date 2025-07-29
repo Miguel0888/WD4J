@@ -3,12 +3,10 @@ package de.bund.zrb.service;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import de.bund.zrb.model.TestAction;
-import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.TestPlayerUi;
 import de.bund.zrb.ui.components.log.*;
 
-import javax.swing.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,36 +45,48 @@ public class TestPlayerService {
         if (drawerRef == null || logger == null) return;
 
         TestNode node = drawerRef.getSelectedNode();
-        if (node == null) {
-            node = drawerRef.getRootNode();
-        }
+        if (node == null) node = drawerRef.getRootNode();
 
-        runNodeStepByStep(node);
+        LogComponent rootLog = runNodeStepByStep(node);
+        if (rootLog != null) {
+            logger.append(rootLog); // Nur einmal hinzufügen – inkl. aller Kinder
+        }
 
         if (stopped) {
             logger.append(new SuiteLog("⏹ Playback abgebrochen!"));
         }
     }
 
-    private void runNodeStepByStep(TestNode node) {
-        if (stopped) return;
+    private LogComponent runNodeStepByStep(TestNode node) {
+        if (stopped) return null;
+
         Object model = node.getModelRef();
 
+        // 💡 Action → StepLog
         if (model instanceof TestAction) {
             TestAction action = (TestAction) model;
             playSingleAction(action);
-            logger.append(new StepLog(action.getType().name(), buildStepText(action)));
-            drawerRef.updateNodeStatus(node, true); // ggf. Fehlerhandling ergänzen
-            return;
+
+            StepLog stepLog = new StepLog(action.getType().name(), buildStepText(action));
+            drawerRef.updateNodeStatus(node, true); // z. B. farbige Markierung
+            return stepLog;
         }
 
-        logger.append(new SuiteLog(node.toString())); // sofort loggen
+        // 💡 Alles andere → SuiteLog (auch verschachtelte Suites)
+        SuiteLog suiteLog = new SuiteLog(node.toString());
+        List<LogComponent> children = new ArrayList<>();
 
         for (int i = 0; i < node.getChildCount(); i++) {
-            runNodeStepByStep((TestNode) node.getChildAt(i));
+            LogComponent child = runNodeStepByStep((TestNode) node.getChildAt(i));
+            if (child != null) {
+                child.setParent(suiteLog);
+                children.add(child);
+            }
         }
 
+        suiteLog.setChildren(children);
         drawerRef.updateSuiteStatus(node);
+        return suiteLog;
     }
 
     private String buildStepText(TestAction action) {

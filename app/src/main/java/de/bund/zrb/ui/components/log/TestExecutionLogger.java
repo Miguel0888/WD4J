@@ -1,7 +1,5 @@
 package de.bund.zrb.ui.components.log;
 
-import de.bund.zrb.ui.components.log.LogComponent;
-import de.bund.zrb.ui.components.log.PDFStyle;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -29,13 +27,15 @@ public class TestExecutionLogger {
 
     public void append(LogComponent log) {
         logComponents.add(log);
-        SwingUtilities.invokeLater(() -> {
-            String html = log.toHtml();
-            String current = logPane.getText();
-            int insertPos = current.lastIndexOf("</body>");
-            String updated = current.substring(0, insertPos) + html + "<br>" + current.substring(insertPos);
-            logPane.setText(updated);
-            logPane.setCaretPosition(logPane.getDocument().getLength());
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                String html = log.toHtml();
+                String current = logPane.getText();
+                int insertPos = current.lastIndexOf("</body>");
+                String updated = current.substring(0, insertPos) + html + "<br>" + current.substring(insertPos);
+                logPane.setText(updated);
+                logPane.setCaretPosition(logPane.getDocument().getLength());
+            }
         });
     }
 
@@ -44,102 +44,104 @@ public class TestExecutionLogger {
         PDDocumentOutline outline = new PDDocumentOutline();
         pdf.getDocumentCatalog().setDocumentOutline(outline);
 
+        PDPage page = new PDPage(PDRectangle.A4);
+        float[] y = new float[]{PDRectangle.A4.getHeight() - 50};
+        float left = 50;
+        float bottom = 50;
+        PDPageContentStream[] content = new PDPageContentStream[1];
+
         try {
             PDFStyle.initFont(pdf);
-
-            PDPage page = new PDPage(PDRectangle.A4);
             pdf.addPage(page);
-            PDPageContentStream content = new PDPageContentStream(pdf, page);
-            float[] y = {PDRectangle.A4.getHeight() - 50};
+            content[0] = new PDPageContentStream(pdf, page);
 
-            renderRootComponents(logComponents, outline, pdf, page, content, y);
+            for (LogComponent root : logComponents) {
+                if (root instanceof SuiteLog && root.getName() != null) {  // ✅ nur SuiteLogs mit Namen
+                    PDOutlineItem suiteItem = createOutlineItem(root.getName(), page);
+                    outline.addLast(suiteItem);
+                    suiteItem.openNode();
 
-            content.close();
+                    renderComponent(pdf, content, root, suiteItem, page, 0, left, bottom, y);
+                }
+            }
+
+            if (content[0] != null) content[0].close();
             outline.openNode();
             pdf.save(file);
-
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(null,
-                    "PDF-Export fehlgeschlagen: " + e.getMessage(),
-                    "Fehler", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Fehler beim PDF-Export: " + e.getMessage(), "Fehler", JOptionPane.ERROR_MESSAGE);
         } finally {
             try {
                 pdf.close();
-            } catch (IOException ignored) {}
+            } catch (IOException ignore) {}
         }
     }
 
-    private void renderRootComponents(List<LogComponent> components,
-                                      PDDocumentOutline outline,
-                                      PDDocument pdf,
-                                      PDPage page,
-                                      PDPageContentStream content,
-                                      float[] y) throws IOException {
-        for (LogComponent comp : components) {
-            PDOutlineItem item = createOutlineItem(comp.getName(), page);
-            outline.addLast(item);
-            item.openNode();
-            renderComponents(comp, item, pdf, page, content, 0, y);
-        }
-    }
+    private void renderComponent(PDDocument pdf,
+                                 PDPageContentStream[] content,
+                                 LogComponent comp,
+                                 PDOutlineItem parentToc,
+                                 PDPage currentPage,
+                                 int indent,
+                                 float left,
+                                 float bottom,
+                                 float[] y) throws IOException {
 
-    private void renderComponents(LogComponent comp,
-                                  PDOutlineItem parentItem,
-                                  PDDocument pdf,
-                                  PDPage currentPage,
-                                  PDPageContentStream content,
-                                  int indentLevel,
-                                  float[] y) throws IOException {
-        float left = 50;
-        float bottomMargin = 50;
+        PDFStyle style = indent == 0 ? PDFStyle.header(16) : indent == 1 ? PDFStyle.header(13) : PDFStyle.normal();
 
-        if (y[0] < bottomMargin) {
-            content.close();
+        if (y[0] < bottom + style.size + style.spacing) {
+            content[0].close();
             currentPage = new PDPage(PDRectangle.A4);
             pdf.addPage(currentPage);
-            content = new PDPageContentStream(pdf, currentPage);
+            content[0] = new PDPageContentStream(pdf, currentPage);
             y[0] = PDRectangle.A4.getHeight() - 50;
         }
 
-        // 👇 StepLog speziell behandeln
         if (comp instanceof StepLog) {
-            StepLog step = (StepLog) comp; // explizites Cast erforderlich in Java 8
+            StepLog step = (StepLog) comp;
             String line = step.getPhase() + ": " + step.getContent();
-            y[0] = drawText(content, line, PDFStyle.normal(), left + indentLevel * 10, y[0]);
-            y[0] -= 4;
+            y[0] = drawLine(content[0], normalize(line), PDFStyle.normal(), left + indent * 10, y[0]);
             return;
         }
 
-        // 👇 Alle anderen als Abschnitt mit Überschrift und TOC
-        PDFStyle style = indentLevel == 0
-                ? PDFStyle.header(16)
-                : indentLevel == 1 ? PDFStyle.header(13)
-                : PDFStyle.normal();
+        // Für SuiteLog oder TestCaseLog
+        y[0] = drawLine(content[0], comp.getName(), style, left + indent * 10, y[0]);
 
-        y[0] = drawText(content, comp.getName(), style, left + indentLevel * 10, y[0]);
-        y[0] -= 4;
+        List<LogComponent> children = comp.getChildren();
+        if (children != null && !children.isEmpty()) {
+            for (int i = 0; i < children.size(); i++) {
+                LogComponent child = children.get(i);
 
-        for (LogComponent child : comp.getChildren()) {
-            PDOutlineItem childItem = null;
-            if (!child.getChildren().isEmpty() && child.getName() != null && !child.getName().trim().isEmpty()) {
-                childItem = createOutlineItem(child.getName(), currentPage);
-                parentItem.addLast(childItem);
-                childItem.openNode();
+                PDOutlineItem childToc = null;
+                if (!(child instanceof StepLog)) {
+                    childToc = createOutlineItem(child.getName(), currentPage);
+                    parentToc.addLast(childToc);
+                    childToc.openNode();
+                }
+
+                renderComponent(pdf,
+                        content,
+                        child,
+                        childToc != null ? childToc : parentToc,
+                        currentPage,
+                        indent + 1,
+                        left,
+                        bottom,
+                        y);
             }
-
-            renderComponents(child,
-                    childItem != null ? childItem : parentItem,
-                    pdf, currentPage, content,
-                    indentLevel + 1, y);
         }
     }
 
-    private float drawText(PDPageContentStream content, String text, PDFStyle style, float left, float y) throws IOException {
+    private float drawLine(PDPageContentStream content,
+                           String text,
+                           PDFStyle style,
+                           float x,
+                           float y) throws IOException {
         content.beginText();
         content.setFont(style.font, style.size);
-        content.newLineAtOffset(left + style.indent, y);
-        content.showText(stripHtml(normalize(text)));
+        content.newLineAtOffset(x + style.indent, y);
+        content.showText(text);
         content.endText();
         return y - style.spacing - style.size;
     }
@@ -148,8 +150,8 @@ public class TestExecutionLogger {
         PDPageFitDestination dest = new PDPageFitDestination();
         dest.setPage(page);
         PDOutlineItem item = new PDOutlineItem();
-        item.setDestination(dest);
         item.setTitle(title);
+        item.setDestination(dest);
         return item;
     }
 
@@ -158,15 +160,6 @@ public class TestExecutionLogger {
                 .replace("❌", "[Fehler]")
                 .replace("🟢", "[Start]")
                 .replace("⏹", "[Stop]");
-    }
-
-    private String stripHtml(String html) {
-        return html.replaceAll("(?s)<[^>]*>", "")
-                .replace("&nbsp;", " ")
-                .replace("&amp;", "&")
-                .replace("&gt;", ">")
-                .replace("&lt;", "<")
-                .trim();
     }
 
     public void clear() {
