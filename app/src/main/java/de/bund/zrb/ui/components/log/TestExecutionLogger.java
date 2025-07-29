@@ -102,25 +102,27 @@ public class TestExecutionLogger {
             y[0] = PDRectangle.A4.getHeight() - 50;
         }
 
+        // 👇 StepLog speziell behandeln
+        if (comp instanceof StepLog) {
+            StepLog step = (StepLog) comp; // explizites Cast erforderlich in Java 8
+            String line = step.getPhase() + ": " + step.getContent();
+            y[0] = drawText(content, line, PDFStyle.normal(), left + indentLevel * 10, y[0]);
+            y[0] -= 4;
+            return;
+        }
+
+        // 👇 Alle anderen als Abschnitt mit Überschrift und TOC
         PDFStyle style = indentLevel == 0
                 ? PDFStyle.header(16)
                 : indentLevel == 1 ? PDFStyle.header(13)
                 : PDFStyle.normal();
 
-        // 🔍 StepLog: Kein TOC-Eintrag – nur Text rendern
-        if (comp.getChildren().isEmpty()) {
-            y[0] = drawText(content, comp.toHtml(), style, left + indentLevel * 10, y[0]);
-            y[0] -= 4;
-            return;
-        }
-
-        // Alle anderen mit Name + TOC
         y[0] = drawText(content, comp.getName(), style, left + indentLevel * 10, y[0]);
         y[0] -= 4;
 
         for (LogComponent child : comp.getChildren()) {
             PDOutlineItem childItem = null;
-            if (child.getChildren().size() > 0 && child.getName() != null && !child.getName().trim().isEmpty()) {
+            if (!child.getChildren().isEmpty() && child.getName() != null && !child.getName().trim().isEmpty()) {
                 childItem = createOutlineItem(child.getName(), currentPage);
                 parentItem.addLast(childItem);
                 childItem.openNode();
@@ -132,7 +134,6 @@ public class TestExecutionLogger {
                     indentLevel + 1, y);
         }
     }
-
 
     private float drawText(PDPageContentStream content, String text, PDFStyle style, float left, float y) throws IOException {
         content.beginText();

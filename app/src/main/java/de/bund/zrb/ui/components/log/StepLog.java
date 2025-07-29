@@ -33,4 +33,12 @@ public class StepLog implements LogComponent {
                 .replace("<", "&lt;")
                 .replace(">", "&gt;");
     }
+
+    public String getPhase() {
+        return phase;
+    }
+
+    public String getContent() {
+        return content;
+    }
 }
