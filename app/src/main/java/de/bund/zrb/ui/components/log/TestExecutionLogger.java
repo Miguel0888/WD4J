@@ -4,13 +4,13 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.destination.PDPageFitDestination;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDDocumentOutline;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineItem;
 
 import javax.swing.*;
-import javax.swing.text.BadLocationException;
 import javax.swing.text.MutableAttributeSet;
 import javax.swing.text.html.HTML;
-import javax.swing.text.html.HTMLDocument;
 import javax.swing.text.html.HTMLEditorKit;
 import java.io.File;
 import java.io.IOException;
@@ -22,6 +22,7 @@ import java.util.List;
 public class TestExecutionLogger {
 
     private final JEditorPane logPane;
+    private final List<LogComponent> logComponents = new ArrayList<>();
 
     public TestExecutionLogger(JEditorPane logPane) {
         this.logPane = logPane;
@@ -30,6 +31,7 @@ public class TestExecutionLogger {
     }
 
     public void append(LogComponent log) {
+        logComponents.add(log);
         SwingUtilities.invokeLater(() -> {
             String html = log.toHtml();
             String current = logPane.getText();
@@ -42,85 +44,99 @@ public class TestExecutionLogger {
 
     public void exportAsPdf(File file) {
         PDDocument pdf = new PDDocument();
+        PDDocumentOutline outline = new PDDocumentOutline();
+        pdf.getDocumentCatalog().setDocumentOutline(outline);
+
         try {
-            // 🧠 Initialisiere den Font einmal VOR dem Parser
             PDFStyle.initFont(pdf);
 
-            String html = logPane.getText();
-            Reader reader = new StringReader(html);
-
-            HTMLKitWithPublicParser kit = new HTMLKitWithPublicParser();
-            HTMLEditorKit.Parser parser = kit.getPublicParser();
-
+            final PDPage[] currentPage = {null};
             final PDPageContentStream[] content = {null};
             final float[] y = {PDRectangle.A4.getHeight() - 50};
             final float left = 50;
             final float lineHeight = 14;
 
-            parser.parse(reader, new HTMLEditorKit.ParserCallback() {
-                final PDFStyle[] currentStyle = {PDFStyle.normal()};
+            final PDOutlineItem[] currentSuiteItem = {null};
 
-                private void ensurePage() throws IOException {
-                    if (y[0] < 50 || content[0] == null) {
-                        if (content[0] != null) content[0].close();
-                        PDPage page = new PDPage(PDRectangle.A4);
-                        pdf.addPage(page);
-                        content[0] = new PDPageContentStream(pdf, page);
-                        y[0] = PDRectangle.A4.getHeight() - 50;
-                    }
-                }
+            for (LogComponent log : logComponents) {
+                String html = log.toHtml();
+                Reader reader = new StringReader(html);
+                HTMLEditorKit.Parser parser = new HTMLKitWithPublicParser().getPublicParser();
 
-                private void flushLine(String text, PDFStyle style) throws IOException {
-                    ensurePage();
-                    content[0].beginText();
-                    content[0].setFont(style.font, style.size);
-                    content[0].newLineAtOffset(left + style.indent, y[0]);
-                    content[0].showText(normalize(text));
-                    content[0].endText();
-                    y[0] -= lineHeight + style.spacing;
-                }
+                parser.parse(reader, new HTMLEditorKit.ParserCallback() {
+                    final PDFStyle[] currentStyle = {PDFStyle.normal()};
 
-                @Override
-                public void handleStartTag(HTML.Tag tag, MutableAttributeSet attributes, int pos) {
-                    if (tag == HTML.Tag.H1) currentStyle[0] = PDFStyle.header(16);
-                    else if (tag == HTML.Tag.H2) currentStyle[0] = PDFStyle.header(14);
-                    else if (tag == HTML.Tag.UL) currentStyle[0] = PDFStyle.listItem();
-                    else if (tag == HTML.Tag.P) currentStyle[0] = PDFStyle.normal();
-                }
-
-                @Override
-                public void handleText(char[] data, int pos) {
-                    try {
-                        String line = new String(data).trim();
-                        if (!line.isEmpty()) {
-                            flushLine(line, currentStyle[0]);
+                    private void ensurePage() throws IOException {
+                        if (y[0] < 50 || content[0] == null) {
+                            if (content[0] != null) content[0].close();
+                            currentPage[0] = new PDPage(PDRectangle.A4);
+                            pdf.addPage(currentPage[0]);
+                            content[0] = new PDPageContentStream(pdf, currentPage[0]);
+                            y[0] = PDRectangle.A4.getHeight() - 50;
                         }
-                    } catch (IOException e) {
-                        e.printStackTrace();
                     }
-                }
 
-                @Override
-                public void handleSimpleTag(HTML.Tag tag, MutableAttributeSet a, int pos) {
-                    if (tag == HTML.Tag.BR) {
-                        y[0] -= lineHeight;
+                    private void flushLine(String text, PDFStyle style) throws IOException {
+                        ensurePage();
+                        content[0].beginText();
+                        content[0].setFont(style.font, style.size);
+                        content[0].newLineAtOffset(left + style.indent, y[0]);
+                        content[0].showText(normalize(text));
+                        content[0].endText();
+                        y[0] -= lineHeight + style.spacing;
                     }
-                }
 
-                @Override
-                public void handleEndTag(HTML.Tag tag, int pos) {
-                    currentStyle[0] = PDFStyle.normal();
-                }
+                    @Override
+                    public void handleText(char[] data, int pos) {
+                        try {
+                            String line = new String(data).trim();
+                            if (line.isEmpty()) return;
 
-            }, true);
+                            // 🔍 Strukturlogik aus Komponententyp:
+                            if (log instanceof SuiteLog) {
+                                PDFStyle style = PDFStyle.header(14);
+                                flushLine(line, style);
+
+                                PDPageFitDestination dest = new PDPageFitDestination();
+                                dest.setPage(currentPage[0]);
+                                PDOutlineItem tocItem = new PDOutlineItem();
+                                tocItem.setTitle(line);
+                                tocItem.setDestination(dest);
+
+                                if (isTopLevelSuite(line)) {
+                                    outline.addLast(tocItem);
+                                    currentSuiteItem[0] = tocItem;
+                                } else {
+                                    if (currentSuiteItem[0] != null) {
+                                        currentSuiteItem[0].addLast(tocItem);
+                                    } else {
+                                        outline.addLast(tocItem); // fallback
+                                    }
+                                }
+
+                                tocItem.openNode();
+
+                            } else if (log instanceof StepLog) {
+                                flushLine(line, PDFStyle.normal());
+                            }
+
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }, true);
+            }
 
             if (content[0] != null) content[0].close();
+
+            outline.openNode();
             pdf.save(file);
+
         } catch (Exception e) {
+            e.printStackTrace();
             JOptionPane.showMessageDialog(null,
                     "Fehler beim PDF-Export: " + e.getMessage(),
                     "Exportfehler", JOptionPane.ERROR_MESSAGE);
-            e.printStackTrace();
         } finally {
             try {
                 pdf.close();
@@ -128,20 +144,20 @@ public class TestExecutionLogger {
         }
     }
 
+    private boolean isTopLevelSuite(String name) {
+        // z. B. "3" ist Top-Level, "3_1" oder "3.1" ist Sub-Suite
+        return !name.contains("_") && !name.contains(".");
+    }
+
     private String normalize(String text) {
-        return text
-                .replace("✅", "[OK]")
+        return text.replace("✅", "[OK]")
                 .replace("🟢", "[Start]")
                 .replace("⏹", "[Stop]")
                 .replace("❌", "[Fehler]");
     }
 
-    private String stripHtmlTags(String html) {
-        return html.replaceAll("(?s)<[^>]*>", "")
-                .replace("&nbsp;", " ")
-                .replace("&amp;", "&")
-                .replace("&gt;", ">")
-                .replace("&lt;", "<")
-                .trim();
+    public void clear() {
+        logComponents.clear();
+        logPane.setText("<html><body></body></html>");
     }
 }

@@ -33,7 +33,7 @@ public class RunnerPanel extends JPanel {
         JLabel title = new JLabel("Test Runner");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
 
-        JButton downloadButton = new JButton("⭳"); // Unicode für Pfeil nach unten
+        JButton downloadButton = new JButton("⭳"); // Unicode für Pfeil nach untenMC
         downloadButton.setToolTipText("Log als PDF exportieren");
         downloadButton.setFocusPainted(false);
         downloadButton.setMargin(new Insets(2, 8, 2, 8));
