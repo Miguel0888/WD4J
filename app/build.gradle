@@ -40,6 +40,8 @@ dependencies {
     // otp auth
     implementation 'com.warrenstrange:googleauth:1.4.0'
 
+    // pdf Erzeugung
+    implementation 'org.apache.pdfbox:pdfbox:2.0.27' // Letzte Version mit Java 8-Support
 }
 
 jar {

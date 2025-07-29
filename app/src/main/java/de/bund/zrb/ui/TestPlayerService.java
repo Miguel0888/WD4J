@@ -51,8 +51,7 @@ public class TestPlayerService {
             node = drawerRef.getRootNode();
         }
 
-        logger.append(new SuiteLog("*** Playback gestartet ***"));
-
+//        logger.append(new SuiteLog("*** Playback gestartet ***"));
         runNodeStepByStep(node);
 
         if (!stopped) {
