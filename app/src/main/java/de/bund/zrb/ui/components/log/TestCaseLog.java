@@ -30,4 +30,14 @@ public class TestCaseLog implements LogComponent {
                 .replace("<", "&lt;")
                 .replace(">", "&gt;");
     }
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public List<LogComponent> getChildren() {
+        return steps;
+    }
 }

@@ -1,5 +1,8 @@
 package de.bund.zrb.ui.components.log;
 
+import java.util.Collections;
+import java.util.List;
+
 public class StepLog implements LogComponent {
 
     private final String phase;
@@ -13,6 +16,16 @@ public class StepLog implements LogComponent {
     @Override
     public String toHtml() {
         return "<p><b>" + phase + ":</b> " + escape(content) + "</p>";
+    }
+
+    @Override
+    public String getName() {
+        return phase;
+    }
+
+    @Override
+    public List<LogComponent> getChildren() {
+        return Collections.emptyList();
     }
 
     private String escape(String s) {

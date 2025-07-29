@@ -61,13 +61,6 @@ public class RunnerPanel extends JPanel {
         return logger;
     }
 
-    /**
-     * Optional: Plaintext-Log als HTML-Zeile einfügen
-     */
-    public void appendLog(String message) {
-        logger.append(() -> "<p>" + escapeHtml(message) + "</p>");
-    }
-
     private String escapeHtml(String text) {
         return text.replace("&", "&amp;")
                 .replace("<", "&lt;")

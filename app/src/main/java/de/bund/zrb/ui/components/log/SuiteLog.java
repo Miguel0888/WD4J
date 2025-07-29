@@ -1,7 +1,5 @@
 package de.bund.zrb.ui.components.log;
 
-import de.bund.zrb.ui.components.log.LogComponent;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,5 +29,15 @@ public class SuiteLog implements LogComponent {
         return s.replace("&", "&amp;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;");
+    }
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public List<LogComponent> getChildren() {
+        return children;
     }
 }
