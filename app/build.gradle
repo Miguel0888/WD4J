@@ -42,6 +42,13 @@ dependencies {
 
     // pdf Erzeugung
     implementation 'org.apache.pdfbox:pdfbox:2.0.27' // Letzte Version mit Java 8-Support
+
+    // JavaScript
+    implementation 'com.fifesoft:rsyntaxtextarea:3.3.3'
+    implementation 'org.graalvm.js:js:22.3.0'
+
+    // JSON
+    implementation 'com.google.code.gson:gson:2.10.1'
 }
 
 jar {
