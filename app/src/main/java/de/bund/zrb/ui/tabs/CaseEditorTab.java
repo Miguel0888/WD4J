@@ -142,7 +142,7 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
         } else if (selected instanceof GivenCondition) {
             detailPanel.add(new JLabel("Given editor (TODO)"), BorderLayout.CENTER); // Placeholder
         } else if (selected instanceof ThenExpectation) {
-            detailPanel.add(new JLabel("Then editor (TODO)"), BorderLayout.CENTER); // Placeholder
+            detailPanel.add(new ThenExpectationEditorTab((ThenExpectation) selected), BorderLayout.CENTER);
         }
         detailPanel.revalidate();
         detailPanel.repaint();
@@ -158,9 +158,9 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
             JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-            if (value instanceof GivenCondition) label.setText("Given: " + value);
+            if (value instanceof GivenCondition) label.setText("Given: " + ((GivenCondition) value).getType());
             else if (value instanceof TestAction) label.setText("When: " + ((TestAction) value).getAction());
-            else if (value instanceof ThenExpectation) label.setText("Then: " + value);
+            else if (value instanceof ThenExpectation) label.setText("Then: " + ((ThenExpectation) value).getType());
             return label;
         }
     }
