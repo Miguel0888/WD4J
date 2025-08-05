@@ -158,11 +158,24 @@ public class ThenExpectationEditorTab extends JPanel {
         public final String name;
         public final String label;
         public final String defaultValue;
+        public final String type;
+        public final List<String> options;
 
         public ExpectationParam(String name, String label, String defaultValue) {
+            this(name, label, defaultValue, "text", Collections.emptyList());
+        }
+
+        public ExpectationParam(String name, String label, String defaultValue, String type) {
+            this(name, label, defaultValue, type, Collections.emptyList());
+        }
+
+        public ExpectationParam(String name, String label, String defaultValue, String type, List<String> options) {
             this.name = name;
             this.label = label;
             this.defaultValue = defaultValue;
+            this.type = type;
+            this.options = options;
         }
     }
+
 }

@@ -42,8 +42,22 @@ public class ExpectationRegistry {
                         throw new ValidationException("Selector darf nicht leer sein.");
                     }
                 });
+
         screenshot.addField("selector", "CSS Selector", "body");
         screenshot.addField("threshold", "Fehlertoleranz (%)", "0");
+        screenshot.addField("fullPage", "Vollständige Seite", "false");
+        screenshot.addField("maskColor", "Maskenfarbe", "#FF00FF");
+        screenshot.addField("omitBackground", "Hintergrund ausblenden", "false");
+        screenshot.addField("quality", "Qualität (0–100)", "");
+        screenshot.addField("scale", "Skalierung", "device");
+        screenshot.addField("style", "CSS Stylesheet", "");
+        screenshot.addField("timeout", "Timeout (ms)", "30000");
+        screenshot.addField("type", "Dateiformat", "png");
+
+        screenshot.addField("clipX", "Clip X", "");
+        screenshot.addField("clipY", "Clip Y", "");
+        screenshot.addField("clipWidth", "Clip Breite", "");
+        screenshot.addField("clipHeight", "Clip Höhe", "");
 
         register(screenshot);
 
@@ -61,4 +75,5 @@ public class ExpectationRegistry {
 
         register(js);
     }
+
 }

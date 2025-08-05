@@ -58,7 +58,7 @@ public class ThenExpectation {
     }
 
     public void validate() throws ValidationException {
-        ExpectationTypeDefinition def = de.bund.zrb.model.ExpectationRegistry.getInstance().get(type);
+        ExpectationTypeDefinition def = ExpectationRegistry.getInstance().get(type);
         if (def != null) {
             def.validate(getParameterMap());
         }
