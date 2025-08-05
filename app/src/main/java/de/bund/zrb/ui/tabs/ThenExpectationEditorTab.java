@@ -83,6 +83,25 @@ public class ThenExpectationEditorTab extends JPanel {
                 editor.setText(value != null ? value.toString() : "");
                 input = new RTextScrollPane(editor);
                 inputs.put(field.name, editor);
+            } else if (field.type == Boolean.class) {
+                JCheckBox checkBox = new JCheckBox();
+                checkBox.setSelected(Boolean.TRUE.equals(value));
+                input = checkBox;
+                inputs.put(field.name, checkBox);
+            } else if (field.type == Integer.class || field.type == Double.class) {
+                Number number = (value instanceof Number)
+                        ? (Number) value
+                        : parseNumber(value, field.type);
+                JSpinner spinner = new JSpinner(new SpinnerNumberModel(
+                        number != null ? number.doubleValue() : 0.0,
+                        0, 1_000_000, 1));
+                input = spinner;
+                inputs.put(field.name, spinner);
+            } else if (!field.options.isEmpty()) {
+                JComboBox<Object> comboBox = new JComboBox<>(field.options.toArray());
+                comboBox.setSelectedItem(value);
+                input = comboBox;
+                inputs.put(field.name, comboBox);
             } else {
                 JTextField tf = new JTextField(value != null ? value.toString() : "");
                 input = tf;
@@ -105,14 +124,39 @@ public class ThenExpectationEditorTab extends JPanel {
         for (Map.Entry<String, JComponent> entry : inputs.entrySet()) {
             String name = entry.getKey();
             JComponent input = entry.getValue();
+
+            Object value = null;
             if (input instanceof JTextField) {
-                result.put(name, ((JTextField) input).getText());
+                value = ((JTextField) input).getText();
             } else if (input instanceof RSyntaxTextArea) {
-                result.put(name, ((RSyntaxTextArea) input).getText());
+                value = ((RSyntaxTextArea) input).getText();
+            } else if (input instanceof JCheckBox) {
+                value = ((JCheckBox) input).isSelected();
+            } else if (input instanceof JSpinner) {
+                value = ((JSpinner) input).getValue();
+            } else if (input instanceof JComboBox) {
+                value = ((JComboBox<?>) input).getSelectedItem();
             }
+
+            result.put(name, value);
         }
 
         expectation.setParameterMap(result);
         JOptionPane.showMessageDialog(this, "Änderungen gespeichert.");
     }
+
+    private Number parseNumber(Object value, Class<?> targetType) {
+        try {
+            String str = value != null ? value.toString() : "0";
+            if (targetType == Integer.class) {
+                return Integer.parseInt(str);
+            } else if (targetType == Double.class) {
+                return Double.parseDouble(str);
+            }
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+        return 0;
+    }
+
 }

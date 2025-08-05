@@ -1,5 +1,6 @@
 package de.bund.zrb.model;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -43,21 +44,21 @@ public class ExpectationRegistry {
                     }
                 });
 
-        screenshot.addField("selector", "CSS Selector", "body");
-        screenshot.addField("threshold", "Fehlertoleranz (%)", "0");
-        screenshot.addField("fullPage", "Vollständige Seite", "false");
-        screenshot.addField("maskColor", "Maskenfarbe", "#FF00FF");
-        screenshot.addField("omitBackground", "Hintergrund ausblenden", "false");
-        screenshot.addField("quality", "Qualität (0–100)", "");
-        screenshot.addField("scale", "Skalierung", "device");
-        screenshot.addField("style", "CSS Stylesheet", "");
-        screenshot.addField("timeout", "Timeout (ms)", "30000");
-        screenshot.addField("type", "Dateiformat", "png");
+        screenshot.addField("selector", "CSS Selector", "body", String.class);
+        screenshot.addField("threshold", "Fehlertoleranz (%)", 0.01, Double.class);
+        screenshot.addField("fullPage", "Vollständige Seite", false, Boolean.class);
+        screenshot.addField("maskColor", "Maskenfarbe", "#FF00FF", String.class);
+        screenshot.addField("omitBackground", "Hintergrund ausblenden", false, Boolean.class);
+        screenshot.addField("quality", "Qualität (0–100)", 100, Integer.class);
+        screenshot.addField("scale", "Skalierung", "device", String.class, Arrays.asList("device", "css"));
+        screenshot.addField("style", "CSS Stylesheet", "", String.class);
+        screenshot.addField("timeout", "Timeout (ms)", 30000, Integer.class);
+        screenshot.addField("type", "Dateiformat", "png", String.class, Arrays.asList("png", "jpeg", "webp"));
 
-        screenshot.addField("clipX", "Clip X", "");
-        screenshot.addField("clipY", "Clip Y", "");
-        screenshot.addField("clipWidth", "Clip Breite", "");
-        screenshot.addField("clipHeight", "Clip Höhe", "");
+        screenshot.addField("clipX", "Clip X", null, Integer.class);
+        screenshot.addField("clipY", "Clip Y", null, Integer.class);
+        screenshot.addField("clipWidth", "Clip Breite", null, Integer.class);
+        screenshot.addField("clipHeight", "Clip Höhe", null, Integer.class);
 
         register(screenshot);
 
@@ -71,9 +72,11 @@ public class ExpectationRegistry {
                         throw new ValidationException("JavaScript darf nicht leer sein.");
                     }
                 });
-        js.addField("script", "JavaScript Ausdruck", "return document.title");
+
+        js.addField("script", "JavaScript Ausdruck", "return document.title", String.class);
 
         register(js);
     }
+
 
 }

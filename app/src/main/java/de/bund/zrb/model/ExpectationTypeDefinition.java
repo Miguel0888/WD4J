@@ -1,6 +1,8 @@
 package de.bund.zrb.model;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -34,8 +36,12 @@ public class ExpectationTypeDefinition {
         return fields;
     }
 
-    public void addField(String name, String label, String defaultValue) {
-        fields.put(name, new ExpectationField(name, label, defaultValue));
+    public void addField(String name, String label, Object defaultValue, Class<?> type) {
+        fields.put(name, new ExpectationField(name, label, defaultValue, type));
+    }
+
+    public void addField(String name, String label, Object defaultValue, Class<?> type, List<?> options) {
+        fields.put(name, new ExpectationField(name, label, defaultValue, type, options));
     }
 
     public void validate(Map<String, Object> params) throws ValidationException {
@@ -47,12 +53,21 @@ public class ExpectationTypeDefinition {
     public static class ExpectationField {
         public final String name;
         public final String label;
-        public final String defaultValue;
+        public final Object defaultValue;
+        public final Class<?> type;
+        public final List<?> options;
 
-        public ExpectationField(String name, String label, String defaultValue) {
+        public ExpectationField(String name, String label, Object defaultValue, Class<?> type) {
+            this(name, label, defaultValue, type, Collections.emptyList());
+        }
+
+        public ExpectationField(String name, String label, Object defaultValue, Class<?> type, List<?> options) {
             this.name = name;
             this.label = label;
             this.defaultValue = defaultValue;
+            this.type = type;
+            this.options = options;
         }
     }
+
 }
