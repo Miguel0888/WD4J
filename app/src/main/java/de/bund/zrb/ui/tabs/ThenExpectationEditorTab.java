@@ -1,8 +1,9 @@
 package de.bund.zrb.ui.tabs;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import de.bund.zrb.model.ThenExpectation;
+import de.bund.zrb.model.ExpectationRegistry;
+import de.bund.zrb.model.ExpectationTypeDefinition;
+import de.bund.zrb.model.ExpectationTypeDefinition.ExpectationField;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.fife.ui.rtextarea.RTextScrollPane;
@@ -10,9 +11,8 @@ import org.fife.ui.rtextarea.RTextScrollPane;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.lang.reflect.Type;
-import java.util.*;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class ThenExpectationEditorTab extends JPanel {
 
@@ -21,14 +21,14 @@ public class ThenExpectationEditorTab extends JPanel {
     private final JPanel dynamicFieldsPanel = new JPanel(new GridBagLayout());
     private final Map<String, JComponent> inputs = new LinkedHashMap<>();
 
-    private static final Gson gson = new Gson();
-
     public ThenExpectationEditorTab(ThenExpectation expectation) {
         this.expectation = expectation;
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        typeBox = new JComboBox<>(ExpectationRegistry.getAllTypes().toArray(new String[0]));
+        // Lade alle Typen aus dem model.ExpectationRegistry
+        typeBox = new JComboBox<>(ExpectationRegistry.getInstance().getAll()
+                .stream().map(ExpectationTypeDefinition::getType).toArray(String[]::new));
         typeBox.setEditable(false);
         typeBox.setSelectedItem(expectation.getType());
         typeBox.addActionListener(e -> rebuildDynamicForm((String) typeBox.getSelectedItem()));
@@ -57,7 +57,7 @@ public class ThenExpectationEditorTab extends JPanel {
         inputs.clear();
 
         Map<String, Object> paramMap = expectation.getParameterMap();
-        ExpectationType def = ExpectationRegistry.getType(type);
+        ExpectationTypeDefinition def = ExpectationRegistry.getInstance().get(type);
         if (def == null) return;
 
         GridBagConstraints gbc = new GridBagConstraints();
@@ -65,28 +65,28 @@ public class ThenExpectationEditorTab extends JPanel {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        for (ExpectationParam param : def.params) {
+        for (ExpectationField field : def.getFields().values()) {
             gbc.gridx = 0;
             gbc.weightx = 0;
-            dynamicFieldsPanel.add(new JLabel(param.label + ":"), gbc);
+            dynamicFieldsPanel.add(new JLabel(field.label + ":"), gbc);
 
             gbc.gridx = 1;
             gbc.weightx = 1;
 
+            Object value = paramMap.getOrDefault(field.name, field.defaultValue);
             JComponent input;
-            Object defaultValue = paramMap.getOrDefault(param.name, param.defaultValue);
 
-            if ("script".equals(param.name)) {
+            if ("script".equals(field.name)) {
                 RSyntaxTextArea editor = new RSyntaxTextArea(10, 40);
                 editor.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVASCRIPT);
                 editor.setCodeFoldingEnabled(true);
-                editor.setText(defaultValue != null ? defaultValue.toString() : "");
+                editor.setText(value != null ? value.toString() : "");
                 input = new RTextScrollPane(editor);
-                inputs.put(param.name, editor);
+                inputs.put(field.name, editor);
             } else {
-                JTextField tf = new JTextField(defaultValue != null ? defaultValue.toString() : "");
+                JTextField tf = new JTextField(value != null ? value.toString() : "");
                 input = tf;
-                inputs.put(param.name, tf);
+                inputs.put(field.name, tf);
             }
 
             dynamicFieldsPanel.add(input, gbc);
@@ -115,67 +115,4 @@ public class ThenExpectationEditorTab extends JPanel {
         expectation.setParameterMap(result);
         JOptionPane.showMessageDialog(this, "Änderungen gespeichert.");
     }
-
-    // Registry statisch, kann später extern ausgelagert werden
-    private static class ExpectationRegistry {
-        private static final Map<String, ExpectationType> TYPES = new LinkedHashMap<>();
-
-        static {
-            register(new ExpectationType("screenshot",
-                    new ExpectationParam("selector", "CSS-Selektor", "body"),
-                    new ExpectationParam("threshold", "Schwellwert", "0.01")
-            ));
-
-            register(new ExpectationType("js-eval",
-                    new ExpectationParam("script", "JavaScript-Code", "return true;")
-            ));
-        }
-
-        public static void register(ExpectationType def) {
-            TYPES.put(def.name, def);
-        }
-
-        public static Set<String> getAllTypes() {
-            return TYPES.keySet();
-        }
-
-        public static ExpectationType getType(String name) {
-            return TYPES.get(name);
-        }
-    }
-
-    private static class ExpectationType {
-        public final String name;
-        public final List<ExpectationParam> params;
-
-        public ExpectationType(String name, ExpectationParam... params) {
-            this.name = name;
-            this.params = Arrays.asList(params);
-        }
-    }
-
-    private static class ExpectationParam {
-        public final String name;
-        public final String label;
-        public final String defaultValue;
-        public final String type;
-        public final List<String> options;
-
-        public ExpectationParam(String name, String label, String defaultValue) {
-            this(name, label, defaultValue, "text", Collections.emptyList());
-        }
-
-        public ExpectationParam(String name, String label, String defaultValue, String type) {
-            this(name, label, defaultValue, type, Collections.emptyList());
-        }
-
-        public ExpectationParam(String name, String label, String defaultValue, String type, List<String> options) {
-            this.name = name;
-            this.label = label;
-            this.defaultValue = defaultValue;
-            this.type = type;
-            this.options = options;
-        }
-    }
-
 }
