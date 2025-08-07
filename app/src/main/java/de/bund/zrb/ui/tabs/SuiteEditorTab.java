@@ -16,6 +16,8 @@ public class SuiteEditorTab extends AbstractEditorTab<TestSuite> {
 
     private final DefaultListModel<Object> setupModel = new DefaultListModel<>();
     private final DefaultListModel<Object> teardownModel = new DefaultListModel<>();
+    private final JPanel setupDetailPanel = new JPanel(new BorderLayout());
+    private final JPanel teardownDetailPanel = new JPanel(new BorderLayout());
     private final JTextField nameField;
     private final JTextArea descriptionArea;
 
@@ -40,14 +42,16 @@ public class SuiteEditorTab extends AbstractEditorTab<TestSuite> {
         form.add(namePanel, BorderLayout.NORTH);
 
         // Setup (Given)
-        JPanel setupPanel = createStepPanel("Setup (Given)", suite.getGiven(), setupModel);
+        JSplitPane setupSplit = createStepPanel(
+                "Setup (Given)", suite.getGiven(), setupModel, setupDetailPanel, true);
         // Teardown (Then)
-        JPanel teardownPanel = createStepPanel("Teardown (Then)", suite.getThen(), teardownModel);
+        JSplitPane teardownSplit = createStepPanel(
+                "Teardown (Then)", suite.getThen(), teardownModel, teardownDetailPanel, false);
 
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, setupPanel, teardownPanel);
-        splitPane.setResizeWeight(0.5);
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, setupSplit, teardownSplit);
+        mainSplit.setResizeWeight(0.5);
 
-        form.add(splitPane, BorderLayout.CENTER);
+        form.add(mainSplit, BorderLayout.CENTER);
 
         JButton saveBtn = new JButton("Speichern");
         saveBtn.addActionListener(new AbstractAction() {
@@ -64,28 +68,36 @@ public class SuiteEditorTab extends AbstractEditorTab<TestSuite> {
         add(saveBtn, BorderLayout.SOUTH);
     }
 
-    private JPanel createStepPanel(String title, List<?> steps, DefaultListModel<Object> model) {
+    private JSplitPane createStepPanel(String title, List<?> steps, DefaultListModel<Object> model,
+                                       JPanel detailPanel, boolean isGiven) {
         model.clear();
         for (Object step : steps) {
             model.addElement(step);
         }
 
         JList<Object> list = new JList<>(model);
+        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setCellRenderer(new DefaultListCellRenderer());
+
+        list.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                Object selected = list.getSelectedValue();
+                updateDetailPanel(selected, detailPanel, isGiven);
+            }
+        });
 
         JButton addBtn = new JButton("+");
         JButton removeBtn = new JButton("🗑");
 
         addBtn.addActionListener(e -> {
-            if (title.contains("Setup")) {
-                GivenCondition step = new GivenCondition();
-                getModel().getGiven().add(step);
-                model.addElement(step);
+            Object step = isGiven ? new GivenCondition() : new ThenExpectation();
+            if (isGiven) {
+                getModel().getGiven().add((GivenCondition) step);
             } else {
-                ThenExpectation step = new ThenExpectation();
-                getModel().getThen().add(step);
-                model.addElement(step);
+                getModel().getThen().add((ThenExpectation) step);
             }
+            model.addElement(step);
+            TestRegistry.getInstance().save();
             ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(getModel().getName()));
         });
 
@@ -93,12 +105,16 @@ public class SuiteEditorTab extends AbstractEditorTab<TestSuite> {
             int selected = list.getSelectedIndex();
             if (selected >= 0) {
                 Object item = model.getElementAt(selected);
-                if (title.contains("Setup")) {
+                if (isGiven) {
                     getModel().getGiven().remove(item);
                 } else {
                     getModel().getThen().remove(item);
                 }
                 model.removeElement(item);
+                detailPanel.removeAll();
+                detailPanel.revalidate();
+                detailPanel.repaint();
+                TestRegistry.getInstance().save();
                 ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(getModel().getName()));
             }
         });
@@ -112,6 +128,26 @@ public class SuiteEditorTab extends AbstractEditorTab<TestSuite> {
         tools.add(removeBtn);
 
         panel.add(tools, BorderLayout.SOUTH);
-        return panel;
+
+        detailPanel.removeAll();
+        detailPanel.setBorder(BorderFactory.createTitledBorder("Details"));
+
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                panel, detailPanel);
+        split.setResizeWeight(0.4);
+        return split;
+    }
+
+    private void updateDetailPanel(Object selected, JPanel targetPanel, boolean isGiven) {
+        targetPanel.removeAll();
+
+        if (isGiven && selected instanceof GivenCondition) {
+            targetPanel.add(new JLabel("Given editor (TODO)"), BorderLayout.CENTER);
+        } else if (!isGiven && selected instanceof ThenExpectation) {
+            targetPanel.add(new ThenExpectationEditorTab((ThenExpectation) selected), BorderLayout.CENTER);
+        }
+
+        targetPanel.revalidate();
+        targetPanel.repaint();
     }
 }
