@@ -1,5 +1,6 @@
 package de.bund.zrb.ui.tabs;
 
+import de.bund.zrb.model.Code;
 import de.bund.zrb.model.ThenExpectation;
 import de.bund.zrb.model.ExpectationRegistry;
 import de.bund.zrb.model.ExpectationTypeDefinition;
@@ -61,55 +62,76 @@ public class ThenExpectationEditorTab extends JPanel {
         if (def == null) return;
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridy = 0;
         gbc.insets = new Insets(5, 5, 5, 5);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        int row = 0;
 
         for (ExpectationField field : def.getFields().values()) {
-            gbc.gridx = 0;
-            gbc.weightx = 0;
-            dynamicFieldsPanel.add(new JLabel(field.label + ":"), gbc);
-
-            gbc.gridx = 1;
-            gbc.weightx = 1;
-
             Object value = paramMap.getOrDefault(field.name, field.defaultValue);
             JComponent input;
 
-            if ("script".equals(field.name)) {
+            if (field.type == Code.class) {
                 RSyntaxTextArea editor = new RSyntaxTextArea(10, 40);
                 editor.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVASCRIPT);
                 editor.setCodeFoldingEnabled(true);
                 editor.setText(value != null ? value.toString() : "");
-                input = new RTextScrollPane(editor);
-                inputs.put(field.name, editor);
-            } else if (field.type == Boolean.class) {
+                RTextScrollPane scrollPane = new RTextScrollPane(editor);
+
+                // Label (ganze Breite)
+                gbc.gridx = 0;
+                gbc.gridy = row++;
+                gbc.gridwidth = 2;
+                gbc.weightx = 1.0;
+                gbc.weighty = 0;
+                gbc.fill = GridBagConstraints.HORIZONTAL;
+                dynamicFieldsPanel.add(new JLabel(field.label), gbc);
+
+                // Editor (ganze Breite, dehnt sich aus)
+                gbc.gridy = row++;
+                gbc.fill = GridBagConstraints.BOTH;
+                gbc.weighty = 1.0;
+                dynamicFieldsPanel.add(scrollPane, gbc);
+
+                inputs.put(field.name, editor); // wichtig!
+                continue; // nächsten Field verarbeiten
+            }
+
+            // Label (linke Spalte)
+            gbc.gridx = 0;
+            gbc.gridy = row;
+            gbc.gridwidth = 1;
+            gbc.weightx = 0;
+            gbc.weighty = 0;
+            gbc.fill = GridBagConstraints.NONE;
+            dynamicFieldsPanel.add(new JLabel(field.label + ":"), gbc);
+
+            // Input (rechte Spalte)
+            gbc.gridx = 1;
+            gbc.weightx = 1.0;
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+
+            if (field.type == Boolean.class) {
                 JCheckBox checkBox = new JCheckBox();
                 checkBox.setSelected(Boolean.TRUE.equals(value));
                 input = checkBox;
-                inputs.put(field.name, checkBox);
             } else if (field.type == Integer.class || field.type == Double.class) {
                 Number number = (value instanceof Number)
                         ? (Number) value
                         : parseNumber(value, field.type);
-                JSpinner spinner = new JSpinner(new SpinnerNumberModel(
-                        number != null ? number.doubleValue() : 0.0,
-                        0, 1_000_000, 1));
-                input = spinner;
-                inputs.put(field.name, spinner);
+                input = new JSpinner(new SpinnerNumberModel(
+                        number.doubleValue(), 0, 1_000_000, 1));
             } else if (!field.options.isEmpty()) {
                 JComboBox<Object> comboBox = new JComboBox<>(field.options.toArray());
                 comboBox.setSelectedItem(value);
                 input = comboBox;
-                inputs.put(field.name, comboBox);
             } else {
                 JTextField tf = new JTextField(value != null ? value.toString() : "");
                 input = tf;
-                inputs.put(field.name, tf);
             }
 
             dynamicFieldsPanel.add(input, gbc);
-            gbc.gridy++;
+            inputs.put(field.name, input);
+            row++;
         }
 
         revalidate();

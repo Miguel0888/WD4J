@@ -73,7 +73,7 @@ public class ExpectationRegistry {
                     }
                 });
 
-        js.addField("script", "JavaScript Ausdruck", "return document.title", String.class);
+        js.addField("script", "JavaScript Ausdruck", "return document.title", Code.class);
 
         register(js);
     }
