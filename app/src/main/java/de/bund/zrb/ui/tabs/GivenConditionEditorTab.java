@@ -5,6 +5,7 @@ import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.GivenRegistry;
 import de.bund.zrb.model.GivenTypeDefinition;
 import de.bund.zrb.model.GivenTypeDefinition.GivenField;
+import de.bund.zrb.service.TestRegistry;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.fife.ui.rtextarea.RTextScrollPane;
@@ -139,6 +140,10 @@ public class GivenConditionEditorTab extends JPanel {
         }
 
         condition.setValue(serializeValueMap(result));
+
+        // Speichern nicht vergessen, wenn vorher NULL wichtig
+        TestRegistry.getInstance().save();
+
         JOptionPane.showMessageDialog(this, "Änderungen gespeichert.");
     }
 
