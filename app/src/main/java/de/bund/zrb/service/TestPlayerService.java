@@ -2,7 +2,9 @@ package de.bund.zrb.service;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.TestAction;
+import de.bund.zrb.model.TestCase;
 import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.TestPlayerUi;
 import de.bund.zrb.ui.components.log.*;
@@ -14,6 +16,7 @@ public class TestPlayerService {
 
     private static final TestPlayerService INSTANCE = new TestPlayerService();
     private final BrowserServiceImpl browserService = BrowserServiceImpl.getInstance();
+    private final GivenConditionExecutor givenExecutor = new GivenConditionExecutor();
 
     private TestPlayerUi drawerRef;
     private TestExecutionLogger logger;
@@ -72,7 +75,46 @@ public class TestPlayerService {
             return stepLog;
         }
 
-        // 💡 Alles andere → SuiteLog (auch verschachtelte Suites)
+        // TestCase mit Given-Blöcken
+        if (model instanceof TestCase) {
+            TestCase testCase = (TestCase) model;
+            SuiteLog suiteLog = new SuiteLog(testCase.getName());
+
+            List<LogComponent> children = new ArrayList<>();
+
+            // Execute Given
+            for (GivenCondition given : testCase.getGiven()) {
+                StepLog givenLog = new StepLog("Given", "Given: " + given.getType());
+                try {
+                    // Username aus Parametern, wenn vorhanden
+                    String user = (String) given.getParameterMap().get("username");
+                    if (user == null || user.isEmpty()) {
+                        user = "default"; // Optional: Fallback
+                    }
+                    givenExecutor.apply(user, given);
+                } catch (Exception ex) {
+                    givenLog.setStatus(false);
+                    givenLog.setError(ex.getMessage());
+                }
+                givenLog.setParent(suiteLog);
+                children.add(givenLog);
+            }
+
+            // Rekursiv alle Schritte
+            for (int i = 0; i < node.getChildCount(); i++) {
+                LogComponent child = runNodeStepByStep((TestNode) node.getChildAt(i));
+                if (child != null) {
+                    child.setParent(suiteLog);
+                    children.add(child);
+                }
+            }
+
+            suiteLog.setChildren(children);
+            drawerRef.updateSuiteStatus(node);
+            return suiteLog;
+        }
+
+        // Alle anderen Nodes (z. B. Suite)
         SuiteLog suiteLog = new SuiteLog(node.toString());
         List<LogComponent> children = new ArrayList<>();
 

@@ -8,6 +8,8 @@ public class StepLog implements LogComponent {
 
     private final String phase;
     private final String content;
+    private boolean success = true;
+    private String errorMessage;
 
     private LogComponent parent;
     private List<LogComponent> children = new ArrayList<>();
@@ -19,7 +21,14 @@ public class StepLog implements LogComponent {
 
     @Override
     public String toHtml() {
-        return "<p><b>" + phase + ":</b> " + escape(content) + "</p>";
+        StringBuilder sb = new StringBuilder();
+        String statusSymbol = success ? "✔" : "❌";
+        sb.append("<p><b>").append(statusSymbol).append(" ").append(phase).append(":</b> ").append(escape(content));
+        if (!success && errorMessage != null && !errorMessage.isEmpty()) {
+            sb.append("<br><i style='color:red'>Fehler: ").append(escape(errorMessage)).append("</i>");
+        }
+        sb.append("</p>");
+        return sb.toString();
     }
 
     @Override
@@ -47,17 +56,29 @@ public class StepLog implements LogComponent {
         this.children = children;
     }
 
-    private String escape(String s) {
-        return s.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;");
-    }
-
     public String getPhase() {
         return phase;
     }
 
     public String getContent() {
         return content;
+    }
+
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setStatus(boolean success) {
+        this.success = success;
+    }
+
+    public void setError(String errorMessage) {
+        this.errorMessage = errorMessage;
+    }
+
+    private String escape(String s) {
+        return s.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
     }
 }
