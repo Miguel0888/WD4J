@@ -5,6 +5,7 @@ import com.microsoft.playwright.Page;
 import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
+import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.TestPlayerUi;
 import de.bund.zrb.ui.components.log.*;
@@ -117,6 +118,24 @@ public class TestPlayerService {
         // Alle anderen Nodes (z. B. Suite)
         SuiteLog suiteLog = new SuiteLog(node.toString());
         List<LogComponent> children = new ArrayList<>();
+
+        if (model instanceof TestSuite) {
+            TestSuite suite = (TestSuite) model;
+            for (GivenCondition given : suite.getGiven()) {
+                StepLog givenLog = new StepLog("Suite-Given", "Given: " + given.getType());
+                try {
+                    String user = (String) given.getParameterMap().get("username");
+                    GivenConditionExecutor executor = new GivenConditionExecutor();
+                    executor.apply(user, given);
+                } catch (Exception ex) {
+                    // Optional: Falls du eine Fehlerbehandlung brauchst
+                    // givenLog.setStatus(false);
+                    // givenLog.setError(ex.getMessage());
+                }
+                givenLog.setParent(suiteLog);
+                children.add(givenLog);
+            }
+        }
 
         for (int i = 0; i < node.getChildCount(); i++) {
             LogComponent child = runNodeStepByStep((TestNode) node.getChildAt(i));

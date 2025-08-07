@@ -1,5 +1,6 @@
 package de.bund.zrb.service;
 
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.GivenRegistry;
@@ -69,15 +70,28 @@ public class GivenConditionExecutor {
             throw new RuntimeException("Unbekannter Benutzer: " + username);
         }
 
+        // Seite aufrufen
         page.navigate(user.getLoginPage());
 
-        page.locator(user.getLoginConfig().getUsernameSelector()).fill(user.getUsername());
-        page.locator(user.getLoginConfig().getPasswordSelector()).fill(user.getDecryptedPassword());
-        page.locator(user.getLoginConfig().getSubmitSelector()).click();
+        // Warte auf Eingabefeld und fülle Username
+        Locator usernameInput = page.locator(user.getLoginConfig().getUsernameSelector());
+        usernameInput.waitFor(new Locator.WaitForOptions().setTimeout(30_000));
+        usernameInput.fill(user.getUsername(), new Locator.FillOptions().setTimeout(30_000));
 
-        // optional warten bis Startseite geladen
-        if (user.getStartPage() != null) {
-            page.waitForURL(user.getStartPage());
+        // Warte auf Passwortfeld und fülle Passwort
+        Locator passwordInput = page.locator(user.getLoginConfig().getPasswordSelector());
+        passwordInput.waitFor(new Locator.WaitForOptions().setTimeout(30_000));
+        passwordInput.fill(user.getDecryptedPassword(), new Locator.FillOptions().setTimeout(30_000));
+
+        // Warte auf Submit-Button und klicke ihn
+        Locator submitButton = page.locator(user.getLoginConfig().getSubmitSelector());
+        submitButton.waitFor(new Locator.WaitForOptions().setTimeout(30_000));
+        submitButton.click(new Locator.ClickOptions().setTimeout(30_000));
+
+        // Optional warten, bis Startseite geladen ist
+        if (user.getStartPage() != null && !user.getStartPage().isEmpty()) {
+            page.waitForURL(user.getStartPage(), new Page.WaitForURLOptions().setTimeout(30_000));
         }
     }
+
 }
