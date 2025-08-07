@@ -5,6 +5,7 @@ import de.bund.zrb.model.ThenExpectation;
 import de.bund.zrb.model.ExpectationRegistry;
 import de.bund.zrb.model.ExpectationTypeDefinition;
 import de.bund.zrb.model.ExpectationTypeDefinition.ExpectationField;
+import de.bund.zrb.service.TestRegistry;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.fife.ui.rtextarea.RTextScrollPane;
@@ -164,6 +165,10 @@ public class ThenExpectationEditorTab extends JPanel {
         }
 
         expectation.setParameterMap(result);
+
+        // Speichern explizit anstoßen (wichtig, wenn vorher NULL gewesen)
+        TestRegistry.getInstance().save();
+
         JOptionPane.showMessageDialog(this, "Änderungen gespeichert.");
     }
 
