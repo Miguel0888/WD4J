@@ -1,8 +1,13 @@
 package de.bund.zrb.model;
 
+import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.service.UserRegistry.User;
+
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class GivenRegistry {
 
@@ -37,6 +42,12 @@ public class GivenRegistry {
         GivenTypeDefinition jsEval = new GivenTypeDefinition("js-eval", "JavaScript Bedingung (true/false)");
         jsEval.addField("script", "JavaScript Ausdruck", "return document.readyState === 'complete';", Code.class);
         register(jsEval);
+
+        GivenTypeDefinition loggedIn = new GivenTypeDefinition("logged-in", "Benutzer ist eingeloggt");
+        List<String> usernames = UserRegistry.getInstance().getAll()
+                .stream().map(User::getUsername).collect(Collectors.toList());
+        loggedIn.addField("username", "Benutzername", "", String.class, usernames);
+        register(loggedIn);
     }
 
     public void register(GivenTypeDefinition def) {
