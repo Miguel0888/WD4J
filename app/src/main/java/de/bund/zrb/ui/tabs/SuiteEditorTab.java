@@ -142,7 +142,7 @@ public class SuiteEditorTab extends AbstractEditorTab<TestSuite> {
         targetPanel.removeAll();
 
         if (isGiven && selected instanceof GivenCondition) {
-            targetPanel.add(new JLabel("Given editor (TODO)"), BorderLayout.CENTER);
+            targetPanel.add(new GivenConditionEditorTab((GivenCondition) selected), BorderLayout.CENTER);
         } else if (!isGiven && selected instanceof ThenExpectation) {
             targetPanel.add(new ThenExpectationEditorTab((ThenExpectation) selected), BorderLayout.CENTER);
         }

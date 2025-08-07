@@ -140,7 +140,7 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
         if (selected instanceof TestAction) {
             detailPanel.add(new ActionEditorTab((TestAction) selected), BorderLayout.CENTER);
         } else if (selected instanceof GivenCondition) {
-            detailPanel.add(new JLabel("Given editor (TODO)"), BorderLayout.CENTER); // Placeholder
+            detailPanel.add(new GivenConditionEditorTab((GivenCondition) selected), BorderLayout.CENTER);
         } else if (selected instanceof ThenExpectation) {
             detailPanel.add(new ThenExpectationEditorTab((ThenExpectation) selected), BorderLayout.CENTER);
         }
