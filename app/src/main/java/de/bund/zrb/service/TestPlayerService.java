@@ -172,35 +172,60 @@ public class TestPlayerService {
             }
 
             Page page = browserService.getActivePage(username);
+            String act = action.getAction();
 
-            switch (action.getAction()) {
-                case "navigate":
-                    page.navigate(action.getValue(), new Page.NavigateOptions().setTimeout(action.getTimeout()));
-                    break;
-                case "click":
-                    Locator clickLocator = page.locator(action.getSelectedSelector());
-                    clickLocator.waitFor(new Locator.WaitForOptions().setTimeout(action.getTimeout()));
-                    clickLocator.click(new Locator.ClickOptions().setTimeout(action.getTimeout()));
-                    break;
-                case "input":
-                case "fill":
-                    Locator fillLocator = page.locator(action.getSelectedSelector());
-                    fillLocator.waitFor(new Locator.WaitForOptions().setTimeout(action.getTimeout()));
-                    fillLocator.fill(action.getValue(), new Locator.FillOptions().setTimeout(action.getTimeout()));
-                    break;
-                case "wait":
-                    long waitTime = Long.parseLong(action.getValue());
-                    Thread.sleep(waitTime);
-                    break;
-                default:
-                    System.out.println("⚠️ Nicht unterstützte Action: " + action.getAction());
+            if ("navigate".equals(act)) {
+                page.navigate(action.getValue(), new Page.NavigateOptions().setTimeout(action.getTimeout()));
+                return true;
+            }
+            if ("wait".equals(act)) {
+                long waitTime = Long.parseLong(action.getValue());
+                Thread.sleep(waitTime);
+                return true;
             }
 
-            return true;
+            // Resolve locator depending on LocatorType (CSS/XPath/Text/Id/Role/Label/Placeholder/AltText)
+            com.microsoft.playwright.Locator locator = LocatorResolver.resolve(page, action);
+
+            if ("click".equals(act)) {
+                locator.waitFor(new com.microsoft.playwright.Locator.WaitForOptions().setTimeout(action.getTimeout()));
+                locator.click(new com.microsoft.playwright.Locator.ClickOptions().setTimeout(action.getTimeout()));
+                return true;
+            }
+            if ("input".equals(act) || "fill".equals(act)) {
+                locator.waitFor(new com.microsoft.playwright.Locator.WaitForOptions().setTimeout(action.getTimeout()));
+                locator.fill(action.getValue(), new com.microsoft.playwright.Locator.FillOptions().setTimeout(action.getTimeout()));
+                return true;
+            }
+            if ("select".equals(act)) {
+                locator.waitFor(new com.microsoft.playwright.Locator.WaitForOptions().setTimeout(action.getTimeout()));
+                locator.selectOption(action.getValue());
+                return true;
+            }
+            if ("check".equals(act)) {
+                locator.waitFor(new com.microsoft.playwright.Locator.WaitForOptions().setTimeout(action.getTimeout()));
+                locator.check(new com.microsoft.playwright.Locator.CheckOptions().setTimeout(action.getTimeout()));
+                return true;
+            }
+            if ("radio".equals(act)) {
+                locator.waitFor(new com.microsoft.playwright.Locator.WaitForOptions().setTimeout(action.getTimeout()));
+                locator.check(new com.microsoft.playwright.Locator.CheckOptions().setTimeout(action.getTimeout()));
+                return true;
+            }
+            if ("screenshot".equals(act)) {
+                // Optional: capture element screenshot; or page screenshot if selector empty
+                page.screenshot(new Page.ScreenshotOptions().setTimeout(action.getTimeout()));
+                return true;
+            }
+
+            System.out.println("⚠️ Nicht unterstützte Action: " + act);
+            return false;
+
         } catch (Exception e) {
             System.err.println("❌ Fehler bei Playback: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
     }
+
 }

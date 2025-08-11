@@ -89,7 +89,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         List<RecordedEvent> result = new ArrayList<RecordedEvent>();
         WDRemoteValue.ArrayRemoteValue eventsArray = null;
 
-        // Find "events" array on root
+        // Find "events"
         for (Map.Entry<WDRemoteValue, WDRemoteValue> entry : data.getValue().entrySet()) {
             if (entry.getKey() instanceof WDPrimitiveProtocolValue.StringValue) {
                 String key = ((WDPrimitiveProtocolValue.StringValue) entry.getKey()).getValue();
@@ -111,7 +111,6 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
             WDRemoteValue.ObjectRemoteValue eventObj = (WDRemoteValue.ObjectRemoteValue) item;
             RecordedEvent event = new RecordedEvent();
 
-            // Parse top-level fields and nested objects
             for (Map.Entry<WDRemoteValue, WDRemoteValue> pair : eventObj.getValue().entrySet()) {
                 if (!(pair.getKey() instanceof WDPrimitiveProtocolValue.StringValue)) continue;
 
@@ -125,15 +124,11 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
                 }
 
                 if (value instanceof WDRemoteValue.ObjectRemoteValue) {
-                    // Handle nested objects like { text: "..."} or aria/attributes/test maps
                     parseNestedObject(event, key, (WDRemoteValue.ObjectRemoteValue) value);
                     continue;
                 }
 
-                if (value instanceof WDRemoteValue.ArrayRemoteValue) {
-                    // Optionally handle arrays later if needed
-                    // Leave as no-op for now.
-                }
+                // Arrays derzeit ignorieren
             }
 
             result.add(event);
@@ -145,6 +140,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
     /** Map simple string fields coming from the recorder. */
     private void applySimpleField(RecordedEvent event, String key, String val) {
         if (val == null) return;
+
         if ("selector".equals(key)) { event.setCss(val); return; }
         if ("action".equals(key)) { event.setAction(val); return; }
         if ("buttonText".equals(key)) { event.setButtonText(val); return; }
@@ -154,68 +150,55 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         if ("inputName".equals(key)) { event.setInputName(val); return; }
         if ("elementId".equals(key)) { event.setElementId(val); return; }
 
-        // Unknown simple field → keep in extractedValues for later use
-        if (event.getExtractedValues() != null) {
-            event.getExtractedValues().put(key, val);
+        // Unbekannte einfache Felder landen in extractedValues
+        if (event.getExtractedValues() == null) {
+            event.setExtractedValues(new LinkedHashMap<String, String>());
         }
+        event.getExtractedValues().put(key, val);
     }
 
-    /** Parse nested object; pull out known keys and also stash everything into extractedValues. */
+    /** Parse a nested object; pull out known groups and common keys (e.g., "text"). */
     private void parseNestedObject(RecordedEvent event, String parentKey, WDRemoteValue.ObjectRemoteValue obj) {
         Map<String, String> flat = objectToStringMap(obj);
 
-        // 1) Well-known nested maps by name
-        if ("aria".equals(parentKey)) {
-            if (event.getAria() == null) {
-                event.setExtractedAriaRoles(new LinkedHashMap<String, String>());
-            }
-            // RecordedEvent has setExtractedAriaRoles(Map) earlier; keep using it
-            Map<String, String> aria = event.getAria();
-            if (aria == null) aria = new LinkedHashMap<String, String>();
-            aria.putAll(flat);
-            event.setAria(aria); // falls vorhanden; ansonsten via setExtractedAriaRoles ablegen
+        if ("extractedValues".equals(parentKey)) {
+            if (event.getExtractedValues() == null) event.setExtractedValues(new LinkedHashMap<String, String>());
+            event.getExtractedValues().putAll(flat);
+        } else if ("aria".equals(parentKey)) {
+            if (event.getAria() == null) event.setAria(new LinkedHashMap<String, String>());
+            event.getAria().putAll(flat);
         } else if ("attributes".equals(parentKey)) {
-            if (event.getAttributes() == null) {
-                event.setAttributes(new LinkedHashMap<String, String>());
-            }
+            if (event.getAttributes() == null) event.setAttributes(new LinkedHashMap<String, String>());
             event.getAttributes().putAll(flat);
         } else if ("test".equals(parentKey)) {
-            if (event.getTest() == null) {
-                event.setTest(new LinkedHashMap<String, String>());
-            }
+            if (event.getTest() == null) event.setTest(new LinkedHashMap<String, String>());
             event.getTest().putAll(flat);
-        } else if ("extractedValues".equals(parentKey)) {
-            if (event.getExtractedValues() == null) {
-                event.setExtractedValues(new LinkedHashMap<String, String>());
-            }
+        } else {
+            // Unbekanntes Objekt: alles nach extractedValues kippen
+            if (event.getExtractedValues() == null) event.setExtractedValues(new LinkedHashMap<String, String>());
             event.getExtractedValues().putAll(flat);
         }
 
-        // 2) Generic fallbacks: promote common keys even if parentKey is unknown
-        // text → treat as visible text for clicks etc.
+        // Promote common keys for convenience
         String text = flat.get("text");
         if (text != null && text.trim().length() > 0) {
-            if (event.getButtonText() == null || event.getButtonText().trim().length() == 0) {
-                event.setButtonText(text);
-            }
-            if (event.getExtractedValues() == null) {
-                event.setExtractedValues(new LinkedHashMap<String, String>());
-            }
+            if (event.getExtractedValues() == null) event.setExtractedValues(new LinkedHashMap<String, String>());
             event.getExtractedValues().put("text", text);
+            if (event.getButtonText() == null || event.getButtonText().trim().length() == 0) {
+                event.setButtonText(text); // hilfreich für Clicks
+            }
         }
 
-        // role/name → fold into aria map
+        // Rolle/Name ggf. in aria zusammenführen, falls so geliefert
         String role = flat.get("role");
         String name = flat.get("name");
         if ((role != null && role.trim().length() > 0) || (name != null && name.trim().length() > 0)) {
-            Map<String, String> aria = event.getAria();
-            if (aria == null) aria = new LinkedHashMap<String, String>();
-            if (role != null) aria.put("role", role);
-            if (name != null) aria.put("name", name);
-            event.setAria(aria);
+            if (event.getAria() == null) event.setAria(new LinkedHashMap<String, String>());
+            if (role != null) event.getAria().put("role", role);
+            if (name != null) event.getAria().put("name", name);
         }
 
-        // elementId / classes / xpath if provided inside nested object
+        // Manchmal liegen id/classes/xpath auch im Objekt
         if (flat.get("id") != null && (event.getElementId() == null || event.getElementId().length() == 0)) {
             event.setElementId(flat.get("id"));
         }
@@ -225,40 +208,9 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         if (flat.get("xpath") != null && (event.getXpath() == null || event.getXpath().length() == 0)) {
             event.setXpath(flat.get("xpath"));
         }
-
-        // placeholder / alt / label / name → attributes map
-        String placeholder = flat.get("placeholder");
-        String alt = flat.get("alt");
-        String label = flat.get("label");
-        String nameAttr = flat.get("name"); // do not override aria.name; put into attributes as well
-
-        if (placeholder != null || alt != null || label != null || nameAttr != null) {
-            if (event.getAttributes() == null) {
-                event.setAttributes(new LinkedHashMap<String, String>());
-            }
-            if (placeholder != null) event.getAttributes().put("placeholder", placeholder);
-            if (alt != null) event.getAttributes().put("alt", alt);
-            if (label != null) event.getAttributes().put("label", label);
-            if (nameAttr != null) event.getAttributes().put("name", nameAttr);
-        }
-
-        // test ids
-        String testId = flat.get("data-testid");
-        if (testId == null) testId = flat.get("data-test");
-        if (testId == null) testId = flat.get("data-qa");
-        if (testId != null) {
-            if (event.getTest() == null) event.setTest(new LinkedHashMap<String, String>());
-            event.getTest().put("testId", testId);
-        }
-
-        // 3) Always stash entire flat map into extractedValues for future heuristics
-        if (event.getExtractedValues() == null) {
-            event.setExtractedValues(new LinkedHashMap<String, String>());
-        }
-        event.getExtractedValues().putAll(flat);
     }
 
-    /** Convert an object remote value to a flat string->string map (only string leaves). */
+    /** Flatten only string leaves from an ObjectRemoteValue. */
     private Map<String, String> objectToStringMap(WDRemoteValue.ObjectRemoteValue obj) {
         Map<String, String> out = new LinkedHashMap<String, String>();
         for (Map.Entry<WDRemoteValue, WDRemoteValue> e : obj.getValue().entrySet()) {
@@ -269,7 +221,6 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
                 String sv = ((WDPrimitiveProtocolValue.StringValue) v).getValue();
                 if (sv != null) out.put(k, sv);
             }
-            // Ignore nested arrays/objects here; caller decides how deep to go.
         }
         return out;
     }
@@ -307,7 +258,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
             }
         }
 
-        // 3b) Text: prefer explicit buttonText, else extractedValues.text, else value for clicks
+        // 3b) Text ableiten: prefer buttonText, else extractedValues.text, else value for click
         String text = event.getButtonText();
         if ((text == null || text.trim().length() == 0) && event.getExtractedValues() != null) {
             String evText = event.getExtractedValues().get("text");
@@ -366,31 +317,20 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
             }
         }
 
-        // 4) Choose default locator type and selected selector by stability preference
-        LocatorType chosenType = null;
-        String chosenSelector = null;
-
-        if (chosenSelector == null) { chosenSelector = action.getLocators().get("role");        chosenType = chosenSelector != null ? LocatorType.ROLE        : null; }
-        if (chosenSelector == null) { chosenSelector = action.getLocators().get("label");       chosenType = chosenSelector != null ? LocatorType.LABEL       : null; }
-        if (chosenSelector == null) { chosenSelector = action.getLocators().get("placeholder"); chosenType = chosenSelector != null ? LocatorType.PLACEHOLDER : null; }
-        if (chosenSelector == null) { chosenSelector = action.getLocators().get("text");        chosenType = chosenSelector != null ? LocatorType.TEXT        : null; }
-        if (chosenSelector == null) { chosenSelector = action.getLocators().get("id");          chosenType = chosenSelector != null ? LocatorType.ID          : null; }
-        if (chosenSelector == null) { chosenSelector = action.getLocators().get("css");         chosenType = chosenSelector != null ? LocatorType.CSS         : null; }
-        if (chosenSelector == null) { chosenSelector = action.getLocators().get("xpath");       chosenType = chosenSelector != null ? LocatorType.XPATH       : null; }
-
-        if (chosenType == null) {
-            // Fallback: keep previous behavior
-            if (rawXpath != null && rawXpath.trim().length() > 0) {
-                chosenType = LocatorType.XPATH;
-                chosenSelector = rawXpath.trim();
-            } else {
-                chosenType = LocatorType.CSS;
-                chosenSelector = sanitizedCss;
-            }
+        // 4) Choose locator type and selected selector (prefer text > id > css > xpath)
+        if (action.getLocators().get("text") != null) {
+            action.setLocatorType(LocatorType.TEXT);
+            action.setSelectedSelector(action.getLocators().get("text"));
+        } else if (action.getLocators().get("id") != null) {
+            action.setLocatorType(LocatorType.ID);
+            action.setSelectedSelector(action.getLocators().get("id"));
+        } else if (sanitizedCss != null && sanitizedCss.trim().length() > 0) {
+            action.setLocatorType(LocatorType.CSS);
+            action.setSelectedSelector(sanitizedCss);
+        } else if (rawXpath != null && rawXpath.trim().length() > 0) {
+            action.setLocatorType(LocatorType.XPATH);
+            action.setSelectedSelector(rawXpath);
         }
-
-        action.setLocatorType(chosenType);
-        action.setSelectedSelector(chosenSelector);
 
         // 5) Value
         action.setValue(event.getValue());

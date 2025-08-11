@@ -102,7 +102,7 @@ public class ActionTableModel extends AbstractTableModel {
             case 0: return action.isSelected();
             case 1: return action.getType();
             case 2: return action.getAction();
-            case 3: return action.getLocatorType();
+            case 3: return action.getLocatorType() != null ? action.getLocatorType().getKey() : "";
             case 4: return action.getSelectedSelector();
             case 5: return action.getValue();
             case 6: return action.getLocators().getOrDefault("xpath", "");
@@ -133,7 +133,11 @@ public class ActionTableModel extends AbstractTableModel {
             case 0: action.setSelected((Boolean) aValue); break;
             case 1: action.setType((TestAction.ActionType) aValue); break;
             case 2: action.setAction((String) aValue); break;
-            case 3: action.setLocatorType((String) aValue); break;
+            case 3:
+                de.bund.zrb.model.LocatorType t =
+                    de.bund.zrb.model.LocatorType.fromKey(String.valueOf(aValue));
+                action.setLocatorType(t);
+                break;
             case 4: action.setSelectedSelector((String) aValue); break;
             case 5: action.setValue((String) aValue); break;
             case 6: action.getLocators().put("xpath", (String) aValue); break;
