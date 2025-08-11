@@ -9,8 +9,13 @@ import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDDocume
 import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineItem;
 
 import javax.swing.*;
+import javax.swing.text.Document;
+import javax.swing.text.html.HTMLDocument;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -165,5 +170,34 @@ public class TestExecutionLogger {
     public void clear() {
         logComponents.clear();
         logPane.setText("<html><body></body></html>");
+    }
+
+    /** NEU: Legt die Base-URL fest, damit <img src="relativ.png"> im JEditorPane sofort angezeigt wird. */
+    public void setDocumentBase(Path baseDir) {
+        try {
+            Document doc = logPane.getDocument();
+            if (doc instanceof HTMLDocument) {
+                ((HTMLDocument) doc).setBase(baseDir.toUri().toURL());
+            }
+        } catch (Exception ignore) {
+            // Base ist "nice to have" – kein harter Fehler
+        }
+    }
+
+    /** NEU: Schreibt den aktuellen HTML-Inhalt in die angegebene Datei. */
+    public void exportAsHtml(Path htmlFile) {
+        try {
+            Files.createDirectories(htmlFile.getParent());
+            byte[] data = logPane.getText().getBytes(StandardCharsets.UTF_8);
+            Files.write(
+                    htmlFile,
+                    data,
+                    java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,
+                    java.nio.file.StandardOpenOption.WRITE
+            );
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

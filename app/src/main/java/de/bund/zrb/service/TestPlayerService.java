@@ -21,6 +21,19 @@ import java.util.List;
 public class TestPlayerService {
 
     ////////////////////////////////////////////////////////////////////////////////
+    // Report-Konfiguration
+    ////////////////////////////////////////////////////////////////////////////////
+
+    private static final Path REPORT_BASE_DIR = Paths.get("C:/Reports"); // aktuell fix, später konfigurierbar
+    private static final DateTimeFormatter REPORT_TS_FMT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss.SSS"); // Windows-sicher
+
+    private String reportBaseName;     // z.B. 2025-08-12_14-37-22.184
+    private Path reportHtmlPath;       // C:/Reports/<base>.html
+    private Path reportImagesDir;      // C:/Reports/<base>/
+    private int screenshotCounter;     // läuft pro Report hoch
+
+    ////////////////////////////////////////////////////////////////////////////////
     // Singleton & Dependencies
     ////////////////////////////////////////////////////////////////////////////////
 
@@ -53,9 +66,16 @@ public class TestPlayerService {
         resetRunFlags();
         if (!isReady()) return;
 
+        initReportIfNeeded();                 // ← NEU: Report-Struktur anlegen
+        logger.clear();                       // optional: vorherige Anzeige leeren
+        logger.setDocumentBase(reportHtmlPath.getParent()); // damit relative <img> sofort im UI gehen
+
         TestNode start = resolveStartNode();
         LogComponent rootLog = runNodeStepByStep(start);
         if (rootLog != null) logger.append(rootLog);
+
+        // Am Ende: HTML auf Platte schreiben
+        logger.exportAsHtml(reportHtmlPath);  // ← NEU: komplette Seite speichern
 
         if (stopped) logger.append(new SuiteLog("⏹ Playback abgebrochen!"));
     }
@@ -173,37 +193,44 @@ public class TestPlayerService {
     private List<LogComponent> executeThenPhase(TestNode caseNode, TestCase testCase, SuiteLog parentLog) {
         List<LogComponent> out = new ArrayList<>();
 
-        String content = "Screenshot am Ende des TestCase"; // Default-Text
+        String content = "Screenshot am Ende des TestCase";
         boolean ok = true;
         String error = null;
+
+        StepLog thenLog = new StepLog("THEN", content);
+        thenLog.setParent(parentLog);
 
         try {
             String username = resolveUserForTestCase(caseNode);
             Page page = browserService.getActivePage(username);
 
-            byte[] png = page.screenshot(new Page.ScreenshotOptions()); // BiDi-Call
+            // Screenshot via BiDi holen
+            byte[] png = page.screenshot(new Page.ScreenshotOptions());
 
-            Path dir = Paths.get("reports");
-            Files.createDirectories(dir);
-            String ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-            String safeName = testCase.getName() == null ? "case" : testCase.getName().replaceAll("[^a-zA-Z0-9._-]", "_");
-            Path file = dir.resolve(ts + "-" + safeName + ".png");
-            Files.write(file, png);
+            // Datei im Report-Bilderordner speichern
+            String baseName = (testCase.getName() == null) ? "case" : testCase.getName();
+            Path file = saveScreenshotBytes(png, baseName);
+            String rel = relToHtml(file);
 
+            // Content-Text aktualisieren
             content = "Screenshot gespeichert: " + file.toAbsolutePath();
+            thenLog.setStatus(true);
+            thenLog.setHtmlAppend(
+                    "<img src='" + rel + "' alt='Screenshot' " +
+                            "style='max-width: 100%; border:1px solid #ccc; margin-top:.5rem'/>"
+            );
+
         } catch (Exception ex) {
             ok = false;
             error = "Screenshot fehlgeschlagen: " + ex.getMessage();
+            thenLog.setStatus(false);
+            thenLog.setError(error);
         }
-
-        StepLog thenLog = new StepLog("THEN", content);
-        thenLog.setParent(parentLog);
-        thenLog.setStatus(ok);
-        if (!ok) thenLog.setError(error);
 
         out.add(thenLog);
         return out;
     }
+
 
     /** Erster Action-User im Case-Node, sonst Fallback. */
     private String resolveUserForTestCase(TestNode caseNode) {
@@ -328,4 +355,38 @@ public class TestPlayerService {
         TestNode node = drawerRef.getSelectedNode();
         return (node != null) ? node : drawerRef.getRootNode();
     }
+
+    private void initReportIfNeeded() {
+        if (reportBaseName != null) return;
+
+        reportBaseName = LocalDateTime.now().format(REPORT_TS_FMT); // z.B. 2025-08-12_14-37-22.184
+        reportHtmlPath  = REPORT_BASE_DIR.resolve(reportBaseName + ".html");
+        reportImagesDir = REPORT_BASE_DIR.resolve(reportBaseName);
+        screenshotCounter = 0;
+
+        try {
+            Files.createDirectories(reportImagesDir);
+        } catch (Exception e) {
+            throw new RuntimeException("Report-Verzeichnisse konnten nicht angelegt werden: " + reportImagesDir, e);
+        }
+    }
+
+    private Path saveScreenshotBytes(byte[] png, String baseName) throws Exception {
+        initReportIfNeeded();
+        String safe = (baseName == null || baseName.trim().isEmpty())
+                ? "shot"
+                : baseName.replaceAll("[^a-zA-Z0-9._-]", "_");
+        String fileName = String.format("%03d-%s.png", ++screenshotCounter, safe);
+        Path file = reportImagesDir.resolve(fileName);
+        Files.write(file, png);
+        return file;
+    }
+
+    private String relToHtml(Path file) {
+        // relativ zum Ordner, in dem die HTML-Datei liegt
+        Path base = reportHtmlPath.getParent();
+        String rel = base.relativize(file).toString();
+        return rel.replace('\\', '/'); // für Browser-Pfade
+    }
+
 }
