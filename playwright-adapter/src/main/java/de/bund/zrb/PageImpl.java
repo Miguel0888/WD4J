@@ -1155,29 +1155,21 @@ public class PageImpl implements Page {
             throw new IllegalArgumentException("Selector must not be null or empty.");
         }
 
-        // 1) Typ + Wert aus Prefix bestimmen
+        // Einheitlich typisieren
         LocatorType type = AdapterLocatorFactory.inferType(selector);
-        String value = AdapterLocatorFactory.stripKnownPrefix(selector);
+        String value     = AdapterLocatorFactory.stripKnownPrefix(selector);
+        WDLocator<?> locator = AdapterLocatorFactory.create(type, value); // ⬅️ ruft jetzt auch den Sanitizer für CSS
 
-        // 2) WDLocator bauen
-        WDLocator<?> wdLocator = AdapterLocatorFactory.create(type, value);
-
-        // 3) suchen (ein einziges Element reicht)
         WDBrowsingContextResult.LocateNodesResult nodes =
-                browser.getWebDriver().browsingContext()
-                        .locateNodes(getBrowsingContextId(), wdLocator, 1);
+                browser.getWebDriver().browsingContext().locateNodes(getBrowsingContextId(), locator);
 
         if (nodes.getNodes().isEmpty()) return null;
 
-        WDRemoteValue.NodeRemoteValue n = nodes.getNodes().get(0);
+        WDRemoteValue.NodeRemoteValue node = nodes.getNodes().get(0);
         WDRemoteReference.SharedReference ref =
-                new WDRemoteReference.SharedReference(n.getSharedId(), n.getHandle());
-
-        return new ElementHandleImpl(
-                webDriver,
-                ref,
-                new WDTarget.ContextTarget(getBrowsingContext())
-        );
+                new WDRemoteReference.SharedReference(node.getSharedId(), node.getHandle());
+        WDTarget.ContextTarget target = new WDTarget.ContextTarget(new WDBrowsingContext(getBrowsingContextId()));
+        return new ElementHandleImpl(webDriver, ref, target);
     }
 
     @Override
