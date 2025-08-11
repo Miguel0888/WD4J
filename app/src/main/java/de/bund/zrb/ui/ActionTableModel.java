@@ -1,6 +1,7 @@
 package de.bund.zrb.ui;
 
 import de.bund.zrb.model.TestAction;
+import de.bund.zrb.util.LocatorType;
 
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableColumn;
@@ -134,8 +135,8 @@ public class ActionTableModel extends AbstractTableModel {
             case 1: action.setType((TestAction.ActionType) aValue); break;
             case 2: action.setAction((String) aValue); break;
             case 3:
-                de.bund.zrb.model.LocatorType t =
-                    de.bund.zrb.model.LocatorType.fromKey(String.valueOf(aValue));
+                LocatorType t =
+                    LocatorType.fromKey(String.valueOf(aValue));
                 action.setLocatorType(t);
                 break;
             case 4: action.setSelectedSelector((String) aValue); break;

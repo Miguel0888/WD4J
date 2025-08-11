@@ -5,9 +5,9 @@ import com.microsoft.playwright.options.AriaRole;
 import de.bund.zrb.dto.RecordedEvent;
 import de.bund.zrb.service.TotpService;
 import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.util.LocatorType;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**

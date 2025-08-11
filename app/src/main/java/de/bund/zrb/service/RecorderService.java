@@ -1,10 +1,9 @@
 package de.bund.zrb.service;
 
-import com.microsoft.playwright.Page;
 import de.bund.zrb.RecordingEventRouter;
 import de.bund.zrb.dto.RecordedEvent;
 import de.bund.zrb.event.WDScriptEvent;
-import de.bund.zrb.model.LocatorType;
+import de.bund.zrb.util.LocatorType;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
 import de.bund.zrb.type.script.WDRemoteValue;

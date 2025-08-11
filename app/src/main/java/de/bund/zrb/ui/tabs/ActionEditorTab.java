@@ -1,6 +1,6 @@
 package de.bund.zrb.ui.tabs;
 
-import de.bund.zrb.model.LocatorType;
+import de.bund.zrb.util.LocatorType;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.UserRegistry;

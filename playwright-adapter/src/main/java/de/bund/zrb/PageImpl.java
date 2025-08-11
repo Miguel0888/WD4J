@@ -17,6 +17,7 @@ import de.bund.zrb.event.WDBrowsingContextEvent;
 import de.bund.zrb.type.browser.WDClientWindow;
 import de.bund.zrb.type.browsingContext.WDInfo;
 import de.bund.zrb.type.browsingContext.WDLocator;
+import de.bund.zrb.util.LocatorType;
 import de.bund.zrb.util.WebDriverUtil;
 import de.bund.zrb.websocket.WDEventNames;
 import de.bund.zrb.support.JsonToPlaywrightMapper;
@@ -849,132 +850,113 @@ public class PageImpl implements Page {
     }
 
     @Override
-    public Locator getByAltText(String text, GetByAltTextOptions options) {
-        String selector = "alt=\"" + text + "\"";
-        return locator(selector, null);
-    }
-
-    @Override
-    public Locator getByAltText(Pattern text, GetByAltTextOptions options) {
-        String selector = "alt=/" + text.pattern() + "/";
-        return locator(selector, null);
-    }
-
-    @Override
-    public Locator getByLabel(String text, GetByLabelOptions options) {
-        String selector = "label=\"" + text + "\"";
-        if (options != null && options.exact != null && options.exact) {
-            selector += " exact";
-        }
-        return locator(selector, null);
-    }
-
-    @Override
-    public Locator getByLabel(Pattern text, GetByLabelOptions options) {
-        String selector = "label=/" + text.pattern() + "/";
-        if (options != null && options.exact != null && options.exact) {
-            selector += " exact";
-        }
-        return locator(selector, null);
-    }
-
-    @Override
-    public Locator getByPlaceholder(String text, GetByPlaceholderOptions options) {
-        String selector = "placeholder=\"" + text + "\"";
-        if (options != null && options.exact != null && options.exact) {
-            selector += " exact";
-        }
-        return locator(selector, null);
-    }
-
-    @Override
-    public Locator getByPlaceholder(Pattern text, GetByPlaceholderOptions options) {
-        String selector = "placeholder=/" + text.pattern() + "/";
-        if (options != null && options.exact != null && options.exact) {
-            selector += " exact";
-        }
-        return locator(selector, null);
-    }
-
-    @Override
-    public Locator getByRole(AriaRole role, GetByRoleOptions options) {
-        String selector = "aria/" + role.name().toLowerCase();
-
-        if (options != null) {
-            StringBuilder sb = new StringBuilder(selector);
-
-            if (options.name != null) {
-                sb.append("[name=\"").append(options.name).append("\"]");
-            }
-            if (options.checked != null) {
-                sb.append("[checked=").append(options.checked).append("]");
-            }
-            if (options.selected != null) {
-                sb.append("[selected=").append(options.selected).append("]");
-            }
-            if (options.expanded != null) {
-                sb.append("[expanded=").append(options.expanded).append("]");
-            }
-            if (options.includeHidden != null && options.includeHidden) {
-                sb.append("[include-hidden]");
-            }
-            if (options.level != null) {
-                sb.append("[level=").append(options.level).append("]");
-            }
-            if (options.pressed != null) {
-                sb.append("[pressed=").append(options.pressed).append("]");
-            }
-            selector = sb.toString();
-        }
-
-        return locator(selector, null);
-    }
-
-    @Override
-    public Locator getByTestId(String testId) {
-        String selector = "data-testid=\"" + testId + "\"";
-        return locator(selector, null);
-    }
-
-    @Override
-    public Locator getByTestId(Pattern testId) {
-        String selector = "data-testid=/" + testId.pattern() + "/";
-        return locator(selector, null);
-    }
-
-    @Override
     public Locator getByText(String text, GetByTextOptions options) {
-        String selector = "text=\"" + text + "\"";
-
-        if (options != null && options.exact != null && options.exact) {
-            selector += " exact";
-        }
-
-        return locator(selector, null);
+        boolean exact = options != null && Boolean.TRUE.equals(options.exact);
+        String xp = exact
+                ? "//*[normalize-space(string(.))=" + xpLit(text) + "]"
+                : "//*[contains(normalize-space(string(.))," + xpLit(text) + ")]";
+        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByText(Pattern text, GetByTextOptions options) {
-        String selector = "text=/" + text.pattern() + "/";
+        // XPath 1.0 kennt kein Regex => Fallback contains()
+        String xp = "//*[contains(normalize-space(string(.))," + xpLit(text.pattern()) + ")]";
+        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
+    }
 
-        if (options != null && options.exact != null && options.exact) {
-            selector += " exact";
-        }
+    @Override
+    public Locator getByLabel(String text, GetByLabelOptions options) {
+        boolean exact = options != null && Boolean.TRUE.equals(options.exact);
+        String lit = xpLit(text);
+        String cmp = exact ? "=" + lit : "contains(normalize-space(string(.))," + lit + ")";
+        String xp =
+                "//*[@id=//label[" + cmp + "]/@for]"
+                        + " | //label[" + cmp + "]//input"
+                        + " | //label[" + cmp + "]//textarea"
+                        + " | //label[" + cmp + "]//select";
+        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
+    }
 
-        return locator(selector, null);
+    @Override
+    public Locator getByLabel(Pattern text, GetByLabelOptions options) {
+        String lit = xpLit(text.pattern());
+        String xp =
+                "//*[@id=//label[contains(normalize-space(string(.))," + lit + ")]/@for]"
+                        + " | //label[contains(normalize-space(string(.))," + lit + ")]//input"
+                        + " | //label[contains(normalize-space(string(.))," + lit + ")]//textarea"
+                        + " | //label[contains(normalize-space(string(.))," + lit + ")]//select";
+        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
+    }
+
+    @Override
+    public Locator getByPlaceholder(String text, GetByPlaceholderOptions options) {
+        boolean exact = options != null && Boolean.TRUE.equals(options.exact);
+        String xp = exact
+                ? "//*[@placeholder and normalize-space(@placeholder)=" + xpLit(text) + "]"
+                : "//*[@placeholder and contains(normalize-space(@placeholder)," + xpLit(text) + ")]";
+        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
+    }
+
+    @Override
+    public Locator getByPlaceholder(Pattern text, GetByPlaceholderOptions options) {
+        String xp = "//*[@placeholder and contains(normalize-space(@placeholder)," + xpLit(text.pattern()) + ")]";
+        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
+    }
+
+    @Override
+    public Locator getByAltText(String text, GetByAltTextOptions options) {
+        // exakte Übereinstimmung via CSS ist ok
+        return new LocatorImpl(webDriver, this, LocatorType.CSS, "[alt='" + cssEsc(text) + "']");
+    }
+
+    @Override
+    public Locator getByAltText(Pattern text, GetByAltTextOptions options) {
+        String xp = "//*[@alt and contains(normalize-space(@alt)," + xpLit(text.pattern()) + ")]";
+        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByTitle(String text, GetByTitleOptions options) {
-        String selector = "title=\"" + text + "\"";
-        return locator(selector, null);
+        String xp = "//*[@title and contains(normalize-space(@title)," + xpLit(text) + ")]";
+        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByTitle(Pattern text, GetByTitleOptions options) {
-        String selector = "title=/" + text.pattern() + "/";
-        return locator(selector, null);
+        String xp = "//*[@title and contains(normalize-space(@title)," + xpLit(text.pattern()) + ")]";
+        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
     }
+
+    @Override
+    public Locator getByRole(AriaRole role, GetByRoleOptions options) {
+        String roleString = role.name().toLowerCase();
+        String xp = "//*[@role='" + roleString + "']";
+        if (options != null) {
+            if (options.name != null) {
+                xp += "[contains(normalize-space(string(.))," + xpLit(options.name.toString()) + ")]";
+            }
+            if (options.checked != null)   xp += "[@aria-checked='"   + options.checked   + "']";
+            if (options.selected != null)  xp += "[@aria-selected='"  + options.selected  + "']";
+            if (options.expanded != null)  xp += "[@aria-expanded='"  + options.expanded  + "']";
+            if (options.pressed != null)   xp += "[@aria-pressed='"   + options.pressed   + "']";
+            if (options.level != null)     xp += "[@aria-level='"     + options.level     + "']";
+            // includeHidden ignorieren wir hier zunächst (sonst müsste man visibility prüfen)
+        }
+        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
+    }
+
+    @Override
+    public Locator getByTestId(String testId) {
+        return new LocatorImpl(webDriver, this, LocatorType.CSS, "[data-testid='" + cssEsc(testId) + "']");
+    }
+
+    @Override
+    public Locator getByTestId(Pattern testId) {
+        String xp = "//*[@data-testid and contains(@data-testid," + xpLit(testId.pattern()) + ")]";
+        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
+    }
+
 
     @Override
     public Response goBack(GoBackOptions options) {
@@ -1120,7 +1102,11 @@ public class PageImpl implements Page {
         if (selector == null || selector.isEmpty()) {
             throw new IllegalArgumentException("Selector must not be null or empty.");
         }
-        return new LocatorImpl(webDriver, this, selector);
+        // Heuristik: XPath wenn mit "/" oder "(" beginnt, sonst CSS
+        LocatorType type = (selector.startsWith("/") || selector.startsWith("("))
+                ? LocatorType.XPATH
+                : LocatorType.CSS;
+        return new LocatorImpl(webDriver, this, type, selector);
     }
 
     @Override
@@ -2149,4 +2135,22 @@ public class PageImpl implements Page {
     public WebDriver getWebDriver() {
         return webDriver;
     }
+
+    private static String xpLit(String s) {
+        if (s.indexOf('\'') == -1) return "'" + s + "'";
+        if (s.indexOf('"') == -1) return "\"" + s + "\"";
+        StringBuilder sb = new StringBuilder("concat(");
+        for (int i = 0; i < s.length(); i++) {
+            if (i > 0) sb.append(",");
+            char c = s.charAt(i);
+            if (c == '\'') sb.append("\"'\"");
+            else sb.append("'").append(c).append("'");
+        }
+        sb.append(")");
+        return sb.toString();
+    }
+    private static String cssEsc(String s) {
+        return s.replace("\\", "\\\\").replace("'", "\\'");
+    }
+
 }

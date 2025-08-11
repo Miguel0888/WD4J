@@ -3,7 +3,7 @@ package de.bund.zrb.service;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.AriaRole;
-import de.bund.zrb.model.LocatorType;
+import de.bund.zrb.util.LocatorType;
 import de.bund.zrb.model.TestAction;
 
 /**

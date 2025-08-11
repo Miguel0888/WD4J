@@ -16,6 +16,8 @@ import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.browsingContext.WDInfo;
 import de.bund.zrb.type.browsingContext.WDLocator;
 import de.bund.zrb.type.script.*;
+import de.bund.zrb.util.AdapterLocatorFactory;
+import de.bund.zrb.util.LocatorType;
 import de.bund.zrb.util.WebDriverUtil;
 
 import java.nio.file.Path;
@@ -29,6 +31,7 @@ public class LocatorImpl implements Locator {
 
     private final PageImpl page;
     private final String selector;
+    private final LocatorType explicitType;
 
     private ElementHandleImpl elementHandle; // Wird erst beim ersten Zugriff gesetzt
 
@@ -38,19 +41,14 @@ public class LocatorImpl implements Locator {
     // Constructors
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public LocatorImpl(WebDriver webDriver, PageImpl page, String selector) {
-        if (webDriver == null) {
-            throw new IllegalArgumentException("WebDriver must not be null.");
-        }
-        if (page == null) {
-            throw new IllegalArgumentException("Page must not be null.");
-        }
-        if (selector == null || selector.isEmpty()) {
-            throw new IllegalArgumentException("Selector must not be null or empty.");
-        }
+    public LocatorImpl(WebDriver webDriver, PageImpl page, LocatorType type, String selector) {
+        if (webDriver == null) throw new IllegalArgumentException("WebDriver must not be null.");
+        if (page == null) throw new IllegalArgumentException("Page must not be null.");
+        if (selector == null || selector.isEmpty()) throw new IllegalArgumentException("Selector must not be null or empty.");
         this.webDriver = webDriver;
         this.page = page;
         this.selector = selector;
+        this.explicitType = type;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -70,9 +68,9 @@ public class LocatorImpl implements Locator {
             return;
         }
 
-        WDLocator<?> locator = createWDLocator(selector);
+        // Build WDLocator using explicit type if present (fallback to heuristic otherwise)
+        WDLocator<?> locator = AdapterLocatorFactory.create(explicitType, selector);
 
-        // Schritt 1: Hole alle passenden Nodes
         WDBrowsingContextResult.LocateNodesResult locateNodesResult =
                 page.getBrowser().getWebDriver().browsingContext().locateNodes(
                         page.getBrowsingContextId(),
@@ -80,9 +78,8 @@ public class LocatorImpl implements Locator {
                         Integer.MAX_VALUE
                 );
 
-        List<WDRemoteValue.NodeRemoteValue> nodes = locateNodesResult.getNodes();
+        java.util.List<WDRemoteValue.NodeRemoteValue> nodes = locateNodesResult.getNodes();
 
-        // Schritt 2: Falls Filter gesetzt, filtere Nodes
         if (filterOptions != null) {
             nodes = applyFilter(nodes);
         }
@@ -110,78 +107,36 @@ public class LocatorImpl implements Locator {
         }
     }
 
-    public static WDLocator<?> createWDLocator(String selector) {
-        if (selector.startsWith("/") || selector.startsWith("(")) {
-            return new WDLocator.XPathLocator(selector);
-        } else if (selector.startsWith("text=")) {
-            return new WDLocator.InnerTextLocator(selector.substring(5));
-        } else if (selector.startsWith("aria=")) {
-            String rest = selector.substring(5).trim();
-            String role = null;
-            String name = null;
-
-            // Beispiel: aria=button[name="Senden"]
-            int nameStart = rest.indexOf("[name=");
-            if (nameStart >= 0) {
-                role = rest.substring(0, nameStart).trim();
-                String namePart = rest.substring(nameStart);
-                name = parseNameFromBrackets(namePart);
-            } else if (rest.startsWith("[")) {
-                // Beispiel: aria=[name="Senden"]
-                name = parseNameFromBrackets(rest);
-            } else {
-                // Nur Rolle
-                role = rest.isEmpty() ? null : rest;
-            }
-
-            WDLocator.AccessibilityLocator.Value value = new WDLocator.AccessibilityLocator.Value(name, role);
-            return new WDLocator.AccessibilityLocator(value);
-        } else {
-            return new WDLocator.CssLocator(selector);
-        }
-    }
-
-    private static String parseNameFromBrackets(String bracketPart) {
-        // Erwartet: [name="Senden"]
-        int eq = bracketPart.indexOf('=');
-        int quote1 = bracketPart.indexOf('"', eq);
-        int quote2 = bracketPart.indexOf('"', quote1 + 1);
-        if (eq >= 0 && quote1 >= 0 && quote2 >= 0) {
-            return bracketPart.substring(quote1 + 1, quote2);
-        }
-        return null;
-    }
-
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Overridden Methods / Implementation
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
-    public List<Locator> all() {
-        WDLocator<?> locator = createWDLocator(selector);
+    public java.util.List<Locator> all() {
+        WDLocator<?> locator = AdapterLocatorFactory.create(explicitType, selector);
         WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver()
                 .browsingContext().locateNodes(page.getBrowsingContextId(), locator, Integer.MAX_VALUE);
 
-        List<Locator> locators = new ArrayList<>();
-        int index = 1;
-        for (WDRemoteValue.NodeRemoteValue ignored : nodes.getNodes()) {
-            String nthSelector = String.format("%s >> nth=%d", selector, index - 1);
-            locators.add(new LocatorImpl(webDriver, page, nthSelector));
-            index++;
+        java.util.List<Locator> locators = new java.util.ArrayList<Locator>();
+        for (WDRemoteValue.NodeRemoteValue n : nodes.getNodes()) {
+            WDRemoteReference.SharedReference ref = new WDRemoteReference.SharedReference(n.getSharedId(), new WDHandle(n.getHandle().value()));
+            ElementHandleImpl eh = new ElementHandleImpl(webDriver, ref, new WDTarget.ContextTarget(page.getBrowsingContext()));
+
+            // Build a child Locator that already points to this handle
+            LocatorImpl li = new LocatorImpl(webDriver, page, explicitType, selector);
+            li.elementHandle = eh;
+            locators.add(li);
         }
         return locators;
     }
 
     @Override
-    public List<String> allInnerTexts() {
-        WDLocator<?> locator = createWDLocator(selector);
-        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver().browsingContext().locateNodes(
-                page.getBrowsingContextId(),
-                locator,
-                Integer.MAX_VALUE
-        );
+    public java.util.List<String> allInnerTexts() {
+        WDLocator<?> locator = AdapterLocatorFactory.create(explicitType, selector);
+        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver()
+                .browsingContext().locateNodes(page.getBrowsingContextId(), locator, Integer.MAX_VALUE);
 
-        List<String> innerTexts = new ArrayList<>();
+        java.util.List<String> innerTexts = new java.util.ArrayList<String>();
         for (WDRemoteValue.NodeRemoteValue node : nodes.getNodes()) {
             WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
                     page.getBrowsingContextId(),
@@ -194,15 +149,12 @@ public class LocatorImpl implements Locator {
     }
 
     @Override
-    public List<String> allTextContents() {
-        WDLocator<?> locator = createWDLocator(selector);
-        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver().browsingContext().locateNodes(
-                page.getBrowsingContextId(),
-                locator,
-                Integer.MAX_VALUE
-        );
+    public java.util.List<String> allTextContents() {
+        WDLocator<?> locator = AdapterLocatorFactory.create(explicitType, selector);
+        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver()
+                .browsingContext().locateNodes(page.getBrowsingContextId(), locator, Integer.MAX_VALUE);
 
-        List<String> textContents = new ArrayList<>();
+        java.util.List<String> textContents = new java.util.ArrayList<String>();
         for (WDRemoteValue.NodeRemoteValue node : nodes.getNodes()) {
             WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
                     page.getBrowsingContextId(),
@@ -221,14 +173,12 @@ public class LocatorImpl implements Locator {
         }
         LocatorImpl other = (LocatorImpl) locator;
 
-        // 1. Hole Nodes für beide Selektoren
         WDBrowsingContextResult.LocateNodesResult nodesThis = page.getBrowser().getWebDriver()
-                .browsingContext().locateNodes(page.getBrowsingContextId(), createWDLocator(this.selector));
+                .browsingContext().locateNodes(page.getBrowsingContextId(), AdapterLocatorFactory.create(this.explicitType, this.selector));
         WDBrowsingContextResult.LocateNodesResult nodesOther = page.getBrowser().getWebDriver()
-                .browsingContext().locateNodes(page.getBrowsingContextId(), createWDLocator(other.selector));
+                .browsingContext().locateNodes(page.getBrowsingContextId(), AdapterLocatorFactory.create(other.explicitType, other.selector));
 
-        // 2. Schnittmenge bilden (z.B. via Handle-Id)
-        List<WDRemoteValue.NodeRemoteValue> both = new ArrayList<>();
+        java.util.List<WDRemoteValue.NodeRemoteValue> both = new java.util.ArrayList<WDRemoteValue.NodeRemoteValue>();
         for (WDRemoteValue.NodeRemoteValue n1 : nodesThis.getNodes()) {
             for (WDRemoteValue.NodeRemoteValue n2 : nodesOther.getNodes()) {
                 if (n1.getHandle().equals(n2.getHandle())) {
@@ -241,13 +191,12 @@ public class LocatorImpl implements Locator {
             throw new RuntimeException("No nodes matched both conditions.");
         }
 
-        // 3. Gib neuen Locator zurück (für Einfachheit: ersten Node)
         WDHandle h = new WDHandle(both.get(0).getHandle().value());
         WDSharedId sid = both.get(0).getSharedId();
         WDRemoteReference.SharedReference ref = new WDRemoteReference.SharedReference(sid, h);
         ElementHandleImpl newHandle = new ElementHandleImpl(webDriver, ref, new WDTarget.ContextTarget(page.getBrowsingContext()));
 
-        LocatorImpl result = new LocatorImpl(webDriver, page, this.selector + " + " + other.selector);
+        LocatorImpl result = new LocatorImpl(webDriver, page, this.explicitType, this.selector + " + " + ((LocatorImpl) locator).selector);
         result.elementHandle = newHandle;
         return result;
     }
@@ -326,12 +275,11 @@ public class LocatorImpl implements Locator {
         // 5️⃣ Optionale "noWaitAfter"-Behandlung, falls relevant
     }
 
-
     @Override
     public int count() {
-        WDLocator<?> locator = createWDLocator(selector);
-        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver().browsingContext().locateNodes(
-                page.getBrowsingContextId(), locator);
+        WDLocator<?> locator = AdapterLocatorFactory.create(explicitType, selector);
+        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver()
+                .browsingContext().locateNodes(page.getBrowsingContextId(), locator);
         return nodes.getNodes().size();
     }
 
@@ -438,15 +386,9 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Locator filter(FilterOptions options) {
-        if (options == null) {
-            throw new IllegalArgumentException("FilterOptions must not be null");
-        }
-
-        LocatorImpl filtered = new LocatorImpl(webDriver, page, this.selector);
-
-        // FilterInfo speichert die Bedingungen
+        if (options == null) throw new IllegalArgumentException("FilterOptions must not be null");
+        LocatorImpl filtered = new LocatorImpl(webDriver, page, this.explicitType, this.selector);
         filtered.filterOptions = options;
-
         return filtered;
     }
 
@@ -489,73 +431,92 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Locator getByAltText(String text, GetByAltTextOptions options) {
-        return null;
+        return new LocatorImpl(webDriver, page, LocatorType.CSS, "[alt='" + cssEsc(text) + "']");
     }
 
     @Override
     public Locator getByAltText(Pattern text, GetByAltTextOptions options) {
-        return null;
+        String xp = "//*[@alt and contains(normalize-space(@alt)," + xpLit(text.pattern()) + ")]";
+        return new LocatorImpl(webDriver, page, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByLabel(String text, GetByLabelOptions options) {
-        // ToDo: Use Options
-        return new LocatorImpl(webDriver, page, "aria=" + text);
+        String lit = xpLit(text);
+        String xp = "//*[@id=//label[contains(normalize-space(string(.))," + lit + ")]/@for]"
+                + " | //label[contains(normalize-space(string(.))," + lit + ")]//input"
+                + " | //label[contains(normalize-space(string(.))," + lit + ")]//textarea"
+                + " | //label[contains(normalize-space(string(.))," + lit + ")]//select";
+        return new LocatorImpl(webDriver, page, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByLabel(Pattern text, GetByLabelOptions options) {
-        return null;
+        String lit = xpLit(text.pattern());
+        String xp = "//*[@id=//label[contains(normalize-space(string(.))," + lit + ")]/@for]"
+                + " | //label[contains(normalize-space(string(.))," + lit + ")]//input"
+                + " | //label[contains(normalize-space(string(.))," + lit + ")]//textarea"
+                + " | //label[contains(normalize-space(string(.))," + lit + ")]//select";
+        return new LocatorImpl(webDriver, page, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByPlaceholder(String text, GetByPlaceholderOptions options) {
-        // ToDo: Use Options
-        return new LocatorImpl(webDriver, page, "aria=" + text);
+        String xp = "//*[@placeholder and contains(normalize-space(@placeholder)," + xpLit(text) + ")]";
+        return new LocatorImpl(webDriver, page, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByPlaceholder(Pattern text, GetByPlaceholderOptions options) {
-        return new LocatorImpl(webDriver, page, "aria=" + text);
+        String xp = "//*[@placeholder and contains(normalize-space(@placeholder)," + xpLit(text.pattern()) + ")]";
+        return new LocatorImpl(webDriver, page, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByRole(AriaRole role, GetByRoleOptions options) {
-        // ToDo: Use Options
         String roleString = role.name().toLowerCase();
-        // ToDo: Fix this!
-        WDLocator.AccessibilityLocator.Value value = new WDLocator.AccessibilityLocator.Value(null, roleString);
-        return new LocatorImpl(webDriver, page, "aria=" + roleString);
+        String xp = "//*[@role='" + roleString + "']";
+        if (options != null && options.name != null) {
+            xp += "[contains(normalize-space(string(.))," + xpLit(options.name.toString()) + ")]";
+        }
+        return new LocatorImpl(webDriver, page, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByTestId(String testId) {
-        return null;
+        // gängig: data-testid
+        return new LocatorImpl(webDriver, page, LocatorType.CSS, "[data-testid='" + cssEsc(testId) + "']");
     }
 
     @Override
     public Locator getByTestId(Pattern testId) {
-        return null;
+        // Fallback: contains()
+        String xp = "//*[@data-testid and contains(@data-testid," + xpLit(testId.pattern()) + ")]";
+        return new LocatorImpl(webDriver, page, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByText(String text, GetByTextOptions options) {
-        return null;
+        String xp = "//*[contains(normalize-space(string(.))," + xpLit(text) + ")]";
+        return new LocatorImpl(webDriver, page, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByText(Pattern text, GetByTextOptions options) {
-        return null;
+        String xp = "//*[contains(normalize-space(string(.))," + xpLit(text.pattern()) + ")]";
+        return new LocatorImpl(webDriver, page, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByTitle(String text, GetByTitleOptions options) {
-        return null;
+        String xp = "//*[@title and contains(normalize-space(@title)," + xpLit(text) + ")]";
+        return new LocatorImpl(webDriver, page, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByTitle(Pattern text, GetByTitleOptions options) {
-        return null;
+        String xp = "//*[@title and contains(normalize-space(@title)," + xpLit(text.pattern()) + ")]";
+        return new LocatorImpl(webDriver, page, LocatorType.XPATH, xp);
     }
 
     @Override
@@ -685,7 +646,10 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Locator locator(String selectorOrLocator, LocatorOptions options) {
-        return new LocatorImpl(webDriver, page, this.selector + " " + selectorOrLocator); // ToDo: Check this!
+        if (explicitType != null && explicitType != LocatorType.CSS) {
+            throw new UnsupportedOperationException("Chained locator currently only supported for CSS base selectors.");
+        }
+        return new LocatorImpl(webDriver, page, LocatorType.CSS, this.selector + " " + selectorOrLocator);
     }
 
     @Override
@@ -695,7 +659,20 @@ public class LocatorImpl implements Locator {
 
     @Override
     public Locator nth(int index) {
-        return new LocatorImpl(webDriver, page, this.selector + ":nth-of-type(" + index + ")"); // ToDo: Check this!
+        WDLocator<?> loc = AdapterLocatorFactory.create(explicitType, selector);
+        WDBrowsingContextResult.LocateNodesResult nodes = page.getBrowser().getWebDriver()
+                .browsingContext().locateNodes(page.getBrowsingContextId(), loc, Integer.MAX_VALUE);
+
+        List<WDRemoteValue.NodeRemoteValue> list = nodes.getNodes();
+        if (index < 0 || index >= list.size()) {
+            throw new IndexOutOfBoundsException("nth index " + index + " out of " + list.size());
+        }
+        WDRemoteValue.NodeRemoteValue n = list.get(index);
+        WDRemoteReference.SharedReference ref =
+                new WDRemoteReference.SharedReference(n.getSharedId(), new WDHandle(n.getHandle().value()));
+        LocatorImpl li = new LocatorImpl(webDriver, page, explicitType, selector);
+        li.elementHandle = new ElementHandleImpl(webDriver, ref, new WDTarget.ContextTarget(page.getBrowsingContext()));
+        return li;
     }
 
     @Override
@@ -705,14 +682,12 @@ public class LocatorImpl implements Locator {
         }
         LocatorImpl other = (LocatorImpl) locator;
 
-        // 1️⃣ Hole beide Node-Mengen
         WDBrowsingContextResult.LocateNodesResult nodesThis = page.getBrowser().getWebDriver()
-                .browsingContext().locateNodes(page.getBrowsingContextId(), createWDLocator(this.selector));
+                .browsingContext().locateNodes(page.getBrowsingContextId(), AdapterLocatorFactory.create(this.explicitType, this.selector));
         WDBrowsingContextResult.LocateNodesResult nodesOther = page.getBrowser().getWebDriver()
-                .browsingContext().locateNodes(page.getBrowsingContextId(), createWDLocator(other.selector));
+                .browsingContext().locateNodes(page.getBrowsingContextId(), AdapterLocatorFactory.create(other.explicitType, other.selector));
 
-        // 2️⃣ Kombiniere ohne Duplikate
-        List<WDRemoteValue.NodeRemoteValue> union = new ArrayList<>(nodesThis.getNodes());
+        java.util.List<WDRemoteValue.NodeRemoteValue> union = new java.util.ArrayList<WDRemoteValue.NodeRemoteValue>(nodesThis.getNodes());
         for (WDRemoteValue.NodeRemoteValue n : nodesOther.getNodes()) {
             boolean already = false;
             for (WDRemoteValue.NodeRemoteValue u : union) {
@@ -730,15 +705,12 @@ public class LocatorImpl implements Locator {
             throw new RuntimeException("No nodes matched either condition.");
         }
 
-        // 3️⃣ Liefere Union als eigenen Locator
-        // Falls du mehrere brauchst: gib Liste oder neuen Multi-Locator
-        // Für einfaches Beispiel: nur erster Node
         WDHandle handle = new WDHandle(union.get(0).getHandle().value());
         WDSharedId sharedId = union.get(0).getSharedId();
         WDRemoteReference.SharedReference reference = new WDRemoteReference.SharedReference(sharedId, handle);
         ElementHandleImpl newHandle = new ElementHandleImpl(webDriver, reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
 
-        LocatorImpl result = new LocatorImpl(webDriver, page, this.selector + " | " + other.selector);
+        LocatorImpl result = new LocatorImpl(webDriver, page, this.explicitType, this.selector + " | " + other.selector);
         result.elementHandle = newHandle;
         return result;
     }
@@ -1264,20 +1236,11 @@ public class LocatorImpl implements Locator {
     }
 
     private List<WDRemoteValue.NodeRemoteValue> locateNodesInSubtree(WDRemoteValue.NodeRemoteValue parent) {
-        WDLocator<?> locator = createWDLocator(this.selector);
-
+        WDLocator<?> locator = AdapterLocatorFactory.create(this.explicitType, this.selector);
         List<WDRemoteReference.SharedReference> startNodes = Collections.singletonList(parent.getSharedIdReference());
-
         WDBrowsingContextResult.LocateNodesResult result = page.getBrowser().getWebDriver()
                 .browsingContext()
-                .locateNodes(
-                        page.getBrowsingContext(),
-                        locator,
-                        null, // maxNodeCount
-                        null, // WDSerializationOptions
-                        startNodes // <-- Subtree-Start!
-                );
-
+                .locateNodes(page.getBrowsingContext(), locator, null, null, startNodes);
         return result.getNodes();
     }
 
@@ -1290,7 +1253,19 @@ public class LocatorImpl implements Locator {
         }
     }
 
-
-
+    private static String xpLit(String s) {
+        if (s.indexOf('\'') == -1) return "'" + s + "'";
+        if (s.indexOf('"') == -1) return "\"" + s + "\"";
+        StringBuilder sb = new StringBuilder("concat(");
+        for (int i = 0; i < s.length(); i++) {
+            if (i > 0) sb.append(",");
+            char c = s.charAt(i);
+            if (c == '\'') sb.append("\"'\"");
+            else sb.append("'").append(c).append("'");
+        }
+        sb.append(")");
+        return sb.toString();
+    }
+    private static String cssEsc(String s) { return s.replace("'", "\\'"); }
 
 }

@@ -1,4 +1,4 @@
-package de.bund.zrb.model;
+package de.bund.zrb.util;
 
 public enum LocatorType {
     CSS("css"),
