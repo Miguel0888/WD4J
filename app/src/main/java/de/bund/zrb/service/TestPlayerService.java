@@ -69,8 +69,7 @@ public class TestPlayerService {
         beginReport();
 
         TestNode start = resolveStartNode();
-        LogComponent rootLog = runNodeStepByStep(start);
-        if (rootLog != null) logger.append(rootLog);
+        runNodeStepByStep(start);
 
         if (stopped) logger.append(new SuiteLog("⏹ Playback abgebrochen!"));
 
@@ -103,50 +102,46 @@ public class TestPlayerService {
     ////////////////////////////////////////////////////////////////////////////////
 
     private LogComponent executeActionNode(TestNode node, TestAction action) {
-        playSingleAction(action); // bestehendes Verhalten beibehalten
-
+        playSingleAction(action);
         StepLog stepLog = buildStepLogForAction(action);
+        stepLog.setParent(null);             // (optional) keine Hierarchie für Live-Stream nötig
+        logger.append(stepLog);              // <— SOFORT anzeigen
         drawerRef.updateNodeStatus(node, true);
-        return stepLog;
+        return stepLog;                      // Rückgabewert darf bleiben, wird aber nicht mehr gesammelt appended
     }
 
     private LogComponent executeTestCaseNode(TestNode node, TestCase testCase) {
         SuiteLog caseLog = new SuiteLog(testCase.getName());
-        List<LogComponent> children = new ArrayList<>();
+        logger.append(caseLog);                           // <— Überschrift sofort anzeigen
 
-        // GIVEN (Case)
-        children.addAll(executeGivenList(testCase.getGiven(), caseLog, "Given"));
+        // GIVEN (Case) – einzeln streamen
+        executeGivenList(testCase.getGiven(), caseLog, "Given");
 
-        // WHEN (Kinder des TestCase)
-        children.addAll(executeChildren(node, caseLog));
+        // WHEN (Kinder) – rekursiv streamen
+        executeChildren(node, caseLog);
 
-        // THEN (Case) – Screenshot am Ende des TestCase
-        children.addAll(executeThenPhase(node, testCase, caseLog)); // <- HIER: node übergeben!
+        // THEN – streamen (macht Screenshot + Bild einbetten)
+        executeThenPhase(node, testCase, caseLog);
 
-        caseLog.setChildren(children);
         drawerRef.updateSuiteStatus(node);
-        return caseLog;
+        return caseLog; // Rückgabe optional, wird nicht mehr am Ende appended
     }
 
     private LogComponent executeSuiteNode(TestNode node, TestSuite suite) {
         SuiteLog suiteLog = new SuiteLog(node.toString());
-        List<LogComponent> children = new ArrayList<>();
+        logger.append(suiteLog);                           // <— Header sofort
 
-        // GIVEN (Suite)
-        children.addAll(executeGivenList(suite.getGiven(), suiteLog, "Suite-Given"));
+        executeGivenList(suite.getGiven(), suiteLog, "Suite-Given");
+        executeChildren(node, suiteLog);
 
-        // REKURSIV Kinder
-        children.addAll(executeChildren(node, suiteLog));
-
-        suiteLog.setChildren(children);
         drawerRef.updateSuiteStatus(node);
         return suiteLog;
     }
 
     private LogComponent executeGenericContainerNode(TestNode node) {
         SuiteLog suiteLog = new SuiteLog(node.toString());
-        List<LogComponent> children = new ArrayList<>(executeChildren(node, suiteLog));
-        suiteLog.setChildren(children);
+        logger.append(suiteLog);                           // <— Header sofort
+        executeChildren(node, suiteLog);
         drawerRef.updateSuiteStatus(node);
         return suiteLog;
     }
@@ -182,18 +177,17 @@ public class TestPlayerService {
                 givenLog.setError(ex.getMessage());
             }
             givenLog.setParent(parentLog);
+            logger.append(givenLog);          // <— SOFORT anzeigen
             out.add(givenLog);
         }
         return out;
     }
-
+    
     private List<LogComponent> executeThenPhase(TestNode caseNode, TestCase testCase, SuiteLog parentLog) {
         List<LogComponent> out = new ArrayList<>();
 
-        String content = "Screenshot am Ende des TestCase";
-        boolean ok = true;
-        String error = null;
-        String relImg = null;
+        StepLog thenLog = new StepLog("THEN", "Screenshot am Ende des TestCase");
+        thenLog.setParent(parentLog);
 
         try {
             String username = resolveUserForTestCase(caseNode);
@@ -203,29 +197,22 @@ public class TestPlayerService {
 
             String baseName = (testCase.getName() == null) ? "case" : testCase.getName();
             Path file = saveScreenshotBytes(png, baseName);
-            relImg = relToHtml(file);
+            String rel = relToHtml(file);
 
-            content = "Screenshot gespeichert: " + file.toAbsolutePath();
-        } catch (Exception ex) {
-            ok = false;
-            error = "Screenshot fehlgeschlagen: " + ex.getMessage();
-        }
-
-        StepLog thenLog = new StepLog("THEN", content);
-        thenLog.setParent(parentLog);
-        thenLog.setStatus(ok);
-        if (!ok) {
-            thenLog.setError(error);
-        } else if (relImg != null) {
+            thenLog.setStatus(true);
             thenLog.setHtmlAppend(
-                    "<img src='" + relImg + "' alt='Screenshot' " +
-                            "style='max-width:100%;border:1px solid #ccc;margin-top:.5rem'/>"
+                    "<img src='" + rel + "' alt='Screenshot' style='max-width:100%;border:1px solid #ccc;margin-top:.5rem'/>"
             );
+        } catch (Exception ex) {
+            thenLog.setStatus(false);
+            thenLog.setError("Screenshot fehlgeschlagen: " + ex.getMessage());
         }
 
+        logger.append(thenLog);             // <— SOFORT anzeigen
         out.add(thenLog);
         return out;
     }
+
 
     /** Erster Action-User im Case-Node, sonst Fallback. */
     private String resolveUserForTestCase(TestNode caseNode) {
