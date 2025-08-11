@@ -317,11 +317,8 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
             }
         }
 
-        // 4) Choose locator type and selected selector (prefer text > id > css > xpath)
-        if (action.getLocators().get("text") != null) {
-            action.setLocatorType(LocatorType.TEXT);
-            action.setSelectedSelector(action.getLocators().get("text"));
-        } else if (action.getLocators().get("id") != null) {
+        // 4) Choose locator type and selected selector (prefer id > css > xpath > text)
+        if (action.getLocators().get("id") != null) {
             action.setLocatorType(LocatorType.ID);
             action.setSelectedSelector(action.getLocators().get("id"));
         } else if (sanitizedCss != null && sanitizedCss.trim().length() > 0) {
@@ -330,6 +327,10 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         } else if (rawXpath != null && rawXpath.trim().length() > 0) {
             action.setLocatorType(LocatorType.XPATH);
             action.setSelectedSelector(rawXpath);
+        } else if (action.getLocators().get("text") != null) {
+            // Keep text as last fallback (BiDi innerText not supported yet)
+            action.setLocatorType(LocatorType.TEXT);
+            action.setSelectedSelector(action.getLocators().get("text"));
         }
 
         // 5) Value
