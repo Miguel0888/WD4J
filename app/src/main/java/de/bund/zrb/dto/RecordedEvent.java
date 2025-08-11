@@ -87,4 +87,8 @@ public class RecordedEvent {
     public String getNewValue() {
         return newValue;
     }
+
+    public void setExtractedAriaRoles(LinkedHashMap<String, String> stringStringLinkedHashMap) {
+        this.aria = stringStringLinkedHashMap;
+    }
 }
