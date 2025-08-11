@@ -8,7 +8,8 @@ public enum LocatorType {
     ROLE("role"),
     LABEL("label"),
     PLACEHOLDER("placeholder"),
-    ALTTEXT("altText");
+    ALTTEXT("altText"),
+    TITLE("title");
 
     private final String key;
 

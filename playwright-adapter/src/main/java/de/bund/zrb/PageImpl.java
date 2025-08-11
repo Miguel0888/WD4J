@@ -17,6 +17,7 @@ import de.bund.zrb.event.WDBrowsingContextEvent;
 import de.bund.zrb.type.browser.WDClientWindow;
 import de.bund.zrb.type.browsingContext.WDInfo;
 import de.bund.zrb.type.browsingContext.WDLocator;
+import de.bund.zrb.util.AdapterLocatorFactory;
 import de.bund.zrb.util.LocatorType;
 import de.bund.zrb.util.WebDriverUtil;
 import de.bund.zrb.websocket.WDEventNames;
@@ -851,104 +852,86 @@ public class PageImpl implements Page {
 
     @Override
     public Locator getByText(String text, GetByTextOptions options) {
-        boolean exact = options != null && Boolean.TRUE.equals(options.exact);
-        String xp = exact
-                ? "//*[normalize-space(string(.))=" + xpLit(text) + "]"
-                : "//*[contains(normalize-space(string(.))," + xpLit(text) + ")]";
-        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
-    }
-
-    @Override
-    public Locator getByText(Pattern text, GetByTextOptions options) {
-        // XPath 1.0 kennt kein Regex => Fallback contains()
-        String xp = "//*[contains(normalize-space(string(.))," + xpLit(text.pattern()) + ")]";
-        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
+        return new LocatorImpl(webDriver, this, LocatorType.TEXT, text);
     }
 
     @Override
     public Locator getByLabel(String text, GetByLabelOptions options) {
-        boolean exact = options != null && Boolean.TRUE.equals(options.exact);
-        String lit = xpLit(text);
-        String cmp = exact ? "=" + lit : "contains(normalize-space(string(.))," + lit + ")";
-        String xp =
-                "//*[@id=//label[" + cmp + "]/@for]"
-                        + " | //label[" + cmp + "]//input"
-                        + " | //label[" + cmp + "]//textarea"
-                        + " | //label[" + cmp + "]//select";
+        return new LocatorImpl(webDriver, this, LocatorType.LABEL, text);
+    }
+
+    @Override
+    public Locator getByPlaceholder(String text, GetByPlaceholderOptions options) {
+        return new LocatorImpl(webDriver, this, LocatorType.PLACEHOLDER, text);
+    }
+
+    @Override
+    public Locator getByTitle(String text, GetByTitleOptions options) {
+        return new LocatorImpl(webDriver, this, LocatorType.TITLE, text);
+    }
+
+    @Override
+    public Locator getByAltText(String text, GetByAltTextOptions options) {
+        return new LocatorImpl(webDriver, this, LocatorType.ALTTEXT, text);
+    }
+
+    @Override
+    public Locator getByRole(AriaRole role, GetByRoleOptions options) {
+        StringBuilder token = new StringBuilder(role.name().toLowerCase());
+        if (options != null) {
+            if (options.name != null)     token.append(";name=").append(options.name);
+            if (options.checked != null)  token.append(";checked=").append(options.checked);
+            if (options.selected != null) token.append(";selected=").append(options.selected);
+            if (options.expanded != null) token.append(";expanded=").append(options.expanded);
+            if (options.includeHidden != null && options.includeHidden) token.append(";includeHidden=true");
+            if (options.level != null)    token.append(";level=").append(options.level);
+            if (options.pressed != null)  token.append(";pressed=").append(options.pressed);
+        }
+        return new LocatorImpl(webDriver, this, LocatorType.ROLE, token.toString());
+    }
+
+    @Override
+    public Locator getByTestId(String testId) {
+        // exakter Match auf das Standard-Attribut data-testid
+        String css = "[data-testid='" + cssEsc(testId) + "']";
+        return new LocatorImpl(webDriver, this, de.bund.zrb.util.LocatorType.CSS, css);
+    }
+
+    @Override
+    public Locator getByRole(AriaRole role) {
+        // ohne Options-Objekt: nur Rolle
+        return getByRole(role, null);
+    }
+
+    @Override
+    public Locator getByAltText(Pattern text, GetByAltTextOptions options) {
+        String lit = xpLit(text.pattern());
+        String xp = (options != null && Boolean.TRUE.equals(options.exact))
+                ? "//*[@alt and normalize-space(@alt)=" + lit + "]"
+                : "//*[@alt and contains(normalize-space(@alt)," + lit + ")]";
         return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByLabel(Pattern text, GetByLabelOptions options) {
-        String lit = xpLit(text.pattern());
-        String xp =
-                "//*[@id=//label[contains(normalize-space(string(.))," + lit + ")]/@for]"
-                        + " | //label[contains(normalize-space(string(.))," + lit + ")]//input"
-                        + " | //label[contains(normalize-space(string(.))," + lit + ")]//textarea"
-                        + " | //label[contains(normalize-space(string(.))," + lit + ")]//select";
-        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
-    }
-
-    @Override
-    public Locator getByPlaceholder(String text, GetByPlaceholderOptions options) {
-        boolean exact = options != null && Boolean.TRUE.equals(options.exact);
-        String xp = exact
-                ? "//*[@placeholder and normalize-space(@placeholder)=" + xpLit(text) + "]"
-                : "//*[@placeholder and contains(normalize-space(@placeholder)," + xpLit(text) + ")]";
+        String lit  = xpLit(text.pattern());
+        String cond = (options != null && Boolean.TRUE.equals(options.exact))
+                ? "normalize-space(string(.))=" + lit
+                : "contains(normalize-space(string(.))," + lit + ")";
+        String xp = "//*[@id=//label[" + cond + "]/@for]"
+                + " | //label[" + cond + "]//input"
+                + " | //label[" + cond + "]//textarea"
+                + " | //label[" + cond + "]//select";
         return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
     }
 
     @Override
     public Locator getByPlaceholder(Pattern text, GetByPlaceholderOptions options) {
-        String xp = "//*[@placeholder and contains(normalize-space(@placeholder)," + xpLit(text.pattern()) + ")]";
+        String lit = xpLit(text.pattern());
+        String xp = (options != null && Boolean.TRUE.equals(options.exact))
+                ? "//*[@placeholder and normalize-space(@placeholder)=" + lit + "]"
+                : "//*[@placeholder and contains(normalize-space(@placeholder)," + lit + ")]";
         return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
-    }
-
-    @Override
-    public Locator getByAltText(String text, GetByAltTextOptions options) {
-        // exakte Übereinstimmung via CSS ist ok
-        return new LocatorImpl(webDriver, this, LocatorType.CSS, "[alt='" + cssEsc(text) + "']");
-    }
-
-    @Override
-    public Locator getByAltText(Pattern text, GetByAltTextOptions options) {
-        String xp = "//*[@alt and contains(normalize-space(@alt)," + xpLit(text.pattern()) + ")]";
-        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
-    }
-
-    @Override
-    public Locator getByTitle(String text, GetByTitleOptions options) {
-        String xp = "//*[@title and contains(normalize-space(@title)," + xpLit(text) + ")]";
-        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
-    }
-
-    @Override
-    public Locator getByTitle(Pattern text, GetByTitleOptions options) {
-        String xp = "//*[@title and contains(normalize-space(@title)," + xpLit(text.pattern()) + ")]";
-        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
-    }
-
-    @Override
-    public Locator getByRole(AriaRole role, GetByRoleOptions options) {
-        String roleString = role.name().toLowerCase();
-        String xp = "//*[@role='" + roleString + "']";
-        if (options != null) {
-            if (options.name != null) {
-                xp += "[contains(normalize-space(string(.))," + xpLit(options.name.toString()) + ")]";
-            }
-            if (options.checked != null)   xp += "[@aria-checked='"   + options.checked   + "']";
-            if (options.selected != null)  xp += "[@aria-selected='"  + options.selected  + "']";
-            if (options.expanded != null)  xp += "[@aria-expanded='"  + options.expanded  + "']";
-            if (options.pressed != null)   xp += "[@aria-pressed='"   + options.pressed   + "']";
-            if (options.level != null)     xp += "[@aria-level='"     + options.level     + "']";
-            // includeHidden ignorieren wir hier zunächst (sonst müsste man visibility prüfen)
-        }
-        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
-    }
-
-    @Override
-    public Locator getByTestId(String testId) {
-        return new LocatorImpl(webDriver, this, LocatorType.CSS, "[data-testid='" + cssEsc(testId) + "']");
     }
 
     @Override
@@ -957,6 +940,23 @@ public class PageImpl implements Page {
         return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
     }
 
+    @Override
+    public Locator getByText(Pattern text, GetByTextOptions options) {
+        String lit = xpLit(text.pattern());
+        String xp = (options != null && Boolean.TRUE.equals(options.exact))
+                ? "//*[normalize-space(string(.))=" + lit + "]"
+                : "//*[contains(normalize-space(string(.))," + lit + ")]";
+        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
+    }
+
+    @Override
+    public Locator getByTitle(Pattern text, GetByTitleOptions options) {
+        String lit = xpLit(text.pattern());
+        String xp = (options != null && Boolean.TRUE.equals(options.exact))
+                ? "//*[@title and normalize-space(@title)=" + lit + "]"
+                : "//*[@title and contains(normalize-space(@title)," + lit + ")]";
+        return new LocatorImpl(webDriver, this, LocatorType.XPATH, xp);
+    }
 
     @Override
     public Response goBack(GoBackOptions options) {
@@ -1102,11 +1102,9 @@ public class PageImpl implements Page {
         if (selector == null || selector.isEmpty()) {
             throw new IllegalArgumentException("Selector must not be null or empty.");
         }
-        // Heuristik: XPath wenn mit "/" oder "(" beginnt, sonst CSS
-        LocatorType type = (selector.startsWith("/") || selector.startsWith("("))
-                ? LocatorType.XPATH
-                : LocatorType.CSS;
-        return new LocatorImpl(webDriver, this, type, selector);
+        LocatorType type = AdapterLocatorFactory.inferType(selector);
+        String value = AdapterLocatorFactory.stripKnownPrefix(selector);
+        return new LocatorImpl(webDriver, this, type, value);
     }
 
     @Override
@@ -1157,36 +1155,56 @@ public class PageImpl implements Page {
             throw new IllegalArgumentException("Selector must not be null or empty.");
         }
 
-        String contextTarget = this.getBrowsingContextId();
+        // 1) Typ + Wert aus Prefix bestimmen
+        LocatorType type = AdapterLocatorFactory.inferType(selector);
+        String value = AdapterLocatorFactory.stripKnownPrefix(selector);
 
-//        WDLocator locator = selector.trim().startsWith("//") || selector.trim().startsWith("(//")
-//                ? new WDLocator.XPathLocator(selector)
-//                : new WDLocator.CSSLocator(selector); // Falls CSS
-        WDLocator.XPathLocator locator = new WDLocator.XPathLocator(selector); // ToDo: Allow other locators
+        // 2) WDLocator bauen
+        WDLocator<?> wdLocator = AdapterLocatorFactory.create(type, value);
 
-        WDBrowsingContextResult.LocateNodesResult nodes = browser.getWebDriver().browsingContext().locateNodes(
-                contextTarget,
-                locator
+        // 3) suchen (ein einziges Element reicht)
+        WDBrowsingContextResult.LocateNodesResult nodes =
+                browser.getWebDriver().browsingContext()
+                        .locateNodes(getBrowsingContextId(), wdLocator, 1);
+
+        if (nodes.getNodes().isEmpty()) return null;
+
+        WDRemoteValue.NodeRemoteValue n = nodes.getNodes().get(0);
+        WDRemoteReference.SharedReference ref =
+                new WDRemoteReference.SharedReference(n.getSharedId(), n.getHandle());
+
+        return new ElementHandleImpl(
+                webDriver,
+                ref,
+                new WDTarget.ContextTarget(getBrowsingContext())
         );
-
-        if (nodes.getNodes().isEmpty()) {
-            System.out.println("No nodes found for selector: " + selector);
-            return null;
-        }
-        else
-        {
-            WDSharedId sharedId = nodes.getNodes().get(0).getSharedId(); // ToDo: Use Object directly instead of String
-            WDHandle handle = nodes.getNodes().get(0).getHandle(); // Falls vorhanden
-            WDRemoteReference.SharedReference sharedReference = new WDRemoteReference.SharedReference(sharedId, handle);
-            WDTarget.ContextTarget contextTargetObj = new WDTarget.ContextTarget(new WDBrowsingContext(contextTarget));
-            System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Shared ID: " + sharedId + " <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
-            return new ElementHandleImpl(webDriver, sharedReference, contextTargetObj);
-        }
     }
 
     @Override
     public List<ElementHandle> querySelectorAll(String selector) {
-        return Collections.emptyList();
+        if (selector == null || selector.isEmpty()) {
+            throw new IllegalArgumentException("Selector must not be null or empty.");
+        }
+
+        LocatorType type = AdapterLocatorFactory.inferType(selector);
+        String value = AdapterLocatorFactory.stripKnownPrefix(selector);
+        WDLocator<?> wdLocator = AdapterLocatorFactory.create(type, value);
+
+        WDBrowsingContextResult.LocateNodesResult nodes =
+                browser.getWebDriver().browsingContext()
+                        .locateNodes(getBrowsingContextId(), wdLocator, Integer.MAX_VALUE);
+
+        List<ElementHandle> out = new ArrayList<>();
+        for (WDRemoteValue.NodeRemoteValue n : nodes.getNodes()) {
+            WDRemoteReference.SharedReference ref =
+                    new WDRemoteReference.SharedReference(n.getSharedId(), n.getHandle());
+            out.add(new ElementHandleImpl(
+                    webDriver,
+                    ref,
+                    new WDTarget.ContextTarget(getBrowsingContext())
+            ));
+        }
+        return out;
     }
 
     @Override

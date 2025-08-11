@@ -169,4 +169,27 @@ public final class AdapterLocatorFactory {
     private static String escapeSingleQuotes(String s) {
         return s == null ? null : s.replace("'", "\\'");
     }
+
+    public static LocatorType inferType(String raw) {
+        String s = raw == null ? "" : raw.trim();
+        if (s.regionMatches(true, 0, "xpath=", 0, 6)) return LocatorType.XPATH;
+        if (s.regionMatches(true, 0, "css=", 0, 4))   return LocatorType.CSS;
+        if (s.regionMatches(true, 0, "text=", 0, 5))  return LocatorType.TEXT;
+        if (s.regionMatches(true, 0, "aria=", 0, 5) ||
+                s.regionMatches(true, 0, "role=", 0, 5))  return LocatorType.ROLE;
+        if (s.regionMatches(true, 0, "label=", 0, 6)) return LocatorType.LABEL;
+        if (s.startsWith("/") || s.startsWith("("))   return LocatorType.XPATH; // nur hier (API-Zwang)
+        return LocatorType.CSS; // Default
+    }
+
+    public static String stripKnownPrefix(String raw) {
+        String s = raw == null ? "" : raw.trim();
+        String[] p = {"xpath=","css=","text=","aria=","role=","label=","placeholder=","title=","alt=","altText=","data-testid="};
+        for (String pref : p) {
+            if (s.regionMatches(true, 0, pref, 0, pref.length())) {
+                return s.substring(pref.length());
+            }
+        }
+        return s;
+    }
 }
