@@ -184,20 +184,25 @@ public class TestExecutionLogger {
         }
     }
 
-    /** NEU: Schreibt den aktuellen HTML-Inhalt in die angegebene Datei. */
     public void exportAsHtml(Path htmlFile) {
         try {
             Files.createDirectories(htmlFile.getParent());
-            byte[] data = logPane.getText().getBytes(StandardCharsets.UTF_8);
-            Files.write(
-                    htmlFile,
-                    data,
-                    java.nio.file.StandardOpenOption.CREATE,
-                    java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,
-                    java.nio.file.StandardOpenOption.WRITE
-            );
+            String html = buildHtmlFromComponents();
+            Files.write(htmlFile, html.getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private String buildHtmlFromComponents() {
+        StringBuilder body = new StringBuilder();
+        for (LogComponent root : logComponents) {
+            body.append(root.toHtml()).append("\n"); // SuiteLog sollte rekursiv Children rendern
+        }
+        return "<!doctype html><html><head><meta charset='utf-8'>"
+                + "<title>Test Report</title>"
+                + "<style>body{font-family:Segoe UI,Arial,sans-serif;line-height:1.35}"
+                + "img{max-width:100%;border:1px solid #ccc;margin-top:.5rem}</style>"
+                + "</head><body>\n" + body + "\n</body></html>";
     }
 }

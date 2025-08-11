@@ -24,7 +24,7 @@ public class TestPlayerService {
     // Report-Konfiguration
     ////////////////////////////////////////////////////////////////////////////////
 
-    private static final Path REPORT_BASE_DIR = Paths.get("C:/Reports"); // aktuell fix, später konfigurierbar
+    private static final Path DEFAULT_REPORT_BASE_DIR = Paths.get("C:/Reports"); // aktuell fix, später konfigurierbar
     private static final DateTimeFormatter REPORT_TS_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss.SSS"); // Windows-sicher
 
@@ -66,18 +66,15 @@ public class TestPlayerService {
         resetRunFlags();
         if (!isReady()) return;
 
-        initReportIfNeeded();                 // ← NEU: Report-Struktur anlegen
-        logger.clear();                       // optional: vorherige Anzeige leeren
-        logger.setDocumentBase(reportHtmlPath.getParent()); // damit relative <img> sofort im UI gehen
+        beginReport();
 
         TestNode start = resolveStartNode();
         LogComponent rootLog = runNodeStepByStep(start);
         if (rootLog != null) logger.append(rootLog);
 
-        // Am Ende: HTML auf Platte schreiben
-        logger.exportAsHtml(reportHtmlPath);  // ← NEU: komplette Seite speichern
-
         if (stopped) logger.append(new SuiteLog("⏹ Playback abgebrochen!"));
+
+        endReport();
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -196,41 +193,39 @@ public class TestPlayerService {
         String content = "Screenshot am Ende des TestCase";
         boolean ok = true;
         String error = null;
-
-        StepLog thenLog = new StepLog("THEN", content);
-        thenLog.setParent(parentLog);
+        String relImg = null;
 
         try {
             String username = resolveUserForTestCase(caseNode);
             Page page = browserService.getActivePage(username);
 
-            // Screenshot via BiDi holen
             byte[] png = page.screenshot(new Page.ScreenshotOptions());
 
-            // Datei im Report-Bilderordner speichern
             String baseName = (testCase.getName() == null) ? "case" : testCase.getName();
             Path file = saveScreenshotBytes(png, baseName);
-            String rel = relToHtml(file);
+            relImg = relToHtml(file);
 
-            // Content-Text aktualisieren
             content = "Screenshot gespeichert: " + file.toAbsolutePath();
-            thenLog.setStatus(true);
-            thenLog.setHtmlAppend(
-                    "<img src='" + rel + "' alt='Screenshot' " +
-                            "style='max-width: 100%; border:1px solid #ccc; margin-top:.5rem'/>"
-            );
-
         } catch (Exception ex) {
             ok = false;
             error = "Screenshot fehlgeschlagen: " + ex.getMessage();
-            thenLog.setStatus(false);
+        }
+
+        StepLog thenLog = new StepLog("THEN", content);
+        thenLog.setParent(parentLog);
+        thenLog.setStatus(ok);
+        if (!ok) {
             thenLog.setError(error);
+        } else if (relImg != null) {
+            thenLog.setHtmlAppend(
+                    "<img src='" + relImg + "' alt='Screenshot' " +
+                            "style='max-width:100%;border:1px solid #ccc;margin-top:.5rem'/>"
+            );
         }
 
         out.add(thenLog);
         return out;
     }
-
 
     /** Erster Action-User im Case-Node, sonst Fallback. */
     private String resolveUserForTestCase(TestNode caseNode) {
@@ -356,21 +351,6 @@ public class TestPlayerService {
         return (node != null) ? node : drawerRef.getRootNode();
     }
 
-    private void initReportIfNeeded() {
-        if (reportBaseName != null) return;
-
-        reportBaseName = LocalDateTime.now().format(REPORT_TS_FMT); // z.B. 2025-08-12_14-37-22.184
-        reportHtmlPath  = REPORT_BASE_DIR.resolve(reportBaseName + ".html");
-        reportImagesDir = REPORT_BASE_DIR.resolve(reportBaseName);
-        screenshotCounter = 0;
-
-        try {
-            Files.createDirectories(reportImagesDir);
-        } catch (Exception e) {
-            throw new RuntimeException("Report-Verzeichnisse konnten nicht angelegt werden: " + reportImagesDir, e);
-        }
-    }
-
     private Path saveScreenshotBytes(byte[] png, String baseName) throws Exception {
         initReportIfNeeded();
         String safe = (baseName == null || baseName.trim().isEmpty())
@@ -382,11 +362,66 @@ public class TestPlayerService {
         return file;
     }
 
+    // Helpers:
+    private void beginReport() {
+        // 1) Basis-Verzeichnis aus Settings (Fallback: DEFAULT)
+        String baseDirStr = SettingsService.getInstance().get("reportBaseDir", String.class);
+        Path baseDir = (baseDirStr != null && !baseDirStr.trim().isEmpty())
+                ? java.nio.file.Paths.get(baseDirStr.trim())
+                : DEFAULT_REPORT_BASE_DIR;
+
+        reportBaseName    = java.time.LocalDateTime.now().format(REPORT_TS_FMT);
+        reportHtmlPath    = baseDir.resolve(reportBaseName + ".html");
+        reportImagesDir   = baseDir.resolve(reportBaseName);
+        screenshotCounter = 0;
+
+        try {
+            java.nio.file.Files.createDirectories(reportImagesDir);
+        } catch (Exception ignore) {}
+
+        if (logger != null) {
+            // Base setzen, damit relative <img>-Pfade sofort im UI angezeigt werden
+            logger.setDocumentBase(baseDir);
+        }
+    }
+
+    private void initReportIfNeeded() {
+        if (reportBaseName != null) return;
+
+        // gleiche Logik wie in beginReport()
+        String baseDirStr = SettingsService.getInstance().get("reportBaseDir", String.class);
+        Path baseDir = (baseDirStr != null && !baseDirStr.trim().isEmpty())
+                ? java.nio.file.Paths.get(baseDirStr.trim())
+                : DEFAULT_REPORT_BASE_DIR;
+
+        reportBaseName    = java.time.LocalDateTime.now().format(REPORT_TS_FMT);
+        reportHtmlPath    = baseDir.resolve(reportBaseName + ".html");
+        reportImagesDir   = baseDir.resolve(reportBaseName);
+        screenshotCounter = 0;
+
+        try {
+            java.nio.file.Files.createDirectories(reportImagesDir);
+        } catch (Exception e) {
+            throw new RuntimeException("Report-Verzeichnisse konnten nicht angelegt werden: " + reportImagesDir, e);
+        }
+
+        if (logger != null) {
+            logger.setDocumentBase(baseDir);
+        }
+    }
+
     private String relToHtml(Path file) {
-        // relativ zum Ordner, in dem die HTML-Datei liegt
-        Path base = reportHtmlPath.getParent();
+        Path base = reportHtmlPath.getParent(); // das ist das Report-Basisverzeichnis
         String rel = base.relativize(file).toString();
-        return rel.replace('\\', '/'); // für Browser-Pfade
+        return rel.replace('\\', '/');
+    }
+
+    private void endReport() {
+        if (logger != null) {
+            logger.exportAsHtml(reportHtmlPath);
+        }
+        // Optional: Reset für nächsten Lauf
+        // reportBaseName=null; reportHtmlPath=null; reportImagesDir=null; screenshotCounter=0;
     }
 
 }
