@@ -10,49 +10,66 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Represent a single test action with an explicit locator type and the selected selector.
+ * Keep state minimal and expressive to support editor filtering and playback resolution.
+ */
 public class TestAction {
-    private String user; // z. B. "userA", "userB"
-    private ActionType type = ActionType.WHEN; // given | when | then
+
+    private String user; // e.g. "userA", "userB"
+    private ActionType type = ActionType.WHEN; // GIVEN | WHEN | THEN
     private boolean selected;
+
     private String action;
-    private String selectedSelector;  // Der tatsächlich verwendete Selektor
-    private String locatorType; // "css", "xpath", "id", "text", "role", "label", "placeholder", "altText"
+    private String selectedSelector;  // The actually used selector
+    private LocatorType locatorType;  // css, xpath, id, text, role, label, placeholder, altText
+
     private String value;
-    private Map<String, String> locators = new LinkedHashMap<>();
-    private Map<String, String> extractedValues = new LinkedHashMap<>();
-    private Map<String, String> extractedAttributes = new LinkedHashMap<>();
-    private Map<String, String> extractedTestIds = new LinkedHashMap<>();
-    private Map<String, String> extractedAriaRoles = new LinkedHashMap<>();
+    private Map<String, String> locators = new LinkedHashMap<String, String>();
+    private Map<String, String> extractedValues = new LinkedHashMap<String, String>();
+    private Map<String, String> extractedAttributes = new LinkedHashMap<String, String>();
+    private Map<String, String> extractedTestIds = new LinkedHashMap<String, String>();
+    private Map<String, String> extractedAriaRoles = new LinkedHashMap<String, String>();
     private int timeout;
 
-    private RecordedEvent raw; // optional
+    private RecordedEvent raw; // optional raw recording payload
 
+    // Optional fields for higher-level locator semantics
+    private String textContent; // If getByText is used
+    private AriaRole role;      // If getByRole is used
+    private String label;       // If getByLabel is used
 
-    private String textContent; // Falls getByText verwendet wird
-    private AriaRole role; // Falls getByRole verwendet wird
-    private String label; // Falls getByLabel verwendet wird
-
-    public TestAction(String action, String locatorType, String selectedSelector, Map<String, String> extractedValues, int timeout) {
+    /**
+     * Create a full TestAction with explicit locator type and selector.
+     */
+    public TestAction(String action, LocatorType locatorType, String selectedSelector,
+                      Map<String, String> extractedValues, int timeout) {
         this.action = action;
         this.locatorType = locatorType;
         this.selectedSelector = selectedSelector;
         if (extractedValues != null) {
             this.extractedValues = extractedValues;
-        }
-        else {
-            this.extractedValues = new LinkedHashMap<>();
+        } else {
+            this.extractedValues = new LinkedHashMap<String, String>();
         }
         this.timeout = timeout;
     }
 
-    // Falls nur ein Action-Name übergeben wird (für @Given / @Then)
+    /**
+     * Create a TestAction with only the action name (useful for GIVEN/THEN scaffolding).
+     */
     public TestAction(String action) {
         this.action = action;
     }
 
+    /**
+     * Default constructor for serializers.
+     */
     public TestAction() {
-        // ToDo: Correct?
+        // Intentionally empty
     }
+
+    // ----- Accessors -----
 
     public String getUser() {
         return user;
@@ -82,56 +99,84 @@ public class TestAction {
         return action;
     }
 
-    public String getLocatorType() {
+    public LocatorType getLocatorType() {
         return locatorType;
     }
 
+    /**
+     * Set the locator type with enum. Prefer this in new code.
+     */
+    public void setLocatorType(LocatorType locatorType) {
+        this.locatorType = locatorType;
+    }
+
+    /**
+     * Backward-friendly setter to ease migration from String-based code paths.
+     * Convert incoming key to enum when possible.
+     */
+    @Deprecated
+    public void setLocatorType(String locatorTypeKey) {
+        this.locatorType = LocatorType.fromKey(locatorTypeKey);
+    }
+
+    /**
+     * Resolve value; generate OTP on demand when value equals "OTP".
+     */
     public String getValue() {
         if (value != null && "OTP".equals(value)) {
             String userId = getUser();
             if (userId != null) {
-                UserRegistry.User user = UserRegistry.getInstance().getUser(userId);
-                if (user != null && user.getOtpSecret() != null) {
+                UserRegistry.User u = UserRegistry.getInstance().getUser(userId);
+                if (u != null && u.getOtpSecret() != null) {
                     return String.format("%06d",
-                            TotpService.getInstance().generateCurrentOtp(user.getOtpSecret()));
+                            TotpService.getInstance().generateCurrentOtp(u.getOtpSecret()));
                 }
             }
-            return "######"; // fallback bei Fehler
+            // Fallback if secret is missing or user unknown
+            return "######";
         }
         return value;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
     }
 
     public int getTimeout() {
         return timeout;
     }
 
+    public void setTimeout(int timeout) {
+        this.timeout = timeout;
+    }
 
     public AriaRole getRole() {
         return role;
+    }
+
+    public void setRole(AriaRole role) {
+        this.role = role;
     }
 
     public String getLabel() {
         return label;
     }
 
+    public void setLabel(String label) {
+        this.label = label;
+    }
+
+    /** Keep legacy method name to avoid breaking callers. */
     public String getText() {
         return textContent;
     }
 
-    public void setAction(String valueAt) {
-        this.action = valueAt;
+    public void setText(String textContent) {
+        this.textContent = textContent;
     }
 
-    public void setLocatorType(String valueAt) {
-        this.locatorType = valueAt;
-    }
-
-    public void setTimeout(int valueAt) {
-        this.timeout = valueAt;
-    }
-
-    public void setValue(String value) {
-        this.value = value;
+    public void setAction(String action) {
+        this.action = action;
     }
 
     public Map<String, String> getExtractedValues() {
@@ -139,7 +184,7 @@ public class TestAction {
     }
 
     public void setExtractedValues(Map<String, String> extractedValues) {
-        this.extractedValues = extractedValues;
+        this.extractedValues = extractedValues != null ? extractedValues : new LinkedHashMap<String, String>();
     }
 
     public Map<String, String> getExtractedAttributes() {
@@ -147,7 +192,8 @@ public class TestAction {
     }
 
     public void setExtractedAttributes(Map<String, String> extractedAttributes) {
-        this.extractedValues = extractedAttributes;
+        // Fix bug: do not assign to extractedValues
+        this.extractedAttributes = extractedAttributes != null ? extractedAttributes : new LinkedHashMap<String, String>();
     }
 
     public Map<String, String> getExtractedTestIds() {
@@ -155,7 +201,7 @@ public class TestAction {
     }
 
     public void setExtractedTestIds(Map<String, String> extractedTestIds) {
-        this.extractedTestIds = extractedTestIds;
+        this.extractedTestIds = extractedTestIds != null ? extractedTestIds : new LinkedHashMap<String, String>();
     }
 
     public Map<String, String> getExtractedAriaRoles() {
@@ -163,7 +209,7 @@ public class TestAction {
     }
 
     public void setExtractedAriaRoles(Map<String, String> extractedAriaRoles) {
-        this.extractedAriaRoles = extractedAriaRoles;
+        this.extractedAriaRoles = extractedAriaRoles != null ? extractedAriaRoles : new LinkedHashMap<String, String>();
     }
 
     public Map<String, String> getLocators() {
@@ -171,24 +217,15 @@ public class TestAction {
     }
 
     public void setLocators(Map<String, String> locators) {
-        this.locators = locators;
+        this.locators = locators != null ? locators : new LinkedHashMap<String, String>();
     }
 
-    public JsonObject toPlaywrightJson() {
-        JsonObject obj = new JsonObject();
+    public RecordedEvent getRaw() {
+        return raw;
+    }
 
-        if (user != null) {
-            obj.addProperty("user", user); // Zusätzlicher Key, kompatibel aber von PlayWright ignorierbar
-        }
-
-        obj.addProperty("action", action);
-        obj.addProperty("selector", selectedSelector);
-
-        if (value != null) {
-            obj.addProperty("value", value);
-        }
-
-        return obj;
+    public void setRaw(RecordedEvent raw) {
+        this.raw = raw;
     }
 
     public ActionType getType() {
@@ -199,17 +236,28 @@ public class TestAction {
         this.type = type;
     }
 
-    public enum ActionType {
-        GIVEN, WHEN, THEN;
+    /**
+     * Convert to a minimal JSON that mirrors Playwright action intent.
+     * Keep keys simple and compatible with downstream tooling.
+     */
+    public JsonObject toPlaywrightJson() {
+        JsonObject obj = new JsonObject();
+        if (user != null) {
+            // Extra key; remain compatible while allowing multi-user playback
+            obj.addProperty("user", user);
+        }
+        obj.addProperty("action", action);
+        obj.addProperty("selector", selectedSelector);
+        if (locatorType != null) {
+            obj.addProperty("locatorType", locatorType.getKey());
+        }
+        if (value != null) {
+            obj.addProperty("value", value);
+        }
+        return obj;
     }
 
-    public RecordedEvent getRaw() {
-        return raw;
-    }
-
-    public void setRaw(RecordedEvent raw) {
-        this.raw = raw;
-    }
+    // ----- Equality -----
 
     @Override
     public boolean equals(Object o) {
@@ -221,7 +269,8 @@ public class TestAction {
         if (action != null ? !action.equals(that.action) : that.action != null) return false;
         if (selectedSelector != null ? !selectedSelector.equals(that.selectedSelector) : that.selectedSelector != null)
             return false;
-        return locatorType != null ? locatorType.equals(that.locatorType) : that.locatorType == null;
+        // Compare enum by identity for clarity
+        return locatorType == that.locatorType;
     }
 
     @Override
@@ -230,5 +279,11 @@ public class TestAction {
         result = 31 * result + (selectedSelector != null ? selectedSelector.hashCode() : 0);
         result = 31 * result + (locatorType != null ? locatorType.hashCode() : 0);
         return result;
+    }
+
+    // ----- Nested types -----
+
+    public enum ActionType {
+        GIVEN, WHEN, THEN
     }
 }

@@ -4,9 +4,11 @@ import com.microsoft.playwright.Page;
 import de.bund.zrb.RecordingEventRouter;
 import de.bund.zrb.dto.RecordedEvent;
 import de.bund.zrb.event.WDScriptEvent;
+import de.bund.zrb.model.LocatorType;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
 import de.bund.zrb.type.script.WDRemoteValue;
+import de.bund.zrb.util.CssSelectorSanitizer;
 
 import java.util.*;
 
@@ -138,13 +140,36 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         TestAction action = new TestAction();
         action.setTimeout(30_000);
         action.setAction(event.getAction());
-        action.getLocators().put("xpath", event.getXpath());
-        action.getLocators().put("css", event.getCss());
-        action.setLocatorType(event.getXpath() != null ? "xpath" : "css");
-        action.setSelectedSelector(event.getXpath() != null ? event.getXpath() : event.getCss());
+
+        // 1) Collect raw locators from the event
+        String rawXpath = event.getXpath();
+        String rawCss   = event.getCss();
+
+        // 2) Sanitize CSS early (handle JSF/PrimeFaces ids with colons)
+        String sanitizedCss = rawCss != null ? CssSelectorSanitizer.sanitize(rawCss) : null;
+
+        // 3) Put locators into the map (store sanitized CSS)
+        action.getLocators().put("xpath", rawXpath);
+        action.getLocators().put("css", sanitizedCss);
+
+        // Optional: if the event exposes a distinct DOM id, store it for future use
+        if (event.getElementId() != null && event.getElementId().trim().length() > 0) {
+            action.getLocators().put("id", event.getElementId().trim());
+        }
+
+        // 4) Choose locator type and selected selector (prefer xpath if present, else css)
+        if (rawXpath != null && rawXpath.trim().length() > 0) {
+            action.setLocatorType(LocatorType.XPATH);
+            action.setSelectedSelector(rawXpath);
+        } else {
+            action.setLocatorType(LocatorType.CSS);
+            action.setSelectedSelector(sanitizedCss);
+        }
+
+        // 5) Value
         action.setValue(event.getValue());
 
-        // 🔑 Hier User setzen:
+        // 6) Map current user
         UserRegistry.User currentUser = UserContextMappingService.getInstance().getCurrentUser();
         if (currentUser != null) {
             action.setUser(currentUser.getUsername());
@@ -152,6 +177,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
             System.err.println("⚠️ Kein aktueller User im MappingService gefunden!");
         }
 
+        // 7) Copy additional extracted info (unchanged from your version)
         if (event.getButtonText() != null) {
             if (action.getValue() == null) {
                 action.setValue(event.getButtonText());
@@ -169,14 +195,19 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         if (event.getElementId() != null) {
             action.getExtractedAttributes().put("elementId", event.getElementId());
         }
-        action.setExtractedValues(event.getExtractedValues() != null ?
-                new LinkedHashMap<>(event.getExtractedValues()) : new LinkedHashMap<>());
-        action.setExtractedAttributes(event.getAttributes() != null ?
-                new LinkedHashMap<>(event.getAttributes()) : new LinkedHashMap<>());
-        action.setExtractedTestIds(event.getTest() != null ?
-                new LinkedHashMap<>(event.getTest()) : new LinkedHashMap<>());
-        action.setExtractedAriaRoles(event.getAria() != null ?
-                new LinkedHashMap<>(event.getAria()) : new LinkedHashMap<>());
+
+        action.setExtractedValues(event.getExtractedValues() != null
+                ? new LinkedHashMap<String, String>(event.getExtractedValues())
+                : new LinkedHashMap<String, String>());
+        action.setExtractedAttributes(event.getAttributes() != null
+                ? new LinkedHashMap<String, String>(event.getAttributes())
+                : new LinkedHashMap<String, String>());
+        action.setExtractedTestIds(event.getTest() != null
+                ? new LinkedHashMap<String, String>(event.getTest())
+                : new LinkedHashMap<String, String>());
+        action.setExtractedAriaRoles(event.getAria() != null
+                ? new LinkedHashMap<String, String>(event.getAria())
+                : new LinkedHashMap<String, String>());
 
         if (event.getPagination() != null) {
             action.getExtractedAttributes().put("pagination", event.getPagination());
