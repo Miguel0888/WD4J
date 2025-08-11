@@ -37,7 +37,7 @@ public class TestExecutionLogger {
                 String html = log.toHtml();
                 String current = logPane.getText();
                 int insertPos = current.lastIndexOf("</body>");
-                String updated = current.substring(0, insertPos) + html + "<br>" + current.substring(insertPos);
+                String updated = current.substring(0, insertPos) + html + current.substring(insertPos);
                 logPane.setText(updated);
                 logPane.setCaretPosition(logPane.getDocument().getLength());
             }

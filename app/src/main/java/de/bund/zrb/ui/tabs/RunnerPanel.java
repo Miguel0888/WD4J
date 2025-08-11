@@ -19,8 +19,14 @@ public class RunnerPanel extends JPanel {
         // Logbereich
         logPane = new JEditorPane();
         logPane.setEditable(false);
-        logPane.setContentType("text/html");
-        logPane.setText("<html><body></body></html>");
+        this.logPane.setContentType("text/html");
+        this.logPane.setText(
+                "<html><head><style>"
+                        + "body{font-family:sans-serif;font-size:12px;margin:6px;}"
+                        + "p{margin:4px 0;}"                   // schlanke Abstände
+                        + "img{max-width:100%;}"               // falls Screenshots eingebettet sind
+                        + "</style></head><body></body></html>"
+        );
 
         JScrollPane scrollPane = new JScrollPane(logPane);
         add(scrollPane, BorderLayout.CENTER);
