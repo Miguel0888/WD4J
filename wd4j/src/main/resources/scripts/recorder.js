@@ -1,488 +1,403 @@
-function(sendMessage) {
-    console.log("✅ recorder.js gestartet");
-    console.log("✅ BiDi sendMessage:", sendMessage);
-
+// recorder.js
+function (sendMessage) {
+    // ---------- Guard & channel bridge ----------
     if (typeof sendMessage !== "function") {
-        console.error("🚨 WebDriver BiDi: Kein gültiger Message-Channel übergeben!");
+        console.error("[recorder] invalid sendMessage");
         return;
     }
-
-    // Binde den BiDi-Channel in deine Events-API ein:
-    window.sendJsonDataAsArray = function (eventDataArray) {
-        if (!Array.isArray(eventDataArray)) {
-            console.error("🚨 sendJsonDataAsArray erwartet ein JSON-Array!");
-            return;
-        }
-
+    function postEvents(eventsArray) {
         try {
-            console.log(`📤 Sende ${eventDataArray.length} Events über BiDi`);
-            sendMessage({
-                type: "recording-event",
-                events: eventDataArray
-            });
-        } catch (error) {
-            console.error("🚨 Fehler beim Senden über BiDi:", error);
-        }
-    };
-
-    let tooltip;
-    let isTooltipEnabled = false;
-    let isDomObserverEnabled = false;
-
-    function initializeTooltip() {
-        if (!document.body) return setTimeout(initializeTooltip, 50);
-
-        if (!tooltip) {
-            tooltip = document.createElement('div');
-            Object.assign(tooltip.style, {
-                position: 'fixed',
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                color: 'white',
-                padding: '5px',
-                borderRadius: '3px',
-                fontSize: '12px',
-                zIndex: '9999',
-                pointerEvents: 'none',
-                display: 'none'
-            });
-            document.body.appendChild(tooltip);
+            if (!Array.isArray(eventsArray) || eventsArray.length === 0) return;
+            sendMessage({ type: "recording-event", events: eventsArray });
+        } catch (e) {
+            console.error("[recorder] postEvents failed:", e);
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ---------- Utilities ----------
+    const isHashy = (s) => typeof s === "string" && /^[A-Za-z0-9]{8,}$/.test(s);
+    const isNsClass = (s) => typeof s === "string" && /^ns-[a-z0-9\-]+$/.test(s);
+    const isGeneratedClass = (s) => isHashy(s) || isNsClass(s);
 
-    function getStableSelector(element) {
-        if (!element) return null;
+    function cssAttrEsc(val) {
+        // single-quoted CSS attr value
+        return "'" + String(val).replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "'";
+    }
 
-        if (element.id && !isGeneratedId(element.id)) {
-            return `#${element.id}`;
+    function collectAria(el) {
+        const out = {};
+        for (const a of el.attributes) {
+            if (a.name.startsWith("aria-")) out[a.name] = a.value;
         }
+        return Object.keys(out).length ? out : null;
+    }
 
-        if (element.className && typeof element.className === 'string') {
-            const classList = element.className.trim().split(/\s+/).filter(cls => !isGeneratedClass(cls));
-            if (classList.length > 0) {
-                return `.${classList.join('.')}`;
+    function collectTestAttrs(el) {
+        const out = {};
+        for (const a of el.attributes) {
+            if (a.name === "data-testid" || a.name.startsWith("test-")) out[a.name] = a.value;
+        }
+        return Object.keys(out).length ? out : null;
+    }
+
+    function collectOtherAttrs(el) {
+        const keys = ["type", "maxlength", "autocomplete"];
+        const out = {};
+        for (const k of keys) {
+            const v = el.getAttribute(k);
+            if (v != null) out[k] = v;
+        }
+        // keep other data-* (but skip testing keys)
+        for (const a of el.attributes) {
+            if (a.name.startsWith("data-") && a.name !== "data-testid") {
+                out[a.name] = a.value;
             }
         }
-
-        return getElementPath(element);
+        return Object.keys(out).length ? out : null;
     }
 
-    function isGeneratedId(id) {
-        return /^([A-Za-z0-9]{8,})$/.test(id);
+    function absoluteXPath(el) {
+        if (!el || el.nodeType !== 1) return "";
+        if (el.id) return "//*[@id='" + el.id.replace(/'/g, "\\'") + "']";
+        const parts = [];
+        for (; el && el.nodeType === 1; el = el.parentNode) {
+            let index = 1;
+            let sib = el.previousElementSibling;
+            while (sib) {
+                if (sib.nodeType === 1 && sib.tagName === el.tagName) index++;
+                sib = sib.previousElementSibling;
+            }
+            parts.unshift(el.tagName.toLowerCase() + "[" + index + "]");
+        }
+        return "/" + parts.join("/");
     }
 
-    function isGeneratedClass(cls) {
-        return /^ns-[a-z0-9\-]+$/.test(cls) || /^[A-Za-z0-9]{8,}$/.test(cls);
+    function classesOf(el) {
+        if (!el || !el.classList) return null;
+        const arr = Array.from(el.classList).filter(c => !isGeneratedClass(c));
+        return arr.length ? arr.join(" ") : null;
     }
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ---------- CSS (id-frei) ----------
+    function idFreeCssForGeneric(el, maxDepth = 4) {
+        // Build a compact, id-freier Pfad mit Klassen/role/aria/data-*
+        const chain = [];
+        let cur = el;
+        let depth = 0;
 
-    const createEventDTO = () => ({
-        selector: null,       // CSS-Selektor
-        action: null,         // Aktion (click, input, press etc.)
-        value: null,          // Falls ein Input-Event -> Eingabewert
-        key: null,            // Falls eine Taste gedrückt wurde
-        extractedValues: {},  // 🔥 Generische Map für alle extrahierten Werte
-        inputName: null,      // Falls ein Formularfeld geklickt wurde -> Name des Inputs
-        buttonText: null,     // Falls ein Button geklickt wurde -> Button-Text
-        pagination: null,     // Falls ein Paginierungs-Link geklickt wurde -> Paginierungsbereich
-        elementId: null,      // Falls vorhanden -> ID des Elements
-        classes: null,        // Falls vorhanden -> Klassen des Elements
-        xpath: null,          // XPath des Elements
-        aria: null,           // JSON-Objekt mit allen `aria-*`-Attributen
-        attributes: null,     // JSON-Objekt mit relevanten Attributen (type, maxlength, data-*, etc.)
-        test: null            // JSON-Objekt mit allen `test-*` Attributen
-    });
+        while (cur && cur.nodeType === 1 && depth < maxDepth) {
+            const tag = cur.tagName.toLowerCase();
 
-    function recordEvent(event) {
-        let target = event.target;
-        let interactiveElement = findInteractiveElement(target);
+            // prefer semantic anchors
+            let piece = tag;
 
-        if (!interactiveElement) {
-            interactiveElement = target;
+            // stable classes (max 2)
+            const stable = (cur.classList ? Array.from(cur.classList).filter(c => !isGeneratedClass(c)) : []);
+            if (stable.length) piece += "." + stable.slice(0, 2).join(".");
+
+            // role/landmark
+            const role = cur.getAttribute && cur.getAttribute("role");
+            if (role) piece += "[role=" + cssAttrEsc(role) + "]";
+
+            // specific data-* that define structure (not tests)
+            if (cur.hasAttribute && cur.hasAttribute("data-label")) {
+                piece += "[data-label=" + cssAttrEsc(cur.getAttribute("data-label")) + "]";
+            }
+            if (cur.hasAttribute && cur.hasAttribute("aria-label")) {
+                piece += "[aria-label=" + cssAttrEsc(cur.getAttribute("aria-label")) + "]";
+            }
+
+            // disambiguate siblings of same tag/class
+            const siblings = cur.parentElement ? Array.from(cur.parentElement.children).filter(n => n.tagName === cur.tagName) : [];
+            if (siblings.length > 1) {
+                let idx = 1;
+                for (let s = cur.previousElementSibling; s; s = s.previousElementSibling) {
+                    if (s.tagName === cur.tagName) idx++;
+                }
+                piece += ":nth-of-type(" + idx + ")";
+            }
+
+            chain.unshift(piece);
+
+            // stop early on clear widget roots
+            if (cur.matches && (
+                cur.matches(".ui-selectonemenu[role='combobox']") ||
+                cur.matches("nav,[role='navigation']") ||
+                cur.matches("table,[role='table']")
+            )) break;
+
+            cur = cur.parentElement;
+            depth++;
         }
 
-        const selector = getStableSelector(interactiveElement);
-        if (!selector) return;
-
-        let eventData = createEventDTO();
-        eventData.selector = selector;
-        eventData.action = determineAction(event);
-
-        if (eventData.action === 'input') {
-            eventData.value = interactiveElement.value || null;
-        } else if (eventData.action === 'press') {
-            eventData.key = event.key || null;
-        }
-
-        extractButtonOrMenuInfo(interactiveElement, eventData);
-        extractTableData(interactiveElement, eventData);
-        extractFormFieldInfo(interactiveElement, eventData);
-        extractNavigationInfo(interactiveElement, eventData);
-        extractAriaAttributes(interactiveElement, eventData);
-        extractOtherAttributes(interactiveElement, eventData);
-        extractTestAttributes(interactiveElement, eventData);
-
-        eventData.xpath = getElementXPath(interactiveElement);
-        eventData.elementId = interactiveElement.id || null;
-        eventData.classes = interactiveElement.className || null;
-
-        sendSanitizedData(eventData);
-
-        // Tooltip anzeigen, falls aktiviert
-        showTooltip(eventData, event);
+        return chain.join(" > ");
     }
 
-    /** 🔹 Entfernt alle `null`-Werte und sendet die Daten */
-    function sendSanitizedData(eventData) {
+    // ---------- PrimeFaces selectOneMenu helpers ----------
+    function isSelectOneMenuRoot(el) {
+        return el && el.matches && el.matches(".ui-selectonemenu[role='combobox']");
+    }
+    function findSelectOneMenuRoot(el) {
+        return el ? el.closest(".ui-selectonemenu[role='combobox']") : null;
+    }
+    function isSelectOneMenuTrigger(el) {
+        return el && el.matches && el.matches(".ui-selectonemenu-trigger");
+    }
+    function isSelectOneMenuOption(el) {
+        return el && el.matches && el.matches("li.ui-selectonemenu-item[role='option']");
+    }
+    function isSelectOneMenuList(el) {
+        return el && el.matches && el.matches("ul.ui-selectonemenu-items[role='listbox']");
+    }
+
+    function cssForSoMTrigger(el) {
+        // id-frei → Root + trigger
+        return ".ui-selectonemenu[role='combobox'] .ui-selectonemenu-trigger";
+    }
+    function cssForSoMOption(li) {
+        const label = li.getAttribute("data-label") || li.textContent.trim();
+        const hasList = li.closest("ul.ui-selectonemenu-items[role='listbox']");
+        const listSel = hasList ? "ul.ui-selectonemenu-items[role='listbox']" : "ul.ui-selectonemenu-items";
+        return `${listSel} li.ui-selectonemenu-item[role='option'][data-label=${cssAttrEsc(label)}]`;
+    }
+
+    // ---------- table helpers ----------
+    function extractRowColumns(el) {
+        const tr = el.closest("tr");
+        if (!tr) return null;
+        const cols = Array.from(tr.querySelectorAll("td"))
+            .map(td => (td.textContent || "").trim())
+            .filter(t => t.length > 0);
+        return cols.length ? JSON.stringify(cols) : null;
+    }
+
+    // ---------- DTO ----------
+    function createEventDTO() {
+        return {
+            selector: null,
+            action: null,
+            value: null,
+            key: null,
+            extractedValues: {},
+            inputName: null,
+            buttonText: null,
+            pagination: null,
+            elementId: null,
+            classes: null,
+            xpath: null,
+            aria: null,
+            attributes: null,
+            test: null
+        };
+    }
+
+    // ---------- Build DTO from event target ----------
+    function buildDtoForEvent(nativeEvent) {
+        // find meaningful interactive element
+        const target = nativeEvent.target;
+        let el = target.closest("button, a, input, select, textarea, [role='button'], [role='menuitem'], li, .ui-selectonemenu, .ui-selectonemenu-trigger, .ui-autocomplete, .ui-dropdown, td, tr") || target;
+
+        const dto = createEventDTO();
+
+        // action
+        if (nativeEvent.type === "input" || nativeEvent.type === "change") dto.action = "input";
+        else if (nativeEvent.type === "keydown") { dto.action = "press"; dto.key = nativeEvent.key || null; }
+        else dto.action = "click";
+
+        // element basics
+        dto.elementId = el.id || null;
+        dto.classes = classesOf(el);
+        dto.xpath = absoluteXPath(el);
+        dto.aria = collectAria(el);
+        dto.attributes = collectOtherAttrs(el);
+        dto.test = collectTestAttrs(el);
+        if (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
+            dto.inputName = el.name || null;
+            if (dto.action === "input") dto.value = el.value ?? null;
+        }
+
+        // buttons / links visible text
+        if (el.tagName === "BUTTON" || el.getAttribute("role") === "button") {
+            const t = (el.textContent || "").trim();
+            if (t) dto.buttonText = t;
+        }
+        const nav = el.closest("[role='navigation']");
+        if (nav) dto.pagination = nav.getAttribute("aria-label") || "navigation";
+
+        // table row columns
+        const columns = extractRowColumns(el);
+        if (columns) dto.extractedValues.columns = columns;
+
+        // ---------- PrimeFaces selectOneMenu special cases ----------
+        if (isSelectOneMenuTrigger(el)) {
+            const root = findSelectOneMenuRoot(el) || el.closest(".ui-selectonemenu");
+            dto.selector = cssForSoMTrigger(el); // id-frei
+            if (root) {
+                dto.extractedValues.widget = "selectOneMenu";
+                dto.extractedValues.comboboxId = root.id || null; // raw id, extra info
+                const labelEl = root.querySelector(".ui-selectonemenu-label");
+                if (labelEl) dto.extractedValues.displayLabel = (labelEl.textContent || "").trim();
+            }
+            return dto;
+        }
+
+        if (isSelectOneMenuOption(el)) {
+            dto.selector = cssForSoMOption(el); // id-frei, data-label basiert
+            dto.extractedValues.widget = "selectOneMenu";
+            dto.extractedValues.itemLabel = el.getAttribute("data-label") || (el.textContent || "").trim();
+            // index
+            const list = el.closest("ul.ui-selectonemenu-items[role='listbox']");
+            if (list) {
+                const items = Array.from(list.querySelectorAll("li.ui-selectonemenu-item[role='option']"));
+                const idx = items.indexOf(el);
+                if (idx >= 0) dto.extractedValues.itemIndex = idx;
+                dto.extractedValues.listboxId = list.id || null; // raw id
+            }
+            // combobox context (if resolvable)
+            const panel = list ? list.closest(".ui-selectonemenu-panel") : null;
+            const comboboxId = panel ? (panel.id || "").replace(/_panel$/, "") : null;
+            if (comboboxId) dto.extractedValues.comboboxId = comboboxId;
+            return dto;
+        }
+
+        if (isSelectOneMenuRoot(el)) {
+            // clicking on root (e.g., label area) – still provide a solid id-free selector
+            dto.selector = ".ui-selectonemenu[role='combobox'] .ui-selectonemenu-label";
+            dto.extractedValues.widget = "selectOneMenu";
+            const labelEl = el.querySelector(".ui-selectonemenu-label");
+            if (labelEl) dto.extractedValues.displayLabel = (labelEl.textContent || "").trim();
+            dto.extractedValues.comboboxId = el.id || null; // raw id
+            return dto;
+        }
+
+        // ---------- generic CSS (id-frei) ----------
+        dto.selector = idFreeCssForGeneric(el);
+
+        return dto;
+    }
+
+    // ---------- Debounce duplicate events ----------
+    let lastSig = null;
+    let lastTs = 0;
+    function sigFromDto(dto) {
+        // build a light signature for de-dup
+        return [
+            dto.action || "",
+            dto.selector || "",
+            dto.elementId || "",
+            dto.value || "",
+            dto.key || ""
+        ].join("|");
+    }
+    function shouldEmit(sig) {
+        const now = Date.now();
+        if (sig === lastSig && (now - lastTs) < 100) return false; // 100ms debounce
+        lastSig = sig; lastTs = now;
+        return true;
+    }
+
+    // ---------- Listener core ----------
+    function onAnyEvent(nativeEvent) {
         try {
-            let sanitizedData = Object.fromEntries(
-                Object.entries(eventData).filter(([_, value]) => value !== null)
-            );
-
-            if (typeof window.sendJsonDataAsArray === 'function') {
-                window.sendJsonDataAsArray([sanitizedData]);
-            }
-        } catch (error) {
-            console.error("Fehler in sendSanitizedData:", error);
-            return null; // Alternativ: leeres Array `[]` oder ein Standardwert zurückgeben
+            const dto = buildDtoForEvent(nativeEvent);
+            const sig = sigFromDto(dto);
+            if (!shouldEmit(sig)) return;
+            // send single event as array of one (wire format)
+            postEvents([compact(dto)]);
+        } catch (e) {
+            console.error("[recorder] onAnyEvent error:", e);
         }
     }
 
-    /** 🔹 Findet interaktive Elemente wie Buttons, Links, Inputs oder Menüpunkte */
-    function findInteractiveElement(target) {
-        return target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], tr, td, li, [role="navigation"] a');
-    }
-
-    /** 🔹 Bestimmt die Aktion basierend auf dem Event-Typ */
-    function determineAction(event) {
-        if (event.type === 'input' || event.type === 'change') return 'input';
-        if (event.type === 'keydown') return 'press';
-        return 'click';
-    }
-
-    /** 🔹 Extrahiert Button- oder Menüinformationen */
-    function extractButtonOrMenuInfo(element, eventData) {
-        if (element.tagName === 'BUTTON' || element.getAttribute('role') === 'button' || element.matches('[role="navigation"] a')) {
-            eventData.buttonText = element.textContent.trim() || null;
-        }
-
-        let menuItem = element.closest('[role="menuitem"], [role="tab"], li');
-        if (menuItem) {
-            let linkInside = menuItem.querySelector('a');
-            eventData.extractedValues["text"] = (linkInside ? linkInside.textContent.trim() : menuItem.textContent.trim()) || null;
-        }
-    }
-
-    /** 🔹 Extrahiert Tabellendaten, falls innerhalb einer Tabelle */
-    function extractTableData(element, eventData) {
-        let tableRow = element.closest('tr');
-        if (tableRow) {
-            let columnData = Array.from(tableRow.querySelectorAll('td'))
-                .map(td => td.textContent.trim())
-                .filter(text => text.length > 0);
-
-            if (columnData.length > 0) {
-                eventData.extractedValues["columns"] = JSON.stringify(columnData);
+    // remove nulls
+    function compact(obj) {
+        const out = {};
+        for (const [k, v] of Object.entries(obj)) {
+            if (v == null) continue;
+            if (typeof v === "object" && !Array.isArray(v)) {
+                const sub = compact(v);
+                if (Object.keys(sub).length) out[k] = sub;
+            } else {
+                out[k] = v;
             }
         }
+        return out;
     }
 
-    /** 🔹 Extrahiert Formularfeld-Informationen */
-    function extractFormFieldInfo(element, eventData) {
-        if (element.tagName === 'INPUT' || element.tagName === 'SELECT' || element.tagName === 'TEXTAREA') {
-            eventData.inputName = element.name || null;
-        }
-    }
-
-    /** 🔹 Extrahiert Informationen zur Navigation (Paginierung) */
-    function extractNavigationInfo(element, eventData) {
-        let navigation = element.closest('[role="navigation"]');
-        if (navigation) {
-            eventData.pagination = navigation.getAttribute('aria-label') || "Unbekannte Navigation";
-        }
-    }
-
-    /** 🔹 Extrahiert alle `aria-*` Attribute als JSON */
-    function extractAriaAttributes(element, eventData) {
-        let ariaAttributes = {};
-        Array.from(element.attributes).forEach(attr => {
-            if (attr.name.startsWith("aria-")) {
-                ariaAttributes[attr.name] = attr.value;
-            }
-        });
-        eventData.aria = Object.keys(ariaAttributes).length > 0 ? ariaAttributes : null;
-    }
-
-    /** 🔹 Extrahiert andere relevante Attribute */
-    function extractOtherAttributes(element, eventData) {
-        let attributeList = ["type", "maxlength", "autocomplete"];
-        let attributes = {};
-        attributeList.forEach(attr => {
-            let value = element.getAttribute(attr);
-            if (value !== null) {
-                attributes[attr] = value;
-            }
-        });
-
-        // Auch `data-*` Attribute speichern
-        Array.from(element.attributes).forEach(attr => {
-            if (attr.name.startsWith("data-")) {
-                attributes[attr.name] = attr.value;
-            }
-        });
-
-        eventData.attributes = Object.keys(attributes).length > 0 ? attributes : null;
-    }
-
-    /** 🔹 Extrahiert alle `test-*` Attribute für automatisierte Tests */
-    function extractTestAttributes(element, eventData) {
-        let testAttributes = {};
-        Array.from(element.attributes).forEach(attr => {
-            if (attr.name.startsWith("test-")) {
-                testAttributes[attr.name] = attr.value;
-            }
-        });
-
-        eventData.test = Object.keys(testAttributes).length > 0 ? testAttributes : null;
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    function recordEventIfInteractive(event) {
-        let target = event.target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], .ui-selectonemenu, .ui-autocomplete, .ui-dropdown');
-
-        if (target) {
-            // Verhindert doppelte Events auf einem Element
-            if (!event._recorded) {
-                event._recorded = true; // Markiere Event als erfasst
-                recordEvent(event);
-            }
-        }
-    }
-
-    function rebindEventListeners() {
-        console.log('🔄 PrimeFaces AJAX-Update erkannt – Event-Listener werden neu gebunden');
-
-        const elements = document.querySelectorAll('button, a, input, textarea, select, .ui-commandlink, .ui-button, .ui-selectonemenu, .ui-autocomplete, .ui-dropdown');
-        elements.forEach(el => {
-            el.removeEventListener('click', recordEventIfInteractive);
-            el.addEventListener('click', recordEventIfInteractive);
-            el.removeEventListener('input', recordEventIfInteractive);
-            el.addEventListener('input', recordEventIfInteractive);
-            el.removeEventListener('change', recordEventIfInteractive);
-            el.addEventListener('change', recordEventIfInteractive);
-            el.removeEventListener('keydown', recordEventIfInteractive);
-            el.addEventListener('keydown', recordEventIfInteractive);
-            el.removeEventListener('submit', recordEventIfInteractive);
-            el.addEventListener('submit', recordEventIfInteractive);
+    function bindInteractiveListeners(root) {
+        const qs = "button, a, input, select, textarea, [role='button'], [role='menuitem'], .ui-selectonemenu, .ui-selectonemenu-trigger, .ui-autocomplete, .ui-dropdown, td, tr";
+        const els = (root || document).querySelectorAll(qs);
+        els.forEach(el => {
+            el.removeEventListener("click", onAnyEvent, true);
+            el.addEventListener("click", onAnyEvent, true);
+            el.removeEventListener("change", onAnyEvent, true);
+            el.addEventListener("change", onAnyEvent, true);
+            el.removeEventListener("input", onAnyEvent, true);
+            el.addEventListener("input", onAnyEvent, true);
+            el.removeEventListener("keydown", onAnyEvent, true);
+            el.addEventListener("keydown", onAnyEvent, true);
         });
     }
 
-
-    function watchPrimeFacesAjax() {
-        if (window.PrimeFaces) {
-            console.log('✅ PrimeFaces erkannt – AJAX-Events werden überwacht');
-            PrimeFaces.ajax.Queue.add = function (cfg) {
-                console.log('📡 PrimeFaces AJAX-Request gestartet:', cfg);
+    // ---------- PrimeFaces AJAX rebind ----------
+    function hookPrimeFacesAjax() {
+        if (!window.PrimeFaces || !window.PrimeFaces.ajax || !window.PrimeFaces.ajax.Queue) return;
+        try {
+            const q = window.PrimeFaces.ajax.Queue;
+            const origAdd = q.add, origRemove = q.remove;
+            q.add = function(cfg) {
+                // console.debug("[recorder] PF ajax start", cfg);
+                return origAdd.apply(this, arguments);
             };
-            PrimeFaces.ajax.Queue.remove = function (cfg) {
-                console.log('✅ PrimeFaces AJAX-Request abgeschlossen:', cfg);
-                rebindEventListeners();
+            q.remove = function(cfg) {
+                // console.debug("[recorder] PF ajax end", cfg);
+                setTimeout(() => bindInteractiveListeners(document), 0);
+                return origRemove.apply(this, arguments);
             };
+            // initial bind
+            bindInteractiveListeners(document);
+        } catch (e) {
+            console.warn("[recorder] PF hook failed:", e);
         }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        initializeTooltip();
-        watchPrimeFacesAjax();
-        rebindEventListeners();
-        startObserver();
-
-        // Capture Phase verwenden, um Events zu erfassen, bevor PrimeFaces sie verarbeitet
-        document.body.addEventListener('click', event => {
-            recordEventIfInteractive(event);
-        }, true);
-        document.body.addEventListener('keydown', event => {
-            recordEventIfInteractive(event);
-        }, true);
-    });
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /////////////////////////////////////////// MutationObserver ///////////////////////////////////////////
-
-    const createMutationDTO = () => ({
-        action: null,       // Typ der Mutation (added, removed, attributeChanged, textChanged)
-        selector: null,     // CSS-Selektor des betroffenen Elements
-        attribute: null,    // Falls `attributeChanged` -> Name des geänderten Attributs
-        oldValue: null,     // Falls `attributeChanged` -> Alter Wert des Attributs
-        newValue: null,     // Falls `attributeChanged` -> Neuer Wert des Attributs
-        extractedText: null,// Falls `textChanged` -> Neuer Text-Inhalt
-        elementId: null,    // Falls vorhanden -> ID des Elements
-        classes: null,      // Falls vorhanden -> Klassen des Elements
-        attributes: null,   // Falls vorhanden -> JSON-Objekt mit weiteren relevanten Attributen
-        aria: null,         // Falls vorhanden -> JSON-Objekt mit `aria-*` Attributen
-        test: null          // Falls vorhanden -> JSON-Objekt mit `test-*` Attributen
-    });
-
+    // ---------- Mutation observer (rebinding safety net) ----------
+    let mo;
     function startObserver() {
-        const observer = new MutationObserver(mutations => {
-            if (!isDomObserverEnabled) return; // ❗ DOM-Events unterdrücken, wenn deaktiviert
-            let recordedMutations = [];
-
-            mutations.forEach(mutation => {
-                let mutationData = createMutationDTO();
-
-                if (mutation.type === "childList") {
-                    mutation.addedNodes.forEach(node => {
-                        if (node.nodeType === 1) { // Element-Node
-                            mutationData.action = "added";
-                            mutationData.selector = getStableSelector(node);
-                            mutationData.elementId = node.id || null;
-                            mutationData.classes = node.className || null;
-
-                            extractAriaAttributes(node, mutationData);
-                            extractTestAttributes(node, mutationData);
-                            extractOtherAttributes(node, mutationData);
-
-                            recordedMutations.push(sanitizeMutationData(mutationData));
-                        }
-                    });
-
-                    mutation.removedNodes.forEach(node => {
-                        if (node.nodeType === 1) {
-                            mutationData.action = "removed";
-                            mutationData.selector = getStableSelector(node);
-                            recordedMutations.push(sanitizeMutationData(mutationData));
-                        }
-                    });
-
-                    if (mutation.addedNodes.length > 0) {
-                        rebindEventListeners();
+        try {
+            mo = new MutationObserver(muts => {
+                let needRebind = false;
+                for (const m of muts) {
+                    if (m.type === "childList" && (m.addedNodes && m.addedNodes.length)) {
+                        needRebind = true; break;
                     }
                 }
-
-                if (mutation.type === "attributes") {
-                    mutationData.action = "attributeChanged";
-                    mutationData.selector = getStableSelector(mutation.target);
-                    mutationData.attribute = mutation.attributeName;
-                    mutationData.newValue = mutation.target.getAttribute(mutation.attributeName);
-                    mutationData.oldValue = mutation.oldValue || null;
-                    recordedMutations.push(sanitizeMutationData(mutationData));
-                }
-
-                if (mutation.type === "characterData") {
-                    mutationData.action = "textChanged";
-                    mutationData.selector = getStableSelector(mutation.target.parentElement);
-                    mutationData.extractedText = mutation.target.nodeValue;
-                    recordedMutations.push(sanitizeMutationData(mutationData));
-                }
+                if (needRebind) bindInteractiveListeners(document);
             });
-
-            if (recordedMutations.length > 0 && typeof window.sendJsonDataAsArray === "function") {
-                window.sendJsonDataAsArray(recordedMutations);
-            }
-        });
-
-        try {
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                attributeOldValue: true,
-                characterData: true
-            });
-            console.log("🔍 MutationObserver mit einheitlichem DTO gestartet.");
+            mo.observe(document.documentElement || document.body, { childList: true, subtree: true });
         } catch (e) {
-            console.error("🚨 MutationObserver konnte nicht gestartet werden:", e);
+            console.warn("[recorder] MO failed:", e);
         }
     }
 
-    function sanitizeMutationData(mutationData) {
-        try {
-            return Object.fromEntries(
-                Object.entries(mutationData).filter(([_, value]) => value !== null)
-            );
-        } catch (error) {
-            console.error("Fehler in sanitizeMutationData:", error);
-            return null; // Alternativ: leeres Array `[]` oder ein Standardwert zurückgeben
-        }
+    // ---------- Init ----------
+    function init() {
+        bindInteractiveListeners(document);
+        hookPrimeFacesAjax();
+        startObserver();
+
+        // global capture as last resort
+        document.addEventListener("click", onAnyEvent, true);
+        document.addEventListener("input", onAnyEvent, true);
+        document.addEventListener("change", onAnyEvent, true);
+        document.addEventListener("keydown", onAnyEvent, true);
+
+        console.log("[recorder] ready");
     }
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    function getElementPath(element) {
-        if (!element) return 'Unknown';
-        let path = [];
-        while (element.parentElement) {
-            let selector = element.tagName.toLowerCase();
-            if (element.id && !isGeneratedId(element.id)) {
-                selector += `#${element.id}`;
-                path.unshift(selector);
-                break;
-            } else {
-                let siblingIndex = 1;
-                let sibling = element;
-                while ((sibling = sibling.previousElementSibling) !== null) {
-                    if (sibling.tagName === element.tagName) siblingIndex++;
-                }
-                if (siblingIndex > 1) selector += `:nth-of-type(${siblingIndex})`;
-            }
-            path.unshift(selector);
-            element = element.parentElement;
-        }
-        return path.join(' > ');
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+    } else {
+        init();
     }
-
-    function getElementXPath(element) {
-        if (!element || element.nodeType !== 1) return '';
-        if (element.id) return `//*[@id='${element.id}']`;
-        let path = [];
-        while (element.nodeType === 1) {
-            let index = 1;
-            let sibling = element;
-            while ((sibling = sibling.previousElementSibling) !== null) {
-                if (sibling.nodeType === 1 && sibling.tagName === element.tagName) index++;
-            }
-            path.unshift(`${element.tagName.toLowerCase()}[${index}]`);
-            element = element.parentNode;
-        }
-        return '/' + path.join('/');
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    function showTooltip(eventData, event) {
-        if (!isTooltipEnabled || !eventData) return;
-
-        if (!tooltip) initializeTooltip();
-
-        // JSON hübsch formatieren
-        const formattedData = JSON.stringify(eventData, null, 2)
-            .replace(/\n/g, "<br>")
-            .replace(/\s/g, "&nbsp;");
-
-        // Tooltip-Inhalt setzen
-        tooltip.innerHTML = `<strong>Selektor:</strong> ${eventData.selector}<br><pre>${formattedData}</pre>`;
-
-        // Tooltip-Position setzen
-        tooltip.style.left = `${event.pageX + 10}px`;
-        tooltip.style.top = `${event.pageY + 10}px`;
-        tooltip.style.display = 'block';
-    }
-
-    /////////////////////////////////////////// Toggles ///////////////////////////////////////////
-
-    window.toggleTooltip = function (enable) {
-        isTooltipEnabled = enable;
-        if (!enable && tooltip) {
-            tooltip.style.display = 'none';
-        }
-    };
-
-    window.toggleDomObserver = function (enable) {
-        isDomObserverEnabled = enable;
-    };
 }
