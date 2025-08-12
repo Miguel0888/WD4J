@@ -1,4 +1,3 @@
-// recorder.js
 function (sendMessage) {
     // ---------- Guard & channel bridge ----------
     if (typeof sendMessage !== "function") {
@@ -78,28 +77,35 @@ function (sendMessage) {
         return arr.length ? arr.join(" ") : null;
     }
 
-    // ---------- CSS (id-frei) ----------
-    function idFreeCssForGeneric(el, maxDepth = 4) {
-        // Build a compact, id-freier Pfad mit Klassen/role/aria/data-*
+    function closestAncestorWithId(el, { excludeSelf = true } = {}) {
+        let cur = excludeSelf ? el.parentElement : el;
+        while (cur) {
+            if (cur.nodeType === 1 && cur.id) return cur;
+            cur = cur.parentElement;
+        }
+        return null;
+    }
+
+    // ---------- CSS builder (id-frei, optional relativ zu Anker) ----------
+    function idFreeCssForGeneric(el, maxDepth = 4, stopAt = null) {
+        // Kompakter, stabiler Pfad ohne IDs; wenn stopAt gesetzt, endet der Pfad VOR stopAt.
         const chain = [];
         let cur = el;
         let depth = 0;
 
         while (cur && cur.nodeType === 1 && depth < maxDepth) {
-            const tag = cur.tagName.toLowerCase();
+            if (stopAt && cur === stopAt) break;
 
-            // prefer semantic anchors
+            const tag = cur.tagName.toLowerCase();
             let piece = tag;
 
-            // stable classes (max 2)
+            // stabile Klassen (max 2)
             const stable = (cur.classList ? Array.from(cur.classList).filter(c => !isGeneratedClass(c)) : []);
             if (stable.length) piece += "." + stable.slice(0, 2).join(".");
 
-            // role/landmark
+            // role/label
             const role = cur.getAttribute && cur.getAttribute("role");
             if (role) piece += "[role=" + cssAttrEsc(role) + "]";
-
-            // specific data-* that define structure (not tests)
             if (cur.hasAttribute && cur.hasAttribute("data-label")) {
                 piece += "[data-label=" + cssAttrEsc(cur.getAttribute("data-label")) + "]";
             }
@@ -107,7 +113,7 @@ function (sendMessage) {
                 piece += "[aria-label=" + cssAttrEsc(cur.getAttribute("aria-label")) + "]";
             }
 
-            // disambiguate siblings of same tag/class
+            // disambiguate siblings of same tag
             const siblings = cur.parentElement ? Array.from(cur.parentElement.children).filter(n => n.tagName === cur.tagName) : [];
             if (siblings.length > 1) {
                 let idx = 1;
@@ -119,8 +125,8 @@ function (sendMessage) {
 
             chain.unshift(piece);
 
-            // stop early on clear widget roots
-            if (cur.matches && (
+            // early stop bei klaren Widget-Roots
+            if (!stopAt && cur.matches && (
                 cur.matches(".ui-selectonemenu[role='combobox']") ||
                 cur.matches("nav,[role='navigation']") ||
                 cur.matches("table,[role='table']")
@@ -131,6 +137,23 @@ function (sendMessage) {
         }
 
         return chain.join(" > ");
+    }
+
+    function suggestParentCss(el) {
+        // Nützlicher Fallback, wenn kein Parent mit ID existiert
+        const som = el.closest(".ui-selectonemenu[role='combobox']");
+        if (som) return ".ui-selectonemenu[role='combobox']";
+        const dlg = el.closest("[role='dialog'], .ui-dialog");
+        if (dlg) return "[role='dialog'], .ui-dialog";
+        const nav = el.closest("nav,[role='navigation']");
+        if (nav) return "nav,[role='navigation']";
+        const table = el.closest("table,[role='table']");
+        if (table) return "table,[role='table']";
+        const form = el.closest("form");
+        if (form) return "form";
+        // generisch: nimm den nächstgelegenen stabilen Vorfahren als CSS
+        const anc = el.parentElement;
+        return anc ? idFreeCssForGeneric(anc, 3) : null;
     }
 
     // ---------- PrimeFaces selectOneMenu helpers ----------
@@ -150,15 +173,13 @@ function (sendMessage) {
         return el && el.matches && el.matches("ul.ui-selectonemenu-items[role='listbox']");
     }
 
-    function cssForSoMTrigger(el) {
-        // id-frei → Root + trigger
-        return ".ui-selectonemenu[role='combobox'] .ui-selectonemenu-trigger";
+    // relative Selektoren (ohne Anker)
+    function cssForSoMTrigger() {
+        return ".ui-selectonemenu-trigger";
     }
     function cssForSoMOption(li) {
         const label = li.getAttribute("data-label") || li.textContent.trim();
-        const hasList = li.closest("ul.ui-selectonemenu-items[role='listbox']");
-        const listSel = hasList ? "ul.ui-selectonemenu-items[role='listbox']" : "ul.ui-selectonemenu-items";
-        return `${listSel} li.ui-selectonemenu-item[role='option'][data-label=${cssAttrEsc(label)}]`;
+        return "li.ui-selectonemenu-item[role='option'][data-label=" + cssAttrEsc(label) + "]";
     }
 
     // ---------- table helpers ----------
@@ -182,7 +203,9 @@ function (sendMessage) {
             inputName: null,
             buttonText: null,
             pagination: null,
-            elementId: null,
+            elementId: null,   // ID des Elements selbst (nur wenn vorhanden)
+            parentId: null,    // NEU: ID des nächsten übergeordneten Elements mit ID
+            parentCss: null,   // NEU: CSS-Anker, falls keine parentId existiert
             classes: null,
             xpath: null,
             aria: null,
@@ -205,7 +228,7 @@ function (sendMessage) {
         else dto.action = "click";
 
         // element basics
-        dto.elementId = el.id || null;
+        dto.elementId = el.id || null; // nur eigene ID
         dto.classes = classesOf(el);
         dto.xpath = absoluteXPath(el);
         dto.aria = collectAria(el);
@@ -228,50 +251,73 @@ function (sendMessage) {
         const columns = extractRowColumns(el);
         if (columns) dto.extractedValues.columns = columns;
 
-        // ---------- PrimeFaces selectOneMenu special cases ----------
+        // ---------- PrimeFaces selectOneMenu: Trigger ----------
         if (isSelectOneMenuTrigger(el)) {
             const root = findSelectOneMenuRoot(el) || el.closest(".ui-selectonemenu");
-            dto.selector = cssForSoMTrigger(el); // id-frei
+            dto.selector = cssForSoMTrigger(); // RELATIV
+            if (root && root.id) dto.parentId = root.id; else dto.parentCss = ".ui-selectonemenu[role='combobox']";
+            dto.extractedValues.widget = "selectOneMenu";
             if (root) {
-                dto.extractedValues.widget = "selectOneMenu";
-                dto.extractedValues.comboboxId = root.id || null; // raw id, extra info
                 const labelEl = root.querySelector(".ui-selectonemenu-label");
                 if (labelEl) dto.extractedValues.displayLabel = (labelEl.textContent || "").trim();
             }
             return dto;
         }
 
+        // ---------- PrimeFaces selectOneMenu: Option ----------
         if (isSelectOneMenuOption(el)) {
-            dto.selector = cssForSoMOption(el); // id-frei, data-label basiert
+            dto.selector = cssForSoMOption(el); // RELATIV zur UL
             dto.extractedValues.widget = "selectOneMenu";
             dto.extractedValues.itemLabel = el.getAttribute("data-label") || (el.textContent || "").trim();
-            // index
+
             const list = el.closest("ul.ui-selectonemenu-items[role='listbox']");
+            if (list && list.id) dto.parentId = list.id; else dto.parentCss = "ul.ui-selectonemenu-items[role='listbox']";
+
             if (list) {
                 const items = Array.from(list.querySelectorAll("li.ui-selectonemenu-item[role='option']"));
                 const idx = items.indexOf(el);
                 if (idx >= 0) dto.extractedValues.itemIndex = idx;
                 dto.extractedValues.listboxId = list.id || null; // raw id
             }
-            // combobox context (if resolvable)
+
+            // versuche, Combobox-ID zu ermitteln (z.B. aus Panel-ID)
             const panel = list ? list.closest(".ui-selectonemenu-panel") : null;
             const comboboxId = panel ? (panel.id || "").replace(/_panel$/, "") : null;
             if (comboboxId) dto.extractedValues.comboboxId = comboboxId;
+
             return dto;
         }
 
+        // ---------- PrimeFaces selectOneMenu: Root (Labelbereich) ----------
         if (isSelectOneMenuRoot(el)) {
-            // clicking on root (e.g., label area) – still provide a solid id-free selector
-            dto.selector = ".ui-selectonemenu[role='combobox'] .ui-selectonemenu-label";
+            // Klick auf Root/Label → relativ zum Root el
+            const anchor = el; // wir verankern die CSS später über parentId = Root-ID des TRIGGER-Ereignisses,
+                               // hier ist das geklickte Element selbst der Root → nutze parentId übergeordnet:
+            const parentWithId = closestAncestorWithId(el, { excludeSelf: false }); // könnte el selbst sein
+            if (parentWithId && parentWithId.id) {
+                dto.parentId = parentWithId.id;
+                dto.selector = idFreeCssForGeneric(el.querySelector(".ui-selectonemenu-label") || el, 3, parentWithId) || ".ui-selectonemenu-label";
+            } else {
+                dto.parentCss = ".ui-selectonemenu[role='combobox']";
+                dto.selector = ".ui-selectonemenu-label";
+            }
             dto.extractedValues.widget = "selectOneMenu";
             const labelEl = el.querySelector(".ui-selectonemenu-label");
             if (labelEl) dto.extractedValues.displayLabel = (labelEl.textContent || "").trim();
-            dto.extractedValues.comboboxId = el.id || null; // raw id
+            dto.extractedValues.comboboxId = el.id || null;
             return dto;
         }
 
-        // ---------- generic CSS (id-frei) ----------
-        dto.selector = idFreeCssForGeneric(el);
+        // ---------- generic case ----------
+        // Anker mit ID suchen (übergeordnet, nicht das Element selbst)
+        const parentWithId = closestAncestorWithId(el, { excludeSelf: true });
+        if (parentWithId && parentWithId.id) {
+            dto.parentId = parentWithId.id;
+            dto.selector = idFreeCssForGeneric(el, 4, parentWithId) || idFreeCssForGeneric(el);
+        } else {
+            dto.selector = idFreeCssForGeneric(el);
+            dto.parentCss = suggestParentCss(el);
+        }
 
         return dto;
     }
@@ -286,7 +332,9 @@ function (sendMessage) {
             dto.selector || "",
             dto.elementId || "",
             dto.value || "",
-            dto.key || ""
+            dto.key || "",
+            dto.parentId || "",
+            dto.parentCss || ""
         ].join("|");
     }
     function shouldEmit(sig) {
@@ -302,7 +350,6 @@ function (sendMessage) {
             const dto = buildDtoForEvent(nativeEvent);
             const sig = sigFromDto(dto);
             if (!shouldEmit(sig)) return;
-            // send single event as array of one (wire format)
             postEvents([compact(dto)]);
         } catch (e) {
             console.error("[recorder] onAnyEvent error:", e);
@@ -346,15 +393,12 @@ function (sendMessage) {
             const q = window.PrimeFaces.ajax.Queue;
             const origAdd = q.add, origRemove = q.remove;
             q.add = function(cfg) {
-                // console.debug("[recorder] PF ajax start", cfg);
                 return origAdd.apply(this, arguments);
             };
             q.remove = function(cfg) {
-                // console.debug("[recorder] PF ajax end", cfg);
                 setTimeout(() => bindInteractiveListeners(document), 0);
                 return origRemove.apply(this, arguments);
             };
-            // initial bind
             bindInteractiveListeners(document);
         } catch (e) {
             console.warn("[recorder] PF hook failed:", e);
