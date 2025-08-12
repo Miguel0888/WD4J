@@ -214,11 +214,38 @@ function (sendMessage) {
         };
     }
 
-    // ---------- Build DTO from event target ----------
+    // helper: nur echte, direkt klickbare IDs zulassen
+    function isDirectId(el) {
+        if (!el || !el.id) return false;
+        // NIE den SoM-Container selbst
+        if (el.matches(".ui-selectonemenu[role='combobox']")) return false;
+        // direkt klickbare/ansprechbare Elemente
+        if (el.matches("input, select, textarea, button, a[href], [role='button'], [role='menuitem']")) return true;
+        // PrimeFaces-SoM Teile
+        if (el.matches(".ui-selectonemenu-label, .ui-selectonemenu-trigger, li.ui-selectonemenu-item[role='option']")) return true;
+        return false;
+    }
+
     function buildDtoForEvent(nativeEvent) {
-        // find meaningful interactive element
+        // nur echte Interaktoren (Root NICHT absichtlich drin)
         const target = nativeEvent.target;
-        let el = target.closest("button, a, input, select, textarea, [role='button'], [role='menuitem'], li, .ui-selectonemenu, .ui-selectonemenu-trigger, .ui-autocomplete, .ui-dropdown, td, tr") || target;
+        const INTERACTIVE_SEL = [
+            "button",
+            "a[href]",
+            "input",
+            "select",
+            "textarea",
+            "[role='button']",
+            "[role='menuitem']",
+            "li.ui-selectonemenu-item[role='option']",
+            ".ui-selectonemenu-trigger",
+            ".ui-selectonemenu-label",
+            ".ui-autocomplete",
+            ".ui-dropdown",
+            "td",
+            "tr"
+        ].join(", ");
+        let el = target.closest(INTERACTIVE_SEL) || target;
 
         const dto = createEventDTO();
 
@@ -228,12 +255,13 @@ function (sendMessage) {
         else dto.action = "click";
 
         // element basics
-        dto.elementId = el.id || null; // nur eigene ID
+        dto.elementId = isDirectId(el) ? el.id : null;   // << nur direkte ID!
         dto.classes = classesOf(el);
         dto.xpath = absoluteXPath(el);
         dto.aria = collectAria(el);
         dto.attributes = collectOtherAttrs(el);
         dto.test = collectTestAttrs(el);
+
         if (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
             dto.inputName = el.name || null;
             if (dto.action === "input") dto.value = el.value ?? null;
@@ -244,6 +272,7 @@ function (sendMessage) {
             const t = (el.textContent || "").trim();
             if (t) dto.buttonText = t;
         }
+
         const nav = el.closest("[role='navigation']");
         if (nav) dto.pagination = nav.getAttribute("aria-label") || "navigation";
 
@@ -280,7 +309,6 @@ function (sendMessage) {
                 dto.extractedValues.listboxId = list.id || null; // raw id
             }
 
-            // versuche, Combobox-ID zu ermitteln (z.B. aus Panel-ID)
             const panel = list ? list.closest(".ui-selectonemenu-panel") : null;
             const comboboxId = panel ? (panel.id || "").replace(/_panel$/, "") : null;
             if (comboboxId) dto.extractedValues.comboboxId = comboboxId;
@@ -290,13 +318,12 @@ function (sendMessage) {
 
         // ---------- PrimeFaces selectOneMenu: Root (Labelbereich) ----------
         if (isSelectOneMenuRoot(el)) {
-            // Klick auf Root/Label → relativ zum Root el
-            const anchor = el; // wir verankern die CSS später über parentId = Root-ID des TRIGGER-Ereignisses,
-                               // hier ist das geklickte Element selbst der Root → nutze parentId übergeordnet:
-            const parentWithId = closestAncestorWithId(el, { excludeSelf: false }); // könnte el selbst sein
+            dto.elementId = null; // Root-ID NIE als elementId verwenden!
+            const parentWithId = closestAncestorWithId(el, { excludeSelf: false }); // kann el selbst sein
             if (parentWithId && parentWithId.id) {
                 dto.parentId = parentWithId.id;
-                dto.selector = idFreeCssForGeneric(el.querySelector(".ui-selectonemenu-label") || el, 3, parentWithId) || ".ui-selectonemenu-label";
+                dto.selector = idFreeCssForGeneric(el.querySelector(".ui-selectonemenu-label") || el, 3, parentWithId)
+                    || ".ui-selectonemenu-label";
             } else {
                 dto.parentCss = ".ui-selectonemenu[role='combobox']";
                 dto.selector = ".ui-selectonemenu-label";
@@ -309,7 +336,6 @@ function (sendMessage) {
         }
 
         // ---------- generic case ----------
-        // Anker mit ID suchen (übergeordnet, nicht das Element selbst)
         const parentWithId = closestAncestorWithId(el, { excludeSelf: true });
         if (parentWithId && parentWithId.id) {
             dto.parentId = parentWithId.id;
