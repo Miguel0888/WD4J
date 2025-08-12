@@ -148,6 +148,8 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         if ("value".equals(key)) { event.setValue(val); return; }
         if ("inputName".equals(key)) { event.setInputName(val); return; }
         if ("elementId".equals(key)) { event.setElementId(val); return; }
+        if ("parentId".equals(key)) { event.setParentId(val); return; }
+        if ("parentCss".equals(key)) { event.setParentCss(val); return; }
 
         // Unbekannte einfache Felder landen in extractedValues
         if (event.getExtractedValues() == null) {
@@ -234,7 +236,8 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         String rawCss   = event.getCss();
 
         // 2) Sanitize CSS early (handle JSF/PrimeFaces ids with colons)
-        String sanitizedCss = rawCss != null ? CssSelectorSanitizer.sanitize(rawCss) : null;
+        String contextualCssRaw = buildContextualCss(rawCss, event.getParentId(), event.getParentCss());
+        String sanitizedCss = contextualCssRaw != null ? CssSelectorSanitizer.sanitize(contextualCssRaw) : null;
 
         // 3) Put locators into the map (store sanitized CSS)
         if (rawXpath != null && rawXpath.trim().length() > 0) {
@@ -460,5 +463,29 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
                 Objects.equals(a.getAction(), b.getAction()) &&
                 Objects.equals(a.getLocatorType(), b.getLocatorType());
     }
+
+    private String buildContextualCss(String rawCss, String parentId, String parentCss) {
+        if (rawCss == null || rawCss.trim().isEmpty()) return null;
+
+        String base = rawCss.trim();
+        String prefix = null;
+
+        if (parentId != null && !parentId.trim().isEmpty()) {
+            // Attribut-Selector → problemlos mit Doppelpunkten in JSF/PrimeFaces-IDs
+            String idEsc = parentId.trim().replace("'", "\\'");
+            prefix = "[id='" + idEsc + "']";
+        } else if (parentCss != null && !parentCss.trim().isEmpty()) {
+            String p = parentCss.trim();
+            // Bei kommagetrennten Eltern (z. B. "[role='dialog'], .ui-dialog") korrekt kapseln
+            if (p.indexOf(',') >= 0) {
+                prefix = ":is(" + p + ")";
+            } else {
+                prefix = p;
+            }
+        }
+
+        return (prefix != null) ? (prefix + " " + base) : base;
+    }
+
 
 }

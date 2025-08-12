@@ -20,7 +20,10 @@ public class RecordedEvent {
     private Map<String, String> aria;
     private Map<String, String> attributes;
     private Map<String, String> test;
-    private Map<String, String> extractedValues; // 🆕 Ersetzt extractedText & extractedColumns
+    private Map<String, String> extractedValues;
+
+    private String parentId;   // ID des nächsten Parents mit ID
+    private String parentCss;  // optionaler CSS-Anker, falls keine parentId existiert
 
     // For DOM-Events only:
     private String oldValue;
@@ -90,5 +93,21 @@ public class RecordedEvent {
 
     public void setExtractedAriaRoles(LinkedHashMap<String, String> stringStringLinkedHashMap) {
         this.aria = stringStringLinkedHashMap;
+    }
+
+    public String getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(String parentId) {
+        this.parentId = parentId;
+    }
+
+    public String getParentCss() {
+        return parentCss;
+    }
+
+    public void setParentCss(String parentCss) {
+        this.parentCss = parentCss;
     }
 }
