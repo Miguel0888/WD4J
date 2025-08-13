@@ -640,37 +640,35 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
     /** Scrollt nur, falls nötig, anschließend 2 rAF-Ticks warten. */
     // ElementHandleImpl.java
 
+    // ElementHandleImpl.java
+
     @Override
     public void scrollIntoViewIfNeeded(ScrollIntoViewIfNeededOptions options) {
         double timeout = (options != null && options.timeout != null) ? options.timeout : 30_000;
         long start = System.currentTimeMillis();
 
         while (true) {
-            boolean inView = WebDriverUtil.asBoolean(
-                    webDriver.script().callFunction(
-                            "function(){"
-                                    + "  const r=this.getBoundingClientRect();"
-                                    + "  const vw = (window.innerWidth||document.documentElement.clientWidth);"
-                                    + "  const vh = (window.innerHeight||document.documentElement.clientHeight);"
-                                    + "  const visible = r.width>0 && r.height>0 && "
-                                    + "    r.top>=0 && r.left>=0 && r.bottom<=vh && r.right<=vw;"
-                                    + "  return visible;"
-                                    + "}",
-                            false,
-                            target,
-                            null,
-                            getRemoteReference(),
-                            WDResultOwnership.NONE,
-                            null
-                    )
+            WDEvaluateResult visRes = webDriver.script().callFunction(
+                    "function(){"
+                            + "  const r=this.getBoundingClientRect();"
+                            + "  const vw = (window.innerWidth||document.documentElement.clientWidth);"
+                            + "  const vh = (window.innerHeight||document.documentElement.clientHeight);"
+                            + "  return r.width>0 && r.height>0 && r.top>=0 && r.left>=0 && r.bottom<=vh && r.right<=vw;"
+                            + "}",
+                    false,
+                    target,
+                    null,
+                    getRemoteReference(),
+                    WDResultOwnership.NONE,
+                    null
             );
 
+            boolean inView = de.bund.zrb.util.WebDriverUtil.asBoolean(visRes);
             if (inView) {
                 waitTwoAnimationFrames();
                 return;
             }
 
-            // Scroll anstoßen
             webDriver.script().callFunction(
                     "function(){ this.scrollIntoView({block:'center', inline:'nearest'}); }",
                     false,
@@ -684,7 +682,6 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
             waitTwoAnimationFrames();
 
             if ((System.currentTimeMillis() - start) > timeout) {
-                // konsistentes Fehlersignal wie Playwright (TimeoutError analog)
                 throw new RuntimeException("Timeout in scrollIntoViewIfNeeded()");
             }
         }

@@ -7,48 +7,92 @@ import de.bund.zrb.type.script.WDRemoteValue;
 import java.util.ArrayList;
 import java.util.List;
 
-public class WebDriverUtil {
+/**
+ * Hilfsfunktionen zum robusten Entpacken und Konvertieren von BiDi-Ergebnissen.
+ */
+public final class WebDriverUtil {
+    private WebDriverUtil() {}
+
     /**
-     * Prüft, ob der übergebene Ausdruck eine Funktion ist. Wird benötigt, um zu entscheiden, ob ein `callFunction` oder
-     * ein `evaluate`-Befehl ausgeführt werden soll.
+     * Prüft, ob der übergebene Ausdruck eine Funktion ist. Wird benötigt, um zu entscheiden, ob ein
+     * {@code callFunction} oder ein {@code evaluate}-Befehl ausgeführt werden soll.
      *
-     * Erkennt folgende Konstrukte:
-     * () => { ... }
-     * x => x + 1
-     * function() { return 42; }
-     *
-     * @param expr
-     * @return
+     * Erkennt u. a.:
+     *  - () => { ... }
+     *  - x => x + 1
+     *  - function() { return 42; }
      */
     public static boolean isFunctionExpression(String expr) {
-        if (expr == null) {
-            return false;
-        }
-
+        if (expr == null) return false;
         String trimmed = expr.trim();
-
-        // Arrow Function z. B. () => ..., x => ...
         boolean isArrow = trimmed.matches("^\\(?\\s*[^)]*\\)?\\s*=>.*");
-
-        // Anonyme klassische Funktion: function(...) { ... }
         boolean isAnonymousFunction = trimmed.matches("^function\\s*\\(.*\\)\\s*\\{.*\\}$");
-
         return isArrow || isAnonymousFunction;
     }
 
-    public static boolean asBoolean(Object rv) {
-        if (rv instanceof WDPrimitiveProtocolValue.BooleanValue) {
-            return ((WDPrimitiveProtocolValue.BooleanValue) rv).getValue();
+    // --------------------------------------------------------------------------------------------
+    // BOOLEAN
+    // --------------------------------------------------------------------------------------------
+
+    /** Entpackt ein WDEvaluateResult (Success/Error) zu boolean. */
+    public static boolean asBoolean(WDEvaluateResult res) {
+        if (res instanceof WDEvaluateResult.WDEvaluateResultError) {
+            throw new RuntimeException(
+                    "Evaluation error: " + ((WDEvaluateResult.WDEvaluateResultError) res).getExceptionDetails());
         }
-        throw new IllegalStateException("Expected BooleanValue, got: " + rv);
+        if (res instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            WDRemoteValue v = ((WDEvaluateResult.WDEvaluateResultSuccess) res).getResult();
+            return asBoolean(v);
+        }
+        throw new IllegalStateException("Unexpected result type: " + (res == null ? "null" : res.getClass().getName()));
     }
+
+    /** Interpretiert einen WDRemoteValue als boolean. */
+    public static boolean asBoolean(WDRemoteValue v) {
+        if (v instanceof WDPrimitiveProtocolValue.BooleanValue) {
+            return ((WDPrimitiveProtocolValue.BooleanValue) v).getValue();
+        }
+        if (v instanceof WDPrimitiveProtocolValue.NumberValue) {
+            String raw = ((WDPrimitiveProtocolValue.NumberValue) v).getValue();
+            try { return Double.parseDouble(raw) != 0.0; } catch (NumberFormatException e) { return false; }
+        }
+        if (v instanceof WDPrimitiveProtocolValue.StringValue) {
+            String s = ((WDPrimitiveProtocolValue.StringValue) v).getValue();
+            return "true".equalsIgnoreCase(s) || "1".equals(s);
+        }
+        // Andere Typen (Array/Object/Null) → nicht truthy
+        return false;
+    }
+
+    /**
+     * Fallback-Variante: akzeptiert Java-Primitives sowie BiDi-Typen.
+     * Bequem für Call-Sites, die noch nicht sauber typisiert sind.
+     */
+    public static boolean asBoolean(Object rv) {
+        if (rv == null) return false;
+
+        if (rv instanceof Boolean) return (Boolean) rv;
+        if (rv instanceof Number)  return ((Number) rv).doubleValue() != 0.0;
+        if (rv instanceof CharSequence) {
+            String s = rv.toString();
+            return "true".equalsIgnoreCase(s) || "1".equals(s);
+        }
+        if (rv instanceof WDEvaluateResult) return asBoolean((WDEvaluateResult) rv);
+        if (rv instanceof WDRemoteValue)    return asBoolean((WDRemoteValue) rv);
+
+        throw new IllegalStateException("Cannot convert to boolean: " + rv.getClass().getName());
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // DOUBLE[]
+    // --------------------------------------------------------------------------------------------
 
     /**
      * Wandelt das Skript-Ergebnis in ein double[] um.
      * Akzeptiert:
      *  - WDEvaluateResult (SUCCESS mit Array-Result)
      *  - WDRemoteValue.ArrayRemoteValue
-     *  - java.util.List (Numbers/Strings)
+     *  - java.util.List (Numbers/Strings/WDPrimitiveProtocolValues)
      *  - double[] / Number[] / Object[]
      *  - String im Format "[x,y,w,h]" (Fallback)
      */
@@ -100,7 +144,7 @@ public class WebDriverUtil {
         // 6) Letzter Fallback: toString() versuchen
         if (payload != null) {
             String s = payload.toString();
-            if (s != null && s.startsWith("[") && s.endsWith("]")) {
+            if (s.startsWith("[") && s.endsWith("]")) {
                 return parseDoublesFromString(s);
             }
         }
@@ -121,18 +165,27 @@ public class WebDriverUtil {
     private static double toDouble(Object v) {
         if (v == null) return Double.NaN;
 
-        if (v instanceof Number) {
-            return ((Number) v).doubleValue();
-        }
-
-        // Manche Remote-/Primitive-Werte haben sinnvolle toString()-Darstellung oder String-Payload
+        // Direkte Java-Typen
+        if (v instanceof Number) return ((Number) v).doubleValue();
         if (v instanceof CharSequence) {
-            try {
-                return Double.parseDouble(v.toString().trim());
-            } catch (NumberFormatException ignore) { /* unten weiter */ }
+            try { return Double.parseDouble(v.toString().trim()); }
+            catch (NumberFormatException ignore) { /* unten weiter */ }
         }
 
-        // Letzter Versuch: aus toString() pars(en) (z.B. "NumberValue{value=123.45}")
+        // BiDi-Primitive explizit behandeln
+        if (v instanceof WDPrimitiveProtocolValue.NumberValue) {
+            String raw = ((WDPrimitiveProtocolValue.NumberValue) v).getValue();
+            return parseNumber(raw);
+        }
+        if (v instanceof WDPrimitiveProtocolValue.StringValue) {
+            String raw = ((WDPrimitiveProtocolValue.StringValue) v).getValue();
+            return parseNumber(raw);
+        }
+        if (v instanceof WDPrimitiveProtocolValue.BooleanValue) {
+            return ((WDPrimitiveProtocolValue.BooleanValue) v).getValue() ? 1.0 : 0.0;
+        }
+
+        // Letzter Versuch: aus toString() extrahieren (z.B. "NumberValue{value=123.45}")
         String s = v.toString();
         if (s != null) {
             String digits = s.replaceAll("[^0-9eE+\\-.]", "");
@@ -155,10 +208,17 @@ public class WebDriverUtil {
         List<Double> vals = new ArrayList<>(parts.length);
         for (String p : parts) {
             if (p.isEmpty()) continue;
-            vals.add(Double.parseDouble(p));
+            vals.add(parseNumber(p));
         }
         double[] out = new double[vals.size()];
         for (int i = 0; i < vals.size(); i++) out[i] = vals.get(i);
         return out;
+    }
+
+    private static double parseNumber(String raw) {
+        try { return Double.parseDouble(raw.trim()); }
+        catch (NumberFormatException e) {
+            throw new IllegalStateException("Invalid number format: \"" + raw + "\"", e);
+        }
     }
 }
