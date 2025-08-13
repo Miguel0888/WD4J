@@ -1,6 +1,7 @@
 package de.bund.zrb;
 
 import com.microsoft.playwright.*;
+import de.bund.zrb.manager.WDInputManager;
 import de.bund.zrb.manager.WDScriptManager;
 import de.bund.zrb.api.WebSocketManager;
 import de.bund.zrb.support.Pages;
@@ -293,6 +294,10 @@ public class BrowserImpl implements Browser {
 
     public WDScriptManager getScriptManager() {
         return webDriver.script();
+    }
+
+    public WDInputManager getInputManager() {
+        return webDriver.input();
     }
 
     public List<UserContextImpl> getUserContextImpls() {

@@ -43,6 +43,9 @@ public class PageImpl implements Page {
     private final BrowserImpl browser;
     private final WebDriver webDriver;
 
+    private final Mouse mouse;
+    private final Keyboard keyboard;
+
     // ToDo: Not supported yet, just for testing: Firefox does not remember the id, only accepts event + contextId
     private WDSubscription consoleMessageSubscription;
 
@@ -68,14 +71,18 @@ public class PageImpl implements Page {
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
+        this.userContextId = userContext;
+
         // Erzeuge BrowsingContext MIT userContext
         this.browsingContext = new WDBrowsingContext(
                 browser.getWebDriver().browsingContext()
                         .create(CreateType.TAB, null, false, userContext)
                         .getContext()
         );
-        
-        this.userContextId = userContext;
+
+        // Erzeuge der Mouse und Keyboard Input Handler FÜR DEN NEU ERSTELLTEN BrowsingContext:
+        this.mouse = new de.bund.zrb.event.MouseImpl(browser.getInputManager(), getBrowsingContextId());
+        this.keyboard = new de.bund.zrb.event.KeyboardImpl(browser.getInputManager(), getBrowsingContextId());
     }
 
     /**
@@ -91,8 +98,12 @@ public class PageImpl implements Page {
         this.isClosed = false;
         this.url = "about:blank"; // Standard-Startseite
 
-        this.browsingContext = browsingContext;
         this.userContextId = userContext;
+        this.browsingContext = browsingContext;
+
+        // Erzeuge der Mouse und Keyboard Input Handler FÜR DEN NEU ERSTELLTEN BrowsingContext:
+        this.mouse = new de.bund.zrb.event.MouseImpl(browser.getInputManager(), getBrowsingContextId());
+        this.keyboard = new de.bund.zrb.event.KeyboardImpl(browser.getInputManager(), getBrowsingContextId());
     }
 
     public PageImpl(BrowserImpl browser, WDBrowsingContextEvent.Load load) {
@@ -107,6 +118,10 @@ public class PageImpl implements Page {
         this.browsingContext = context;
         this.isClosed = false;
         this.url = load.getParams().getUrl();
+
+        // Erzeuge der Mouse und Keyboard Input Handler FÜR DEN NEU ERSTELLTEN BrowsingContext:
+        this.mouse = new de.bund.zrb.event.MouseImpl(browser.getInputManager(), getBrowsingContextId());
+        this.keyboard = new de.bund.zrb.event.KeyboardImpl(browser.getInputManager(), getBrowsingContextId());
     }
 
     public PageImpl(BrowserImpl browser, WDBrowsingContextEvent.DomContentLoaded domContentLoaded) {
@@ -122,6 +137,10 @@ public class PageImpl implements Page {
         this.browsingContext = context;
         this.isClosed = false;
         this.url = domContentLoaded.getParams().getUrl();
+
+        // Erzeuge der Mouse und Keyboard Input Handler FÜR DEN NEU ERSTELLTEN BrowsingContext:
+        this.mouse = new de.bund.zrb.event.MouseImpl(browser.getInputManager(), getBrowsingContextId());
+        this.keyboard = new de.bund.zrb.event.KeyboardImpl(browser.getInputManager(), getBrowsingContextId());
     }
 
     public PageImpl(BrowserImpl browser, WDBrowsingContextEvent.Destroyed destroyed) {
@@ -136,6 +155,10 @@ public class PageImpl implements Page {
         this.browsingContext = context;
         this.isClosed = true;  // Diese Page gilt als "destroyed"
         this.url = (existingPage != null) ? existingPage.url() : null;
+
+        // Erzeuge der Mouse und Keyboard Input Handler FÜR DEN NEU ERSTELLTEN BrowsingContext:
+        this.mouse = new de.bund.zrb.event.MouseImpl(browser.getInputManager(), getBrowsingContextId());
+        this.keyboard = new de.bund.zrb.event.KeyboardImpl(browser.getInputManager(), getBrowsingContextId());
     }
 
     public PageImpl(BrowserImpl browser, WDBrowsingContextEvent.Created created) {
@@ -150,6 +173,10 @@ public class PageImpl implements Page {
         this.browsingContext = context;
         this.isClosed = false;
         this.url = created.getParams().getUrl();
+
+        // Erzeuge der Mouse und Keyboard Input Handler FÜR DEN NEU ERSTELLTEN BrowsingContext:
+        this.mouse = new de.bund.zrb.event.MouseImpl(browser.getInputManager(), getBrowsingContextId());
+        this.keyboard = new de.bund.zrb.event.KeyboardImpl(browser.getInputManager(), getBrowsingContextId());
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
