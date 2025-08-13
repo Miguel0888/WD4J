@@ -219,14 +219,38 @@ public class LocatorImpl implements Locator {
 
     @Override
     public BoundingBox boundingBox(BoundingBoxOptions options) {
-        // ToDo: Use Options
         resolveElementHandle();
-        WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
-                new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
-                WDScriptManager.DomQuery.GET_BOUNDING_BOX
-        );
-        return getBoundingBoxFromEvaluateResult(result);
+
+        double timeout =
+                (options != null && options.timeout != null)
+                        ? options.timeout
+                        : ((UserContextImpl) page.context()).getDefaultTimeout();
+
+        long start = System.currentTimeMillis();
+
+        while (true) {
+            // Versuch 1: schnelle Rückgabe, wenn sichtbar
+            com.microsoft.playwright.options.BoundingBox bb = elementHandle.boundingBox();
+            if (bb != null && bb.width > 0 && bb.height > 0) return bb;
+
+            // optional: kurze Sichtbarkeits-/Stabilitäts-Warte
+            try {
+                elementHandle.scrollIntoViewIfNeeded(new ElementHandle.ScrollIntoViewIfNeededOptions().setTimeout(250));
+            } catch (RuntimeException ignore) {
+                // falls detached/unsichtbar, einfach weiterpolling
+            }
+
+            // Retry / Timeout
+            if ((System.currentTimeMillis() - start) > timeout) {
+                // Playwright-ähnliches Verhalten: null zurückgeben, wenn nicht sichtbar/kein BBox
+                return elementHandle.boundingBox();
+            }
+
+            try { Thread.sleep(100); } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Override
@@ -250,29 +274,16 @@ public class LocatorImpl implements Locator {
     @Override
     public void click(ClickOptions options) {
         resolveElementHandle();
+        elementHandle.click(toHandleClickOptions(options));
+    }
 
-        // 1️⃣ Timeout bestimmen
-        double timeout = ((UserContextImpl) page.context()).getDefaultTimeout();
-        if (options != null && options.timeout != null) {
-            timeout = options.timeout;
-        }
-
-        // 2️⃣ Force prüfen
-        boolean force = options != null && Boolean.TRUE.equals(options.force);
-
-        // 3️⃣ Actionability nur prüfen wenn force = false
-        if (!force) {
-            waitForActionability(ActionabilityCheck.CLICK, timeout);
-        }
-
-        // 4️⃣ Jetzt klicken
-        page.getBrowser().getScriptManager().executeDomAction(
-                new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
-                WDScriptManager.DomAction.CLICK
-        );
-
-        // 5️⃣ Optionale "noWaitAfter"-Behandlung, falls relevant
+    private static ElementHandle.ClickOptions toHandleClickOptions(Locator.ClickOptions src) {
+        ElementHandle.ClickOptions dst = new ElementHandle.ClickOptions();
+        if (src == null) return dst;
+        if (src.force != null)      dst.setForce(src.force);
+        if (src.noWaitAfter != null) dst.setNoWaitAfter(src.noWaitAfter); // no-op ok
+        if (src.timeout != null)    dst.setTimeout(src.timeout);
+        return dst;
     }
 
     @Override
@@ -285,7 +296,17 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void dblclick(DblclickOptions options) {
+        resolveElementHandle();
+        elementHandle.dblclick(toHandleDblclickOptions(options));
+    }
 
+    private static ElementHandle.DblclickOptions toHandleDblclickOptions(Locator.DblclickOptions src) {
+        ElementHandle.DblclickOptions dst = new ElementHandle.DblclickOptions();
+        if (src == null) return dst;
+        if (src.force != null)      dst.setForce(src.force);
+        if (src.noWaitAfter != null) dst.setNoWaitAfter(src.noWaitAfter);
+        if (src.timeout != null)    dst.setTimeout(src.timeout);
+        return dst;
     }
 
     @Override
@@ -502,13 +523,16 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void hover(HoverOptions options) {
-        // ToDo: Use Options
         resolveElementHandle();
-        page.getBrowser().getScriptManager().executeDomAction(
-                new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
-                WDScriptManager.DomAction.HOVER
-        );
+        elementHandle.hover(toHandleHoverOptions(options));
+    }
+
+    private static ElementHandle.HoverOptions toHandleHoverOptions(Locator.HoverOptions src) {
+        ElementHandle.HoverOptions dst = new ElementHandle.HoverOptions();
+        if (src == null) return dst;
+        if (src.force != null)      dst.setForce(src.force);
+        if (src.timeout != null)    dst.setTimeout(src.timeout);
+        return dst;
     }
 
     @Override
@@ -693,15 +717,16 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void press(String key, PressOptions options) {
-        // ToDo: Use Options
         resolveElementHandle();
-        List<WDLocalValue> args = Collections.singletonList(new WDPrimitiveProtocolValue.StringValue(key));
-        page.getBrowser().getScriptManager().executeDomAction(
-                new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
-                WDScriptManager.DomAction.PRESS_KEY,
-                args
-        );
+        elementHandle.press(key, toHandlePressOptions(options));
+    }
+
+    private static ElementHandle.PressOptions toHandlePressOptions(Locator.PressOptions src) {
+        ElementHandle.PressOptions dst = new ElementHandle.PressOptions();
+        if (src == null) return dst;
+        if (src.delay != null)      dst.setDelay(src.delay);
+        if (src.timeout != null)    dst.setTimeout(src.timeout);
+        return dst;
     }
 
     @Override
@@ -744,13 +769,15 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void scrollIntoViewIfNeeded(ScrollIntoViewIfNeededOptions options) {
-        // ToDo: Use Options
         resolveElementHandle();
-        page.getBrowser().getScriptManager().executeDomAction(
-                new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
-                WDScriptManager.DomAction.SCROLL_INTO_VIEW
-        );
+        elementHandle.scrollIntoViewIfNeeded(toHandleScrollOptions(options));
+    }
+
+    private static ElementHandle.ScrollIntoViewIfNeededOptions toHandleScrollOptions(
+            Locator.ScrollIntoViewIfNeededOptions src) {
+        ElementHandle.ScrollIntoViewIfNeededOptions dst = new ElementHandle.ScrollIntoViewIfNeededOptions();
+        if (src != null && src.timeout != null) dst.setTimeout(src.timeout);
+        return dst;
     }
 
     /**
@@ -917,15 +944,15 @@ public class LocatorImpl implements Locator {
      */
     @Override
     public void type(String text, TypeOptions options) {
-        // ToDo: Use Options
         resolveElementHandle();
-        List<WDLocalValue> args = Collections.singletonList(new WDPrimitiveProtocolValue.StringValue(text));
-        page.getBrowser().getScriptManager().executeDomAction(
-                new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
-                WDScriptManager.DomAction.INPUT,
-                args
-        );
+        elementHandle.type(text, toHandleTypeOptions(options));
+    }
+
+    private static ElementHandle.TypeOptions toHandleTypeOptions(Locator.TypeOptions src) {
+        ElementHandle.TypeOptions dst = new ElementHandle.TypeOptions();
+        if (src == null) return dst;
+        if (src.delay != null)      dst.setDelay(src.delay);
+        return dst;
     }
 
     @Override
