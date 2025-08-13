@@ -6,14 +6,13 @@ import com.microsoft.playwright.options.BoundingBox;
 import com.microsoft.playwright.options.ElementState;
 import com.microsoft.playwright.options.FilePayload;
 import com.microsoft.playwright.options.SelectOption;
+import de.bund.zrb.support.ActionabilityCheck;
+import de.bund.zrb.support.ActionabilityRequirement;
 import de.bund.zrb.type.script.*;
+import de.bund.zrb.util.WebDriverUtil;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static com.microsoft.playwright.ElementHandle.*;
 import static de.bund.zrb.support.WDRemoteValueUtil.getBoundingBoxFromEvaluateResult;
@@ -324,22 +323,21 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      * @param options
      * @since v1.8
      */
+    /** Vereinheitlichtes Füllen, PF-sicher, mit Commit + Hidden-Wait. */
     @Override
     public void fill(String value, FillOptions options) {
         waitForActionability(options);
         scrollIntoViewIfNeeded(null);
 
-        String script = "function(value) { " +
-                "  this.focus();" +
-                "  this.value = value;" +
-                "  this.dispatchEvent(new Event('input', { bubbles: true }));" +
-                "}";
+        String script = de.bund.zrb.util.DomScripts.FILL_PF_INPUTNUMBER_AND_WAIT;
 
-        List<WDLocalValue> args = Collections.singletonList(WDLocalValue.fromObject(value));
+        java.util.List<WDLocalValue> args = java.util.Collections.singletonList(
+                WDLocalValue.fromObject(value)
+        );
 
         WDEvaluateResult result = webDriver.script().callFunction(
                 script,
-                false,
+                /* awaitPromise = */ true,
                 target,
                 args,
                 getRemoteReference(),
@@ -348,11 +346,10 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
         );
 
         if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
-            throw new RuntimeException("Fill failed: " + ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
+            throw new RuntimeException("Fill failed: " +
+                    ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
         }
     }
-
-
 
     /**
      * Calls <a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus">focus</a> on the element.
@@ -640,9 +637,26 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      * @param options
      * @since v1.8
      */
+    /** Scrollt nur, falls nötig, anschließend 2 rAF-Ticks warten. */
     @Override
     public void scrollIntoViewIfNeeded(ScrollIntoViewIfNeededOptions options) {
-
+        webDriver.script().callFunction(
+                "function(){"
+                        + "  const r=this.getBoundingClientRect();"
+                        + "  const inView = r.width>0 && r.height>0 && "
+                        + "    r.top>=0 && r.left>=0 && "
+                        + "    r.bottom<= (window.innerHeight||document.documentElement.clientHeight) && "
+                        + "    r.right<= (window.innerWidth||document.documentElement.clientWidth);"
+                        + "  if(!inView){ this.scrollIntoView({block:'center', inline:'nearest'}); }"
+                        + "}",
+                false,
+                target,
+                null,
+                getRemoteReference(),
+                WDResultOwnership.NONE,
+                null
+        );
+        waitTwoAnimationFrames();
     }
 
     /**
@@ -1057,11 +1071,122 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
         return "";
     }
 
-    private void waitForActionability(ClickOptions options) {
-        // Placeholder for actionability checks (e.g., visibility, enabled state)
+    // ElementHandleImpl.java (oder entsprechende Klasse)
+
+    private double[] getBoundingBoxNow() {
+        WDEvaluateResult res = webDriver.script().callFunction(
+                "function(){ const r=this.getBoundingClientRect(); return [r.x,r.y,r.width,r.height]; }",
+                false,
+                target,
+                null,
+                getRemoteReference(),
+                WDResultOwnership.NONE,
+                null
+        );
+        // Hilfsmethode zum Parsen
+        return WebDriverUtil.asDoubleArray(res);
     }
 
-    private void waitForActionability(FillOptions options) {
-        // Placeholder for actionability checks (e.g., visibility, enabled state)
+    private void waitTwoAnimationFrames() {
+        webDriver.script().callFunction(
+                "() => new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)))",
+                true,
+                target,
+                null,
+                getRemoteReference(),
+                WDResultOwnership.NONE,
+                null
+        );
     }
+
+    /** Gemeinsamer Actionability-Check wie in LocatorImpl, aber auf Handle-Ebene. */
+    public void waitForActionability(ActionabilityCheck check, double timeout) {
+        EnumSet<ActionabilityRequirement> req = check.getRequirements();
+
+        long start = System.currentTimeMillis();
+
+        while (true) {
+            boolean ok = true;
+
+            // VISIBLE
+            if (req.contains(ActionabilityRequirement.VISIBLE)) {
+                boolean visible = WebDriverUtil.asBoolean(evaluate(
+                        "function(){ const r=this.getBoundingClientRect();"
+                                + " return r.width>0 && r.height>0 && window.getComputedStyle(this).visibility!=='hidden'; }"
+                ));
+                ok = ok && visible;
+            }
+
+            // ENABLED
+            if (ok && req.contains(ActionabilityRequirement.ENABLED)) {
+                boolean enabled = WebDriverUtil.asBoolean(evaluate(
+                        "function(){ return !this.disabled; }"
+                ));
+                ok = ok && enabled;
+            }
+
+            // EDITABLE
+            if (ok && req.contains(ActionabilityRequirement.EDITABLE)) {
+                boolean editable = WebDriverUtil.asBoolean(evaluate(
+                        "function(){ return (this instanceof HTMLInputElement || this instanceof HTMLTextAreaElement || this.isContentEditable) && !this.readOnly; }"
+                ));
+                ok = ok && editable;
+            }
+
+            // RECEIVES_EVENTS (ungefähre Hitbox-Annahme)
+            if (ok && req.contains(ActionabilityRequirement.RECEIVES_EVENTS)) {
+                boolean receives = WebDriverUtil.asBoolean(evaluate(
+                        "function(){ const r=this.getBoundingClientRect(); return r.width>0 && r.height>0; }"
+                ));
+                ok = ok && receives;
+            }
+
+            if (ok) {
+                // STABLE (optional): 2 rAF oder BoundingBox-Konstanz
+                if (req.contains(ActionabilityRequirement.STABLE)) {
+                    double[] last = getBoundingBoxNow();
+                    try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+                    double[] now = getBoundingBoxNow();
+                    if (!java.util.Arrays.equals(last, now)) {
+                        ok = false;
+                    }
+                }
+            }
+
+            if (ok) {
+                if (req.contains(ActionabilityRequirement.VISIBLE)) {
+                    waitTwoAnimationFrames();
+                }
+                return;
+            }
+
+            if ((System.currentTimeMillis() - start) > timeout) {
+                throw new RuntimeException("Timeout waiting for actionability: " + check);
+            }
+
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+        }
+    }
+
+    /** Convenience: aus FillOptions die Checks ableiten (force = skip). */
+    private void waitForActionability(FillOptions options) {
+        boolean force = options != null && Boolean.TRUE.equals(options.force);
+        double timeout = options != null && options.timeout != null ? options.timeout : 30_000;
+        if (!force) {
+            waitForActionability(ActionabilityCheck.FILL, timeout);
+        }
+    }
+
+    private void waitForActionability(ClickOptions options) {
+        boolean force = options != null && Boolean.TRUE.equals(options.force);
+        double timeout = options != null && options.timeout != null ? options.timeout : 30_000;
+        if (!force) {
+            waitForActionability(ActionabilityCheck.CLICK, timeout);
+        }
+    }
+
+
+
+
+
 }

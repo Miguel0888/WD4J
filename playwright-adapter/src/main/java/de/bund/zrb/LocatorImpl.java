@@ -350,38 +350,9 @@ public class LocatorImpl implements Locator {
     }
 
     @Override
-    public void fill(String value, FillOptions options) {
+    public void fill(String value, Locator.FillOptions options) {
         resolveElementHandle();
-
-        // 1️⃣ Timeout:
-        double timeout = ((UserContextImpl) page.context()).getDefaultTimeout();
-        if (options != null && options.timeout != null) {
-            timeout = options.timeout;
-        }
-
-        // 2️⃣ Force:
-        boolean force = options != null && Boolean.TRUE.equals(options.force);
-
-        // 3️⃣ Actionability Check, nur wenn !force
-        if (!force) {
-            waitForActionability(ActionabilityCheck.FILL, timeout);
-        }
-
-        // 4️⃣ Jetzt wirklich ausführen:
-        List<WDLocalValue> args = new ArrayList<>();
-        args.add(new WDPrimitiveProtocolValue.StringValue(value));
-
-        page.getBrowser().getScriptManager().executeDomAction(
-                new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
-                WDScriptManager.DomAction.INPUT,
-                args
-        );
-
-        // 5️⃣ NoWaitAfter – könnte hier steuern, ob du `waitForNavigation` o.ä. weglässt.
-        if (options != null && Boolean.TRUE.equals(options.noWaitAfter)) {
-            // Zum Beispiel keine Navigation/Netzwerk-Warte auslösen.
-        }
+        elementHandle.fill(value, toHandleFillOptions(options));
     }
 
     @Override
@@ -1267,5 +1238,15 @@ public class LocatorImpl implements Locator {
         return sb.toString();
     }
     private static String cssEsc(String s) { return s.replace("'", "\\'"); }
+
+    // Kleiner Adapter: Locator.FillOptions -> ElementHandle.FillOptions
+    private static ElementHandle.FillOptions toHandleFillOptions(Locator.FillOptions src) {
+        ElementHandle.FillOptions dst = new ElementHandle.FillOptions();
+        if (src == null) return dst;
+        if (src.force != null)      dst.setForce(src.force);
+        if (src.noWaitAfter != null) dst.setNoWaitAfter(src.noWaitAfter); // deprecated, no-op ok
+        if (src.timeout != null)    dst.setTimeout(src.timeout);
+        return dst;
+    }
 
 }
