@@ -244,7 +244,6 @@ public class TestPlayerService {
 
             switch (act) {
                 case "navigate":
-                    // Unterdrückung ist hier nicht nötig – neue Seite, neuer Recorder.
                     page.navigate(action.getValue(),
                             new Page.NavigateOptions().setTimeout(action.getTimeout()));
                     return true;
@@ -255,47 +254,55 @@ public class TestPlayerService {
 
                 case "click": {
                     Locator loc = LocatorResolver.resolve(page, action);
-                    waitThen(page, loc, action.getTimeout(),
-                            () -> loc.click(new Locator.ClickOptions().setTimeout(action.getTimeout())));
+                    withRecordingSuppressed(page, () ->
+                            waitThen(loc, action.getTimeout(), () ->
+                                    loc.click(new Locator.ClickOptions().setTimeout(action.getTimeout()))));
                     return true;
                 }
 
                 case "input":
                 case "fill": {
                     Locator loc = LocatorResolver.resolve(page, action);
-                    waitThen(page, loc, action.getTimeout(),
-                            () -> loc.fill(action.getValue(),
-                                    new Locator.FillOptions().setTimeout(action.getTimeout())));
-                    return true;
-                }
-
-                case "press": { // ← NEU: z. B. Enter im Datumsfeld
-                    Locator loc = LocatorResolver.resolve(page, action);
-                    waitThen(page, loc, action.getTimeout(),
-                            () -> loc.press(action.getValue(),
-                                    new Locator.PressOptions().setTimeout(action.getTimeout())));
+                    withRecordingSuppressed(page, () ->
+                            waitThen(loc, action.getTimeout(), () ->
+                                    loc.fill(action.getValue(), new Locator.FillOptions().setTimeout(action.getTimeout()))));
                     return true;
                 }
 
                 case "select": {
                     Locator loc = LocatorResolver.resolve(page, action);
-                    waitThen(page, loc, action.getTimeout(),
-                            () -> loc.selectOption(action.getValue()));
+                    withRecordingSuppressed(page, () ->
+                            waitThen(loc, action.getTimeout(), () -> loc.selectOption(action.getValue())));
                     return true;
                 }
 
                 case "check":
                 case "radio": {
                     Locator loc = LocatorResolver.resolve(page, action);
-                    waitThen(page, loc, action.getTimeout(),
-                            () -> loc.check(new Locator.CheckOptions().setTimeout(action.getTimeout())));
+                    withRecordingSuppressed(page, () ->
+                            waitThen(loc, action.getTimeout(), () ->
+                                    loc.check(new Locator.CheckOptions().setTimeout(action.getTimeout()))));
                     return true;
                 }
 
                 case "screenshot":
-                    // optional auch unterdrücken, wenn der Screenshot side effects auslöst (normalerweise nicht)
+                    // Element- oder Page-Screenshot könnte hier später unterschieden werden.
                     page.screenshot(new Page.ScreenshotOptions().setTimeout(action.getTimeout()));
                     return true;
+
+                //optional:
+                case "press": {
+                    Locator loc = LocatorResolver.resolve(page, action);
+                    withRecordingSuppressed(page, () ->
+                            waitThen(loc, action.getTimeout(), () -> loc.press(action.getValue())));
+                    return true;
+                }
+                case "type": {
+                    Locator loc = LocatorResolver.resolve(page, action);
+                    withRecordingSuppressed(page, () ->
+                            waitThen(loc, action.getTimeout(), () -> loc.type(action.getValue())));
+                    return true;
+                }
 
                 default:
                     System.out.println("⚠️ Nicht unterstützte Action: " + act);
@@ -434,31 +441,5 @@ public class TestPlayerService {
         // Optional: Reset für nächsten Lauf
         // reportBaseName=null; reportHtmlPath=null; reportImagesDir=null; screenshotCounter=0;
     }
-
-    private void suppressRecording(Page page, boolean on) {
-        try {
-            page.evaluate("flag => { window.__zrbSuppressRecording = !!flag; }", on);
-        } catch (Throwable ignore) {
-            // Seite kann z. B. schon navigiert haben – ignorieren
-        }
-    }
-
-    private void withSuppressed(Page page, Runnable r) {
-        suppressRecording(page, true);
-        try {
-            r.run();
-        } finally {
-            suppressRecording(page, false);
-        }
-    }
-
-    /** waitFor + Aktion in EINEM unterdrückten Block ausführen */
-    private void waitThen(Page page, Locator locator, double timeout, Runnable action) {
-        withSuppressed(page, () -> {
-            locator.waitFor(new Locator.WaitForOptions().setTimeout(timeout));
-            action.run();
-        });
-    }
-
 
 }
