@@ -458,51 +458,59 @@ function (sendMessage) {
 
     // ---------- Init ----------
     function init() {
-        // Doppelinitialisierung vermeiden (z. B. bei PJAX/AJAX Nachladen)
+        // Doppel-Initialisierung vermeiden
         if (window.__zrbRecorderInitDone) return;
         window.__zrbRecorderInitDone = true;
 
-        // Elementgebundene Listener für klickbare Elemente (click/change)
+        // Element-gebundene Listener (click/change/input/keydown) für interaktive Elemente
         bindInteractiveListeners(document);
         hookPrimeFacesAjax();
         startObserver();
 
-        // --- Globale Listener NUR für Texteingaben ---
-        document.addEventListener("beforeinput", e => {
+        // ---- Globale Fallbacks ----
+        // Click: nur echte User-Klicks (synthetische & detail==0 ignorieren)
+        document.addEventListener("click", (e) => {
+            if (window[SUPPRESS_FLAG]) return;
+            if (!e.isTrusted || e.detail === 0) return;
+            onAnyEvent(e);
+        }, true);
+
+        // Change: global als Sicherheitsnetz (z. B. <select>, dynamische Rebinds)
+        document.addEventListener("change", (e) => {
+            if (window[SUPPRESS_FLAG]) return;
+            if (!e.isTrusted) return;
+            onAnyEvent(e);
+        }, true);
+
+        // ---- Texteingaben ----
+        // Feingranular: einzelne Edit-Operation vor der eigentlichen Wertänderung
+        document.addEventListener("beforeinput", (e) => {
             if (window[SUPPRESS_FLAG]) return;
             const t = e.target;
             const editable = t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t.isContentEditable;
             if (!editable || !e.isTrusted) return;
 
             const dto = buildDtoForEvent(e);
-            dto.action = "type";              // einzelne Edit-Operation
+            dto.action = "type";            // einzelne Edit-Operation
             dto.key = null;
-            dto.value = e.data ?? "";         // bei Löschungen oft null → leere Zeichenkette
+            dto.value = e.data ?? "";       // bei Löschen oft null → ""
             dto.inputType = e.inputType || "";
             postEvents([compact(dto)]);
         }, true);
 
-        document.addEventListener("input", e => {
-            if (window[SUPPRESS_FLAG]) return;
-            const t = e.target;
-            const editable = t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t.isContentEditable;
-            if (!editable || !e.isTrusted) return;
+        // WICHTIG: KEIN globales "input" hier hinzufügen,
+        // damit "input" nicht doppelt (global + elementgebunden) aufgezeichnet wird.
+        // Die elementgebundenen Listener aus bindInteractiveListeners reichen.
 
-            const dto = buildDtoForEvent(e);
-            dto.action = "input";             // aktueller Gesamtwert
-            dto.value = (t.value ?? t.textContent ?? "") + "";
-            postEvents([compact(dto)]);
-        }, true);
-
-        // --- Sondertasten global erfassen ---
+        // ---- Sondertasten ----
         const SPECIAL_KEYS = new Set([
             "Enter","Tab","Escape","Backspace","Delete","Home","End",
             "ArrowLeft","ArrowRight","ArrowUp","ArrowDown","PageUp","PageDown"
         ]);
-        document.addEventListener("keydown", e => {
+        document.addEventListener("keydown", (e) => {
             if (window[SUPPRESS_FLAG]) return;
             if (!e.isTrusted) return;
-            if (!SPECIAL_KEYS.has(e.key)) return;  // keine „normalen“ Zeichen hier
+            if (!SPECIAL_KEYS.has(e.key)) return;  // nur Sondertasten loggen
 
             const dto = buildDtoForEvent(e);
             dto.action = "press";
