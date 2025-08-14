@@ -8,6 +8,7 @@ import com.microsoft.playwright.options.FilePayload;
 import com.microsoft.playwright.options.SelectOption;
 import de.bund.zrb.support.ActionabilityCheck;
 import de.bund.zrb.support.ActionabilityRequirement;
+import de.bund.zrb.type.input.WDElementOrigin;
 import de.bund.zrb.type.script.*;
 import de.bund.zrb.util.WebDriverUtil;
 
@@ -16,6 +17,14 @@ import java.util.*;
 
 import static com.microsoft.playwright.ElementHandle.*;
 import static de.bund.zrb.support.WDRemoteValueUtil.getBoundingBoxFromEvaluateResult;
+
+import de.bund.zrb.manager.WDInputManager;
+import de.bund.zrb.command.request.parameters.input.sourceActions.PointerSourceAction;
+import de.bund.zrb.command.request.parameters.input.sourceActions.SourceActions;
+import de.bund.zrb.command.request.parameters.input.sourceActions.KeySourceAction;
+import de.bund.zrb.util.BrowsingContextResolver;
+import com.microsoft.playwright.options.MouseButton;
+import com.microsoft.playwright.options.KeyboardModifier;
 
 /**
  * Implementation of ElementHandle using WebDriver BiDi.
@@ -126,25 +135,55 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public void click(ClickOptions options) {
+        // 1) Actionability (skip bei force)
         waitForActionability(options);
+
+        // 2) Sichtbar machen
         scrollIntoViewIfNeeded(null);
+        waitTwoAnimationFrames();
 
-        String script = "function() { this.click(); }";
-
-        WDEvaluateResult result = webDriver.script().callFunction(
-                script,
-                false, // ❗ kein await nötig für click()
-                target,
-                null, // keine Argumente
-                getRemoteReference(), // ← dein sharedId-basiertes Element
-                WDResultOwnership.ROOT,
-                null
-        );
-
-        if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
-            throw new RuntimeException("Click failed: " + ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
+        // 3) Koordinaten relativ zur in-view Mitte
+        double dx = 0.0, dy = 0.0; // Standard: (0,0) → Mitte
+        if (options != null && options.position != null) {
+            dx = options.position.x;
+            dy = options.position.y;
         }
+        int button = mapMouseButton(options != null ? options.button : null);
+        int clicks = (options != null && options.clickCount != null) ? options.clickCount : 1;
+
+        WDElementOrigin origin = elementOrigin();
+
+        // 4) Pointer-Sequenz
+        List<PointerSourceAction> pointer = new ArrayList<>();
+        // x/y sind Pflicht → wir geben die Offsets an, origin = element
+        pointer.add(new PointerSourceAction.PointerMoveAction(dx, dy, origin));
+        for (int i = 0; i < clicks; i++) {
+            pointer.add(new PointerSourceAction.PointerDownAction(button));
+            pointer.add(new PointerSourceAction.PointerUpAction(button));
+        }
+
+        SourceActions.PointerSourceActions pointerSeq =
+                new SourceActions.PointerSourceActions(
+                        "mouse-pointer",
+                        new SourceActions.PointerSourceActions.PointerParameters(), // pointerType: mouse (default)
+                        pointer
+                );
+
+        // 5) Modifiers (down → click → up) in EINER performActions-Nachricht
+        List<SourceActions> actions = new ArrayList<>();
+        if (options != null && options.modifiers != null && !options.modifiers.isEmpty()) {
+            actions.addAll(buildModifierActions(options.modifiers, true));  // keyDown
+        }
+        actions.add(pointerSeq);
+        if (options != null && options.modifiers != null && !options.modifiers.isEmpty()) {
+            actions.addAll(buildModifierActions(options.modifiers, false)); // keyUp
+        }
+
+        // 6) Context auflösen & senden
+        String contextId = requireContextId();
+        input().performActions(contextId, actions);
     }
+
 
 
     /**
@@ -179,15 +218,16 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public void dblclick(DblclickOptions options) {
-        waitForActionability(options);
-        scrollIntoViewIfNeeded(null);
-
-        String script = "el => { el.click(); el.click(); }";
-        WDEvaluateResult result = webDriver.script().evaluate(script, target, true);
-
-        if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
-            throw new RuntimeException("Double click failed: " + ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
+        ClickOptions c = new ClickOptions();
+        if (options != null) {
+            c.button    = options.button;
+            c.position  = options.position;
+            c.timeout   = options.timeout;
+            c.force     = options.force;
+            c.modifiers = options.modifiers;
         }
+        c.clickCount = 2;
+        click(c);
     }
 
     private void waitForActionability(DblclickOptions options) {
@@ -405,7 +445,33 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public void hover(HoverOptions options) {
+        // Optional: Actionability-Check fürs Hover
+        waitForActionability(ActionabilityCheck.HOVER, /*timeout*/ 30_000);
+        scrollIntoViewIfNeeded(null);
+        waitTwoAnimationFrames();
 
+        double dx = 0.0, dy = 0.0;
+        if (options != null && options.position != null) {
+            dx = options.position.x;
+            dy = options.position.y;
+        }
+
+        WDElementOrigin origin = elementOrigin();
+        List<PointerSourceAction> pointer = new ArrayList<>();
+        pointer.add(new PointerSourceAction.PointerMoveAction(dx, dy, origin));
+
+        SourceActions.PointerSourceActions pointerSeq =
+                new SourceActions.PointerSourceActions(
+                        "mouse-pointer",
+                        new SourceActions.PointerSourceActions.PointerParameters(),
+                        pointer
+                );
+
+        List<SourceActions> actions = new ArrayList<>();
+        actions.add(pointerSeq);
+
+        String contextId = requireContextId();
+        input().performActions(contextId, actions);
     }
 
     /**
@@ -1238,6 +1304,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
         }
     }
 
+    @Deprecated // Since we use ElementOrigin with SharedID instead of manually calculated coordinates
     private com.microsoft.playwright.Mouse resolveMouse() {
         if (page != null && page.mouse() != null) return page.mouse();
 
@@ -1245,6 +1312,56 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
         // Stelle sicher, dass dein WebDriver Zugriff auf den WDInputManager bietet.
         de.bund.zrb.manager.WDInputManager im = webDriver.input(); // <- ggf. Getter ergänzen
         return new de.bund.zrb.event.MouseImpl(im, requireContextId());
+    }
+
+    // in ElementHandleImpl (privat)
+    private WDInputManager input() {
+        return webDriver.input(); // stelle sicher, dass WebDriver#input() den WDInputManager liefert
+    }
+
+    private WDElementOrigin elementOrigin() {
+        return new WDElementOrigin((WDRemoteReference.SharedReference) getRemoteReference());
+    }
+
+    /** Mappt Playwright-Buttons auf BiDi (0:left,1:middle,2:right). */
+    private static int mapMouseButton(MouseButton b) {
+        if (b == null) return 0;
+        switch (b) {
+            case LEFT:   return 0;
+            case MIDDLE: return 1;
+            case RIGHT:  return 2;
+            default:     return 0;
+        }
+    }
+
+    /** Baut (optional) Key-Down/Key-Up Sequenzen für Modifiers. */
+    private static List<SourceActions> buildModifierActions(List<KeyboardModifier> mods, boolean keyDown) {
+        if (mods == null || mods.isEmpty()) return java.util.Collections.emptyList();
+
+        // Reihenfolge für Down: Ctrl, Alt, Shift, Meta | für Up: reverse
+        List<String> order = Arrays.asList("Control", "Alt", "Shift", "Meta");
+        if (!keyDown) Collections.reverse(order);
+
+        Set<String> want = new java.util.HashSet<>();
+        for (KeyboardModifier m : mods) {
+            switch (m) {
+                case CONTROL: want.add("Control"); break;
+                case ALT:     want.add("Alt");     break;
+                case SHIFT:   want.add("Shift");   break;
+                case META:    want.add("Meta");    break;
+            }
+        }
+
+        List<KeySourceAction> keyActions = new ArrayList<>();
+        for (String k : order) {
+            if (!want.contains(k)) continue;
+            if (keyDown) keyActions.add(new KeySourceAction.KeyDownAction(k));
+            else         keyActions.add(new KeySourceAction.KeyUpAction(k));
+        }
+        if (keyActions.isEmpty()) return java.util.Collections.emptyList();
+
+        SourceActions.KeySourceActions seq = new SourceActions.KeySourceActions("keyboard", keyActions);
+        return java.util.Collections.singletonList(seq);
     }
 
 

@@ -154,6 +154,20 @@ public interface PointerSourceAction {
             this.origin = origin;
         }
 
+        public PointerMoveAction(double x, double y, Origin origin) {
+            this.x = x;
+            this.y = y;
+            this.duration = null;
+            this.origin = origin;
+        }
+
+        public PointerMoveAction(double x, double y, long duration, Origin origin) {
+            this.x = x;
+            this.y = y;
+            this.duration = duration;
+            this.origin = origin;
+        }
+
         public double getX() {
             return x;
         }
