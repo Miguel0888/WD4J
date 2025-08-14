@@ -329,7 +329,23 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public Object evalOnSelector(String selector, String expression, Object arg) {
-        return null;
+        List<WDLocalValue> args = Arrays.asList(
+                WDLocalValue.fromObject(selector),
+                WDLocalValue.fromObject(expression),
+                WDLocalValue.fromObject(arg)
+        );
+        WDEvaluateResult r = webDriver.script().callFunction(
+                "function(sel, exprSrc, a){ " +
+                        "  const el = this.querySelector(sel); " +
+                        "  if(!el) throw new Error('evalOnSelector: no element for selector: '+sel); " +
+                        "  const fn = new Function('node','arg', 'return ('+exprSrc+')(node,arg);'); " +
+                        "  return fn(el, a); " +
+                        "}",
+                /* await */ true,
+                target, args, getRemoteReference(),
+                WDResultOwnership.ROOT, null
+        );
+        return WebDriverUtil.unwrap(r); // <- nutzt deine existierende Helper-Logik (falls vorhanden). Sonst analog wie in anderen Methoden decodieren.
     }
 
     /**
@@ -357,7 +373,22 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public Object evalOnSelectorAll(String selector, String expression, Object arg) {
-        return null;
+        List<WDLocalValue> args = Arrays.asList(
+                WDLocalValue.fromObject(selector),
+                WDLocalValue.fromObject(expression),
+                WDLocalValue.fromObject(arg)
+        );
+        WDEvaluateResult r = webDriver.script().callFunction(
+                "function(sel, exprSrc, a){ " +
+                        "  const list = Array.from(this.querySelectorAll(sel)); " +
+                        "  const fn = new Function('nodes','arg', 'return ('+exprSrc+')(nodes,arg);'); " +
+                        "  return fn(list, a); " +
+                        "}",
+                /* await */ true,
+                target, args, getRemoteReference(),
+                WDResultOwnership.ROOT, null
+        );
+        return WebDriverUtil.unwrap(r);
     }
 
     /**
@@ -380,29 +411,48 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
     /** Vereinheitlichtes Füllen, PF-sicher, mit Commit + Hidden-Wait. */
     @Override
     public void fill(String value, FillOptions options) {
+        // Actionability & Sichtbarkeit
         waitForActionability(options);
         scrollIntoViewIfNeeded(null);
+        focus(); // ruft nur this.focus(); auf, kein PF-Kram
 
-        String script = de.bund.zrb.util.DomScripts.FILL_PF_INPUTNUMBER_AND_WAIT;
-
-        java.util.List<WDLocalValue> args = java.util.Collections.singletonList(
-                WDLocalValue.fromObject(value)
+        // OS bestimmen (Mac = Meta, sonst Control)
+        WDEvaluateResult macRes = webDriver.script().callFunction(
+                "function(){ try { return /Mac|iPhone|iPad|iPod/.test(navigator.platform); } catch(e){ return false; } }",
+                /* await */ true,
+                target, null, getRemoteReference(),
+                WDResultOwnership.ROOT, null
         );
+        boolean isMac = WebDriverUtil.asBoolean(macRes);
+        String mod = isMac ? "Meta" : "Control";
 
-        WDEvaluateResult result = webDriver.script().callFunction(
-                script,
-                /* awaitPromise = */ true,
-                target,
-                args,
-                getRemoteReference(),
-                WDResultOwnership.ROOT,
-                null
-        );
+        List<KeySourceAction> seq = new ArrayList<>();
 
-        if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
-            throw new RuntimeException("Fill failed: " +
-                    ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
+        // Select All
+        seq.add(new KeySourceAction.KeyDownAction(mod));
+        seq.add(new KeySourceAction.KeyDownAction("a"));
+        seq.add(new KeySourceAction.KeyUpAction("a"));
+        seq.add(new KeySourceAction.KeyUpAction(mod));
+
+        // Inhalt löschen (Delete + Backspace, um alle Fälle abzudecken)
+        seq.add(new KeySourceAction.KeyDownAction("Delete"));
+        seq.add(new KeySourceAction.KeyUpAction("Delete"));
+        seq.add(new KeySourceAction.KeyDownAction("Backspace"));
+        seq.add(new KeySourceAction.KeyUpAction("Backspace"));
+
+        // Zielwert tippen (falls nicht leer)
+        if (value != null && !value.isEmpty()) {
+            for (int i = 0; i < value.length(); i++) {
+                String ch = String.valueOf(value.charAt(i));
+                seq.add(new KeySourceAction.KeyDownAction(ch));
+                seq.add(new KeySourceAction.KeyUpAction(ch));
+            }
         }
+
+        SourceActions.KeySourceActions keyboard =
+                new SourceActions.KeySourceActions("keyboard", seq);
+
+        input().performActions(requireContextId(), Collections.singletonList(keyboard));
     }
 
     /**
@@ -700,7 +750,22 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public ElementHandle waitForSelector(String selector, WaitForSelectorOptions options) {
-        return null;
+        long timeout = options != null && options.timeout != null ? options.timeout.longValue() : 30_000L;
+        String state = options != null && options.state != null ? options.state.name() : "ATTACHED"; // falls dein Enum so heißt
+
+        long start = System.currentTimeMillis();
+        while (System.currentTimeMillis() - start <= timeout) {
+            ElementHandle eh = querySelector(selector);
+            if ("HIDDEN".equalsIgnoreCase(state)) {
+                if (eh == null || !eh.isVisible()) return null; // Playwright: bei hidden/detached -> null
+            } else if ("VISIBLE".equalsIgnoreCase(state)) {
+                if (eh != null && eh.isVisible()) return eh;
+            } else { // ATTACHED
+                if (eh != null) return eh;
+            }
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+        }
+        throw new RuntimeException("waitForSelector timeout: " + selector + " (state=" + state + ")");
     }
 
     private boolean matchesElementState(ElementState state) {
@@ -716,41 +781,47 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
     @Override
     public ElementHandle querySelector(String selector) {
-        String script = "el => el.querySelector(arguments[0])";
-        WDEvaluateResult result = webDriver.script().evaluate(script, target, true);
-
-        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue value = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
-            if (value instanceof WDRemoteValue.NodeRemoteValue) {
-                WDHandle newHandle = ((WDRemoteValue.NodeRemoteValue) value).getHandle();
-                WDSharedId newSharedReference = ((WDRemoteValue.NodeRemoteValue) value).getSharedId();
-                WDRemoteReference.SharedReference newReference = new WDRemoteReference.SharedReference(newSharedReference, newHandle);
-                return new ElementHandleImpl(webDriver, newReference, target);
+        List<WDLocalValue> args = Collections.singletonList(WDLocalValue.fromObject(selector));
+        WDEvaluateResult r = webDriver.script().callFunction(
+                "function(sel){ return this.querySelector(sel); }",
+                /* await */ false,
+                target, args, getRemoteReference(),
+                WDResultOwnership.ROOT, null
+        );
+        if (r instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            WDRemoteValue v = ((WDEvaluateResult.WDEvaluateResultSuccess) r).getResult();
+            if (v instanceof WDRemoteValue.NodeRemoteValue) {
+                WDHandle h = ((WDRemoteValue.NodeRemoteValue) v).getHandle();
+                WDSharedId sid = ((WDRemoteValue.NodeRemoteValue) v).getSharedId();
+                WDRemoteReference.SharedReference ref = new WDRemoteReference.SharedReference(sid, h);
+                return new ElementHandleImpl(webDriver, ref, target);
             }
         }
         return null;
     }
 
-
     @Override
     public List<ElementHandle> querySelectorAll(String selector) {
-        String script = "el => Array.from(el.querySelectorAll(arguments[0]))";
-        WDEvaluateResult elements = webDriver.script().evaluate(script, target, true);
-
-        if (elements instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue remoteValue = ((WDEvaluateResult.WDEvaluateResultSuccess) elements).getResult();
-            if (remoteValue instanceof WDRemoteValue.ArrayRemoteValue) {
-                List<WDRemoteValue> rawArray = ((WDRemoteValue.ArrayRemoteValue) remoteValue).getValue();
-                List<ElementHandle> handles = new ArrayList<>();
-                for (WDRemoteValue value : rawArray) {
-                    if (value instanceof WDRemoteValue.NodeRemoteValue) {
-                        WDHandle newHandle = ((WDRemoteValue.NodeRemoteValue) value).getHandle();
-                        WDSharedId newSharedReference = ((WDRemoteValue.NodeRemoteValue) value).getSharedId();
-                        WDRemoteReference.SharedReference newReference = new WDRemoteReference.SharedReference(newSharedReference, newHandle);
-                        handles.add(new ElementHandleImpl(webDriver, newReference, target));
+        List<WDLocalValue> args = Collections.singletonList(WDLocalValue.fromObject(selector));
+        WDEvaluateResult r = webDriver.script().callFunction(
+                "function(sel){ return Array.from(this.querySelectorAll(sel)); }",
+                /* await */ false,
+                target, args, getRemoteReference(),
+                WDResultOwnership.ROOT, null
+        );
+        if (r instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            WDRemoteValue v = ((WDEvaluateResult.WDEvaluateResultSuccess) r).getResult();
+            if (v instanceof WDRemoteValue.ArrayRemoteValue) {
+                List<ElementHandle> out = new ArrayList<>();
+                for (WDRemoteValue it : ((WDRemoteValue.ArrayRemoteValue) v).getValue()) {
+                    if (it instanceof WDRemoteValue.NodeRemoteValue) {
+                        WDHandle h = ((WDRemoteValue.NodeRemoteValue) it).getHandle();
+                        WDSharedId sid = ((WDRemoteValue.NodeRemoteValue) it).getSharedId();
+                        WDRemoteReference.SharedReference ref = new WDRemoteReference.SharedReference(sid, h);
+                        out.add(new ElementHandleImpl(webDriver, ref, target));
                     }
                 }
-                return handles;
+                return out;
             }
         }
         return Collections.emptyList();
@@ -861,15 +932,16 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      * handle.selectOption(new String[] {"red", "green", "blue"});
      * }</pre>
      *
-     * @param values  Options to select. If the {@code <select>} has the {@code multiple} attribute, all matching options are selected,
+     * @param value  Options to select. If the {@code <select>} has the {@code multiple} attribute, all matching options are selected,
      *                otherwise only the first option matching one of the passed options is selected. String values are matching both values
      *                and labels. Option is considered matching if all specified properties match.
      * @param options
      * @since v1.8
      */
     @Override
-    public List<String> selectOption(String values, SelectOptionOptions options) {
-        return Collections.emptyList();
+    public List<String> selectOption(String value, SelectOptionOptions options) {
+        if (value == null) return Collections.emptyList();
+        return selectOption(new String[]{ value }, options);
     }
 
     /**
@@ -937,6 +1009,47 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public List<String> selectOption(String[] values, SelectOptionOptions options) {
+        List<WDLocalValue> args = Collections.singletonList(WDLocalValue.fromObject(values));
+        WDEvaluateResult r = webDriver.script().callFunction(
+                "function(vals){ " +
+                        "  const resolveControl = (el)=>{ " +
+                        "    if (el instanceof HTMLSelectElement) return el; " +
+                        "    const lab = el.closest && el.closest('label'); " +
+                        "    if (lab && lab.control instanceof HTMLSelectElement) return lab.control; " +
+                        "    if (el.tagName && el.tagName.toUpperCase()==='SELECT') return el; " +
+                        "    throw new Error('selectOption: not a <select> or associated control'); " +
+                        "  }; " +
+                        "  const sel = resolveControl(this); " +
+                        "  const wanted = Array.isArray(vals) ? vals : [vals]; " +
+                        "  const chosen = []; " +
+                        "  if (!sel.multiple) { for (const o of sel.options) o.selected = false; } " +
+                        "  const pick = (s)=>{ " +
+                        "    for (const o of sel.options) { " +
+                        "      if (o.value === s || o.label === s) { o.selected = true; if (!chosen.includes(o.value)) chosen.push(o.value); return true; } " +
+                        "    } return false; " +
+                        "  }; " +
+                        "  for (const s of wanted) { pick(String(s)); if (!sel.multiple) break; } " +
+                        "  sel.dispatchEvent(new Event('input',{bubbles:true})); " +
+                        "  sel.dispatchEvent(new Event('change',{bubbles:true})); " +
+                        "  return chosen; " +
+                        "}",
+                /* await */ true,
+                target, args, getRemoteReference(),
+                WDResultOwnership.ROOT, null
+        );
+        // decode result → List<String>
+        if (r instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            WDRemoteValue v = ((WDEvaluateResult.WDEvaluateResultSuccess) r).getResult();
+            if (v instanceof WDRemoteValue.ArrayRemoteValue) {
+                List<String> out = new ArrayList<>();
+                for (WDRemoteValue it : ((WDRemoteValue.ArrayRemoteValue) v).getValue()) {
+                    if (it instanceof WDPrimitiveProtocolValue.StringValue) {
+                        out.add(((WDPrimitiveProtocolValue.StringValue) it).getValue());
+                    }
+                }
+                return out;
+            }
+        }
         return Collections.emptyList();
     }
 
@@ -1079,8 +1192,20 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public void setChecked(boolean checked, SetCheckedOptions options) {
+        if (!isCheckboxOrRadio())
+            throw new IllegalStateException("setChecked: element is not <input type=checkbox|radio>");
 
+        if (isChecked() == checked) return;
+
+        waitForActionability(ActionabilityCheck.CLICK, options != null && options.timeout != null ? options.timeout : 30_000);
+        scrollIntoViewIfNeeded(null);
+        waitTwoAnimationFrames();
+        click(new ClickOptions()); // nutzt bereits Modifiers etc.
+
+        if (isChecked() != checked)
+            throw new RuntimeException("setChecked failed: state did not change.");
     }
+
 
     /**
      * Sets the value of the file input to these file paths or files. If some of the {@code filePaths} are relative paths, then
@@ -1243,7 +1368,18 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public void uncheck(UncheckOptions options) {
+        if (!isCheckboxOrRadio())
+            throw new IllegalStateException("uncheck: element is not <input type=checkbox|radio>");
 
+        if (!isChecked()) return;
+
+        waitForActionability(ActionabilityCheck.CLICK, options != null && options.timeout != null ? options.timeout : 30_000);
+        scrollIntoViewIfNeeded(null);
+        waitTwoAnimationFrames();
+        click(new ClickOptions());
+
+        if (isChecked())
+            throw new RuntimeException("uncheck failed: still checked.");
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

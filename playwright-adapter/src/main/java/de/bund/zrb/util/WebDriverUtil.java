@@ -221,4 +221,49 @@ public final class WebDriverUtil {
             throw new IllegalStateException("Invalid number format: \"" + raw + "\"", e);
         }
     }
+
+    public static Object unwrap(WDEvaluateResult r) {
+        if (r instanceof WDEvaluateResult.WDEvaluateResultError) {
+            throw new RuntimeException("Evaluation error: "
+                    + ((WDEvaluateResult.WDEvaluateResultError) r).getExceptionDetails());
+        }
+        if (!(r instanceof WDEvaluateResult.WDEvaluateResultSuccess)) {
+            return null;
+        }
+        WDRemoteValue v = ((WDEvaluateResult.WDEvaluateResultSuccess) r).getResult();
+        return unwrapRemoteValue(v);
+    }
+
+    private static Object unwrapRemoteValue(WDRemoteValue v) {
+        if (v == null) return null;
+
+        // Primitives
+        if (v instanceof WDPrimitiveProtocolValue.BooleanValue) {
+            return ((WDPrimitiveProtocolValue.BooleanValue) v).getValue();
+        }
+        if (v instanceof WDPrimitiveProtocolValue.NumberValue) {
+            String raw = ((WDPrimitiveProtocolValue.NumberValue) v).getValue();
+            try { return Double.parseDouble(raw); } catch (NumberFormatException e) { return raw; }
+        }
+        if (v instanceof WDPrimitiveProtocolValue.StringValue) {
+            return ((WDPrimitiveProtocolValue.StringValue) v).getValue();
+        }
+
+        // Arrays -> List<Object>
+        if (v instanceof WDRemoteValue.ArrayRemoteValue) {
+            List<WDRemoteValue> arr = ((WDRemoteValue.ArrayRemoteValue) v).getValue();
+            List<Object> out = new ArrayList<>(arr.size());
+            for (WDRemoteValue it : arr) out.add(unwrapRemoteValue(it));
+            return out;
+        }
+
+        // Nodes (Caller kann daraus einen Handle bauen, falls benötigt)
+        if (v instanceof WDRemoteValue.NodeRemoteValue) {
+            return v;
+        }
+
+        // Fallback: ungekanntes RemoteValue roh zurückgeben
+        return v;
+    }
+
 }
