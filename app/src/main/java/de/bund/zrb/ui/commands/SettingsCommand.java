@@ -82,6 +82,20 @@ public class SettingsCommand extends ShortcutMenuCommand {
         gbc.gridx = 1; gbc.gridy = row; gbc.weightx = 1; gbc.fill = GridBagConstraints.HORIZONTAL;
         contentPanel.add(reportDirPanel, gbc);
 
+        // Row 3: Reset Toolbar
+        row++;
+        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0;
+        contentPanel.add(new JLabel(""), gbc);
+        gbc.gridx = 1; gbc.gridy = row; gbc.weightx = 1; gbc.fill = GridBagConstraints.NONE;
+        JButton resetToolbarBtn = new JButton("Toolbar auf Standard zurücksetzen");
+        resetToolbarBtn.addActionListener(ev -> {
+            ActionToolbar.resetToDefault();
+            JOptionPane.showMessageDialog(null,
+                    "Toolbar wurde auf Standardeinstellungen zurückgesetzt.\n\nSie können die Änderungen sofort sehen.",
+                    "Info", JOptionPane.INFORMATION_MESSAGE);
+        });
+        contentPanel.add(resetToolbarBtn, gbc);
+
         JScrollPane scrollPane = new JScrollPane(contentPanel);
         scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
