@@ -425,34 +425,27 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         if (recordedActions.isEmpty()) return;
 
         List<TestAction> merged = new ArrayList<>();
-        TestAction lastInput = null;
-        StringBuilder keys = new StringBuilder();
-
-        for (TestAction action : recordedActions) {
-            if ("input".equals(action.getAction())) {
-                if (lastInput != null && isSameExceptValue(lastInput, action)) {
-                    lastInput.setValue(action.getValue());
-                } else {
-                    if (lastInput != null) merged.add(lastInput);
-                    lastInput = action;
-                }
-            } else if ("press".equals(action.getAction())) {
-                keys.append(action.getValue());
-            } else {
-                if (lastInput != null) {
-                    merged.add(lastInput);
-                    lastInput = null;
-                } else if (keys.length() > 0) {
-                    TestAction keyAction = new TestAction();
-                    keyAction.setAction("input");
-                    keyAction.setValue(keys.toString());
-                    merged.add(keyAction);
-                    keys.setLength(0);
-                }
-                merged.add(action);
+        TestAction lastInputSnapshot = null;  // hält letzte "input" (voller Wert)
+        for (TestAction a : recordedActions) {
+            String act = a.getAction();
+            if ("type".equals(act)) {
+                // einzelne Edit-Operationen überspringen – wir behalten den "input"-Snapshot
+                continue;
             }
+            if ("input".equals(act)) {
+                // neue Momentaufnahme des gesamten Werts
+                lastInputSnapshot = a;
+                continue;
+            }
+            // Bei Nicht-Input-Aktionen: vorherigen Snapshot ausschütten
+            if (lastInputSnapshot != null) {
+                merged.add(lastInputSnapshot);
+                lastInputSnapshot = null;
+            }
+            // press/ click etc. normal übernehmen
+            merged.add(a);
         }
-        if (lastInput != null) merged.add(lastInput);
+        if (lastInputSnapshot != null) merged.add(lastInputSnapshot);
 
         recordedActions.clear();
         recordedActions.addAll(merged);

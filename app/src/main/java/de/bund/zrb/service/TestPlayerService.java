@@ -254,30 +254,34 @@ public class TestPlayerService {
 
                 case "click": {
                     Locator loc = LocatorResolver.resolve(page, action);
-                    waitThen(loc, action.getTimeout(), () ->
-                            loc.click(new Locator.ClickOptions().setTimeout(action.getTimeout())));
+                    withRecordingSuppressed(page, () ->
+                            waitThen(loc, action.getTimeout(), () ->
+                                    loc.click(new Locator.ClickOptions().setTimeout(action.getTimeout()))));
                     return true;
                 }
 
                 case "input":
                 case "fill": {
                     Locator loc = LocatorResolver.resolve(page, action);
-                    waitThen(loc, action.getTimeout(), () ->
-                            loc.fill(action.getValue(), new Locator.FillOptions().setTimeout(action.getTimeout())));
+                    withRecordingSuppressed(page, () ->
+                            waitThen(loc, action.getTimeout(), () ->
+                                    loc.fill(action.getValue(), new Locator.FillOptions().setTimeout(action.getTimeout()))));
                     return true;
                 }
 
                 case "select": {
                     Locator loc = LocatorResolver.resolve(page, action);
-                    waitThen(loc, action.getTimeout(), () -> loc.selectOption(action.getValue()));
+                    withRecordingSuppressed(page, () ->
+                            waitThen(loc, action.getTimeout(), () -> loc.selectOption(action.getValue())));
                     return true;
                 }
 
                 case "check":
                 case "radio": {
                     Locator loc = LocatorResolver.resolve(page, action);
-                    waitThen(loc, action.getTimeout(), () ->
-                            loc.check(new Locator.CheckOptions().setTimeout(action.getTimeout())));
+                    withRecordingSuppressed(page, () ->
+                            waitThen(loc, action.getTimeout(), () ->
+                                    loc.check(new Locator.CheckOptions().setTimeout(action.getTimeout()))));
                     return true;
                 }
 
@@ -285,6 +289,20 @@ public class TestPlayerService {
                     // Element- oder Page-Screenshot könnte hier später unterschieden werden.
                     page.screenshot(new Page.ScreenshotOptions().setTimeout(action.getTimeout()));
                     return true;
+
+                //optional:
+                case "press": {
+                    Locator loc = LocatorResolver.resolve(page, action);
+                    withRecordingSuppressed(page, () ->
+                            waitThen(loc, action.getTimeout(), () -> loc.press(action.getValue())));
+                    return true;
+                }
+                case "type": {
+                    Locator loc = LocatorResolver.resolve(page, action);
+                    withRecordingSuppressed(page, () ->
+                            waitThen(loc, action.getTimeout(), () -> loc.type(action.getValue())));
+                    return true;
+                }
 
                 default:
                     System.out.println("⚠️ Nicht unterstützte Action: " + act);
@@ -347,6 +365,19 @@ public class TestPlayerService {
         Path file = reportImagesDir.resolve(fileName);
         Files.write(file, png);
         return file;
+    }
+
+    private void withRecordingSuppressed(Page page, Runnable action) {
+        try {
+            page.evaluate("() => { window.__zrbSuppressRecording = (window.__zrbSuppressRecording || 0) + 1; }");
+        } catch (Throwable ignore) {}
+        try {
+            action.run();
+        } finally {
+            try {
+                page.evaluate("() => { window.__zrbSuppressRecording = Math.max((window.__zrbSuppressRecording || 1) - 1, 0); }");
+            } catch (Throwable ignore) {}
+        }
     }
 
     // Helpers:

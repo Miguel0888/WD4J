@@ -1,4 +1,7 @@
 function (sendMessage) {
+
+    const SUPPRESS_FLAG = "__zrbSuppressRecording";
+
     // ---------- Guard & channel bridge ----------
     if (typeof sendMessage !== "function") {
         console.error("[recorder] invalid sendMessage");
@@ -373,6 +376,10 @@ function (sendMessage) {
     // ---------- Listener core ----------
     function onAnyEvent(nativeEvent) {
         try {
+            if (window[SUPPRESS_FLAG]) return;         // Replays nicht loggen
+            if (nativeEvent.type === "click") {
+                if (!nativeEvent.isTrusted || nativeEvent.detail === 0) return; // keine synthetischen Klicks
+            }
             const dto = buildDtoForEvent(nativeEvent);
             const sig = sigFromDto(dto);
             if (!shouldEmit(sig)) return;
@@ -403,12 +410,11 @@ function (sendMessage) {
         els.forEach(el => {
             el.removeEventListener("click", onAnyEvent, true);
             el.addEventListener("click", onAnyEvent, true);
+
             el.removeEventListener("change", onAnyEvent, true);
             el.addEventListener("change", onAnyEvent, true);
-            el.removeEventListener("input", onAnyEvent, true);
-            el.addEventListener("input", onAnyEvent, true);
-            el.removeEventListener("keydown", onAnyEvent, true);
-            el.addEventListener("keydown", onAnyEvent, true);
+
+            // KEIN input/keydown hier – das läuft global!
         });
     }
 
@@ -452,15 +458,57 @@ function (sendMessage) {
 
     // ---------- Init ----------
     function init() {
+        // Doppelinitialisierung vermeiden (z. B. bei PJAX/AJAX Nachladen)
+        if (window.__zrbRecorderInitDone) return;
+        window.__zrbRecorderInitDone = true;
+
+        // Elementgebundene Listener für klickbare Elemente (click/change)
         bindInteractiveListeners(document);
         hookPrimeFacesAjax();
         startObserver();
 
-        // global capture as last resort
-        document.addEventListener("click", onAnyEvent, true);
-        document.addEventListener("input", onAnyEvent, true);
-        document.addEventListener("change", onAnyEvent, true);
-        document.addEventListener("keydown", onAnyEvent, true);
+        // --- Globale Listener NUR für Texteingaben ---
+        document.addEventListener("beforeinput", e => {
+            if (window[SUPPRESS_FLAG]) return;
+            const t = e.target;
+            const editable = t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t.isContentEditable;
+            if (!editable || !e.isTrusted) return;
+
+            const dto = buildDtoForEvent(e);
+            dto.action = "type";              // einzelne Edit-Operation
+            dto.key = null;
+            dto.value = e.data ?? "";         // bei Löschungen oft null → leere Zeichenkette
+            dto.inputType = e.inputType || "";
+            postEvents([compact(dto)]);
+        }, true);
+
+        document.addEventListener("input", e => {
+            if (window[SUPPRESS_FLAG]) return;
+            const t = e.target;
+            const editable = t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t.isContentEditable;
+            if (!editable || !e.isTrusted) return;
+
+            const dto = buildDtoForEvent(e);
+            dto.action = "input";             // aktueller Gesamtwert
+            dto.value = (t.value ?? t.textContent ?? "") + "";
+            postEvents([compact(dto)]);
+        }, true);
+
+        // --- Sondertasten global erfassen ---
+        const SPECIAL_KEYS = new Set([
+            "Enter","Tab","Escape","Backspace","Delete","Home","End",
+            "ArrowLeft","ArrowRight","ArrowUp","ArrowDown","PageUp","PageDown"
+        ]);
+        document.addEventListener("keydown", e => {
+            if (window[SUPPRESS_FLAG]) return;
+            if (!e.isTrusted) return;
+            if (!SPECIAL_KEYS.has(e.key)) return;  // keine „normalen“ Zeichen hier
+
+            const dto = buildDtoForEvent(e);
+            dto.action = "press";
+            dto.key = e.key;
+            postEvents([compact(dto)]);
+        }, true);
 
         console.log("[recorder] ready");
     }

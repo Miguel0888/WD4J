@@ -1,6 +1,14 @@
 package de.bund.zrb.util;
 
+import java.util.regex.Pattern;
+
 public final class CssSelectorSanitizer {
+
+    private static final Pattern DROP = Pattern.compile(
+            "(?::hover|:active|:focus|:visited|:focus-within|:focus-visible)\\b"
+                    + "|\\.(?:active|selected|hover|focus|open|expanded|collapsed|highlight|current)\\b"
+                    + "|\\.ui-state-(?:hover|focus|active)\\b",
+            Pattern.CASE_INSENSITIVE);
 
     private CssSelectorSanitizer() {}
 
@@ -9,13 +17,18 @@ public final class CssSelectorSanitizer {
         if (selector == null) return null;
         String s = selector.trim();
 
-        // 1) #id-Tokens in [id='…'] umschreiben, wenn sie JSF-Doppelpunkte enthalten
+        // 1) JSF-IDs normalisieren
         s = normalizeHashIds(s);
 
-        // 2) Nach [id='…'] direkt folgende :id_* -Tokens in den id-Wert mergen
+        // 2) JSF-Suffixe mergen
         s = mergeDanglingJsfIdSuffix(s);
 
-        System.out.println("[Sanitized] " + s);
+        // 3) Flüchtige Pseudo-/State-Selektoren entfernen
+        s = DROP.matcher(s).replaceAll("");
+
+        // 4) Whitespace/Combinators bereinigen
+        s = s.replaceAll("\\s{2,}", " ").replaceAll("\\s*>\\s*", " > ").trim();
+
         return s;
     }
 
