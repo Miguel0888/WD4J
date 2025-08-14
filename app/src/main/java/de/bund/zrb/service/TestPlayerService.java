@@ -101,13 +101,43 @@ public class TestPlayerService {
     // Node-Ausführungen
     ////////////////////////////////////////////////////////////////////////////////
 
+    // TestPlayerService.java
+
+    /**
+     * Führt einen einzelnen Action-Node aus, erzeugt den StepLog und aktualisiert UI-Status.
+     * Eine Exception (inkl. Timeout) führt zu einem FAILED des Steps; der Status wird bis
+     * zum Case und zur Suite hochpropagiert.
+     */
     private LogComponent executeActionNode(TestNode node, TestAction action) {
-        playSingleAction(action);
-        StepLog stepLog = buildStepLogForAction(action);
-        stepLog.setParent(null);             // (optional) keine Hierarchie für Live-Stream nötig
-        logger.append(stepLog);              // <— SOFORT anzeigen
-        drawerRef.updateNodeStatus(node, true);
-        return stepLog;                      // Rückgabewert darf bleiben, wird aber nicht mehr gesammelt appended
+        boolean ok;
+        String err = null;
+
+        try {
+            ok = playSingleAction(action);           // liefert false bei Fehlern
+            if (!ok) {
+                err = "Action returned false";
+            }
+        } catch (RuntimeException ex) {              // falls playSingleAction rethrowt
+            ok = false;
+            err = (ex.getMessage() != null) ? ex.getMessage() : ex.toString();
+        }
+
+        // Log-Zeile für den Step erzeugen
+        StepLog stepLog = new StepLog(action.getType().name(), buildStepText(action));
+        stepLog.setStatus(ok);
+        if (!ok && err != null && !err.isEmpty()) {
+            stepLog.setError(err);
+        }
+
+        // Sofort ins Live-Log streamen
+        stepLog.setParent(null);
+        logger.append(stepLog);
+
+        // Baum aktualisieren (Step) + Status bis Suite hochziehen
+        drawerRef.updateNodeStatus(node, ok);
+        drawerRef.updateSuiteStatus(node);
+
+        return stepLog;
     }
 
     private LogComponent executeTestCaseNode(TestNode node, TestCase testCase) {
@@ -182,7 +212,7 @@ public class TestPlayerService {
         }
         return out;
     }
-    
+
     private List<LogComponent> executeThenPhase(TestNode caseNode, TestCase testCase, SuiteLog parentLog) {
         List<LogComponent> out = new ArrayList<>();
 
@@ -325,10 +355,12 @@ public class TestPlayerService {
     // Logging/Hilfen
     ////////////////////////////////////////////////////////////////////////////////
 
+    /**
+     * Erzeugt die (neutrale) Step-Logzeile für eine Action.
+     * WICHTIG: Hier KEIN setStatus(true)! Der Status wird in executeActionNode gesetzt.
+     */
     private StepLog buildStepLogForAction(TestAction action) {
-        StepLog stepLog = new StepLog(action.getType().name(), buildStepText(action));
-        stepLog.setStatus(true);
-        return stepLog;
+        return new StepLog(action.getType().name(), buildStepText(action));
     }
 
     private String buildStepText(TestAction action) {
