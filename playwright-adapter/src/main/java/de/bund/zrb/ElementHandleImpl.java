@@ -6,6 +6,7 @@ import com.microsoft.playwright.options.BoundingBox;
 import com.microsoft.playwright.options.ElementState;
 import com.microsoft.playwright.options.FilePayload;
 import com.microsoft.playwright.options.SelectOption;
+import de.bund.zrb.command.request.parameters.input.sourceActions.PauseAction;
 import de.bund.zrb.support.ActionabilityCheck;
 import de.bund.zrb.support.ActionabilityRequirement;
 import de.bund.zrb.type.input.WDElementOrigin;
@@ -411,8 +412,15 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public void focus() {
-
+        webDriver.script().callFunction(
+                "function(){ this.focus(); }",
+                /* await */ false,
+                target, null, getRemoteReference(),
+                WDResultOwnership.NONE, null
+        );
+        waitTwoAnimationFrames();
     }
+
 
     /**
      * Returns element attribute value.
@@ -422,7 +430,20 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public String getAttribute(String name) {
-        return "";
+        List<WDLocalValue> args = Collections.singletonList(new WDPrimitiveProtocolValue.StringValue(name));
+        WDEvaluateResult r = webDriver.script().callFunction(
+                "function(n){ return this.getAttribute(n); }",
+                /* await */ true,
+                target, args, getRemoteReference(),
+                WDResultOwnership.ROOT, null
+        );
+        if (r instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            WDRemoteValue v = ((WDEvaluateResult.WDEvaluateResultSuccess) r).getResult();
+            if (v instanceof WDPrimitiveProtocolValue.StringValue) {
+                return ((WDPrimitiveProtocolValue.StringValue) v).getValue();
+            }
+        }
+        return null; // Playwright-typisches Verhalten bei fehlendem Attribut
     }
 
     /**
@@ -479,20 +500,14 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      *
      * @since v1.8
      */
-    @Override
-    public String innerHTML() {
-        return "";
-    }
+    @Override public String innerHTML() { return evaluateString("el => el.innerHTML"); }
 
     /**
      * Returns the {@code element.innerText}.
      *
      * @since v1.8
      */
-    @Override
-    public String innerText() {
-        return "";
-    }
+    @Override public String innerText() { return evaluateString("el => el.innerText"); }
 
     /**
      * Returns {@code input.value} for the selected {@code <input>} or {@code <textarea>} or {@code <select>} element.
@@ -506,7 +521,26 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public String inputValue(InputValueOptions options) {
-        return "";
+        WDEvaluateResult r = webDriver.script().callFunction(
+                "function(){"
+                        + "  const el = this;"
+                        + "  const t = el.tagName && el.tagName.toUpperCase();"
+                        + "  if (t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT') return el.value;"
+                        + "  const lab = el.closest && el.closest('label');"
+                        + "  if (lab && lab.control) return lab.control.value;"
+                        + "  throw new Error('Element is not an input/textarea/select or label/control');"
+                        + "}",
+                /* await */ true,
+                target, null, getRemoteReference(),
+                WDResultOwnership.ROOT, null
+        );
+        if (r instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            WDRemoteValue v = ((WDEvaluateResult.WDEvaluateResultSuccess) r).getResult();
+            if (v instanceof WDPrimitiveProtocolValue.StringValue) {
+                return ((WDPrimitiveProtocolValue.StringValue) v).getValue();
+            }
+        }
+        return null;
     }
 
     @Override
@@ -562,7 +596,48 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public void press(String key, PressOptions options) {
+        // Sichtbar + Fokus sicherstellen
+        scrollIntoViewIfNeeded(null);
+        focus();
 
+        long delay = (options != null && options.delay != null) ? options.delay.longValue() : 0L;
+
+        // z.B. "Control+Shift+T" → Mods + Haupttaste
+        String[] parts = key.split("\\+");
+        List<String> tokens = new ArrayList<>();
+        for (String p : parts) if (!p.isEmpty()) tokens.add(p);
+
+        if (tokens.isEmpty()) return;
+
+        String main = tokens.get(tokens.size() - 1);
+        List<String> mods = tokens.subList(0, tokens.size() - 1);
+
+        List<KeySourceAction> seq = new ArrayList<>();
+
+        // Modifiers down in definierter Reihenfolge
+        List<String> order = Arrays.asList("Control", "Alt", "Shift", "Meta");
+        for (String o : order) {
+            if (mods.stream().anyMatch(m -> m.equalsIgnoreCase(o))) {
+                seq.add(new KeySourceAction.KeyDownAction(o));
+            }
+        }
+
+        // Haupttaste
+        seq.add(new KeySourceAction.KeyDownAction(main));
+        if (delay > 0) seq.add(new PauseAction((int) delay)); // ToDo: Check this cast!
+        seq.add(new KeySourceAction.KeyUpAction(main));
+
+        // Modifiers up in umgekehrter Reihenfolge
+        ListIterator<String> it = order.listIterator(order.size());
+        while (it.hasPrevious()) {
+            String o = it.previous();
+            if (mods.stream().anyMatch(m -> m.equalsIgnoreCase(o))) {
+                seq.add(new KeySourceAction.KeyUpAction(o));
+            }
+        }
+
+        SourceActions.KeySourceActions keyboard = new SourceActions.KeySourceActions("keyboard", seq);
+        input().performActions(requireContextId(), Collections.singletonList(keyboard));
     }
 
     @Override
@@ -588,10 +663,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      *
      * @since v1.8
      */
-    @Override
-    public boolean isHidden() {
-        return false;
-    }
+    @Override public boolean isHidden()  { return !isVisible(); }
 
     @Override
     public void waitForElementState(ElementState state, WaitForElementStateOptions options) {
@@ -1112,7 +1184,28 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
      */
     @Override
     public void tap(TapOptions options) {
+        waitForActionability(ActionabilityCheck.TAP, 30_000);
+        scrollIntoViewIfNeeded(null);
+        waitTwoAnimationFrames();
 
+        double dx = 0, dy = 0;
+        if (options != null && options.position != null) { dx = options.position.x; dy = options.position.y; }
+
+        WDElementOrigin origin = elementOrigin();
+        List<PointerSourceAction> pointer = new ArrayList<>();
+        pointer.add(new PointerSourceAction.PointerMoveAction(dx, dy, origin));
+        pointer.add(new PointerSourceAction.PointerDownAction(0)); // touch: button=0
+        pointer.add(new PointerSourceAction.PointerUpAction(0));
+
+        SourceActions.PointerSourceActions pointerSeq =
+                new SourceActions.PointerSourceActions(
+                        "touch-pointer",
+                        new SourceActions.PointerSourceActions.PointerParameters(
+                                SourceActions.PointerSourceActions.PointerParameters.PointerType.TOUCH),
+                        pointer
+                );
+
+        input().performActions(requireContextId(), Collections.singletonList(pointerSeq));
     }
 
     @Override
