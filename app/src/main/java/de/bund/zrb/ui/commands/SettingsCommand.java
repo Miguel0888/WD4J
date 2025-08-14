@@ -1,6 +1,7 @@
 package de.bund.zrb.ui.commands;
 
 import de.bund.zrb.service.SettingsService;
+import de.bund.zrb.ui.ActionToolbar;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 
 import javax.swing.*;

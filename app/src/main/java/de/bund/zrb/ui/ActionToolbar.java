@@ -2,7 +2,6 @@ package de.bund.zrb.ui;
 
 import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.ui.commandframework.CommandRegistryImpl;
-import de.bund.zrb.ui.commandframework.ToolbarConfig;
 
 import javax.swing.*;
 import java.awt.*;
@@ -10,16 +9,31 @@ import java.util.*;
 import java.util.List;
 
 /**
- * Toolbar mit konfigurierbaren Buttons und Persistenz über SettingsService.
- * Speichert/liest die Konfiguration als String unter dem Key "toolbarConfig".
+ * Einfache Toolbar mit persistenter Konfiguration (SettingsService, Key "toolbarConfig").
+ * - Java 8 kompatibel (kein 'var', keine Records)
+ * - Keine Abhängigkeit zu ToolbarConfig/ButtonConfig
+ * - Reset auf Standard via ActionToolbar.resetToDefault()
  */
 public class ActionToolbar extends JToolBar {
-    private static final String SETTINGS_KEY = "toolbarConfig";
+    private static final String SETTINGS_KEY = "toolbarConfig"; // v1|<btnSize>|<fontRatio>|id:icon,id2:icon2,...
 
     private static ActionToolbar instance;
-    private final Map<String, JButton> buttons = new HashMap<>();
     private final CommandRegistryImpl commandRegistry;
-    private ToolbarConfig currentConfig;
+    private final Map<String, JButton> buttons = new HashMap<>();
+
+    // einfache interne Konfig
+    private static final class ButtonDef {
+        String id;
+        String icon;
+        ButtonDef(String id, String icon) { this.id = id; this.icon = icon; }
+    }
+    private static final class SimpleConfig {
+        List<ButtonDef> buttons = new ArrayList<>();
+        int buttonSizePx = 32;
+        double fontSizeRatio = 0.9;
+    }
+
+    private SimpleConfig currentConfig;
 
     public ActionToolbar(CommandRegistryImpl registry) {
         this.commandRegistry = registry;
@@ -28,10 +42,9 @@ public class ActionToolbar extends JToolBar {
         loadToolbarSettings();
     }
 
-    /** Singleton-Getter, nützlich für z.B. Reset aus SettingsCommand. */
     public static ActionToolbar getInstance() { return instance; }
 
-    /** Setzt auf Standard zurück: Alle Befehle, Unicode-Icons, speichert und lädt neu. */
+    /** Setzt die Toolbar vollständig auf die Standardbelegung zurück und speichert sie. */
     public static void resetToDefault() {
         if (instance != null) {
             instance.currentConfig = createDefaultConfig();
@@ -40,41 +53,9 @@ public class ActionToolbar extends JToolBar {
         }
     }
 
-    /** Toolbar gemäß currentConfig neu aufbauen. */
-    private void reload() {
-        removeAll();
-        buttons.clear();
-
-        if (currentConfig == null || currentConfig.getButtons() == null) {
-            revalidate(); repaint();
-            return;
-        }
-
-        int btnSize = Math.max(24, currentConfig.getButtonSizePx());
-        float fontRatio = (float) Math.max(0.5, Math.min(2.0, currentConfig.getFontSizeRatio()));
-
-        for (ToolbarConfig.ButtonConfig bc : currentConfig.getButtons()) {
-            commandRegistry.getById(bc.id).ifPresent(cmd -> {
-                JButton b = new JButton(bc.icon);
-                b.setFocusPainted(false);
-                b.setToolTipText(cmd.getLabel());
-                b.addActionListener(ev -> cmd.perform());
-                b.setPreferredSize(new Dimension(btnSize, btnSize));
-                Font base = b.getFont();
-                b.setFont(base.deriveFont(base.getSize2D() * fontRatio));
-                add(b);
-                buttons.put(bc.id, b);
-            });
-        }
-
-        revalidate();
-        repaint();
-    }
-
-    /* ======================================================================================
-       Settings: Laden/Speichern
-       ====================================================================================== */
-
+    /* ============================================================
+       Laden/Speichern der Konfiguration
+       ============================================================ */
     private void loadToolbarSettings() {
         try {
             String raw = SettingsService.getInstance().get(SETTINGS_KEY, String.class);
@@ -82,12 +63,11 @@ public class ActionToolbar extends JToolBar {
                 currentConfig = createDefaultConfig();
             } else {
                 currentConfig = deserialize(raw);
-                if (currentConfig == null || currentConfig.getButtons() == null || currentConfig.getButtons().isEmpty()) {
+                if (currentConfig == null || currentConfig.buttons == null || currentConfig.buttons.isEmpty()) {
                     currentConfig = createDefaultConfig();
                 }
             }
         } catch (Exception ex) {
-            // Fallback bei Problemen
             currentConfig = createDefaultConfig();
         }
         reload();
@@ -97,21 +77,62 @@ public class ActionToolbar extends JToolBar {
         try {
             String raw = serialize(currentConfig);
             SettingsService.getInstance().set(SETTINGS_KEY, raw);
-        } catch (Exception ignored) {
-            // Best effort — kein harter Fehler
-        }
+        } catch (Exception ignore) { /* best effort */ }
     }
 
-    /* ======================================================================================
+    /* ============================================================
+       Neuaufbau der Toolbar
+       ============================================================ */
+    private void reload() {
+        removeAll();
+        buttons.clear();
+
+        if (currentConfig == null || currentConfig.buttons == null) {
+            revalidate(); repaint();
+            return;
+        }
+
+        int btnSize = Math.max(24, currentConfig.buttonSizePx);
+        double fontRatio = Math.max(0.5, Math.min(2.0, currentConfig.fontSizeRatio));
+
+        for (ButtonDef def : currentConfig.buttons) {
+            final String id = def.id;
+            final String icon = def.icon;
+
+            if (id == null || id.trim().isEmpty()) continue;
+
+            // Command finden und Button erzeugen
+            java.util.Optional<de.bund.zrb.ui.commandframework.MenuCommand> opt =
+                    commandRegistry.getById(id);
+            if (!opt.isPresent()) continue;
+
+            de.bund.zrb.ui.commandframework.MenuCommand cmd = opt.get();
+
+            JButton b = new JButton(icon != null ? icon : "⬚");
+            b.setFocusPainted(false);
+            b.setToolTipText(cmd.getLabel());
+            b.addActionListener(e -> cmd.perform());
+            b.setPreferredSize(new Dimension(btnSize, btnSize));
+            Font base = b.getFont();
+            b.setFont(base.deriveFont((float)(base.getSize2D() * fontRatio)));
+
+            add(b);
+            buttons.put(id, b);
+        }
+
+        revalidate();
+        repaint();
+    }
+
+    /* ============================================================
        Default-Konfiguration
-       ====================================================================================== */
+       ============================================================ */
+    /** Baut eine Default-Toolbar mit (nahezu) allen bekannten Commands auf. */
+    private static SimpleConfig createDefaultConfig() {
+        SimpleConfig cfg = new SimpleConfig();
 
-    /** Erzeugt Standardkonfiguration mit allen registrierten Commands und sinnvollen Unicode-Icons. */
-    private static ToolbarConfig createDefaultConfig() {
-        List<ToolbarConfig.ButtonConfig> btns = new ArrayList<>();
-
-        // Id → Icon (Unicode) – hier die wichtigsten Icons vorbelegen
-        Map<String, String> preferredIcons = new HashMap<>();
+        // Bevorzugte Icons (Unicode) pro Command-ID
+        Map<String, String> preferredIcons = new HashMap<String, String>();
         preferredIcons.put("testsuite.play", "▶");
         preferredIcons.put("testsuite.stop", "■");
         preferredIcons.put("browser.launch", "🌐");
@@ -119,137 +140,133 @@ public class ActionToolbar extends JToolBar {
         preferredIcons.put("view.toggleRightDrawer", "⟩");
         preferredIcons.put("file.configure", "⚙");
 
+        // Alle Command-IDs beschaffen (robust via Reflection, Java 8)
         CommandRegistryImpl registry = CommandRegistryImpl.getInstance();
-        for (String id : safeAllCommandIds(registry)) {
-            // Für die Toolbar erstmal alles aufnehmen; Unbekanntes bekommt ein Fallback-Icon
-            String icon = preferredIcons.getOrDefault(id, "⬚");
-            btns.add(new ToolbarConfig.ButtonConfig(id, icon));
+        List<String> allIds = safeAllCommandIds(registry);
+
+        // Buttons in stabiler Reihenfolge
+        for (String id : allIds) {
+            String icon = preferredIcons.containsKey(id) ? preferredIcons.get(id) : "⬚";
+            cfg.buttons.add(new ButtonDef(id, icon));
         }
 
-        ToolbarConfig cfg = new ToolbarConfig();
-        cfg.setButtons(btns);
-        cfg.setButtonSizePx(32);
-        cfg.setFontSizeRatio(0.90);
+        cfg.buttonSizePx = 32;
+        cfg.fontSizeRatio = 0.9;
         return cfg;
     }
 
     /**
-     * Versucht alle Command-IDs aus dem Registry zu holen.
-     * 1) Methode getAllCommandIds() (falls vorhanden)
-     * 2) Fallback: Methode getAll() und via Reflection getId() extrahieren
+     * Versucht, alle IDs vom Registry zu bekommen:
+     *  1) getAllCommandIds(): Collection<String>
+     *  2) getAll(): Collection<MenuCommand> und jeweils getId()
+     *  Fallback: kleine Liste.
      */
-    @SuppressWarnings("unchecked")
     private static List<String> safeAllCommandIds(CommandRegistryImpl registry) {
         try {
-            // Versuch 1: getAllCommandIds()
+            // 1) getAllCommandIds()
             try {
-                var m = registry.getClass().getMethod("getAllCommandIds");
+                java.lang.reflect.Method m = registry.getClass().getMethod("getAllCommandIds");
                 Object res = m.invoke(registry);
                 if (res instanceof Collection) {
-                    List<String> out = new ArrayList<>();
-                    for (Object o : (Collection<?>) res) {
-                        if (o != null) out.add(String.valueOf(o));
-                    }
+                    List<String> out = new ArrayList<String>();
+                    for (Object o : (Collection<?>) res) if (o != null) out.add(String.valueOf(o));
+                    Collections.sort(out);
                     return out;
                 }
-            } catch (NoSuchMethodException ignore) { /* weiter mit Fallback */ }
+            } catch (NoSuchMethodException ignore) { /* weiter */ }
 
-            // Versuch 2: getAll() -> Collection<MenuCommand>
+            // 2) getAll()
             try {
-                var m = registry.getClass().getMethod("getAll");
+                java.lang.reflect.Method m = registry.getClass().getMethod("getAll");
                 Object res = m.invoke(registry);
                 if (res instanceof Collection) {
-                    List<String> out = new ArrayList<>();
+                    List<String> out = new ArrayList<String>();
                     for (Object cmd : (Collection<?>) res) {
                         try {
-                            var mid = cmd.getClass().getMethod("getId");
+                            java.lang.reflect.Method mid = cmd.getClass().getMethod("getId");
                             Object id = mid.invoke(cmd);
                             if (id != null) out.add(String.valueOf(id));
                         } catch (Throwable ignoreEach) { /* weiter */ }
                     }
-                    // Stabil sortieren
                     Collections.sort(out);
                     return out;
                 }
-            } catch (NoSuchMethodException ignore) { /* kein Fallback vorhanden */ }
+            } catch (NoSuchMethodException ignore) { /* weiter */ }
         } catch (Throwable t) {
-            // ignore
+            // ignore: wir liefern Fallback
         }
-        // Minimal-Fallback: nur häufige IDs
-        return Arrays.asList(
-                "testsuite.play", "testsuite.stop",
-                "browser.launch",
-                "view.toggleLeftDrawer", "view.toggleRightDrawer",
-                "file.configure"
-        );
+
+        // Minimal-Fallback, falls API nichts davon bietet
+        List<String> fallback = new ArrayList<String>();
+        fallback.add("testsuite.play");
+        fallback.add("testsuite.stop");
+        fallback.add("browser.launch");
+        fallback.add("view.toggleLeftDrawer");
+        fallback.add("view.toggleRightDrawer");
+        fallback.add("file.configure");
+        return fallback;
     }
 
-    /* ======================================================================================
-       Minimal-Serialisierung (String) – robust & libfrei
+    /* ============================================================
+       Mini-(De)Serialisierung ohne externe Libs
        Format v1:
-         v1|<buttonSize>|<fontRatio>|<id1>:<icon1>,<id2>:<icon2>,...
-       ====================================================================================== */
-
-    private static String serialize(ToolbarConfig cfg) {
+         v1|<buttonSize>|<fontRatio>|id:icon,id2:icon2,...
+       ============================================================ */
+    private static String serialize(SimpleConfig cfg) {
         if (cfg == null) return "v1|32|0.9|";
         StringBuilder sb = new StringBuilder();
-        sb.append("v1|").append(cfg.getButtonSizePx())
-                .append("|").append(cfg.getFontSizeRatio())
-                .append("|");
-
+        sb.append("v1|").append(cfg.buttonSizePx).append("|").append(cfg.fontSizeRatio).append("|");
         boolean first = true;
-        if (cfg.getButtons() != null) {
-            for (ToolbarConfig.ButtonConfig bc : cfg.getButtons()) {
+        if (cfg.buttons != null) {
+            for (ButtonDef b : cfg.buttons) {
+                if (b == null || b.id == null) continue;
                 if (!first) sb.append(',');
                 first = false;
-                sb.append(escape(bc.id)).append(':').append(escape(bc.icon == null ? "" : bc.icon));
+                sb.append(esc(b.id)).append(':').append(esc(b.icon == null ? "" : b.icon));
             }
         }
         return sb.toString();
     }
 
-    private static ToolbarConfig deserialize(String raw) {
+    private static SimpleConfig deserialize(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (!s.startsWith("v1|")) return null;
+        String[] parts = s.split("\\|", 4);
+        if (parts.length < 4) return null;
+
+        SimpleConfig cfg = new SimpleConfig();
         try {
-            if (raw == null) return null;
-            String s = raw.trim();
-            if (!s.startsWith("v1|")) return null;
-            String[] parts = s.split("\\|", 4);
-            if (parts.length < 4) return null;
+            cfg.buttonSizePx = Integer.parseInt(parts[1]);
+        } catch (Exception ignore) { cfg.buttonSizePx = 32; }
+        try {
+            cfg.fontSizeRatio = Double.parseDouble(parts[2]);
+        } catch (Exception ignore) { cfg.fontSizeRatio = 0.9; }
 
-            int size = Integer.parseInt(parts[1]);
-            double ratio = Double.parseDouble(parts[2]);
-            String list = parts[3];
-
-            List<ToolbarConfig.ButtonConfig> btns = new ArrayList<>();
-            if (!list.isEmpty()) {
-                String[] items = list.split(",");
-                for (String item : items) {
-                    int p = item.indexOf(':');
-                    if (p <= 0) continue;
-                    String id = unescape(item.substring(0, p));
-                    String icon = unescape(item.substring(p + 1));
-                    btns.add(new ToolbarConfig.ButtonConfig(id, icon));
-                }
+        cfg.buttons = new ArrayList<ButtonDef>();
+        String csv = parts[3];
+        if (!csv.isEmpty()) {
+            String[] items = csv.split(",");
+            for (String item : items) {
+                int p = item.indexOf(':');
+                if (p <= 0) continue;
+                String id = unesc(item.substring(0, p));
+                String icon = unesc(item.substring(p + 1));
+                cfg.buttons.add(new ButtonDef(id, icon));
             }
-
-            ToolbarConfig cfg = new ToolbarConfig();
-            cfg.setButtons(btns);
-            cfg.setButtonSizePx(size);
-            cfg.setFontSizeRatio(ratio);
-            return cfg;
-        } catch (Exception ex) {
-            return null;
         }
+        return cfg;
     }
 
-    private static String escape(String s) {
+    private static String esc(String s) {
         if (s == null) return "";
+        // Reihenfolge wichtig
         return s.replace("\\", "\\\\").replace("|", "\\p").replace(",", "\\c").replace(":", "\\d");
     }
 
-    private static String unescape(String s) {
+    private static String unesc(String s) {
         if (s == null) return "";
-        // Reihenfolge beachten: erst Backslash
+        // Reihenfolge beachten: umgekehrte Maskierung
         return s.replace("\\p", "|").replace("\\c", ",").replace("\\d", ":").replace("\\\\", "\\");
     }
 }

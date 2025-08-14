@@ -1,175 +1,272 @@
 // File: app/src/main/java/de/bund/zrb/ui/MainWindow.java
 package de.bund.zrb.ui;
 
+import de.bund.zrb.service.BrowserConfig;
 import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.service.SettingsService;
-import de.bund.zrb.ui.commandframework.CommandRegistryImpl;
+import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.ui.commandframework.*;
 import de.bund.zrb.ui.commands.*;
-import de.bund.zrb.ui.tabs.UIHelper;
+import de.bund.zrb.ui.commands.debug.ShowDomEventsCommand;
+import de.bund.zrb.ui.commands.debug.ShowSelectorsCommand;
+import de.bund.zrb.ui.commands.tools.CaptureScreenshotCommand;
+import de.bund.zrb.ui.commands.tools.LoginUserCommand;
+import de.bund.zrb.ui.commands.tools.NavigationHomeCommand;
+import de.bund.zrb.ui.commands.tools.ShowOtpDialogCommand;
 
 import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.tree.DefaultMutableTreeNode;
 import java.awt.*;
-import java.awt.event.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.Optional;
 
-public class MainWindow extends JFrame {
+/**
+ * TestToolUI with dynamic ActionToolbar and drawers.
+ */
+public class MainWindow {
 
-    private CommandRegistryImpl commandRegistry = CommandRegistryImpl.getInstance();
+    private final BrowserServiceImpl browserService = BrowserServiceImpl.getInstance();
+    private final CommandRegistryImpl commandRegistry = CommandRegistryImpl.getInstance();
+
+    private JFrame frame;
+    private final JTabbedPane tabbedPane = new JTabbedPane();
+
+    // Für View-Toggles & Persistenz:
     private JSplitPane outerSplit;
     private JSplitPane innerSplit;
-    private boolean leftDrawerVisible = true;
+    private boolean leftDrawerVisible  = true;
     private boolean rightDrawerVisible = true;
-    private int savedOuterDividerLocation = 250;
-    private int savedInnerDividerLocation = 800;
+    private int savedOuterDividerLocation = 200;  // Default links
+    private int savedInnerDividerLocation = 900;  // Default rechts
 
-    public MainWindow() {
-        super("WD4J");
-        initUI();
-    }
+    public void initUI() {
+        frame = new JFrame("Web Test Recorder & Runner");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(1200, 800);
+        frame.setLocationRelativeTo(null);
+        frame.setLayout(new BorderLayout());
 
-    private void initUI() {
-        // 1) existierende Commands registrieren
-        commandRegistry.registerDefaults();
+        initBrowser();
 
-        // 2) SplitPane anlegen
+        registerCommands();
+        registerShortcuts();
+
+        // Menübaum aufbauen (nachdem alle Commands da sind!)
+        JMenuBar mb = MenuTreeBuilder.buildMenuBar();
+        // ---- "Ansicht" direkt rechts neben "Datei" ergänzen:
+        mb.add(buildViewMenu(), Math.min(1, mb.getMenuCount())); // Position 1 = rechts neben "Datei"
+        frame.setJMenuBar(mb);
+
+        // ✅ Toolbar (Singleton-artig, ohne Param.)
+        ActionToolbar toolbar = new ActionToolbar(commandRegistry);
+        frame.add(toolbar, BorderLayout.NORTH);
+
+        // Outer SplitPane: Links und Rest
         outerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-        innerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-        outerSplit.setContinuousLayout(true);
-        innerSplit.setContinuousLayout(true);
         outerSplit.setOneTouchExpandable(true);
+
+        LeftDrawer leftDrawer = new LeftDrawer();
+        outerSplit.setLeftComponent(leftDrawer);
+
+        // Inner SplitPane: Center + Rechts
+        innerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         innerSplit.setOneTouchExpandable(true);
 
-        loadDrawerSettings();
+        JPanel mainPanel = createMainPanel();
+        innerSplit.setLeftComponent(mainPanel);
 
-        // 3) Drawer erstellen
-        LeftDrawer leftDrawer = new LeftDrawer();
-        RightDrawer rightDrawer = new RightDrawer();
-        JPanel centerPane = new JPanel(new BorderLayout());
-        centerPane.add(new JLabel("Mitte", SwingConstants.CENTER), BorderLayout.CENTER);
-
-        outerSplit.setLeftComponent(leftDrawer);
-        outerSplit.setRightComponent(innerSplit);
-        innerSplit.setLeftComponent(centerPane);
+        RightDrawer rightDrawer = new RightDrawer(browserService);
         innerSplit.setRightComponent(rightDrawer);
 
-        // 4) Toggle-Befehle registrieren
-        commandRegistry.register(new ToggleLeftDrawerCommand(this));
-        commandRegistry.register(new ToggleRightDrawerCommand(this));
+        outerSplit.setRightComponent(innerSplit);
 
-        // 5) bestehende Befehle nach den Toggles registrieren
-        commandRegistry.register(new PlayTestSuiteCommand());
-        commandRegistry.register(new StopPlaybackCommand());
-        commandRegistry.register(new LaunchBrowserCommand());
-        commandRegistry.register(new SwitchTabCommand("testsuite", "Test Suites"));
+        // Gespeicherte Divider-Positionen laden
+        loadDrawerSettings();
 
-        // 6) Shortcuts registrieren (danach)
-        commandRegistry.registerGlobalShortcuts(this);
+        // Start-Positionen anwenden
+        outerSplit.setDividerLocation(savedOuterDividerLocation);
+        innerSplit.setDividerLocation(savedInnerDividerLocation);
 
-        // 7) Menü aufbauen
-        setJMenuBar(buildMenuBar());
+        frame.add(outerSplit, BorderLayout.CENTER);
 
-        // 8) Toolbar erzeugen (mit evtl. Standardkonfiguration)
-        ActionToolbar toolbar = new ActionToolbar(commandRegistry);
-        add(toolbar, BorderLayout.NORTH);
-
-        // 9) Frame-Layout setzen
-        getContentPane().add(outerSplit, BorderLayout.CENTER);
-        setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-        addWindowListener(new WindowAdapter() {
+        // Beim Beenden Positionsspeicherung & Browser beenden
+        frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                BrowserServiceImpl.getInstance().stop();
                 saveDrawerSettings();
+                System.out.println("🛑 Browser wird beendet...");
+                browserService.terminateBrowser();
             }
         });
 
-        setSize(1200, 800);
-        setLocationRelativeTo(null);
+        frame.setVisible(true);
     }
 
-    /** Menübar erzeugen: Datei, Ansicht, Einstellungen, Hilfe etc. */
-    private JMenuBar buildMenuBar() {
-        JMenuBar mb = new JMenuBar();
-        mb.setOpaque(true);
+    private void initBrowser() {
+        BrowserConfig config = new BrowserConfig();
+        config.setBrowserType("firefox");
+        config.setHeadless(false);
+        config.setNoRemote(false);
+        config.setDisableGpu(false);
+        config.setStartMaximized(true);
+        config.setUseProfile(false);
+        config.setPort(9222);
 
-        // Menü "Datei"
-        JMenu fileMenu = new JMenu("Datei");
-        for (MenuElement elem : MenuTreeBuilder.buildMenuTree(commandRegistry, "file").getSubElements()) {
-            fileMenu.add(elem.getComponent());
+        try {
+            browserService.launchBrowser(config);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(
+                    frame,
+                    "Fehler beim Starten des Browsers:\n" + e.getMessage(),
+                    "Browser-Start fehlgeschlagen",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            e.printStackTrace();
         }
-        mb.add(fileMenu);
+    }
 
-        // Menü "Ansicht" (neu)
-        JMenu viewMenu = new JMenu("Ansicht");
-        // Toggle Left
-        Optional<MenuCommand> toggleLeft = commandRegistry.getById("view.toggleLeftDrawer");
+    private void registerShortcuts() {
+        ShortcutManager.loadShortcuts();
+        ShortcutManager.registerGlobalShortcuts(frame.getRootPane());
+    }
+
+    private JPanel createMainPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(tabbedPane, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private void registerCommands() {
+        // Vorhandene/alte Commands
+        commandRegistry.register(new ShowShortcutConfigMenuCommand(frame));
+        commandRegistry.register(new SettingsCommand());
+        commandRegistry.register(new PlayTestSuiteCommand(tabbedPane));
+        commandRegistry.register(new StopPlaybackCommand());
+        commandRegistry.register(new StartRecordCommand());
+
+        commandRegistry.register(new LaunchBrowserCommand(browserService));
+        commandRegistry.register(new TerminateBrowserCommand(browserService));
+        commandRegistry.register(new SwitchTabCommand(browserService));
+        commandRegistry.register(new NewTabCommand(browserService));
+        commandRegistry.register(new CloseTabCommand(browserService));
+        commandRegistry.register(new ReloadTabCommand(browserService));
+        commandRegistry.register(new GoBackCommand(browserService));
+        commandRegistry.register(new GoForwardCommand(browserService));
+
+        commandRegistry.register(new CaptureScreenshotCommand());
+        commandRegistry.register(new ShowOtpDialogCommand());
+        commandRegistry.register(new ShowSelectorsCommand(browserService));
+        commandRegistry.register(new ShowDomEventsCommand(browserService));
+
+        commandRegistry.register(new UserRegistryCommand());
+        commandRegistry.register(new UserSelectionCommand(UserRegistry.getInstance()));
+        commandRegistry.register(new NavigationHomeCommand());
+        commandRegistry.register(new LoginUserCommand());
+
+        // Neu: View-Toggles (Shortcut- & Toolbar-fähig)
+        commandRegistry.register(new ToggleLeftDrawerCommand(this));
+        commandRegistry.register(new ToggleRightDrawerCommand(this));
+    }
+
+    // ====== View-Menü („Ansicht“) =================================================
+
+    private JMenu buildViewMenu() {
+        JMenu view = new JMenu("Ansicht");
+
+        Optional<MenuCommand> toggleLeft = CommandRegistryImpl.getInstance().getById("view.toggleLeftDrawer");
         if (toggleLeft.isPresent()) {
-            JMenuItem mItem = new JMenuItem(toggleLeft.get().getLabel());
-            mItem.addActionListener(a -> toggleLeft.get().perform());
-            viewMenu.add(mItem);
+            JMenuItem mi = new JMenuItem(toggleLeft.get().getLabel());
+            mi.addActionListener(ev -> toggleLeft.get().perform());
+            view.add(mi);
         }
-        // Toggle Right
-        Optional<MenuCommand> toggleRight = commandRegistry.getById("view.toggleRightDrawer");
+
+        Optional<MenuCommand> toggleRight = CommandRegistryImpl.getInstance().getById("view.toggleRightDrawer");
         if (toggleRight.isPresent()) {
-            JMenuItem mItem = new JMenuItem(toggleRight.get().getLabel());
-            mItem.addActionListener(a -> toggleRight.get().perform());
-            viewMenu.add(mItem);
+            JMenuItem mi = new JMenuItem(toggleRight.get().getLabel());
+            mi.addActionListener(ev -> toggleRight.get().perform());
+            view.add(mi);
         }
-        mb.add(viewMenu);
 
-        // Menü "Einstellungen"
-        JMenu settingsMenu = new JMenu("Einstellungen");
-        for (MenuElement elem : MenuTreeBuilder.buildMenuTree(commandRegistry, "file.configure").getSubElements()) {
-            settingsMenu.add(elem.getComponent());
-        }
-        mb.add(settingsMenu);
-
-        return mb;
+        return view;
     }
 
-    /** Seitliche Panels ein-/ausblenden: Links */
+    // ====== API für Toggle-Commands ==============================================
+
+    /** Linke Seitenleiste ein-/ausblenden und Position speichern. */
     public void toggleLeftDrawer() {
+        if (outerSplit == null) return;
+
         if (leftDrawerVisible) {
             savedOuterDividerLocation = outerSplit.getDividerLocation();
             outerSplit.setDividerLocation(0);
-            outerSplit.getLeftComponent().setVisible(false);
+            if (outerSplit.getLeftComponent() != null) {
+                outerSplit.getLeftComponent().setVisible(false);
+            }
         } else {
-            outerSplit.getLeftComponent().setVisible(true);
+            if (outerSplit.getLeftComponent() != null) {
+                outerSplit.getLeftComponent().setVisible(true);
+            }
             outerSplit.setDividerLocation(savedOuterDividerLocation);
         }
         leftDrawerVisible = !leftDrawerVisible;
+
+        // sofort persistieren
         SettingsService.getInstance().set("leftDividerLocation", outerSplit.getDividerLocation());
+
+        frame.revalidate();
+        frame.repaint();
     }
 
-    /** Seitliche Panels ein-/ausblenden: Rechts */
+    /** Rechte Seitenleiste ein-/ausblenden und Position speichern. */
     public void toggleRightDrawer() {
+        if (innerSplit == null) return;
+
         if (rightDrawerVisible) {
             savedInnerDividerLocation = innerSplit.getDividerLocation();
             innerSplit.setDividerLocation(innerSplit.getMaximumDividerLocation());
-            innerSplit.getRightComponent().setVisible(false);
+            if (innerSplit.getRightComponent() != null) {
+                innerSplit.getRightComponent().setVisible(false);
+            }
         } else {
-            innerSplit.getRightComponent().setVisible(true);
+            if (innerSplit.getRightComponent() != null) {
+                innerSplit.getRightComponent().setVisible(true);
+            }
             innerSplit.setDividerLocation(savedInnerDividerLocation);
         }
         rightDrawerVisible = !rightDrawerVisible;
+
+        // sofort persistieren
         SettingsService.getInstance().set("rightDividerLocation", innerSplit.getDividerLocation());
+
+        frame.revalidate();
+        frame.repaint();
     }
 
-    /** Einstellungen laden: zuletzt gespeicherte Divider-Positionen */
+    // ====== Persistenz der Divider-Positionen ====================================
+
     private void loadDrawerSettings() {
         Integer left = SettingsService.getInstance().get("leftDividerLocation", Integer.class);
         Integer right = SettingsService.getInstance().get("rightDividerLocation", Integer.class);
-        savedOuterDividerLocation = (left != null) ? left : 250;
-        savedInnerDividerLocation = (right != null) ? right : 800;
-        outerSplit.setDividerLocation(savedOuterDividerLocation);
-        innerSplit.setDividerLocation(savedInnerDividerLocation);
+        if (left != null)  savedOuterDividerLocation = left.intValue();
+        if (right != null) savedInnerDividerLocation = right.intValue();
     }
 
-    /** Einstellungen speichern: Divider-Positionen beim Beenden */
     private void saveDrawerSettings() {
-        SettingsService.getInstance().set("leftDividerLocation", outerSplit.getDividerLocation());
-        SettingsService.getInstance().set("rightDividerLocation", innerSplit.getDividerLocation());
+        if (outerSplit != null) {
+            SettingsService.getInstance().set("leftDividerLocation", outerSplit.getDividerLocation());
+        }
+        if (innerSplit != null) {
+            SettingsService.getInstance().set("rightDividerLocation", innerSplit.getDividerLocation());
+        }
+    }
+
+    // ====== Startpunkt ============================================================
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override public void run() {
+                new MainWindow().initUI();
+            }
+        });
     }
 }
