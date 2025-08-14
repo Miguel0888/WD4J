@@ -101,42 +101,38 @@ public class TestPlayerService {
     // Node-Ausführungen
     ////////////////////////////////////////////////////////////////////////////////
 
-    // TestPlayerService.java
-
-    /**
-     * Führt einen einzelnen Action-Node aus, erzeugt den StepLog und aktualisiert UI-Status.
-     * Eine Exception (inkl. Timeout) führt zu einem FAILED des Steps; der Status wird bis
-     * zum Case und zur Suite hochpropagiert.
-     */
     private LogComponent executeActionNode(TestNode node, TestAction action) {
+        // Execute the action and capture success/failure. Any exception should
+        // mark the step as failed and propagate the error message.
         boolean ok;
         String err = null;
-
         try {
-            ok = playSingleAction(action);           // liefert false bei Fehlern
+            ok = playSingleAction(action);
             if (!ok) {
                 err = "Action returned false";
             }
-        } catch (RuntimeException ex) {              // falls playSingleAction rethrowt
+        } catch (RuntimeException ex) {
             ok = false;
             err = (ex.getMessage() != null) ? ex.getMessage() : ex.toString();
         }
 
-        // Log-Zeile für den Step erzeugen
+        // Build a log entry for this step. Do not set status here; we set it below.
         StepLog stepLog = new StepLog(action.getType().name(), buildStepText(action));
         stepLog.setStatus(ok);
         if (!ok && err != null && !err.isEmpty()) {
             stepLog.setError(err);
         }
+        stepLog.setParent(null);             // (optional) keine Hierarchie für Live-Stream nötig
+        logger.append(stepLog);              // <— SOFORT anzeigen
 
-        // Sofort ins Live-Log streamen
-        stepLog.setParent(null);
-        logger.append(stepLog);
-
-        // Baum aktualisieren (Step) + Status bis Suite hochziehen
+        // Update the node status in the tree and propagate to parents
         drawerRef.updateNodeStatus(node, ok);
-        drawerRef.updateSuiteStatus(node);
-
+        // Also update the suite status to reflect any failures in children
+        // (This may be redundant if updateNodeStatus already propagates, but it is safe)
+        TestNode parent = (TestNode) node.getParent();
+        if (parent != null) {
+            drawerRef.updateSuiteStatus(parent);
+        }
         return stepLog;
     }
 
@@ -355,11 +351,9 @@ public class TestPlayerService {
     // Logging/Hilfen
     ////////////////////////////////////////////////////////////////////////////////
 
-    /**
-     * Erzeugt die (neutrale) Step-Logzeile für eine Action.
-     * WICHTIG: Hier KEIN setStatus(true)! Der Status wird in executeActionNode gesetzt.
-     */
     private StepLog buildStepLogForAction(TestAction action) {
+        // Create a StepLog for the given action. Do not set a status here—
+        // the calling code (executeActionNode) will determine pass/fail.
         return new StepLog(action.getType().name(), buildStepText(action));
     }
 

@@ -61,8 +61,8 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
         playButton.setFocusPainted(false);
 
         playButton.addActionListener(e -> {
-                MenuCommand playCommand = commandRegistry.getById("testsuite.play").get();
-                playCommand.perform();
+            MenuCommand playCommand = commandRegistry.getById("testsuite.play").get();
+            playCommand.perform();
         });
 
         setupContextMenu();
@@ -113,26 +113,195 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
         return tree;
     }
 
+    /**
+     * Set up a dynamic context menu for the test tree. Depending on the clicked node,
+     * offer to create a new TestSuite, TestCase or Step (When), and preserve rename,
+     * delete and properties actions. The new element will always be inserted directly
+     * after the clicked element within its parent.
+     */
     private void setupContextMenu() {
-        JPopupMenu contextMenu = new JPopupMenu();
+        // Remove any existing static popup menu
+        testTree.setComponentPopupMenu(null);
+        testTree.addMouseListener(new java.awt.event.MouseAdapter() {
+            private void handlePopup(java.awt.event.MouseEvent e) {
+                if (!e.isPopupTrigger()) return;
+                int x = e.getX();
+                int y = e.getY();
+                TreePath path = testTree.getPathForLocation(x, y);
+                TestNode clicked = null;
+                if (path != null) {
+                    Object n = path.getLastPathComponent();
+                    if (n instanceof TestNode) {
+                        clicked = (TestNode) n;
+                        // Update selection so rename/delete targets the correct node
+                        testTree.setSelectionPath(path);
+                    }
+                }
+                JPopupMenu menu = buildContextMenu(clicked);
+                menu.show(e.getComponent(), x, y);
+            }
+            @Override public void mousePressed(java.awt.event.MouseEvent e) { handlePopup(e); }
+            @Override public void mouseReleased(java.awt.event.MouseEvent e) { handlePopup(e); }
+        });
+    }
 
-        JMenuItem newSuite = new JMenuItem("Neue Testsuite");
-        JMenuItem rename = new JMenuItem("Umbenennen");
-        JMenuItem delete = new JMenuItem("Löschen");
-        JMenuItem properties = new JMenuItem("Eigenschaften");
+    /**
+     * Build a context menu based on the clicked node. If the node is null
+     * (blank area), offer to create a new TestSuite at root. For a TestSuite
+     * node, offer to create another suite after it. For a TestCase, offer to
+     * create a new TestCase after it. For a TestAction (step), offer to
+     * create a new step after it. Rename, delete and properties actions are
+     * included as appropriate.
+     */
+    private JPopupMenu buildContextMenu(TestNode clicked) {
+        JPopupMenu menu = new JPopupMenu();
+        if (clicked != null) {
+            Object ref = clicked.getModelRef();
+            if (ref instanceof TestAction) {
+                JMenuItem newStep = new JMenuItem("Neuer Schritt");
+                newStep.addActionListener(evt -> createNewStep(clicked));
+                menu.add(newStep);
+            } else if (ref instanceof TestCase) {
+                JMenuItem newCase = new JMenuItem("Neuer TestCase");
+                newCase.addActionListener(evt -> createNewCase(clicked));
+                menu.add(newCase);
+            } else if (ref instanceof TestSuite) {
+                JMenuItem newSuite = new JMenuItem("Neue Testsuite");
+                newSuite.addActionListener(evt -> createNewSuiteAfter(clicked));
+                menu.add(newSuite);
+            } else {
+                JMenuItem newSuite = new JMenuItem("Neue Testsuite");
+                newSuite.addActionListener(evt -> createNewSuiteAfter(null));
+                menu.add(newSuite);
+            }
 
-        newSuite.addActionListener(e -> createNewSuite());
-        rename.addActionListener(e -> renameNode());
-        delete.addActionListener(e -> deleteNode());
-        properties.addActionListener(e -> openPropertiesDialog());
+            // Always show rename, delete (if not root), and properties
+            menu.addSeparator();
+            JMenuItem renameItem = new JMenuItem("Umbenennen");
+            renameItem.addActionListener(evt -> renameNode());
+            menu.add(renameItem);
 
-        contextMenu.add(newSuite);
-        contextMenu.add(rename);
-        contextMenu.add(delete);
-        contextMenu.addSeparator();
-        contextMenu.add(properties);
+            JMenuItem deleteItem = new JMenuItem("Löschen");
+            deleteItem.addActionListener(evt -> deleteNode());
+            menu.add(deleteItem);
 
-        testTree.setComponentPopupMenu(contextMenu);
+            menu.addSeparator();
+            JMenuItem propertiesItem = new JMenuItem("Eigenschaften");
+            propertiesItem.addActionListener(evt -> openPropertiesDialog());
+            menu.add(propertiesItem);
+        } else {
+            // Blank area: only new suite
+            JMenuItem newSuite = new JMenuItem("Neue Testsuite");
+            newSuite.addActionListener(evt -> createNewSuiteAfter(null));
+            menu.add(newSuite);
+        }
+        return menu;
+    }
+
+    /**
+     * Create a new TestCase directly after the given TestCase node. Updates both
+     * the underlying model and the UI tree. Prompts the user for a name.
+     *
+     * @param caseNode the TestNode representing the existing TestCase after
+     *                 which the new case should be inserted
+     */
+    private void createNewCase(TestNode caseNode) {
+        if (caseNode == null || !(caseNode.getModelRef() instanceof TestCase)) return;
+        String name = JOptionPane.showInputDialog(this, "Name des neuen TestCase:", "Neuer TestCase", JOptionPane.PLAIN_MESSAGE);
+        if (name == null || name.trim().isEmpty()) return;
+        TestCase oldCase = (TestCase) caseNode.getModelRef();
+        TestNode suiteNode = (TestNode) caseNode.getParent();
+        if (suiteNode == null || !(suiteNode.getModelRef() instanceof TestSuite)) return;
+        TestSuite suite = (TestSuite) suiteNode.getModelRef();
+        TestCase newCase = new TestCase(name, new java.util.ArrayList<>());
+        // Insert into suite's list
+        java.util.List<TestCase> cases = suite.getTestCases();
+        int idx = cases.indexOf(oldCase);
+        if (idx < 0) idx = cases.size() - 1;
+        cases.add(idx + 1, newCase);
+        // Insert into tree
+        TestNode newCaseNode = new TestNode(name, newCase);
+        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
+        model.insertNodeInto(newCaseNode, suiteNode, idx + 1);
+        testTree.expandPath(new TreePath(suiteNode.getPath()));
+        // Persist
+        TestRegistry.getInstance().save();
+    }
+
+    /**
+     * Create a new step (When) directly after the given TestAction node. Prompts
+     * the user for the action name and inserts the new action into the parent
+     * TestCase and the UI tree.
+     *
+     * @param stepNode the TestNode representing the existing step after which
+     *                 the new step should be inserted
+     */
+    private void createNewStep(TestNode stepNode) {
+        if (stepNode == null || !(stepNode.getModelRef() instanceof TestAction)) return;
+        String actionName = JOptionPane.showInputDialog(this, "Aktion für neuen Step (z. B. click, navigate):", "Neuer Step", JOptionPane.PLAIN_MESSAGE);
+        if (actionName == null || actionName.trim().isEmpty()) return;
+        TestAction oldAction = (TestAction) stepNode.getModelRef();
+        TestNode caseNode = (TestNode) stepNode.getParent();
+        if (caseNode == null || !(caseNode.getModelRef() instanceof TestCase)) return;
+        TestCase testCase = (TestCase) caseNode.getModelRef();
+        TestAction newAction = new TestAction(actionName);
+        // Insert into case's when list
+        java.util.List<TestAction> actions = testCase.getWhen();
+        int idx = actions.indexOf(oldAction);
+        if (idx < 0) idx = actions.size() - 1;
+        actions.add(idx + 1, newAction);
+        // Create UI node label similar to refreshTestSuites
+        String label = newAction.getAction();
+        TestNode newStepNode = new TestNode(label, newAction);
+        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
+        model.insertNodeInto(newStepNode, caseNode, idx + 1);
+        testTree.expandPath(new TreePath(caseNode.getPath()));
+        // Persist
+        TestRegistry.getInstance().save();
+    }
+
+    /**
+     * Create a new TestSuite directly after the clicked suite node (or at the
+     * end of root if clicked is null). Updates the underlying TestRegistry and
+     * inserts the new suite in the UI tree.
+     *
+     * @param clickedSuite the TestNode representing the suite after which the new
+     *                     suite should be inserted, or null to append at root
+     */
+    private void createNewSuiteAfter(TestNode clickedSuite) {
+        String name = JOptionPane.showInputDialog(this, "Name der neuen Testsuite:", "Neue Testsuite", JOptionPane.PLAIN_MESSAGE);
+        if (name == null || name.trim().isEmpty()) return;
+        // Determine parent node and insertion index in tree
+        TestNode parentNode;
+        int insertIndex;
+        java.util.List<TestSuite> registryList = TestRegistry.getInstance().getAll();
+        int registryInsertIndex;
+        if (clickedSuite != null && clickedSuite.getModelRef() instanceof TestSuite) {
+            // Insert after the clicked suite in the root list
+            TestSuite oldSuite = (TestSuite) clickedSuite.getModelRef();
+            registryInsertIndex = registryList.indexOf(oldSuite);
+            if (registryInsertIndex < 0) registryInsertIndex = registryList.size() - 1;
+            registryInsertIndex++;
+            parentNode = (TestNode) clickedSuite.getParent();
+            // In tree, insert as sibling after clickedSuite
+            if (parentNode == null) {
+                parentNode = (TestNode) testTree.getModel().getRoot();
+            }
+            insertIndex = parentNode.getIndex(clickedSuite) + 1;
+        } else {
+            // Append at the end of the root
+            registryInsertIndex = registryList.size();
+            parentNode = (TestNode) testTree.getModel().getRoot();
+            insertIndex = parentNode.getChildCount();
+        }
+        TestSuite newSuite = new TestSuite(name, new java.util.ArrayList<>());
+        registryList.add(registryInsertIndex, newSuite);
+        // Create UI node
+        TestNode newSuiteNode = new TestNode(name, newSuite);
+        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
+        model.insertNodeInto(newSuiteNode, parentNode, insertIndex);
+        testTree.expandPath(new TreePath(parentNode.getPath()));
+        TestRegistry.getInstance().save();
     }
 
     private void createNewSuite() {
@@ -201,12 +370,20 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
 
     @Override
     public void updateNodeStatus(TestNode node, boolean passed) {
+        // Set the status on the node itself
         node.setStatus(passed ? TestNode.Status.PASSED : TestNode.Status.FAILED);
+        // Notify the tree model that this node has changed
         ((DefaultTreeModel) testTree.getModel()).nodeChanged(node);
+        // Propagate status up the tree: if a child fails, its parents should reflect the failure
+        DefaultMutableTreeNode parent = (DefaultMutableTreeNode) node.getParent();
+        if (parent instanceof TestNode) {
+            updateSuiteStatus((TestNode) parent);
+        }
     }
 
     @Override
     public void updateSuiteStatus(TestNode suite) {
+        // Determine the status of a suite/case based on its children
         if (suite.getChildCount() == 0) return;
 
         boolean hasFail = false;
@@ -219,7 +396,13 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
         }
 
         suite.setStatus(hasFail ? TestNode.Status.FAILED : TestNode.Status.PASSED);
+        // Notify the model that the suite/case has changed
         ((DefaultTreeModel) testTree.getModel()).nodeChanged(suite);
+        // Recursively propagate status changes upwards
+        DefaultMutableTreeNode parent = (DefaultMutableTreeNode) suite.getParent();
+        if (parent instanceof TestNode) {
+            updateSuiteStatus((TestNode) parent);
+        }
     }
 
     @Override
