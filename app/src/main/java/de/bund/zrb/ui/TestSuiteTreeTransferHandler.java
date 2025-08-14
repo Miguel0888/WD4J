@@ -75,19 +75,23 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
         try {
             DefaultMutableTreeNode moved = getMovedNode(support);
             if (moved == null || moved.getParent() == null) return false; // Root selbst nie verschieben
-            if (!isDropAllowed(moved, ctx.dropTarget)) return false;
+
+            // Nicht in sich selbst / Nachfahren droppen
+            if (moved.isNodeAncestor(ctx.dropTarget)) return false;
 
             MovePlan plan = computeMovePlan(moved, ctx.dropTarget, ctx.childIndex);
             if (plan == null) return false; // unerlaubte Kombination
 
-            // Einfügeposition korrigieren, falls im selben Parent verschoben wird
+            // Einfügeposition korrigieren, falls im selben Parent verschoben wird (Off-by-one)
             plan.insertIndex = adjustForSameParent((DefaultMutableTreeNode) moved.getParent(), moved, plan.insertIndex);
 
             // Domänenmodell (Listen) aktualisieren
             applyDomainMove(moved, plan.newParentNode, plan.insertIndex);
 
-            // Baum aktualisieren & speichern
+            // Baum aktualisieren & sichtbar machen
             applyTreeMove(ctx.tree, moved, plan.newParentNode, plan.insertIndex);
+
+            // Persistieren
             de.bund.zrb.service.TestRegistry.getInstance().save();
 
             // Verhindern, dass exportDone nochmals entfernt
@@ -148,11 +152,11 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
     private MovePlan computeMovePlan(DefaultMutableTreeNode moved,
                                      DefaultMutableTreeNode dropTarget,
                                      int childIndex) {
-        // INSERT-Fall (Linie sichtbar): immer in den Parent (dropTarget) bei childIndex einfügen
+        // INSERT (Linie sichtbar): immer in den Parent (dropTarget) bei childIndex einfügen
         if (childIndex >= 0) {
             return planForInsert(moved, dropTarget, childIndex);
         }
-        // ON-Fall (kein childIndex): „nach Ziel“ bzw. „ans Ende“ je nach Typen
+        // ON (kein childIndex): „nach Ziel“ bzw. „ans Ende“ je nach Typen
         return planForOnDrop(moved, dropTarget);
     }
 
@@ -190,7 +194,7 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
     private MovePlan planForOnDrop(DefaultMutableTreeNode moved,
                                    DefaultMutableTreeNode dropTarget) {
         Object movedObj = ((TestNode) moved).getModelRef();
-        Object dropObj = dropTarget instanceof TestNode ? ((TestNode) dropTarget).getModelRef() : null;
+        Object dropObj  = dropTarget instanceof TestNode ? ((TestNode) dropTarget).getModelRef() : null;
 
         // Action wird gedroppt …
         if (movedObj instanceof de.bund.zrb.model.TestAction) {
@@ -305,10 +309,17 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
                                DefaultMutableTreeNode newParentNode,
                                int insertIndex) {
         DefaultTreeModel model = (DefaultTreeModel) tree.getModel();
+
+        // Knoten im Baum verschieben
         model.removeNodeFromParent(moved);
         insertIndex = Math.max(0, Math.min(insertIndex, newParentNode.getChildCount()));
         model.insertNodeInto(moved, newParentNode, insertIndex);
+
+        // Sichtbarkeit/Selektion
+        TreePath newPath = new TreePath(moved.getPath());
         tree.expandPath(new TreePath(newParentNode.getPath()));
+        tree.setSelectionPath(newPath);
+        tree.scrollPathToVisible(newPath);
     }
 
     @Override
