@@ -458,64 +458,92 @@ function (sendMessage) {
 
     // ---------- Init ----------
     function init() {
-        // Doppel-Initialisierung vermeiden
-        if (window.__zrbRecorderInitDone) return;
-        window.__zrbRecorderInitDone = true;
-
-        // Element-gebundene Listener (click/change/input/keydown) für interaktive Elemente
+        // 1) Elementweise nur CLICK binden (bitte bindInteractiveListeners entsprechend anpassen, s.u.)
         bindInteractiveListeners(document);
         hookPrimeFacesAjax();
         startObserver();
 
-        // ---- Globale Fallbacks ----
-        // Click: nur echte User-Klicks (synthetische & detail==0 ignorieren)
-        document.addEventListener("click", (e) => {
-            if (window[SUPPRESS_FLAG]) return;
-            if (!e.isTrusted || e.detail === 0) return;
-            onAnyEvent(e);
-        }, true);
+        // 2) Fallback nur für Klicks (onAnyEvent filtert synthetische bereits)
+        document.addEventListener("click", onAnyEvent, true);
 
-        // Change: global als Sicherheitsnetz (z. B. <select>, dynamische Rebinds)
-        document.addEventListener("change", (e) => {
-            if (window[SUPPRESS_FLAG]) return;
-            if (!e.isTrusted) return;
-            onAnyEvent(e);
-        }, true);
+        // --- Hilfen ---
+        const lastVal = new WeakMap(); // Element -> zuletzt geloggter Wert
+        const isEditable = t =>
+            t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t.isContentEditable;
 
-        // ---- Texteingaben ----
-        // Feingranular: einzelne Edit-Operation vor der eigentlichen Wertänderung
-        document.addEventListener("beforeinput", (e) => {
+        function snapshotAndEmitInput(target, srcEvent) {
+            const v = (target.value ?? target.textContent ?? "") + "";
+            if (lastVal.get(target) === v) return;      // nichts Neues → nichts senden
+            const dto = buildDtoForEvent(srcEvent);
+            dto.action = "input";
+            dto.value = v;
+            postEvents([compact(dto)]);
+            lastVal.set(target, v);
+        }
+
+        // 3) Feingranular: einzelne Edit-Operationen (optional nützlich zum Debuggen)
+        document.addEventListener("beforeinput", e => {
             if (window[SUPPRESS_FLAG]) return;
             const t = e.target;
-            const editable = t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t.isContentEditable;
-            if (!editable || !e.isTrusted) return;
+            if (!e.isTrusted || !isEditable(t)) return;
 
             const dto = buildDtoForEvent(e);
-            dto.action = "type";            // einzelne Edit-Operation
+            dto.action = "type";                 // einzelne Edit-Operation
             dto.key = null;
-            dto.value = e.data ?? "";       // bei Löschen oft null → ""
+            dto.value = e.data ?? "";            // bei Löschungen null → ""
             dto.inputType = e.inputType || "";
             postEvents([compact(dto)]);
+            // lastVal NICHT hier updaten – der Feld-Snapshot kommt über input/change/Commit
         }, true);
 
-        // WICHTIG: KEIN globales "input" hier hinzufügen,
-        // damit "input" nicht doppelt (global + elementgebunden) aufgezeichnet wird.
-        // Die elementgebundenen Listener aus bindInteractiveListeners reichen.
+        // 4) Snapshot nach jeder echten Eingabe
+        document.addEventListener("input", e => {
+            if (window[SUPPRESS_FLAG]) return;
+            const t = e.target;
+            if (!e.isTrusted || !isEditable(t)) return;
+            snapshotAndEmitInput(t, e);
+        }, true);
 
-        // ---- Sondertasten ----
+        // 5) Commit-Snapshot auf Blur/Change (viele Frameworks übernehmen hier erst)
+        document.addEventListener("change", e => {
+            if (window[SUPPRESS_FLAG]) return;
+            const t = e.target;
+            if (!e.isTrusted || !isEditable(t)) return;
+            snapshotAndEmitInput(t, e);
+        }, true);
+
+        // 6) Sondertasten + Commit vor Enter/Tab
         const SPECIAL_KEYS = new Set([
             "Enter","Tab","Escape","Backspace","Delete","Home","End",
             "ArrowLeft","ArrowRight","ArrowUp","ArrowDown","PageUp","PageDown"
         ]);
-        document.addEventListener("keydown", (e) => {
+
+        document.addEventListener("keydown", e => {
             if (window[SUPPRESS_FLAG]) return;
             if (!e.isTrusted) return;
-            if (!SPECIAL_KEYS.has(e.key)) return;  // nur Sondertasten loggen
 
+            const t = e.target;
+            // **WICHTIG**: vor Enter/Tab den aktuellen Feldwert aufnehmen,
+            // falls das Widget bisher keine input/change-Events gefeuert hat.
+            if (isEditable(t) && (e.key === "Enter" || e.key === "Tab")) {
+                snapshotAndEmitInput(t, e);
+            }
+
+            if (!SPECIAL_KEYS.has(e.key)) return;       // normale Zeichen nicht hier
             const dto = buildDtoForEvent(e);
             dto.action = "press";
             dto.key = e.key;
             postEvents([compact(dto)]);
+        }, true);
+
+        // 7) Keyup-Fallback: manche Masken feuern weder input noch change beim Tippen
+        document.addEventListener("keyup", e => {
+            if (window[SUPPRESS_FLAG]) return;
+            if (!e.isTrusted) return;
+            const t = e.target;
+            if (!isEditable(t)) return;
+            if (SPECIAL_KEYS.has(e.key)) return;        // Sondertasten ignorieren
+            snapshotAndEmitInput(t, e);                 // nur wenn sich der Wert geändert hat, wird gesendet
         }, true);
 
         console.log("[recorder] ready");

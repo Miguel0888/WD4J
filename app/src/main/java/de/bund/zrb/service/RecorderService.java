@@ -141,22 +141,26 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         if (val == null) return;
 
         if ("selector".equals(key)) { event.setCss(val); return; }
-        if ("action".equals(key)) { event.setAction(val); return; }
+        if ("action".equals(key))   { event.setAction(val); return; }
         if ("buttonText".equals(key)) { event.setButtonText(val); return; }
-        if ("xpath".equals(key)) { event.setXpath(val); return; }
-        if ("classes".equals(key)) { event.setClasses(val); return; }
-        if ("value".equals(key)) { event.setValue(val); return; }
-        if ("inputName".equals(key)) { event.setInputName(val); return; }
-        if ("elementId".equals(key)) { event.setElementId(val); return; }
+        if ("xpath".equals(key))    { event.setXpath(val); return; }
+        if ("classes".equals(key))  { event.setClasses(val); return; }
+        if ("value".equals(key))    { event.setValue(val); return; }
+        if ("inputName".equals(key)){ event.setInputName(val); return; }
+        if ("elementId".equals(key)){ event.setElementId(val); return; }
         if ("parentId".equals(key)) { event.setParentId(val); return; }
         if ("parentCss".equals(key)) { event.setParentCss(val); return; }
 
-        // Unbekannte einfache Felder landen in extractedValues
+        // Taste aus keydown erfassen (Enter/Tab/…)
+        if ("key".equals(key))      { event.setKey(val); return; }
+
+        // Unbekannte einfache Felder …
         if (event.getExtractedValues() == null) {
             event.setExtractedValues(new LinkedHashMap<String, String>());
         }
         event.getExtractedValues().put(key, val);
     }
+
 
     /** Parse a nested object; pull out known groups and common keys (e.g., "text"). */
     private void parseNestedObject(RecordedEvent event, String parentKey, WDRemoteValue.ObjectRemoteValue obj) {
