@@ -13,7 +13,7 @@ import java.io.IOException;
 public class TestSuiteTreeTransferHandler extends TransferHandler {
 
     // ==== DEBUG (einfach im Terminal lesen) ====
-    private static final boolean DEBUG_DND = true;
+    private static final boolean DEBUG_DND = false;
 
     private static String typeOf(Object o) {
         if (o == null) return "ROOT";
@@ -242,7 +242,6 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
                                    int childIndex) {
         Object movedObj = modelRefOf(moved);
 
-        // Zeige, was wir als „Nachbar“-Kontext sehen (hilft bei Kanten zwischen Eltern)
         int siblingsCount = dropTarget != null ? dropTarget.getChildCount() : -1;
         DefaultMutableTreeNode prevSibling = (dropTarget != null && childIndex > 0)
                 ? (DefaultMutableTreeNode) dropTarget.getChildAt(childIndex - 1) : null;
@@ -255,36 +254,47 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
                 + " next=" + nodeInfo(nextSibling)
                 + " movedType=" + typeOf(movedObj));
 
-        // Falls wir genau zwischen zwei gleichartigen PARENT-Knoten liegen und moved denselben Typ hat:
+        // 1) Linie zwischen zwei gleichartigen Eltern (z. B. Suite|Suite, Case|Case)
         if (prevSibling != null && nextSibling != null) {
             Object prevRef = modelRefOf(prevSibling);
             Object nextRef = modelRefOf(nextSibling);
+
             if (prevRef != null && nextRef != null && prevRef.getClass().equals(nextRef.getClass())) {
-                if (movedObj != null && movedObj.getClass().equals(prevRef.getClass())) {
+                Class<?> parentType = prevRef.getClass();
+
+                if (movedObj != null && parentType.equals(movedObj.getClass())) {
+                    // gleicher Typ → echte Umsortierung zwischen prev/next
                     log("→ Einsortierung zwischen gleichartigen Eltern, gleicher Typ → zwischen prev/next");
                     return new MovePlan(dropTarget, childIndex);
                 } else {
-                    // Kindtyp → an das ENDE des linken („oberen“) Parents anhängen
-                    log("→ Zwischen gleichartigen Eltern, moved ist KIND → an ENDE des linken Parents");
-                    return new MovePlan(prevSibling, prevSibling.getChildCount());
+                    // Kind-/Enkel-Typ → an das ENDE des zulässigen Containers unterhalb des linken Parents
+                    DefaultMutableTreeNode legalParent = resolveLegalParentForChild(prevSibling, movedObj);
+                    if (legalParent != null) {
+                        int idx = legalParent.getChildCount();
+                        log("→ Kind-/Enkeltyp → an ENDE des zulässigen Parents: " + nodeInfo(legalParent) + " @ " + idx);
+                        return new MovePlan(legalParent, idx);
+                    } else {
+                        log("→ Kein zulässiger Parent unter linkem Parent gefunden → DROP unzulässig");
+                        return null;
+                    }
                 }
             }
         }
 
-        // Standard: Parent-Typen validieren (ROOT→Suite, Suite→Case, Case→Action)
+        // 2) Standard (Drop auf einen konkreten Parent): ROOT→Suite, Suite→Case, Case→Action
         Object parentObj = modelRefOf(dropTarget);
 
-        if (parentObj == null) { // ROOT
+        if (parentObj == null) { // ROOT akzeptiert nur Suites
             boolean ok = (movedObj instanceof de.bund.zrb.model.TestSuite);
             log("ROOT insert ok=" + ok);
             return ok ? new MovePlan(dropTarget, childIndex) : null;
         }
-        if (parentObj instanceof de.bund.zrb.model.TestSuite) {
+        if (parentObj instanceof de.bund.zrb.model.TestSuite) { // Suite akzeptiert nur Cases
             boolean ok = (movedObj instanceof de.bund.zrb.model.TestCase);
             log("SUITE insert ok=" + ok);
             return ok ? new MovePlan(dropTarget, childIndex) : null;
         }
-        if (parentObj instanceof de.bund.zrb.model.TestCase) {
+        if (parentObj instanceof de.bund.zrb.model.TestCase) { // Case akzeptiert nur Actions
             boolean ok = (movedObj instanceof de.bund.zrb.model.TestAction);
             log("CASE insert ok=" + ok);
             return ok ? new MovePlan(dropTarget, childIndex) : null;
@@ -477,4 +487,60 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
             return node;
         }
     }
+
+    /**
+     * Ermittelt den „rechtlich“ zulässigen Parent unterhalb von leftParentOrSibling,
+     * in den ein movedObj eingefügt werden darf:
+     * - Action → Case: wenn left = Case → left; wenn left = Suite → letzter Case der Suite.
+     * - Case   → Suite: wenn left = Suite → Suite; wenn left = Case → dessen Parent (Suite).
+     * - Suite  → ROOT:  wenn left = Suite → ROOT bleibt der Parent (wird über dropTarget/childIndex geregelt).
+     * Liefert null, wenn kein erlaubter Ziel-Parent existiert (z. B. Suite ohne Cases für eine Action).
+     */
+    private DefaultMutableTreeNode resolveLegalParentForChild(DefaultMutableTreeNode leftParentOrSibling, Object movedObj) {
+        Object leftRef = modelRefOf(leftParentOrSibling);
+
+        if (movedObj instanceof de.bund.zrb.model.TestAction) {
+            // Action braucht einen Case
+            if (leftRef instanceof de.bund.zrb.model.TestCase) {
+                return leftParentOrSibling;
+            }
+            if (leftRef instanceof de.bund.zrb.model.TestSuite) {
+                DefaultMutableTreeNode lastCase = lastChildOfType(leftParentOrSibling, de.bund.zrb.model.TestCase.class);
+                return lastCase; // kann null sein → kein Case vorhanden → Drop unzulässig
+            }
+            return null;
+        }
+
+        if (movedObj instanceof de.bund.zrb.model.TestCase) {
+            // Case braucht eine Suite
+            if (leftRef instanceof de.bund.zrb.model.TestSuite) {
+                return leftParentOrSibling;
+            }
+            if (leftRef instanceof de.bund.zrb.model.TestCase) {
+                // zwischen zwei Cases → Parent ist deren Suite
+                return (DefaultMutableTreeNode) leftParentOrSibling.getParent();
+            }
+            return null;
+        }
+
+        if (movedObj instanceof de.bund.zrb.model.TestSuite) {
+            // Suites werden über ROOT einsortiert – hier keine Absenkung nötig
+            return (DefaultMutableTreeNode) leftParentOrSibling.getParent(); // i. d. R. ROOT
+        }
+
+        return null;
+    }
+
+    /** Liefert das letzte Kind eines bestimmten ModelRef-Typs unterhalb des gegebenen Parent-Knotens. */
+    private DefaultMutableTreeNode lastChildOfType(DefaultMutableTreeNode parent, Class<?> modelType) {
+        for (int i = parent.getChildCount() - 1; i >= 0; i--) {
+            DefaultMutableTreeNode c = (DefaultMutableTreeNode) parent.getChildAt(i);
+            Object ref = modelRefOf(c);
+            if (ref != null && modelType.isAssignableFrom(ref.getClass())) {
+                return c;
+            }
+        }
+        return null;
+    }
+
 }
