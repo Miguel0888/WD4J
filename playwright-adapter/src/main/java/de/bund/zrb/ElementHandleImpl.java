@@ -9,6 +9,7 @@ import com.microsoft.playwright.options.SelectOption;
 import de.bund.zrb.command.request.parameters.input.sourceActions.PauseAction;
 import de.bund.zrb.support.ActionabilityCheck;
 import de.bund.zrb.support.ActionabilityRequirement;
+import de.bund.zrb.support.WDKeys;
 import de.bund.zrb.type.input.WDElementOrigin;
 import de.bund.zrb.type.script.*;
 import de.bund.zrb.util.WebDriverUtil;
@@ -411,12 +412,11 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
     /** Vereinheitlichtes Füllen, PF-sicher, mit Commit + Hidden-Wait. */
     @Override
     public void fill(String value, FillOptions options) {
-        // Actionability & Sichtbarkeit
         waitForActionability(options);
         scrollIntoViewIfNeeded(null);
-        focus(); // ruft nur this.focus(); auf, kein PF-Kram
+        focus();
 
-        // OS bestimmen (Mac = Meta, sonst Control)
+        // macOS-Modifikator ermitteln
         WDEvaluateResult macRes = webDriver.script().callFunction(
                 "function(){ try { return /Mac|iPhone|iPad|iPod/.test(navigator.platform); } catch(e){ return false; } }",
                 /* await */ true,
@@ -424,24 +424,22 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
                 WDResultOwnership.ROOT, null
         );
         boolean isMac = WebDriverUtil.asBoolean(macRes);
-        String mod = isMac ? "Meta" : "Control";
+        String modKey = isMac ? WDKeys.META : WDKeys.CONTROL;
 
         List<KeySourceAction> seq = new ArrayList<>();
 
-        // Select All
-        seq.add(new KeySourceAction.KeyDownAction(mod));
+        // Select-All (Cmd/Ctrl + A)
+        seq.add(new KeySourceAction.KeyDownAction(modKey));
         seq.add(new KeySourceAction.KeyDownAction("a"));
         seq.add(new KeySourceAction.KeyUpAction("a"));
-        seq.add(new KeySourceAction.KeyUpAction(mod));
+        seq.add(new KeySourceAction.KeyUpAction(modKey));
 
-        // Inhalt löschen (Delete + Backspace, um alle Fälle abzudecken)
-        seq.add(new KeySourceAction.KeyDownAction("Delete"));
-        seq.add(new KeySourceAction.KeyUpAction("Delete"));
-        seq.add(new KeySourceAction.KeyDownAction("Backspace"));
-        seq.add(new KeySourceAction.KeyUpAction("Backspace"));
-
-        // Zielwert tippen (falls nicht leer)
-        if (value != null && !value.isEmpty()) {
+        if (value == null || value.isEmpty()) {
+            // Inhalt löschen (richtige Delete-Taste, nicht "Delete" als Text!)
+            seq.add(new KeySourceAction.KeyDownAction(WDKeys.DELETE));
+            seq.add(new KeySourceAction.KeyUpAction(WDKeys.DELETE));
+        } else {
+            // Gewünschten Text eingeben (printable chars direkt)
             for (int i = 0; i < value.length(); i++) {
                 String ch = String.valueOf(value.charAt(i));
                 seq.add(new KeySourceAction.KeyDownAction(ch));
@@ -454,6 +452,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
         input().performActions(requireContextId(), Collections.singletonList(keyboard));
     }
+
 
     /**
      * Calls <a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus">focus</a> on the element.
