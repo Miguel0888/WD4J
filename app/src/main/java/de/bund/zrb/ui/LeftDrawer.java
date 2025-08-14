@@ -120,28 +120,25 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
      * after the clicked element within its parent.
      */
     private void setupContextMenu() {
-        // Remove any existing static popup menu
-        testTree.setComponentPopupMenu(null);
         testTree.addMouseListener(new java.awt.event.MouseAdapter() {
-            private void handlePopup(java.awt.event.MouseEvent e) {
+            private void maybeShow(java.awt.event.MouseEvent e) {
                 if (!e.isPopupTrigger()) return;
-                int x = e.getX();
-                int y = e.getY();
+
+                int x = e.getX(), y = e.getY();
                 TreePath path = testTree.getPathForLocation(x, y);
-                TestNode clicked = null;
-                if (path != null) {
-                    Object n = path.getLastPathComponent();
-                    if (n instanceof TestNode) {
-                        clicked = (TestNode) n;
-                        // Update selection so rename/delete targets the correct node
-                        testTree.setSelectionPath(path);
-                    }
+                if (path != null) testTree.setSelectionPath(path);
+
+                TestNode node = null;
+                if (path != null && path.getLastPathComponent() instanceof TestNode) {
+                    node = (TestNode) path.getLastPathComponent();
                 }
-                JPopupMenu menu = buildContextMenu(clicked);
-                menu.show(e.getComponent(), x, y);
+
+                JPopupMenu menu = buildContextMenu(node);
+                menu.show(testTree, x, y);
             }
-            @Override public void mousePressed(java.awt.event.MouseEvent e) { handlePopup(e); }
-            @Override public void mouseReleased(java.awt.event.MouseEvent e) { handlePopup(e); }
+
+            @Override public void mousePressed(java.awt.event.MouseEvent e) { maybeShow(e); }
+            @Override public void mouseReleased(java.awt.event.MouseEvent e) { maybeShow(e); }
         });
     }
 
@@ -153,111 +150,55 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
      * create a new step after it. Rename, delete and properties actions are
      * included as appropriate.
      */
-    private JPopupMenu buildContextMenu(TestNode clicked) {
+    private JPopupMenu buildContextMenu(TestNode node) {
         JPopupMenu menu = new JPopupMenu();
-        if (clicked != null) {
-            Object ref = clicked.getModelRef();
-            if (ref instanceof TestAction) {
-                JMenuItem newStep = new JMenuItem("Neuer Schritt");
-                newStep.addActionListener(evt -> createNewStep(clicked));
-                menu.add(newStep);
-            } else if (ref instanceof TestCase) {
-                JMenuItem newCase = new JMenuItem("Neuer TestCase");
-                newCase.addActionListener(evt -> createNewCase(clicked));
-                menu.add(newCase);
-            } else if (ref instanceof TestSuite) {
-                JMenuItem newSuite = new JMenuItem("Neue Testsuite");
-                newSuite.addActionListener(evt -> createNewSuiteAfter(clicked));
-                menu.add(newSuite);
-            } else {
-                JMenuItem newSuite = new JMenuItem("Neue Testsuite");
-                newSuite.addActionListener(evt -> createNewSuiteAfter(null));
-                menu.add(newSuite);
+
+        Object ref = (node != null) ? node.getModelRef() : null;
+
+        // Root/Leerer Bereich oder Suite: nur "Neue Testsuite"
+        if (ref == null || ref instanceof de.bund.zrb.model.TestSuite) {
+            JMenuItem miNewSuite = new JMenuItem("Neue Testsuite");
+            miNewSuite.addActionListener(a -> {
+                if (ref instanceof de.bund.zrb.model.TestSuite) {
+                    createNewSuiteAfter(node);
+                } else {
+                    createNewSuiteAfter(null); // am Ende unter Root
+                }
+            });
+            menu.add(miNewSuite);
+
+            if (ref instanceof de.bund.zrb.model.TestSuite) {
+                JMenuItem miDuplicateSuite = new JMenuItem("Kopie von Testsuite");
+                miDuplicateSuite.addActionListener(a -> duplicateSuiteAfter(node)); // ToDo: Missing Method
+                menu.add(miDuplicateSuite);
             }
-
-            // Always show rename, delete (if not root), and properties
-            menu.addSeparator();
-            JMenuItem renameItem = new JMenuItem("Umbenennen");
-            renameItem.addActionListener(evt -> renameNode());
-            menu.add(renameItem);
-
-            JMenuItem deleteItem = new JMenuItem("Löschen");
-            deleteItem.addActionListener(evt -> deleteNode());
-            menu.add(deleteItem);
-
-            menu.addSeparator();
-            JMenuItem propertiesItem = new JMenuItem("Eigenschaften");
-            propertiesItem.addActionListener(evt -> openPropertiesDialog());
-            menu.add(propertiesItem);
-        } else {
-            // Blank area: only new suite
-            JMenuItem newSuite = new JMenuItem("Neue Testsuite");
-            newSuite.addActionListener(evt -> createNewSuiteAfter(null));
-            menu.add(newSuite);
         }
+
+        // Case: nur "Neuer TestCase" + "Kopie von TestCase"
+        if (ref instanceof de.bund.zrb.model.TestCase) {
+            JMenuItem miNewCase = new JMenuItem("Neuer TestCase");
+            miNewCase.addActionListener(a -> createNewCaseAfter(node));
+            menu.add(miNewCase);
+
+            JMenuItem miDuplicateCase = new JMenuItem("Kopie von TestCase");
+            miDuplicateCase.addActionListener(a -> duplicateCaseAfter(node)); // ToDo: Missing Method
+            menu.add(miDuplicateCase);
+        }
+
+        // When-Step: nur "Neuer Schritt" + "Kopie von Schritt"
+        if (ref instanceof de.bund.zrb.model.TestAction) {
+            JMenuItem miNewStep = new JMenuItem("Neuer Schritt (When)");
+            miNewStep.addActionListener(a -> createNewActionAfter(node));
+            menu.add(miNewStep);
+
+            JMenuItem miDuplicateStep = new JMenuItem("Kopie von Schritt");
+            miDuplicateStep.addActionListener(a -> duplicateActionAfter(node)); // ToDo: Missing Method
+            menu.add(miDuplicateStep);
+        }
+
+        // (Optional) bestehende Einträge wie Umbenennen/Löschen/Eigenschaften hier anhängen …
+
         return menu;
-    }
-
-    /**
-     * Create a new TestCase directly after the given TestCase node. Updates both
-     * the underlying model and the UI tree. Prompts the user for a name.
-     *
-     * @param caseNode the TestNode representing the existing TestCase after
-     *                 which the new case should be inserted
-     */
-    private void createNewCase(TestNode caseNode) {
-        if (caseNode == null || !(caseNode.getModelRef() instanceof TestCase)) return;
-        String name = JOptionPane.showInputDialog(this, "Name des neuen TestCase:", "Neuer TestCase", JOptionPane.PLAIN_MESSAGE);
-        if (name == null || name.trim().isEmpty()) return;
-        TestCase oldCase = (TestCase) caseNode.getModelRef();
-        TestNode suiteNode = (TestNode) caseNode.getParent();
-        if (suiteNode == null || !(suiteNode.getModelRef() instanceof TestSuite)) return;
-        TestSuite suite = (TestSuite) suiteNode.getModelRef();
-        TestCase newCase = new TestCase(name, new java.util.ArrayList<>());
-        // Insert into suite's list
-        java.util.List<TestCase> cases = suite.getTestCases();
-        int idx = cases.indexOf(oldCase);
-        if (idx < 0) idx = cases.size() - 1;
-        cases.add(idx + 1, newCase);
-        // Insert into tree
-        TestNode newCaseNode = new TestNode(name, newCase);
-        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
-        model.insertNodeInto(newCaseNode, suiteNode, idx + 1);
-        testTree.expandPath(new TreePath(suiteNode.getPath()));
-        // Persist
-        TestRegistry.getInstance().save();
-    }
-
-    /**
-     * Create a new step (When) directly after the given TestAction node. Prompts
-     * the user for the action name and inserts the new action into the parent
-     * TestCase and the UI tree.
-     *
-     * @param stepNode the TestNode representing the existing step after which
-     *                 the new step should be inserted
-     */
-    private void createNewStep(TestNode stepNode) {
-        if (stepNode == null || !(stepNode.getModelRef() instanceof TestAction)) return;
-        String actionName = JOptionPane.showInputDialog(this, "Aktion für neuen Step (z. B. click, navigate):", "Neuer Step", JOptionPane.PLAIN_MESSAGE);
-        if (actionName == null || actionName.trim().isEmpty()) return;
-        TestAction oldAction = (TestAction) stepNode.getModelRef();
-        TestNode caseNode = (TestNode) stepNode.getParent();
-        if (caseNode == null || !(caseNode.getModelRef() instanceof TestCase)) return;
-        TestCase testCase = (TestCase) caseNode.getModelRef();
-        TestAction newAction = new TestAction(actionName);
-        // Insert into case's when list
-        java.util.List<TestAction> actions = testCase.getWhen();
-        int idx = actions.indexOf(oldAction);
-        if (idx < 0) idx = actions.size() - 1;
-        actions.add(idx + 1, newAction);
-        // Create UI node label similar to refreshTestSuites
-        String label = newAction.getAction();
-        TestNode newStepNode = new TestNode(label, newAction);
-        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
-        model.insertNodeInto(newStepNode, caseNode, idx + 1);
-        testTree.expandPath(new TreePath(caseNode.getPath()));
-        // Persist
-        TestRegistry.getInstance().save();
     }
 
     /**
@@ -268,61 +209,178 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
      * @param clickedSuite the TestNode representing the suite after which the new
      *                     suite should be inserted, or null to append at root
      */
-    private void createNewSuiteAfter(TestNode clickedSuite) {
-        String name = JOptionPane.showInputDialog(this, "Name der neuen Testsuite:", "Neue Testsuite", JOptionPane.PLAIN_MESSAGE);
-        if (name == null || name.trim().isEmpty()) return;
-        // Determine parent node and insertion index in tree
-        TestNode parentNode;
-        int insertIndex;
-        java.util.List<TestSuite> registryList = TestRegistry.getInstance().getAll();
-        int registryInsertIndex;
-        if (clickedSuite != null && clickedSuite.getModelRef() instanceof TestSuite) {
-            // Insert after the clicked suite in the root list
-            TestSuite oldSuite = (TestSuite) clickedSuite.getModelRef();
-            registryInsertIndex = registryList.indexOf(oldSuite);
-            if (registryInsertIndex < 0) registryInsertIndex = registryList.size() - 1;
-            registryInsertIndex++;
-            parentNode = (TestNode) clickedSuite.getParent();
-            // In tree, insert as sibling after clickedSuite
-            if (parentNode == null) {
-                parentNode = (TestNode) testTree.getModel().getRoot();
-            }
-            insertIndex = parentNode.getIndex(clickedSuite) + 1;
-        } else {
-            // Append at the end of the root
-            registryInsertIndex = registryList.size();
-            parentNode = (TestNode) testTree.getModel().getRoot();
-            insertIndex = parentNode.getChildCount();
+    private void createNewSuiteAfter(TestNode clickedSuiteOrNull) {
+        java.util.List<de.bund.zrb.model.TestSuite> suites = de.bund.zrb.service.TestRegistry.getInstance().getAll();
+        int insertIndex = suites.size();
+        if (clickedSuiteOrNull != null) {
+            insertIndex = ((DefaultMutableTreeNode) clickedSuiteOrNull.getParent()).getIndex(clickedSuiteOrNull) + 1;
         }
-        TestSuite newSuite = new TestSuite(name, new java.util.ArrayList<>());
-        registryList.add(registryInsertIndex, newSuite);
-        // Create UI node
-        TestNode newSuiteNode = new TestNode(name, newSuite);
+
+        String baseName = "Neue Suite";
+        String name = uniqueSuiteName(baseName);
+        de.bund.zrb.model.TestSuite suite = new de.bund.zrb.model.TestSuite(); // ToDo: Missing Constructor
+        suite.setName(name);
+
+        suites.add(insertIndex, suite);
+        de.bund.zrb.service.TestRegistry.getInstance().save();
+
+        // Tree
         DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
-        model.insertNodeInto(newSuiteNode, parentNode, insertIndex);
-        testTree.expandPath(new TreePath(parentNode.getPath()));
-        TestRegistry.getInstance().save();
+        TestNode root = (TestNode) model.getRoot();
+        TestNode newNode = new TestNode(name, suite);
+        model.insertNodeInto(newNode, root, Math.min(insertIndex, root.getChildCount()));
+        selectNode(newNode);
     }
 
-    private void createNewSuite() {
-        String name = JOptionPane.showInputDialog(this, "Name der neuen Testsuite:", "Neue Testsuite", JOptionPane.PLAIN_MESSAGE);
-        if (name != null && !name.trim().isEmpty()) {
-            DefaultMutableTreeNode selected = getSelectedNodeOrRoot();
-            DefaultMutableTreeNode newSuite = new DefaultMutableTreeNode(name);
-            DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
-            model.insertNodeInto(newSuite, selected, selected.getChildCount());
+    private void createNewCaseAfter(TestNode clickedCase) {
+        if (clickedCase == null) return;
+        DefaultMutableTreeNode suiteNode = (DefaultMutableTreeNode) clickedCase.getParent();
+        Object suiteRef = (suiteNode instanceof TestNode) ? ((TestNode) suiteNode).getModelRef() : null;
+        if (!(suiteRef instanceof de.bund.zrb.model.TestSuite)) return;
+
+        de.bund.zrb.model.TestSuite suite = (de.bund.zrb.model.TestSuite) suiteRef;
+        java.util.List<de.bund.zrb.model.TestCase> cases = suite.getTestCases();
+        int oldIdx = suiteNode.getIndex(clickedCase);
+        int insertIndex = oldIdx + 1;
+
+        String baseName = "Neuer Case";
+        String name = uniqueCaseName(suite, baseName);
+
+        de.bund.zrb.model.TestCase tc = new de.bund.zrb.model.TestCase(); // ToDo: Missing Constructor
+        tc.setName(name);
+
+        cases.add(insertIndex, tc);
+        de.bund.zrb.service.TestRegistry.getInstance().save();
+
+        // Tree
+        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
+        TestNode newNode = new TestNode(name, tc);
+        model.insertNodeInto(newNode, (DefaultMutableTreeNode) suiteNode, Math.min(insertIndex, suiteNode.getChildCount()));
+        selectNode(newNode);
+    }
+
+    private void createNewActionAfter(TestNode clickedAction) {
+        if (clickedAction == null) return;
+        DefaultMutableTreeNode caseNode = (DefaultMutableTreeNode) clickedAction.getParent();
+        Object caseRef = (caseNode instanceof TestNode) ? ((TestNode) caseNode).getModelRef() : null;
+        if (!(caseRef instanceof de.bund.zrb.model.TestCase)) return;
+
+        de.bund.zrb.model.TestCase tc = (de.bund.zrb.model.TestCase) caseRef;
+        java.util.List<de.bund.zrb.model.TestAction> steps = tc.getWhen();
+        int oldIdx = caseNode.getIndex(clickedAction);
+        int insertIndex = oldIdx + 1;
+
+        de.bund.zrb.model.TestAction action = new de.bund.zrb.model.TestAction();
+        action.setType(TestAction.ActionType.WHEN);
+        action.setAction("click");                 // sinnvoller Default
+        action.setTimeout(30_000);                 // Default-Timeout
+        action.setUser("default");
+
+        steps.add(insertIndex, action);
+        de.bund.zrb.service.TestRegistry.getInstance().save();
+
+        // Tree
+        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
+        TestNode newNode = new TestNode(String.valueOf(action), action);
+        model.insertNodeInto(newNode, (DefaultMutableTreeNode) caseNode, Math.min(insertIndex, caseNode.getChildCount()));
+        selectNode(newNode);
+    }
+
+    // in LeftDrawer.java
+    private de.bund.zrb.model.TestCase cloneCaseDeep(de.bund.zrb.model.TestCase src, boolean prefixedName) {
+        de.bund.zrb.model.TestCase c = new de.bund.zrb.model.TestCase(); // ToDo: Missing Constructor
+        String name = safeName(src.getName());
+        c.setName(prefixedName ? "copy of " + name : name);
+
+        // Given (flach kopieren)
+        if (src.getGiven() != null) {
+            c.setGiven(new java.util.ArrayList<>(src.getGiven())); // ToDo: Should use new Copy Constructor
         }
-    }
 
-    private void renameNode() {
-        DefaultMutableTreeNode selected = getSelectedNode();
-        if (selected != null && selected.getParent() != null) { // Root nicht umbenennen
-            String name = JOptionPane.showInputDialog(this, "Neuer Name:", selected.toString());
-            if (name != null && !name.trim().isEmpty()) {
-                selected.setUserObject(name);
-                ((DefaultTreeModel) testTree.getModel()).nodeChanged(selected);
+        // When (Actions tief = neue Objekte)
+        java.util.List<de.bund.zrb.model.TestAction> list = new java.util.ArrayList<>();
+        if (src.getWhen() != null) {
+            for (de.bund.zrb.model.TestAction a : src.getWhen()) {
+                list.add(cloneActionShallow(a, false)); // bei Case-Copy kein "copy of" pro Step
             }
         }
+        c.setWhen(list); // ToDo: Should use new Copy Constructor
+        return c;
+    }
+
+    private de.bund.zrb.model.TestAction cloneActionShallow(de.bund.zrb.model.TestAction src, boolean tryPrefixName) {
+        de.bund.zrb.model.TestAction a = new de.bund.zrb.model.TestAction();
+        // bekannte Felder übernehmen (best effort)
+        a.setType(src.getType());
+        a.setAction(src.getAction());
+        a.setValue(src.getValue());
+        a.setUser(src.getUser());
+        a.setTimeout(src.getTimeout());
+        a.setSelectedSelector(src.getSelectedSelector());
+        if (src.getSelectors() != null) { // ToDo: Missing Method getSelectors
+            a.setSelectors(new java.util.ArrayList<>(src.getSelectors())); // ToDo: Missing Method getSelectors
+        }
+        // falls es einen Namen gibt, versuche „copy of …“
+        if (tryPrefixName) {
+            String n = getNameIfExists(src);
+            if (n != null && !n.isEmpty()) {
+                setNameIfExists(a, "copy of " + n);
+            }
+        }
+        return a;
+    }
+
+    private String safeName(String s) {
+        return (s == null || s.trim().isEmpty()) ? "unnamed" : s.trim();
+    }
+
+    private String uniqueSuiteName(String base) {
+        java.util.List<de.bund.zrb.model.TestSuite> suites = de.bund.zrb.service.TestRegistry.getInstance().getAll();
+        java.util.Set<String> used = new java.util.HashSet<>();
+        for (de.bund.zrb.model.TestSuite s : suites) used.add(safeName(s.getName()));
+        return makeUnique(base, used);
+    }
+
+    private String uniqueCaseName(de.bund.zrb.model.TestSuite suite, String base) {
+        java.util.Set<String> used = new java.util.HashSet<>();
+        for (de.bund.zrb.model.TestCase c : suite.getTestCases()) used.add(safeName(c.getName()));
+        return makeUnique(base, used);
+    }
+
+    private String makeUnique(String base, java.util.Set<String> used) {
+        String b = safeName(base);
+        if (!used.contains(b)) return b;
+        for (int i = 2; i < 10_000; i++) {
+            String cand = b + " (" + i + ")";
+            if (!used.contains(cand)) return cand;
+        }
+        return b + " (copy)"; // Fallback
+    }
+
+    // Name-Getter/Setter "best effort" (für TestAction optional vorhanden)
+    private String getNameIfExists(Object bean) {
+        try {
+            java.lang.reflect.Method m = bean.getClass().getMethod("getName");
+            Object v = m.invoke(bean);
+            return (v != null) ? String.valueOf(v) : null;
+        } catch (Exception ignore) { return null; }
+    }
+
+    private void setNameIfExists(Object bean, String name) {
+        try {
+            java.lang.reflect.Method m = bean.getClass().getMethod("setName", String.class);
+            m.invoke(bean, name);
+        } catch (Exception ignore) { /* kein Name vorhanden */ }
+    }
+
+    // Komfort: Node selektieren/anzeigen
+    private void selectNode(TestNode node) {
+        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
+        javax.swing.tree.TreePath path = new javax.swing.tree.TreePath(node.getPath());
+        testTree.expandPath(new javax.swing.tree.TreePath(((DefaultMutableTreeNode) node.getParent()).getPath()));
+        testTree.setSelectionPath(path);
+        testTree.scrollPathToVisible(path);
+        model.nodeChanged(node);
     }
 
     void deleteNode() {
