@@ -12,6 +12,29 @@ import java.io.IOException;
  */
 public class TestSuiteTreeTransferHandler extends TransferHandler {
 
+    // ==== DEBUG (einfach im Terminal lesen) ====
+    private static final boolean DEBUG_DND = true;
+
+    private static String typeOf(Object o) {
+        if (o == null) return "ROOT";
+        if (o instanceof de.bund.zrb.model.TestSuite) return "Suite";
+        if (o instanceof de.bund.zrb.model.TestCase)  return "Case";
+        if (o instanceof de.bund.zrb.model.TestAction) return "Action";
+        return o.getClass().getSimpleName();
+    }
+    private static Object modelRefOf(DefaultMutableTreeNode n) {
+        return (n instanceof TestNode) ? ((TestNode) n).getModelRef() : null;
+    }
+    private static String nodeInfo(DefaultMutableTreeNode n) {
+        if (n == null) return "(null)";
+        Object ref = modelRefOf(n);
+        String txt = n.getUserObject() != null ? String.valueOf(n.getUserObject()) : "(no userObject)";
+        return txt + " [" + typeOf(ref) + "]";
+    }
+    private static void log(String msg) {
+        if (DEBUG_DND) System.out.println("[DND] " + msg);
+    }
+
     /**
      * A custom DataFlavor used to transfer tree nodes within the same JVM.  Using
      * the {@link DataFlavor#javaJVMLocalObjectMimeType} prevents the node (and
@@ -65,6 +88,23 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
         return support.isDataFlavorSupported(nodesFlavor);
     }
 
+    /**
+     * Führt den Drop-Vorgang aus. Unterstützt sowohl ON-Drop (ohne Linie, Einfügen „nach Ziel“)
+     * als auch INSERT-Drop (mit Einfügelinie, Einfügen an exakten childIndex).
+     * <p>
+     * Besondere Regeln:
+     * <ul>
+     *   <li>Root akzeptiert nur Suiten.</li>
+     *   <li>Suite akzeptiert nur Cases.</li>
+     *   <li>Case akzeptiert nur Actions (Steps).</li>
+     *   <li>Bei INSERT zwischen zwei gleichartigen Eltern und gleichem Typ wird zwischen ihnen einsortiert,
+     *       andernfalls (Kindtyp) als letztes Kind des linken (oberen) Parents.</li>
+     * </ul>
+     * Persistiert die neue Reihenfolge in {@code TestRegistry}.
+     *
+     * @param support Swing-TransferSupport vom Drop
+     * @return {@code true} wenn der Move durchgeführt wurde, sonst {@code false}
+     */
     @Override
     public boolean importData(TransferSupport support) {
         if (!canImport(support)) return false;
@@ -76,26 +116,45 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
             DefaultMutableTreeNode moved = getMovedNode(support);
             if (moved == null || moved.getParent() == null) return false; // Root selbst nie verschieben
 
-            // Nicht in sich selbst / Nachfahren droppen
-            if (moved.isNodeAncestor(ctx.dropTarget)) return false;
+            log("moved=" + nodeInfo(moved) + " | oldParent=" + nodeInfo((DefaultMutableTreeNode) moved.getParent()));
 
+            // 1.) Erst den Move-Plan bestimmen (entscheidet Parent/Index je nach ON/INSERT & Typen)
             MovePlan plan = computeMovePlan(moved, ctx.dropTarget, ctx.childIndex);
-            if (plan == null) return false; // unerlaubte Kombination
+            if (plan == null) {
+                log("ABORT: computeMovePlan returned null (illegal combination)");
+                return false;
+            }
+            if (plan.newParentNode == null) {
+                log("ABORT: plan.newParentNode is null");
+                return false;
+            }
+            if (plan.newParentNode == moved) {
+                log("ABORT: newParent == moved");
+                return false;
+            }
+            // Wichtig: KEIN moved.isNodeAncestor(plan.newParentNode) mehr – das führte bei INSERT zu False Positives.
 
-            // Einfügeposition korrigieren, falls im selben Parent verschoben wird (Off-by-one)
+            log("MovePlan: newParent=" + nodeInfo(plan.newParentNode) + " insertIndex=" + plan.insertIndex);
+
+            // 2.) Off-by-one korrigieren, wenn innerhalb desselben Parents verschoben wird
+            int beforeAdjust = plan.insertIndex;
             plan.insertIndex = adjustForSameParent((DefaultMutableTreeNode) moved.getParent(), moved, plan.insertIndex);
+            if (beforeAdjust != plan.insertIndex) {
+                log("adjustForSameParent: " + beforeAdjust + " -> " + plan.insertIndex);
+            }
 
-            // Domänenmodell (Listen) aktualisieren
+            // 3.) Domänenmodell aktualisieren (Listen in Case/Suite/Registry)
             applyDomainMove(moved, plan.newParentNode, plan.insertIndex);
 
-            // Baum aktualisieren & sichtbar machen
+            // 4.) Baummodell aktualisieren & Sichtbarkeit
             applyTreeMove(ctx.tree, moved, plan.newParentNode, plan.insertIndex);
 
-            // Persistieren
+            // 5.) Persistieren
             de.bund.zrb.service.TestRegistry.getInstance().save();
 
             // Verhindern, dass exportDone nochmals entfernt
             draggedNode = null;
+            log("DONE");
             return true;
         } catch (UnsupportedFlavorException | IOException ex) {
             ex.printStackTrace();
@@ -135,6 +194,13 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
         JTree tree = (JTree) support.getComponent();
         DefaultMutableTreeNode dropTarget = destPath != null ? (DefaultMutableTreeNode) destPath.getLastPathComponent() : null;
         int childIndex = dl != null ? dl.getChildIndex() : -1;
+
+        log("=== DROP ===");
+        log("mode=" + (childIndex >= 0 ? "INSERT(line)" : "ON(node)"));
+        log("path=" + (destPath != null ? destPath : "(null)"));
+        log("dropTarget=" + nodeInfo(dropTarget));
+        log("childIndex=" + childIndex);
+
         return new DropContext(tree, dl, destPath, dropTarget, childIndex);
     }
 
@@ -160,84 +226,127 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
         return planForOnDrop(moved, dropTarget);
     }
 
+    /**
+     * Erzeugt einen {@link MovePlan} für Drop‐Vorgänge mit Einfügelinie (childIndex >= 0).
+     * Wird zwischen zwei Knoten des selben Eltern-Typs gedropped und der verschobene Knoten
+     * hat ebenfalls diesen Typ, erfolgt eine echte Umsortierung zwischen den Eltern.
+     * Andernfalls wird der verschobene Knoten als letztes Kind des linken („oberen“) Parents angefügt.
+     *
+     * @param moved      der verschobene Knoten
+     * @param dropTarget der Drop-Pfad (immer der Elternknoten, nicht das Element dahinter)
+     * @param childIndex Einfügeposition laut DropLocation (0 … childCount)
+     * @return ein MovePlan mit neuem Parent und Einfügeindex, oder {@code null} bei unerlaubtem Drop
+     */
     private MovePlan planForInsert(DefaultMutableTreeNode moved,
                                    DefaultMutableTreeNode dropTarget,
                                    int childIndex) {
-        Object movedObj = ((TestNode) moved).getModelRef();
-        Object parentObj = dropTarget instanceof TestNode ? ((TestNode) dropTarget).getModelRef() : null;
+        Object movedObj = modelRefOf(moved);
 
-        // Root (null) → nur Suites erlaubt
-        if (parentObj == null) {
-            if (movedObj instanceof de.bund.zrb.model.TestSuite) {
-                return new MovePlan(dropTarget, childIndex);
+        // Zeige, was wir als „Nachbar“-Kontext sehen (hilft bei Kanten zwischen Eltern)
+        int siblingsCount = dropTarget != null ? dropTarget.getChildCount() : -1;
+        DefaultMutableTreeNode prevSibling = (dropTarget != null && childIndex > 0)
+                ? (DefaultMutableTreeNode) dropTarget.getChildAt(childIndex - 1) : null;
+        DefaultMutableTreeNode nextSibling = (dropTarget != null && childIndex >= 0 && childIndex < siblingsCount)
+                ? (DefaultMutableTreeNode) dropTarget.getChildAt(childIndex) : null;
+
+        log("INSERT plan: dropTarget=" + nodeInfo(dropTarget)
+                + " childIndex=" + childIndex
+                + " prev=" + nodeInfo(prevSibling)
+                + " next=" + nodeInfo(nextSibling)
+                + " movedType=" + typeOf(movedObj));
+
+        // Falls wir genau zwischen zwei gleichartigen PARENT-Knoten liegen und moved denselben Typ hat:
+        if (prevSibling != null && nextSibling != null) {
+            Object prevRef = modelRefOf(prevSibling);
+            Object nextRef = modelRefOf(nextSibling);
+            if (prevRef != null && nextRef != null && prevRef.getClass().equals(nextRef.getClass())) {
+                if (movedObj != null && movedObj.getClass().equals(prevRef.getClass())) {
+                    log("→ Einsortierung zwischen gleichartigen Eltern, gleicher Typ → zwischen prev/next");
+                    return new MovePlan(dropTarget, childIndex);
+                } else {
+                    // Kindtyp → an das ENDE des linken („oberen“) Parents anhängen
+                    log("→ Zwischen gleichartigen Eltern, moved ist KIND → an ENDE des linken Parents");
+                    return new MovePlan(prevSibling, prevSibling.getChildCount());
+                }
             }
-            return null;
         }
-        // Suite → nur Cases
+
+        // Standard: Parent-Typen validieren (ROOT→Suite, Suite→Case, Case→Action)
+        Object parentObj = modelRefOf(dropTarget);
+
+        if (parentObj == null) { // ROOT
+            boolean ok = (movedObj instanceof de.bund.zrb.model.TestSuite);
+            log("ROOT insert ok=" + ok);
+            return ok ? new MovePlan(dropTarget, childIndex) : null;
+        }
         if (parentObj instanceof de.bund.zrb.model.TestSuite) {
-            if (movedObj instanceof de.bund.zrb.model.TestCase) {
-                return new MovePlan(dropTarget, childIndex);
-            }
-            return null;
+            boolean ok = (movedObj instanceof de.bund.zrb.model.TestCase);
+            log("SUITE insert ok=" + ok);
+            return ok ? new MovePlan(dropTarget, childIndex) : null;
         }
-        // Case → nur Actions (Steps)
         if (parentObj instanceof de.bund.zrb.model.TestCase) {
-            if (movedObj instanceof de.bund.zrb.model.TestAction) {
-                return new MovePlan(dropTarget, childIndex);
-            }
-            return null;
+            boolean ok = (movedObj instanceof de.bund.zrb.model.TestAction);
+            log("CASE insert ok=" + ok);
+            return ok ? new MovePlan(dropTarget, childIndex) : null;
         }
-        // Sonst (z. B. Action als Parent) nicht erlaubt
+
+        log("→ Parent-Typ nicht zulässig für INSERT");
         return null;
     }
 
     private MovePlan planForOnDrop(DefaultMutableTreeNode moved,
                                    DefaultMutableTreeNode dropTarget) {
-        Object movedObj = ((TestNode) moved).getModelRef();
-        Object dropObj  = dropTarget instanceof TestNode ? ((TestNode) dropTarget).getModelRef() : null;
+        Object movedObj = modelRefOf(moved);
+        Object dropObj  = modelRefOf(dropTarget);
 
-        // Action wird gedroppt …
+        log("ON plan: target=" + nodeInfo(dropTarget) + " moved=" + nodeInfo(moved));
+
+        // Action …
         if (movedObj instanceof de.bund.zrb.model.TestAction) {
             if (dropObj instanceof de.bund.zrb.model.TestCase) {
-                // … auf Case → ans Ende des Cases
+                log("→ Action ON Case → append to Case");
                 return new MovePlan(dropTarget, dropTarget.getChildCount());
             } else if (dropObj instanceof de.bund.zrb.model.TestAction) {
-                // … auf Action → nach dieser Action in deren Parent
                 DefaultMutableTreeNode parent = (DefaultMutableTreeNode) dropTarget.getParent();
                 if (parent == null) return null;
+                log("→ Action ON Action → after target within parent");
                 return new MovePlan(parent, parent.getIndex(dropTarget) + 1);
             }
+            log("→ Action ON invalid target");
             return null;
         }
 
-        // Case wird gedroppt …
+        // Case …
         if (movedObj instanceof de.bund.zrb.model.TestCase) {
             if (dropObj instanceof de.bund.zrb.model.TestSuite) {
-                // … auf Suite → ans Ende der Suite
+                log("→ Case ON Suite → append to Suite");
                 return new MovePlan(dropTarget, dropTarget.getChildCount());
             } else if (dropObj instanceof de.bund.zrb.model.TestCase) {
-                // … auf Case → nach diesem Case in dessen Suite
                 DefaultMutableTreeNode parent = (DefaultMutableTreeNode) dropTarget.getParent();
                 if (parent == null) return null;
+                log("→ Case ON Case → after target within Suite");
                 return new MovePlan(parent, parent.getIndex(dropTarget) + 1);
             }
+            log("→ Case ON invalid target");
             return null;
         }
 
-        // Suite wird gedroppt …
+        // Suite …
         if (movedObj instanceof de.bund.zrb.model.TestSuite) {
             if (dropObj == null) {
-                // … auf Root → ans Ende
+                log("→ Suite ON ROOT → append to ROOT");
                 return new MovePlan(dropTarget, dropTarget.getChildCount());
             } else if (dropObj instanceof de.bund.zrb.model.TestSuite) {
-                // … auf Suite → nach dieser Suite im Root
                 DefaultMutableTreeNode parent = (DefaultMutableTreeNode) dropTarget.getParent();
                 if (parent == null) return null;
+                log("→ Suite ON Suite → after target in ROOT");
                 return new MovePlan(parent, parent.getIndex(dropTarget) + 1);
             }
+            log("→ Suite ON invalid target");
             return null;
         }
 
+        log("→ ON: unknown moved type");
         return null;
     }
 
@@ -255,10 +364,15 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
     private void applyDomainMove(DefaultMutableTreeNode moved,
                                  DefaultMutableTreeNode newParentNode,
                                  int insertIndex) {
-        Object movedObj = ((TestNode) moved).getModelRef();
+        Object movedObj = modelRefOf(moved);
         DefaultMutableTreeNode oldParentNode = (DefaultMutableTreeNode) moved.getParent();
-        Object oldParentObj = oldParentNode instanceof TestNode ? ((TestNode) oldParentNode).getModelRef() : null;
-        Object newParentObj = newParentNode instanceof TestNode ? ((TestNode) newParentNode).getModelRef() : null;
+        Object oldParentObj = modelRefOf(oldParentNode);
+        Object newParentObj = modelRefOf(newParentNode);
+
+        log("DomainMove: " + typeOf(movedObj) + " " + nodeInfo(moved)
+                + "  oldParent=" + nodeInfo(oldParentNode)
+                + "  newParent=" + nodeInfo(newParentNode)
+                + "  insertIndex=" + insertIndex);
 
         if (movedObj instanceof de.bund.zrb.model.TestAction) {
             de.bund.zrb.model.TestAction action = (de.bund.zrb.model.TestAction) movedObj;
@@ -310,12 +424,14 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
                                int insertIndex) {
         DefaultTreeModel model = (DefaultTreeModel) tree.getModel();
 
-        // Knoten im Baum verschieben
+        log("TreeMove: removing from " + nodeInfo((DefaultMutableTreeNode) moved.getParent()));
         model.removeNodeFromParent(moved);
+
         insertIndex = Math.max(0, Math.min(insertIndex, newParentNode.getChildCount()));
+        log("TreeMove: inserting into " + nodeInfo(newParentNode) + " at " + insertIndex);
+
         model.insertNodeInto(moved, newParentNode, insertIndex);
 
-        // Sichtbarkeit/Selektion
         TreePath newPath = new TreePath(moved.getPath());
         tree.expandPath(new TreePath(newParentNode.getPath()));
         tree.setSelectionPath(newPath);
