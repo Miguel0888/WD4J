@@ -22,8 +22,21 @@ import static de.bund.zrb.support.WDRemoteValueUtil.getBoundingBoxFromEvaluateRe
  */
 public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
-    public ElementHandleImpl(WebDriver webDriver, WDRemoteReference.SharedReference sharedReference, WDTarget target) {
+    private final PageImpl page;               // optional
+    private volatile String cachedContextId;   // lazy cache für performActions
+
+    public ElementHandleImpl(WebDriver webDriver,
+                             WDRemoteReference.SharedReference sharedReference,
+                             WDTarget target,
+                             PageImpl page) {
         super(webDriver, sharedReference, target);
+        this.page = page; // darf null sein
+    }
+
+    public ElementHandleImpl(WebDriver webDriver,
+                             WDRemoteReference.SharedReference sharedReference,
+                             WDTarget target) {
+        this(webDriver, sharedReference, target, null);
     }
 
     public WDSharedId getSharedId() {
@@ -1213,8 +1226,26 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
         }
     }
 
+    private String requireContextId() {
+        String cid = cachedContextId;
+        if (cid != null) return cid;
+        synchronized (this) {
+            if (cachedContextId == null) {
+                cachedContextId = de.bund.zrb.util.BrowsingContextResolver
+                        .resolveContextId(webDriver, target);
+            }
+            return cachedContextId;
+        }
+    }
 
+    private com.microsoft.playwright.Mouse resolveMouse() {
+        if (page != null && page.mouse() != null) return page.mouse();
 
+        // Fallback: direkte BiDi-Maus für diesen Context
+        // Stelle sicher, dass dein WebDriver Zugriff auf den WDInputManager bietet.
+        de.bund.zrb.manager.WDInputManager im = webDriver.input(); // <- ggf. Getter ergänzen
+        return new de.bund.zrb.event.MouseImpl(im, requireContextId());
+    }
 
 
 }
