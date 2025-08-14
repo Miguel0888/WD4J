@@ -69,185 +69,246 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
     public boolean importData(TransferSupport support) {
         if (!canImport(support)) return false;
 
-        JTree.DropLocation dl = (JTree.DropLocation) support.getDropLocation();
-        TreePath destPath = dl.getPath();
-        JTree tree = (JTree) support.getComponent();
+        DropContext ctx = buildDropContext(support);
+        if (!ctx.isValid()) return false;
 
         try {
-            // Retrieve the node being dropped (reference, not serialized)
-            DefaultMutableTreeNode droppedNode = (DefaultMutableTreeNode) support.getTransferable().getTransferData(nodesFlavor);
-            if (droppedNode == null) {
-                return false;
-            }
+            DefaultMutableTreeNode moved = getMovedNode(support);
+            if (moved == null || moved.getParent() == null) return false; // Root selbst nie verschieben
+            if (!isDropAllowed(moved, ctx.dropTarget)) return false;
 
-            // Root should not be moved
-            if (droppedNode.getParent() == null) {
-                return false;
-            }
+            MovePlan plan = computeMovePlan(moved, ctx.dropTarget, ctx.childIndex);
+            if (plan == null) return false; // unerlaubte Kombination
 
-            // Determine the target component and compute the insertion index
-            DefaultMutableTreeNode dropTarget = destPath != null ? (DefaultMutableTreeNode) destPath.getLastPathComponent() : null;
-            int childIndex = dl.getChildIndex();
+            // Einfügeposition korrigieren, falls im selben Parent verschoben wird
+            plan.insertIndex = adjustForSameParent((DefaultMutableTreeNode) moved.getParent(), moved, plan.insertIndex);
 
-            // Reject drops with no valid target
-            if (dropTarget == null) {
-                return false;
-            }
+            // Domänenmodell (Listen) aktualisieren
+            applyDomainMove(moved, plan.newParentNode, plan.insertIndex);
 
-            // Do not allow dropping a node onto one of its own descendants
-            if (droppedNode.isNodeAncestor(dropTarget)) {
-                return false;
-            }
-
-            // Compute the new parent and insertion index based on the types involved
-            DefaultMutableTreeNode newParentNode;
-            int insertIndex;
-
-            Object droppedObj = ((TestNode) droppedNode).getModelRef();
-            DefaultMutableTreeNode oldParentNode = (DefaultMutableTreeNode) droppedNode.getParent();
-            Object oldParentObj = oldParentNode instanceof TestNode ? ((TestNode) oldParentNode).getModelRef() : null;
-            Object dropObj = dropTarget instanceof TestNode ? ((TestNode) dropTarget).getModelRef() : null;
-
-            if (dropObj == null) {
-                // Dropping onto the root (which has no modelRef) – only suites allowed
-                if (!(droppedObj instanceof de.bund.zrb.model.TestSuite)) {
-                    return false;
-                }
-                newParentNode = dropTarget;
-                insertIndex = (childIndex == -1) ? newParentNode.getChildCount() : childIndex;
-            } else if (dropObj instanceof de.bund.zrb.model.TestSuite) {
-                // Target is a suite node
-                if (droppedObj instanceof de.bund.zrb.model.TestAction) {
-                    // Prevent dropping actions directly into suites
-                    return false;
-                } else if (droppedObj instanceof de.bund.zrb.model.TestCase) {
-                    // Move case into suite
-                    newParentNode = dropTarget;
-                    insertIndex = (childIndex == -1) ? newParentNode.getChildCount() : childIndex;
-                } else if (droppedObj instanceof de.bund.zrb.model.TestSuite) {
-                    // Reorder suites – new parent is the root
-                    newParentNode = (DefaultMutableTreeNode) dropTarget.getParent();
-                    if (newParentNode == null) {
-                        return false;
-                    }
-                    int targetIndex = newParentNode.getIndex(dropTarget);
-                    if (childIndex == -1) {
-                        insertIndex = targetIndex + 1;
-                    } else {
-                        insertIndex = childIndex;
-                    }
-                } else {
-                    return false;
-                }
-            } else if (dropObj instanceof de.bund.zrb.model.TestCase) {
-                // Target is a case node
-                if (droppedObj instanceof de.bund.zrb.model.TestAction) {
-                    // Dropping an action into a test case (move or reorder)
-                    newParentNode = dropTarget;
-                    insertIndex = (childIndex == -1) ? newParentNode.getChildCount() : childIndex;
-                } else if (droppedObj instanceof de.bund.zrb.model.TestCase) {
-                    // Dropping a case onto another case means reorder within its parent (suite)
-                    newParentNode = (DefaultMutableTreeNode) dropTarget.getParent();
-                    if (newParentNode == null) {
-                        return false;
-                    }
-                    int targetIndex = newParentNode.getIndex(dropTarget);
-                    insertIndex = (childIndex == -1) ? targetIndex + 1 : childIndex;
-                } else if (droppedObj instanceof de.bund.zrb.model.TestSuite) {
-                    // Prevent dropping a suite into a case
-                    return false;
-                } else {
-                    return false;
-                }
-            } else if (dropObj instanceof de.bund.zrb.model.TestAction) {
-                // Target is an action node
-                if (!(droppedObj instanceof de.bund.zrb.model.TestAction)) {
-                    // Only actions can be reordered relative to actions
-                    return false;
-                }
-                // Determine parent (the case) and insert relative to the target
-                newParentNode = (DefaultMutableTreeNode) dropTarget.getParent();
-                if (newParentNode == null) {
-                    return false;
-                }
-                int targetIndex = newParentNode.getIndex(dropTarget);
-                insertIndex = (childIndex == -1) ? targetIndex + 1 : childIndex;
-            } else {
-                // Unknown target type
-                return false;
-            }
-
-            // Adjust insertion index if moving within the same parent and inserting after removal
-            if (newParentNode.equals(oldParentNode)) {
-                int oldIndex = oldParentNode.getIndex(droppedNode);
-                if (insertIndex > oldIndex) {
-                    insertIndex--;
-                }
-            }
-
-            // Update the underlying data model based on what is being moved
-            if (droppedObj instanceof de.bund.zrb.model.TestAction) {
-                de.bund.zrb.model.TestAction action = (de.bund.zrb.model.TestAction) droppedObj;
-                // Remove from old test case
-                if (oldParentObj instanceof de.bund.zrb.model.TestCase) {
-                    de.bund.zrb.model.TestCase oldCase = (de.bund.zrb.model.TestCase) oldParentObj;
-                    oldCase.getWhen().remove(action);
-                }
-                // Add to new test case
-                Object newParentObj = newParentNode instanceof TestNode ? ((TestNode) newParentNode).getModelRef() : null;
-                if (newParentObj instanceof de.bund.zrb.model.TestCase) {
-                    de.bund.zrb.model.TestCase newCase = (de.bund.zrb.model.TestCase) newParentObj;
-                    java.util.List<de.bund.zrb.model.TestAction> list = newCase.getWhen();
-                    if (insertIndex < 0 || insertIndex > list.size()) {
-                        insertIndex = list.size();
-                    }
-                    list.add(insertIndex, action);
-                }
-            } else if (droppedObj instanceof de.bund.zrb.model.TestCase) {
-                de.bund.zrb.model.TestCase testCase = (de.bund.zrb.model.TestCase) droppedObj;
-                // Remove from old suite
-                if (oldParentObj instanceof de.bund.zrb.model.TestSuite) {
-                    de.bund.zrb.model.TestSuite oldSuite = (de.bund.zrb.model.TestSuite) oldParentObj;
-                    oldSuite.getTestCases().remove(testCase);
-                }
-                // Add to new suite
-                Object newParentObj = newParentNode instanceof TestNode ? ((TestNode) newParentNode).getModelRef() : null;
-                if (newParentObj instanceof de.bund.zrb.model.TestSuite) {
-                    de.bund.zrb.model.TestSuite newSuite = (de.bund.zrb.model.TestSuite) newParentObj;
-                    java.util.List<de.bund.zrb.model.TestCase> list = newSuite.getTestCases();
-                    if (insertIndex < 0 || insertIndex > list.size()) {
-                        insertIndex = list.size();
-                    }
-                    list.add(insertIndex, testCase);
-                }
-            } else if (droppedObj instanceof de.bund.zrb.model.TestSuite) {
-                de.bund.zrb.model.TestSuite suite = (de.bund.zrb.model.TestSuite) droppedObj;
-                java.util.List<de.bund.zrb.model.TestSuite> list = de.bund.zrb.service.TestRegistry.getInstance().getAll();
-                list.remove(suite);
-                if (insertIndex < 0 || insertIndex > list.size()) {
-                    insertIndex = list.size();
-                }
-                list.add(insertIndex, suite);
-            }
-
-            // Update tree model
-            DefaultTreeModel model = (DefaultTreeModel) tree.getModel();
-            model.removeNodeFromParent(droppedNode);
-            model.insertNodeInto(droppedNode, newParentNode, insertIndex);
-            tree.expandPath(new TreePath(newParentNode.getPath()));
-
-            // Persist changes
+            // Baum aktualisieren & speichern
+            applyTreeMove(ctx.tree, moved, plan.newParentNode, plan.insertIndex);
             de.bund.zrb.service.TestRegistry.getInstance().save();
 
-            // Prevent exportDone from removing again
+            // Verhindern, dass exportDone nochmals entfernt
             draggedNode = null;
-
             return true;
-
         } catch (UnsupportedFlavorException | IOException ex) {
             ex.printStackTrace();
+            return false;
         }
-        return false;
+    }
+
+    /* ========================== Hilfsmethoden ========================== */
+
+    private static final class DropContext {
+        final JTree tree;
+        final JTree.DropLocation dl;
+        final TreePath destPath;
+        final DefaultMutableTreeNode dropTarget;
+        final int childIndex;
+
+        DropContext(JTree tree, JTree.DropLocation dl, TreePath destPath,
+                    DefaultMutableTreeNode dropTarget, int childIndex) {
+            this.tree = tree;
+            this.dl = dl;
+            this.destPath = destPath;
+            this.dropTarget = dropTarget;
+            this.childIndex = childIndex;
+        }
+        boolean isValid() { return tree != null && dl != null && destPath != null && dropTarget != null; }
+    }
+
+    private static final class MovePlan {
+        DefaultMutableTreeNode newParentNode;
+        int insertIndex;
+        MovePlan(DefaultMutableTreeNode parent, int index) { this.newParentNode = parent; this.insertIndex = index; }
+    }
+
+    private DropContext buildDropContext(TransferSupport support) {
+        JTree.DropLocation dl = (JTree.DropLocation) support.getDropLocation();
+        TreePath destPath = dl != null ? dl.getPath() : null;
+        JTree tree = (JTree) support.getComponent();
+        DefaultMutableTreeNode dropTarget = destPath != null ? (DefaultMutableTreeNode) destPath.getLastPathComponent() : null;
+        int childIndex = dl != null ? dl.getChildIndex() : -1;
+        return new DropContext(tree, dl, destPath, dropTarget, childIndex);
+    }
+
+    private DefaultMutableTreeNode getMovedNode(TransferSupport support)
+            throws UnsupportedFlavorException, IOException {
+        return (DefaultMutableTreeNode) support.getTransferable().getTransferData(nodesFlavor);
+    }
+
+    private boolean isDropAllowed(DefaultMutableTreeNode moved, DefaultMutableTreeNode dropTarget) {
+        // nicht in sich selbst / Nachfahren droppen
+        if (moved.isNodeAncestor(dropTarget)) return false;
+        return true;
+    }
+
+    private MovePlan computeMovePlan(DefaultMutableTreeNode moved,
+                                     DefaultMutableTreeNode dropTarget,
+                                     int childIndex) {
+        // INSERT-Fall (Linie sichtbar): immer in den Parent (dropTarget) bei childIndex einfügen
+        if (childIndex >= 0) {
+            return planForInsert(moved, dropTarget, childIndex);
+        }
+        // ON-Fall (kein childIndex): „nach Ziel“ bzw. „ans Ende“ je nach Typen
+        return planForOnDrop(moved, dropTarget);
+    }
+
+    private MovePlan planForInsert(DefaultMutableTreeNode moved,
+                                   DefaultMutableTreeNode dropTarget,
+                                   int childIndex) {
+        Object movedObj = ((TestNode) moved).getModelRef();
+        Object parentObj = dropTarget instanceof TestNode ? ((TestNode) dropTarget).getModelRef() : null;
+
+        // Root (null) → nur Suites erlaubt
+        if (parentObj == null) {
+            if (movedObj instanceof de.bund.zrb.model.TestSuite) {
+                return new MovePlan(dropTarget, childIndex);
+            }
+            return null;
+        }
+        // Suite → nur Cases
+        if (parentObj instanceof de.bund.zrb.model.TestSuite) {
+            if (movedObj instanceof de.bund.zrb.model.TestCase) {
+                return new MovePlan(dropTarget, childIndex);
+            }
+            return null;
+        }
+        // Case → nur Actions (Steps)
+        if (parentObj instanceof de.bund.zrb.model.TestCase) {
+            if (movedObj instanceof de.bund.zrb.model.TestAction) {
+                return new MovePlan(dropTarget, childIndex);
+            }
+            return null;
+        }
+        // Sonst (z. B. Action als Parent) nicht erlaubt
+        return null;
+    }
+
+    private MovePlan planForOnDrop(DefaultMutableTreeNode moved,
+                                   DefaultMutableTreeNode dropTarget) {
+        Object movedObj = ((TestNode) moved).getModelRef();
+        Object dropObj = dropTarget instanceof TestNode ? ((TestNode) dropTarget).getModelRef() : null;
+
+        // Action wird gedroppt …
+        if (movedObj instanceof de.bund.zrb.model.TestAction) {
+            if (dropObj instanceof de.bund.zrb.model.TestCase) {
+                // … auf Case → ans Ende des Cases
+                return new MovePlan(dropTarget, dropTarget.getChildCount());
+            } else if (dropObj instanceof de.bund.zrb.model.TestAction) {
+                // … auf Action → nach dieser Action in deren Parent
+                DefaultMutableTreeNode parent = (DefaultMutableTreeNode) dropTarget.getParent();
+                if (parent == null) return null;
+                return new MovePlan(parent, parent.getIndex(dropTarget) + 1);
+            }
+            return null;
+        }
+
+        // Case wird gedroppt …
+        if (movedObj instanceof de.bund.zrb.model.TestCase) {
+            if (dropObj instanceof de.bund.zrb.model.TestSuite) {
+                // … auf Suite → ans Ende der Suite
+                return new MovePlan(dropTarget, dropTarget.getChildCount());
+            } else if (dropObj instanceof de.bund.zrb.model.TestCase) {
+                // … auf Case → nach diesem Case in dessen Suite
+                DefaultMutableTreeNode parent = (DefaultMutableTreeNode) dropTarget.getParent();
+                if (parent == null) return null;
+                return new MovePlan(parent, parent.getIndex(dropTarget) + 1);
+            }
+            return null;
+        }
+
+        // Suite wird gedroppt …
+        if (movedObj instanceof de.bund.zrb.model.TestSuite) {
+            if (dropObj == null) {
+                // … auf Root → ans Ende
+                return new MovePlan(dropTarget, dropTarget.getChildCount());
+            } else if (dropObj instanceof de.bund.zrb.model.TestSuite) {
+                // … auf Suite → nach dieser Suite im Root
+                DefaultMutableTreeNode parent = (DefaultMutableTreeNode) dropTarget.getParent();
+                if (parent == null) return null;
+                return new MovePlan(parent, parent.getIndex(dropTarget) + 1);
+            }
+            return null;
+        }
+
+        return null;
+    }
+
+    private int adjustForSameParent(DefaultMutableTreeNode oldParent,
+                                    DefaultMutableTreeNode moved,
+                                    int insertIndex) {
+        if (oldParent == null) return insertIndex;
+        int oldIndex = oldParent.getIndex(moved);
+        if (oldIndex >= 0 && insertIndex > oldIndex) {
+            return insertIndex - 1;
+        }
+        return insertIndex;
+    }
+
+    private void applyDomainMove(DefaultMutableTreeNode moved,
+                                 DefaultMutableTreeNode newParentNode,
+                                 int insertIndex) {
+        Object movedObj = ((TestNode) moved).getModelRef();
+        DefaultMutableTreeNode oldParentNode = (DefaultMutableTreeNode) moved.getParent();
+        Object oldParentObj = oldParentNode instanceof TestNode ? ((TestNode) oldParentNode).getModelRef() : null;
+        Object newParentObj = newParentNode instanceof TestNode ? ((TestNode) newParentNode).getModelRef() : null;
+
+        if (movedObj instanceof de.bund.zrb.model.TestAction) {
+            de.bund.zrb.model.TestAction action = (de.bund.zrb.model.TestAction) movedObj;
+
+            if (oldParentObj instanceof de.bund.zrb.model.TestCase) {
+                de.bund.zrb.model.TestCase oldCase = (de.bund.zrb.model.TestCase) oldParentObj;
+                oldCase.getWhen().remove(action);
+            }
+            if (newParentObj instanceof de.bund.zrb.model.TestCase) {
+                de.bund.zrb.model.TestCase newCase = (de.bund.zrb.model.TestCase) newParentObj;
+                java.util.List<de.bund.zrb.model.TestAction> list = newCase.getWhen();
+                list.add(clamp(insertIndex, list.size()), action);
+            }
+            return;
+        }
+
+        if (movedObj instanceof de.bund.zrb.model.TestCase) {
+            de.bund.zrb.model.TestCase tc = (de.bund.zrb.model.TestCase) movedObj;
+
+            if (oldParentObj instanceof de.bund.zrb.model.TestSuite) {
+                de.bund.zrb.model.TestSuite oldSuite = (de.bund.zrb.model.TestSuite) oldParentObj;
+                oldSuite.getTestCases().remove(tc);
+            }
+            if (newParentObj instanceof de.bund.zrb.model.TestSuite) {
+                de.bund.zrb.model.TestSuite newSuite = (de.bund.zrb.model.TestSuite) newParentObj;
+                java.util.List<de.bund.zrb.model.TestCase> list = newSuite.getTestCases();
+                list.add(clamp(insertIndex, list.size()), tc);
+            }
+            return;
+        }
+
+        if (movedObj instanceof de.bund.zrb.model.TestSuite) {
+            de.bund.zrb.model.TestSuite suite = (de.bund.zrb.model.TestSuite) movedObj;
+            java.util.List<de.bund.zrb.model.TestSuite> list = de.bund.zrb.service.TestRegistry.getInstance().getAll();
+            list.remove(suite);
+            list.add(clamp(insertIndex, list.size()), suite);
+        }
+    }
+
+    private int clamp(int idx, int size) {
+        if (idx < 0) return 0;
+        if (idx > size) return size;
+        return idx;
+    }
+
+    private void applyTreeMove(JTree tree,
+                               DefaultMutableTreeNode moved,
+                               DefaultMutableTreeNode newParentNode,
+                               int insertIndex) {
+        DefaultTreeModel model = (DefaultTreeModel) tree.getModel();
+        model.removeNodeFromParent(moved);
+        insertIndex = Math.max(0, Math.min(insertIndex, newParentNode.getChildCount()));
+        model.insertNodeInto(moved, newParentNode, insertIndex);
+        tree.expandPath(new TreePath(newParentNode.getPath()));
     }
 
     @Override
