@@ -35,91 +35,33 @@ public class ActionToolbar extends JToolBar {
     // ÄNDERT: Buttons je nach ID-Set links oder rechts platzieren (Farbhintergründe bleiben erhalten)
     // ÄNDERT: Buttons sortieren nach 'order' (1 = ganz links). Fallback: Label.
     // ÄNDERT: Buttons nach 'order' sortieren und Background-Farbe anwenden
+    // ÄNDERT: Buttons mit DnD ausstatten und Drop-Handler an Panels binden
     private void rebuildButtons() {
         removeAll();
 
-        JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
-        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 2));
+        final JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        final JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 2));
 
         if (config != null && config.buttons != null) {
-            // Split by side
+            // Links
             java.util.List<ToolbarButtonConfig> left = new ArrayList<ToolbarButtonConfig>();
+            // Rechts
             java.util.List<ToolbarButtonConfig> right = new ArrayList<ToolbarButtonConfig>();
 
             for (ToolbarButtonConfig b : config.buttons) {
-                if (isRightAligned(b.id)) {
-                    right.add(b);
-                } else {
-                    left.add(b);
-                }
+                if (isRightAligned(b.id)) right.add(b); else left.add(b);
             }
-
-            // Sort by order (1..n). Unknown/invalid orders go to the end.
             Collections.sort(left, buttonOrderComparator());
             Collections.sort(right, buttonOrderComparator());
 
-            // Build left
-            for (final ToolbarButtonConfig btnCfg : left) {
-                CommandRegistryImpl.getInstance().getById(btnCfg.id).ifPresent(cmd -> {
-                    JButton btn = new JButton(btnCfg.icon);
-                    btn.setMargin(new Insets(0, 0, 0, 0));
-                    btn.setToolTipText(cmd.getLabel());
-                    btn.setPreferredSize(new Dimension(config.buttonSizePx, config.buttonSizePx));
-
-                    int fontSize = (int) (config.buttonSizePx * config.fontSizeRatio);
-                    btn.setFont(btn.getFont().deriveFont((float) fontSize));
-                    btn.setFocusPainted(false);
-
-                    // Apply background color if configured
-                    if (btnCfg.backgroundHex != null && btnCfg.backgroundHex.trim().length() > 0) {
-                        try {
-                            String hex = btnCfg.backgroundHex.trim();
-                            if (!hex.startsWith("#")) hex = "#" + hex;
-                            btn.setOpaque(true);
-                            btn.setContentAreaFilled(true);
-                            btn.setBackground(Color.decode(hex));
-                        } catch (NumberFormatException ignore) {
-                            // Ignore invalid hex
-                        }
-                    }
-
-                    btn.addActionListener(e -> cmd.perform());
-                    leftPanel.add(btn);
-                });
-            }
-
-            // Build right (before gear)
-            for (final ToolbarButtonConfig btnCfg : right) {
-                CommandRegistryImpl.getInstance().getById(btnCfg.id).ifPresent(cmd -> {
-                    JButton btn = new JButton(btnCfg.icon);
-                    btn.setMargin(new Insets(0, 0, 0, 0));
-                    btn.setToolTipText(cmd.getLabel());
-                    btn.setPreferredSize(new Dimension(config.buttonSizePx, config.buttonSizePx));
-
-                    int fontSize = (int) (config.buttonSizePx * config.fontSizeRatio);
-                    btn.setFont(btn.getFont().deriveFont((float) fontSize));
-                    btn.setFocusPainted(false);
-
-                    if (btnCfg.backgroundHex != null && btnCfg.backgroundHex.trim().length() > 0) {
-                        try {
-                            String hex = btnCfg.backgroundHex.trim();
-                            if (!hex.startsWith("#")) hex = "#" + hex;
-                            btn.setOpaque(true);
-                            btn.setContentAreaFilled(true);
-                            btn.setBackground(Color.decode(hex));
-                        } catch (NumberFormatException ignore) {
-                            // Ignore invalid hex
-                        }
-                    }
-
-                    btn.addActionListener(e -> cmd.perform());
-                    rightPanel.add(btn);
-                });
-            }
+            // Build helper to create a button with DnD
+            createButtonsIntoPanel(leftPanel, left);
+            createButtonsIntoPanel(rightPanel, right);
         }
 
-        // Gear button stays at far right
+        // ⚙-Button immer ganz rechts (nicht ziehbar)
         JButton configBtn = new JButton("⚙");
+        configBtn.setName("gearButton"); // help drop handler to ignore this one
         configBtn.setMargin(new Insets(0, 0, 0, 0));
         configBtn.setToolTipText("Toolbar anpassen");
         configBtn.setPreferredSize(new Dimension(config.buttonSizePx, config.buttonSizePx));
@@ -129,6 +71,10 @@ public class ActionToolbar extends JToolBar {
         configBtn.addActionListener(e -> openConfigDialog());
         rightPanel.add(configBtn);
 
+        // Enable drops on panels (left/right)
+        leftPanel.setTransferHandler(new ToolbarPanelDropHandler(false));
+        rightPanel.setTransferHandler(new ToolbarPanelDropHandler(true));
+
         setLayout(new BorderLayout());
         add(leftPanel, BorderLayout.WEST);
         add(rightPanel, BorderLayout.EAST);
@@ -136,6 +82,257 @@ public class ActionToolbar extends JToolBar {
         revalidate();
         repaint();
     }
+
+    /** Create JButtons with drag capability and add to given panel. */
+    // ÄNDERT: starte DnD erst bei echter Bewegung; lasse einfache Klicks ungestört
+    private void createButtonsIntoPanel(final JPanel panel, final java.util.List<ToolbarButtonConfig> list) {
+        for (final ToolbarButtonConfig btnCfg : list) {
+            CommandRegistryImpl.getInstance().getById(btnCfg.id).ifPresent(cmd -> {
+                JButton btn = new JButton(btnCfg.icon);
+                btn.putClientProperty("cmdId", btnCfg.id);
+                btn.setMargin(new Insets(0, 0, 0, 0));
+                btn.setToolTipText(cmd.getLabel());
+                btn.setPreferredSize(new Dimension(config.buttonSizePx, config.buttonSizePx));
+
+                int fontSize = (int) (config.buttonSizePx * config.fontSizeRatio);
+                btn.setFont(btn.getFont().deriveFont((float) fontSize));
+                btn.setFocusPainted(false);
+
+                // Apply background color if configured
+                if (btnCfg.backgroundHex != null && btnCfg.backgroundHex.trim().length() > 0) {
+                    try {
+                        String hex = btnCfg.backgroundHex.trim();
+                        if (!hex.startsWith("#")) hex = "#" + hex;
+                        btn.setOpaque(true);
+                        btn.setContentAreaFilled(true);
+                        btn.setBackground(Color.decode(hex));
+                    } catch (NumberFormatException ignore) {
+                        // Ignore invalid hex
+                    }
+                }
+
+                // Wire command action
+                btn.addActionListener(e -> cmd.perform());
+
+                // Enable drag ONLY after small movement threshold
+                btn.setTransferHandler(new DragButtonTransferHandler());
+                DragInitiatorMouseAdapter dima = new DragInitiatorMouseAdapter();
+                btn.addMouseListener(dima);
+                btn.addMouseMotionListener(dima);
+
+                panel.add(btn);
+            });
+        }
+    }
+
+    // NEU: starte Drag erst ab Bewegungsschwelle; blockiere Clicks nicht
+    private static final class DragInitiatorMouseAdapter extends java.awt.event.MouseAdapter {
+        // Use small threshold to avoid stealing simple clicks
+        private static final int DRAG_THRESHOLD_PX = 5;
+
+        private java.awt.Point pressPoint;
+        private boolean dragStarted = false;
+
+        @Override public void mousePressed(java.awt.event.MouseEvent e) {
+            // Remember press location
+            pressPoint = e.getPoint();
+            dragStarted = false;
+        }
+
+        @Override public void mouseDragged(java.awt.event.MouseEvent e) {
+            if (dragStarted || pressPoint == null) return;
+
+            int dx = Math.abs(e.getX() - pressPoint.x);
+            int dy = Math.abs(e.getY() - pressPoint.y);
+            if (dx >= DRAG_THRESHOLD_PX || dy >= DRAG_THRESHOLD_PX) {
+                JComponent c = (JComponent) e.getSource();
+                TransferHandler th = c.getTransferHandler();
+                if (th != null) {
+                    // Start drag now – click already propagated on simple press/release
+                    th.exportAsDrag(c, e, TransferHandler.MOVE);
+                    dragStarted = true;
+                }
+            }
+        }
+
+        @Override public void mouseReleased(java.awt.event.MouseEvent e) {
+            // Reset state
+            pressPoint = null;
+            dragStarted = false;
+        }
+    }
+
+    /** Handle drops onto a toolbar panel; reorder and update config accordingly. */
+    private final class ToolbarPanelDropHandler extends TransferHandler {
+        private final boolean toRightSide;
+
+        ToolbarPanelDropHandler(boolean toRightSide) {
+            this.toRightSide = toRightSide;
+        }
+
+        @Override public boolean canImport(TransferSupport support) {
+            // Accept only string flavor (command ID) and move action
+            if (!support.isDataFlavorSupported(java.awt.datatransfer.DataFlavor.stringFlavor)) return false;
+            support.setDropAction(TransferHandler.MOVE);
+            return true;
+        }
+
+        @Override public boolean importData(TransferSupport support) {
+            if (!canImport(support)) return false;
+
+            try {
+                String movedId = (String) support.getTransferable()
+                        .getTransferData(java.awt.datatransfer.DataFlavor.stringFlavor);
+
+                if (movedId == null || movedId.trim().length() == 0) return false;
+
+                // Compute insert index relative to visible buttons (ignore gear)
+                JComponent dropTarget = (JComponent) support.getComponent();
+                java.awt.Point p = support.getDropLocation().getDropPoint();
+                int insertIndex = computeInsertIndex((JPanel) dropTarget, p);
+
+                // Apply model changes and persist
+                updateModelAfterDrop(movedId, toRightSide, insertIndex, (JPanel) dropTarget);
+
+                // Rebuild toolbar to reflect new order
+                rebuildButtons();
+                return true;
+            } catch (Exception ex) {
+                // Be defensive but keep UI responsive
+                System.err.println("⚠️ DnD-Import fehlgeschlagen: " + ex.getMessage());
+                return false;
+            }
+        }
+    }
+
+    /** Export the command ID of a button as a string during drag. */
+    private static final class DragButtonTransferHandler extends TransferHandler {
+        @Override protected java.awt.datatransfer.Transferable createTransferable(JComponent c) {
+            Object id = (c instanceof JButton) ? ((JButton) c).getClientProperty("cmdId") : null;
+            String s = (id == null) ? "" : String.valueOf(id);
+            return new java.awt.datatransfer.StringSelection(s);
+        }
+        @Override public int getSourceActions(JComponent c) { return MOVE; }
+    }
+
+    /** Compute drop insertion index within panel based on mouse point (ignore gear button). */
+    private int computeInsertIndex(JPanel panel, java.awt.Point dropPoint) {
+        Component[] comps = panel.getComponents();
+        int effectiveCount = 0;
+        for (int i = 0; i < comps.length; i++) {
+            if (isGearButton(comps[i])) continue;
+            Rectangle r = comps[i].getBounds();
+            int midX = r.x + r.width / 2;
+            if (dropPoint.x <= midX) {
+                return effectiveCount;
+            }
+            effectiveCount++;
+        }
+        return effectiveCount; // append at end
+    }
+
+    /** Update config after a drop: move ID to target side, adjust orders within both affected sides, persist. */
+    private void updateModelAfterDrop(String movedId, boolean targetRightSide, int insertIndex, JPanel targetPanel) {
+        if (config == null || config.buttons == null) return;
+
+        // Ensure rightSideIds exists
+        if (config.rightSideIds == null) {
+            config.rightSideIds = new LinkedHashSet<String>();
+        }
+
+        // Determine current side of the moved button
+        boolean wasRight = isRightAligned(movedId);
+
+        // Move side membership if needed
+        if (targetRightSide && !wasRight) {
+            config.rightSideIds.add(movedId);
+        } else if (!targetRightSide && wasRight) {
+            config.rightSideIds.remove(movedId);
+        }
+
+        // Recompute order for TARGET side from current UI order + inserted element
+        java.util.List<String> targetIds = extractIdsFromPanel(targetPanel); // visible order
+        // Insert moved ID at computed index (remove first if already listed, for cross-panel moves)
+        targetIds.remove(movedId);
+        if (insertIndex < 0) insertIndex = 0;
+        if (insertIndex > targetIds.size()) insertIndex = targetIds.size();
+        targetIds.add(insertIndex, movedId);
+        // Write back order 1..n for target side
+        applySequentialOrderToIds(targetIds);
+
+        // Recompute order for SOURCE side if side changed
+        if (wasRight != targetRightSide) {
+            JPanel otherPanel = findSiblingPanel(targetPanel);
+            if (otherPanel != null) {
+                java.util.List<String> sourceIds = extractIdsFromPanel(otherPanel);
+                // The movedId was removed visually already (drag source), but ensure
+                sourceIds.remove(movedId);
+                applySequentialOrderToIds(sourceIds);
+            }
+        }
+
+        // Persist
+        saveToolbarSettings();
+    }
+
+    /** Extract the ordered list of command IDs from a panel (ignore gear). */
+    private java.util.List<String> extractIdsFromPanel(JPanel panel) {
+        java.util.List<String> ids = new ArrayList<String>();
+        Component[] comps = panel.getComponents();
+        for (int i = 0; i < comps.length; i++) {
+            if (!(comps[i] instanceof JButton)) continue;
+            if (isGearButton(comps[i])) continue;
+            Object id = ((JButton) comps[i]).getClientProperty("cmdId");
+            if (id != null) {
+                ids.add(String.valueOf(id));
+            }
+        }
+        return ids;
+    }
+
+    /** Assign orders 1..n to given IDs within config.buttons (others remain unchanged). */
+    private void applySequentialOrderToIds(java.util.List<String> orderedIds) {
+        int pos = 1;
+        for (String id : orderedIds) {
+            ToolbarButtonConfig cfg = findCfgById(id);
+            if (cfg != null) {
+                cfg.order = Integer.valueOf(pos);
+                pos++;
+            }
+        }
+    }
+
+    /** Find the opposite panel (left/right) given the target panel by walking the container. */
+    private JPanel findSiblingPanel(JPanel targetPanel) {
+        Container parent = getParent();
+        if (!(getLayout() instanceof BorderLayout)) return null;
+        // Our toolbar adds WEST (leftPanel) and EAST (rightPanel); walk components
+        for (Component c : getComponents()) {
+            if (c instanceof JPanel && c != targetPanel) {
+                return (JPanel) c;
+            }
+        }
+        return null;
+    }
+
+    /** Detect the gear button to exclude it from DnD order calculations. */
+    private boolean isGearButton(Component c) {
+        if (!(c instanceof JButton)) return false;
+        JButton b = (JButton) c;
+        if ("gearButton".equals(b.getName())) return true;
+        // Fallback: identify by label; keep robust for existing code
+        return "⚙".equals(b.getText());
+    }
+
+    /** Lookup ToolbarButtonConfig by command ID. */
+    private ToolbarButtonConfig findCfgById(String id) {
+        if (id == null || config == null || config.buttons == null) return null;
+        for (ToolbarButtonConfig b : config.buttons) {
+            if (id.equals(b.id)) return b;
+        }
+        return null;
+    }
+
 
     // ÄNDERT: zweite Spalte für Farbe hinzufügen und speichern; "Standard laden" bleibt
     // ÄNDERT: Menü um "Position" (ganzzahlige Reihenfolge) erweitern, Duplikate verhindern
