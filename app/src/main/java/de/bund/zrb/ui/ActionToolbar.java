@@ -114,10 +114,28 @@ public class ActionToolbar extends JToolBar {
 
         fullPanel.add(sizePanel, BorderLayout.SOUTH);
 
-        int result = JOptionPane.showConfirmDialog(this, fullPanel,
-                "Toolbar konfigurieren", JOptionPane.OK_CANCEL_OPTION);
+    // Add third button "Standard laden" (index 0), keep OK (index 1) and Cancel (index 2)
+    Object[] options = new Object[] { "Standard laden", "OK", "Abbrechen" };
+    int result = JOptionPane.showOptionDialog(
+            this,
+            fullPanel,
+            "Toolbar konfigurieren",
+            JOptionPane.YES_NO_CANCEL_OPTION,
+            JOptionPane.PLAIN_MESSAGE,
+            null,
+            options,
+            options[1] // default: "OK"
+    );
 
-        if (result == JOptionPane.OK_OPTION) {
+    if (result == 0) {
+        // Load default buttons only; keep sizes intact
+        config.buttons = buildDefaultButtonsForAllCommands();
+        saveToolbarSettings();
+        rebuildButtons();
+        return;
+    }
+
+    if (result == 1) {
             config.buttons.clear();
             for (Map.Entry<MenuCommand, JCheckBox> entry : checkboxes.entrySet()) {
                 if (entry.getValue().isSelected()) {
