@@ -359,24 +359,6 @@ public class BrowserImpl implements Browser {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> handler) {
-        return dispatcher.addEventListener(subscriptionRequest, handler, webDriver.session());
-    }
-
-    public <T> void removeEventListener(String eventType, String browsingContextId, Consumer<T> listener) {
-        dispatcher.removeEventListener(eventType, browsingContextId, listener, webDriver.session());
-    }
-
-    // ToDo: Not supported yet
-    public <T> void removeEventListener(WDSubscription subscription, Consumer<T> listener) {
-        dispatcher.removeEventListener(subscription, listener, webDriver.session());
-    }
-
-    @Deprecated // Since it does neither use the subscription id nor the browsing context id, thus terminating all listeners for the event type
-    public <T> void removeEventListener(String eventType, Consumer<T> listener) {
-        dispatcher.removeEventListener(eventType, listener, webDriver.session());
-    }
-
     public void setActivePageId(String s) {
         setActivePageId(s, false);
     }

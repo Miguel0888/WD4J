@@ -23,6 +23,8 @@ public final class RecordingSession {
     private Page activePage;
     private boolean recording;
 
+    private MetaHookInstaller metaHooks;
+
     // Configuration
     private boolean contextMode = true; // default; make configurable via Settings if needed
 
@@ -39,7 +41,6 @@ public final class RecordingSession {
     }
 
     /** Start recording for configured mode. */
-    // ÄNDERT: start() – Schleife mit UI-Listener-Typ
     public synchronized void start() {
         if (recording) return;
 
@@ -63,18 +64,33 @@ public final class RecordingSession {
             recorderService.addListener(l);
         }
 
+        // --- NEW: install meta hooks so the UI drawer can see live meta events ---
+        metaHooks = new MetaHookInstaller();
+        if (activeContext != null) {
+            metaHooks.installOnContext(activeContext);
+        }
+        if (activePage != null) {
+            metaHooks.installOnPage(activePage);
+        }
+
         recording = true;
         notifyUiRecordingState(true);
     }
 
+
     /** Stop recording and detach listeners. */
-    // ÄNDERT: stop() – Schleife mit UI-Listener-Typ
     public synchronized void stop() {
         if (!recording) return;
         if (recorderService != null) {
             for (de.bund.zrb.ui.RecorderListener l : listeners) {
                 recorderService.removeListener(l);
             }
+        }
+
+        // --- NEW: remove meta hooks (avoid leaking listeners) ---
+        if (metaHooks != null) {
+            try { metaHooks.uninstallAll(); } catch (Throwable ignore) { }
+            metaHooks = null;
         }
 
         if (activePage != null) {
