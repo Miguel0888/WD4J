@@ -63,12 +63,13 @@ public class PlaywrightEventMapper implements EventMapper {
                 return new RequestImpl(new WDNetworkEvent.BeforeRequestSent(json));
 
             case FETCH_ERROR:
-                return new ResponseImpl(new WDNetworkEvent.FetchError(json), null);
+                return new RequestImpl(new WDNetworkEvent.FetchError(json), null);
 
             case RESPONSE_STARTED:
                 return new ResponseImpl(new WDNetworkEvent.ResponseStarted(json), null);
+
             case RESPONSE_COMPLETED:
-                return new ResponseImpl(new WDNetworkEvent.ResponseCompleted(json), null);
+                return new RequestImpl(new WDNetworkEvent.ResponseCompleted(json), null);
 
             // 🔹 Script Events
             case REALM_CREATED:

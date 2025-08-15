@@ -33,26 +33,6 @@ public class ResponseImpl implements Response {
         errorText = null;
     }
 
-    public ResponseImpl(WDNetworkEvent.ResponseCompleted event, byte[] responseBody) {
-        this.rawParams = event.getParams(); // 🔹 Speichert das gesamte Event-DTO
-        this.responseData = event.getParams().getResponse();
-        this.request = null; // TODO: Mapping von `request`
-        this.frame = null; // TODO: Mapping von Frame falls möglich
-        this.responseBody = responseBody;
-
-        errorText = null;
-    }
-
-    public ResponseImpl(WDNetworkEvent.FetchError event, byte[] responseBody) {
-        this.rawParams = event.getParams(); // 🔹 Speichere das komplette Event-Objekt
-        this.errorText = event.getParams().getErrorText();
-        this.request = null; // TODO: Mapping von `request`
-        this.frame = null; // TODO: Mapping von Frame falls möglich
-        this.responseBody = responseBody;
-
-        responseData = null;
-    }
-
     private List<HttpHeader> convertHeaders(List<WDHeader> headers) {
         if (headers == null) return Collections.emptyList();
         return headers.stream()

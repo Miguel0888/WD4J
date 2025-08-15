@@ -5,6 +5,7 @@ public enum WDEventNames {
     // Event methods see: https://w3c.github.io/webdriver-bidi#modules
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    // -> marks the Playwright mapping, otherwise see 'BiDiExtraHookInstaller' Class
     // 🔹 Browsing Context Events
     CONTEXT_CREATED("browsingContext.contextCreated"), // -> onWebSocket, onFrameAttached, onPopup
     CONTEXT_DESTROYED("browsingContext.contextDestroyed"), // -> onClose
