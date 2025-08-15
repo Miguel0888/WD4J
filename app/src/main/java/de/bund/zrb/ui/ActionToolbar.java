@@ -190,7 +190,7 @@ public class ActionToolbar extends JToolBar {
     }
 
     private void saveToolbarSettings() {
-        Path file = Paths.get(System.getProperty("user.home"), ".mainframemate", "toolbar.json");
+        Path file = Paths.get(System.getProperty("user.home"), ".wd4j", "toolbar.json");
         try {
             Files.createDirectories(file.getParent());
             try (BufferedWriter writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
