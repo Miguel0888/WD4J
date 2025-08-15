@@ -7,7 +7,14 @@ import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.*;
 
+import de.bund.zrb.meta.MetaEvent;
+import de.bund.zrb.meta.MetaEventFormatter;
+import de.bund.zrb.meta.MetaEventListener;
+import de.bund.zrb.meta.MetaEventService;
+import de.bund.zrb.meta.MetaEventServiceImpl;
+
 import javax.swing.*;
+import javax.swing.text.DefaultCaret;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,8 +28,26 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
     private final ActionTable actionTable = new ActionTable();
     private final JToggleButton recordToggle = new JToggleButton("\u2B24"); // red dot
-
     private final JComboBox<String> suiteDropdown = new JComboBox<String>();
+
+    // --- New: bottom drawer (meta monitor) ---
+    private final JSplitPane centerSplit;
+    private final JTextArea metaArea = new JTextArea();
+    private final JPanel metaPanel = new JPanel(new BorderLayout(6, 6));
+    private final JToggleButton metaToggle = new JToggleButton("Meta-Events");
+    private int lastDividerLocation = -1;
+
+    private final MetaEventService metaService = MetaEventServiceImpl.getInstance();
+    private final MetaEventListener metaListener = new MetaEventListener() {
+        public void onMetaEvent(final MetaEvent event) {
+            // Append on EDT
+            SwingUtilities.invokeLater(new Runnable() {
+                public void run() {
+                    appendMetaLine(MetaEventFormatter.format(event));
+                }
+            });
+        }
+    };
 
     private RecordingSession session;
 
@@ -36,7 +61,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
             suiteDropdown.addItem(suite.getName());
         }
 
-        // Wire buttons
+        // Wire record button
         recordToggle.setBackground(Color.RED);
         recordToggle.setFocusPainted(false);
         recordToggle.setToolTipText("Start Recording");
@@ -78,6 +103,11 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         exportButton.setToolTipText("In gewählte Suite exportieren");
         exportButton.addActionListener(e -> exportToSuite());
 
+        // --- New: meta toggle button in toolbar ---
+        metaToggle.setSelected(true);
+        metaToggle.setToolTipText("Meta-Drawer ein-/ausblenden");
+        metaToggle.addActionListener(e -> setMetaDrawerVisible(metaToggle.isSelected()));
+
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         topPanel.add(recordToggle);
         topPanel.add(saveButton);
@@ -86,17 +116,62 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         topPanel.add(upButton);
         topPanel.add(downButton);
 
-        topPanel.add(Box.createHorizontalStrut(40));
+        topPanel.add(Box.createHorizontalStrut(24));
         topPanel.add(suiteDropdown);
         topPanel.add(importButton);
         topPanel.add(exportButton);
 
+        topPanel.add(Box.createHorizontalStrut(24));
+        topPanel.add(metaToggle);
+
         add(topPanel, BorderLayout.NORTH);
-        add(new JScrollPane(actionTable), BorderLayout.CENTER);
+
+        // --- Center split: actions (top) + meta drawer (bottom) ---
+        JScrollPane actionsScroll = new JScrollPane(actionTable);
+
+        // Configure meta area
+        metaArea.setEditable(false);
+        metaArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        metaArea.setLineWrap(false);
+        DefaultCaret caret = (DefaultCaret) metaArea.getCaret();
+        caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+
+        // Meta header with clear button
+        JPanel metaHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        JLabel metaTitle = new JLabel("Meta-Events (experimentell)");
+        JButton clearBtn = new JButton("Clear");
+        clearBtn.setFocusable(false);
+        clearBtn.setToolTipText("Meta-Log leeren");
+        clearBtn.addActionListener(e -> metaArea.setText(""));
+        metaHeader.add(metaTitle);
+        metaHeader.add(clearBtn);
+
+        metaPanel.add(metaHeader, BorderLayout.NORTH);
+        metaPanel.add(new JScrollPane(metaArea), BorderLayout.CENTER);
+
+        centerSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, actionsScroll, metaPanel);
+        centerSplit.setResizeWeight(0.8);           // Prefer space for actions
+        centerSplit.setOneTouchExpandable(true);    // Show collapse/expand arrows
+        centerSplit.setDividerSize(10);             // Easier to grab
+        add(centerSplit, BorderLayout.CENTER);
 
         // Register with coordinator (inject BrowserService via RightDrawer)
         this.session = RecorderCoordinator.getInstance()
                 .registerTab(selectedUser.getUsername(), this, rightDrawer.getBrowserService());
+
+        // Subscribe to meta events (experimental)
+        metaService.addListener(metaListener);
+
+        // Initialize drawer opened
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                setMetaDrawerVisible(true);
+                if (lastDividerLocation <= 0) {
+                    // Set a reasonable initial height for the drawer
+                    centerSplit.setDividerLocation(0.75);
+                }
+            }
+        });
     }
 
     // ---------- RecorderTabUi ----------
@@ -135,10 +210,13 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
     // ---------- RecorderListener (actions) ----------
 
-    // ÄNDERT: implementiere State-Callback sauber über die bestehende UI-Methode
     @Override
     public void onRecordingStateChanged(boolean recording) {
         setRecordingUiState(recording);
+        if (recording) {
+            // Optionally clear meta log when starting fresh
+            // metaArea.setText("");
+        }
     }
 
     @Override
@@ -282,6 +360,38 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
             de.bund.zrb.service.RecorderCoordinator.getInstance().unregisterTab(this);
             session = null;
         }
+        // Remove meta listener to avoid leaks
+        metaService.removeListener(metaListener);
     }
 
+    // ---------- Private helpers ----------
+
+    /** Show or hide the meta drawer by adjusting split visibility and divider. */
+    private void setMetaDrawerVisible(boolean visible) {
+        Component bottom = centerSplit.getBottomComponent();
+        if (visible) {
+            bottom.setVisible(true);
+            if (lastDividerLocation > 0) {
+                centerSplit.setDividerLocation(lastDividerLocation);
+            } else {
+                centerSplit.setDividerLocation(0.75);
+            }
+        } else {
+            lastDividerLocation = centerSplit.getDividerLocation();
+            bottom.setVisible(false);
+            centerSplit.setDividerLocation(1.0);
+        }
+        centerSplit.revalidate();
+        centerSplit.repaint();
+    }
+
+    /** Append a single formatted meta line and keep caret at bottom. */
+    private void appendMetaLine(String line) {
+        if (line == null) return;
+        if (metaArea.getText().length() == 0) {
+            metaArea.setText(line);
+        } else {
+            metaArea.append("\n" + line);
+        }
+    }
 }
