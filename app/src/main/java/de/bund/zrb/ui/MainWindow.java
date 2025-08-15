@@ -143,6 +143,7 @@ public class MainWindow {
         commandRegistry.register(new PlayTestSuiteCommand(tabbedPane));
         commandRegistry.register(new StopPlaybackCommand());
         commandRegistry.register(new StartRecordCommand());
+        commandRegistry.register(new StopRecordCommand());
 
         commandRegistry.register(new LaunchBrowserCommand(browserService));
         commandRegistry.register(new TerminateBrowserCommand(browserService));

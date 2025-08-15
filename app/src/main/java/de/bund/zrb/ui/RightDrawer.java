@@ -43,7 +43,7 @@ public class RightDrawer extends JPanel {
     }
 
     private void addRecorderTabForUser(UserRegistry.User user) {
-        RecorderSession session = new RecorderSession(this, user);
+        RecorderTab session = new RecorderTab(this, user);
         int insertIndex = Math.max(recorderTabs.getTabCount() - 1, 0);
         recorderTabs.insertTab(null, null, session, null, insertIndex);
         recorderTabs.setTabComponentAt(insertIndex, createTabTitle("📝 " + user.getUsername(), session));
@@ -114,7 +114,7 @@ public class RightDrawer extends JPanel {
         closeButton.addActionListener(e -> {
             int index = recorderTabs.indexOfComponent(tabContent);
             if (index >= 0 && index != recorderTabs.getTabCount() - 1) {
-                RecorderSession session = (RecorderSession) tabContent;
+                RecorderTab session = (RecorderTab) tabContent;
                 session.unregister();
                 recorderTabs.remove(index);
             }

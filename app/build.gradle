@@ -6,6 +6,9 @@ plugins {
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
+
+    // Generate a sources JAR alongside the main JAR
+    withSourcesJar()
 }
 
 test {

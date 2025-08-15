@@ -4,22 +4,22 @@ import de.bund.zrb.event.ApplicationEventBus;
 import de.bund.zrb.event.RecordControlRequestedEvent;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 
-public class StartRecordCommand extends ShortcutMenuCommand {
+public class StopRecordCommand extends ShortcutMenuCommand {
 
     @Override
     public String getId() {
-        return "record.start";
+        return "record.stop";
     }
 
     @Override
     public String getLabel() {
-        return "Aufzeichnung starten";
+        return "Aufzeichnung stoppen";
     }
 
     @Override
     public void perform() {
         // Publish START request; coordinator/tab entscheidet, welche Session betroffen ist.
         ApplicationEventBus.getInstance()
-                .publish(new RecordControlRequestedEvent(RecordControlRequestedEvent.RecordOperation.START));
+                .publish(new RecordControlRequestedEvent(RecordControlRequestedEvent.RecordOperation.STOP));
     }
 }

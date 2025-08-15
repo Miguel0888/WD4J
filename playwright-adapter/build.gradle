@@ -3,6 +3,14 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '8.1.1' //um Fat-Jar mit allen Dependendies zu erzeugen
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+
+    // Generate a sources JAR alongside the main JAR
+    withSourcesJar()
+}
+
 dependencies {
     implementation project(':playwright-java')
     implementation project(':wd4j')

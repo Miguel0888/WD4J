@@ -3,6 +3,7 @@ package de.bund.zrb.service;
 import de.bund.zrb.RecordingEventRouter;
 import de.bund.zrb.dto.RecordedEvent;
 import de.bund.zrb.event.WDScriptEvent;
+import de.bund.zrb.ui.RecorderListener;
 import de.bund.zrb.util.LocatorType;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
@@ -38,14 +39,16 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         RECORDERS.remove(key);
     }
 
-    public void addListener(RecorderListener listener) {
-        if (listener != null && !listeners.contains(listener)) {
-            listeners.add(listener);
+    public synchronized void addListener(RecorderListener l) {
+        if (l == null) return;
+        if (!listeners.contains(l)) {
+            listeners.add(l);
         }
     }
 
-    public void removeListener(RecorderListener listener) {
-        listeners.remove(listener);
+    public synchronized void removeListener(RecorderListener l) {
+        if (l == null) return;
+        listeners.remove(l);
     }
 
     private void notifyListeners() {
@@ -403,6 +406,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
 
     public void clearRecordedEvents() {
         recordedActions.clear();
+        notifyListeners();
     }
 
     // ---- Helpers (keep package-private or private) ----
