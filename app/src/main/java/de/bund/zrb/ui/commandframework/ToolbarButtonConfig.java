@@ -4,6 +4,7 @@ public class ToolbarButtonConfig {
     public String id;
     public String icon;
     public String backgroundHex;
+    public Integer order;
 
     public ToolbarButtonConfig() {
         // für Gson

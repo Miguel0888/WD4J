@@ -33,6 +33,8 @@ public class ActionToolbar extends JToolBar {
 
     // ÄNDERT: Hintergrundfarbe anwenden, falls gesetzt
     // ÄNDERT: Buttons je nach ID-Set links oder rechts platzieren (Farbhintergründe bleiben erhalten)
+    // ÄNDERT: Buttons sortieren nach 'order' (1 = ganz links). Fallback: Label.
+    // ÄNDERT: Buttons nach 'order' sortieren und Background-Farbe anwenden
     private void rebuildButtons() {
         removeAll();
 
@@ -40,7 +42,24 @@ public class ActionToolbar extends JToolBar {
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 2));
 
         if (config != null && config.buttons != null) {
-            for (final ToolbarButtonConfig btnCfg : config.buttons) {
+            // Split by side
+            java.util.List<ToolbarButtonConfig> left = new ArrayList<ToolbarButtonConfig>();
+            java.util.List<ToolbarButtonConfig> right = new ArrayList<ToolbarButtonConfig>();
+
+            for (ToolbarButtonConfig b : config.buttons) {
+                if (isRightAligned(b.id)) {
+                    right.add(b);
+                } else {
+                    left.add(b);
+                }
+            }
+
+            // Sort by order (1..n). Unknown/invalid orders go to the end.
+            Collections.sort(left, buttonOrderComparator());
+            Collections.sort(right, buttonOrderComparator());
+
+            // Build left
+            for (final ToolbarButtonConfig btnCfg : left) {
                 CommandRegistryImpl.getInstance().getById(btnCfg.id).ifPresent(cmd -> {
                     JButton btn = new JButton(btnCfg.icon);
                     btn.setMargin(new Insets(0, 0, 0, 0));
@@ -51,31 +70,55 @@ public class ActionToolbar extends JToolBar {
                     btn.setFont(btn.getFont().deriveFont((float) fontSize));
                     btn.setFocusPainted(false);
 
-                    // Apply configured background color if available
-                    try {
-                        // Requires: ToolbarButtonConfig has field 'public String backgroundHex;'
-                        if (btnCfg.backgroundHex != null && btnCfg.backgroundHex.trim().length() > 0) {
+                    // Apply background color if configured
+                    if (btnCfg.backgroundHex != null && btnCfg.backgroundHex.trim().length() > 0) {
+                        try {
                             String hex = btnCfg.backgroundHex.trim();
                             if (!hex.startsWith("#")) hex = "#" + hex;
                             btn.setOpaque(true);
                             btn.setContentAreaFilled(true);
                             btn.setBackground(Color.decode(hex));
+                        } catch (NumberFormatException ignore) {
+                            // Ignore invalid hex
                         }
-                    } catch (NumberFormatException ignore) {
-                        // Ignore invalid hex and render default look
                     }
 
-                    // Place button on left or right depending on config.rightSideIds
-                    if (isRightAligned(btnCfg.id)) {
-                        rightPanel.add(btn);
-                    } else {
-                        leftPanel.add(btn);
+                    btn.addActionListener(e -> cmd.perform());
+                    leftPanel.add(btn);
+                });
+            }
+
+            // Build right (before gear)
+            for (final ToolbarButtonConfig btnCfg : right) {
+                CommandRegistryImpl.getInstance().getById(btnCfg.id).ifPresent(cmd -> {
+                    JButton btn = new JButton(btnCfg.icon);
+                    btn.setMargin(new Insets(0, 0, 0, 0));
+                    btn.setToolTipText(cmd.getLabel());
+                    btn.setPreferredSize(new Dimension(config.buttonSizePx, config.buttonSizePx));
+
+                    int fontSize = (int) (config.buttonSizePx * config.fontSizeRatio);
+                    btn.setFont(btn.getFont().deriveFont((float) fontSize));
+                    btn.setFocusPainted(false);
+
+                    if (btnCfg.backgroundHex != null && btnCfg.backgroundHex.trim().length() > 0) {
+                        try {
+                            String hex = btnCfg.backgroundHex.trim();
+                            if (!hex.startsWith("#")) hex = "#" + hex;
+                            btn.setOpaque(true);
+                            btn.setContentAreaFilled(true);
+                            btn.setBackground(Color.decode(hex));
+                        } catch (NumberFormatException ignore) {
+                            // Ignore invalid hex
+                        }
                     }
+
+                    btn.addActionListener(e -> cmd.perform());
+                    rightPanel.add(btn);
                 });
             }
         }
 
-        // Keep gear button at the far right
+        // Gear button stays at far right
         JButton configBtn = new JButton("⚙");
         configBtn.setMargin(new Insets(0, 0, 0, 0));
         configBtn.setToolTipText("Toolbar anpassen");
@@ -95,39 +138,84 @@ public class ActionToolbar extends JToolBar {
     }
 
     // ÄNDERT: zweite Spalte für Farbe hinzufügen und speichern; "Standard laden" bleibt
+    // ÄNDERT: Menü um "Position" (ganzzahlige Reihenfolge) erweitern, Duplikate verhindern
+    // ÄNDERT: Menü mit Pos(ition)-Spinner (Schritt 1, sinnvolle Defaults), Farbspalte, Duplikat-Check
     private void openConfigDialog() {
-        // Ensure rightSideIds exists to avoid NPE
         if (config.rightSideIds == null) {
             config.rightSideIds = new LinkedHashSet<String>();
         }
 
-        List<MenuCommand> all = new ArrayList<>(CommandRegistryImpl.getInstance().getAll());
+        // Track used orders to compute next free suggestion
+        final LinkedHashSet<Integer> usedOrders = new LinkedHashSet<Integer>();
+        if (config.buttons != null) {
+            for (ToolbarButtonConfig b : config.buttons) {
+                if (b != null && b.order != null && b.order.intValue() > 0) {
+                    usedOrders.add(Integer.valueOf(b.order.intValue()));
+                }
+            }
+        }
+        // Helper to compute next free order
+        int nextFreeOrder = 1;
+        while (usedOrders.contains(Integer.valueOf(nextFreeOrder))) nextFreeOrder++;
+
+        List<MenuCommand> all = new ArrayList<MenuCommand>(CommandRegistryImpl.getInstance().getAll());
         Map<MenuCommand, JCheckBox> checkboxes = new LinkedHashMap<MenuCommand, JCheckBox>();
         Map<MenuCommand, JComboBox<String>> iconSelectors = new LinkedHashMap<MenuCommand, JComboBox<String>>();
+        Map<MenuCommand, JComboBox<String>> colorSelectors = new LinkedHashMap<MenuCommand, JComboBox<String>>();
         Map<MenuCommand, JCheckBox> rightSideChecks = new LinkedHashMap<MenuCommand, JCheckBox>();
+        Map<MenuCommand, JSpinner> orderSpinners = new LinkedHashMap<MenuCommand, JSpinner>();
 
         JPanel commandPanel = new JPanel(new GridLayout(0, 1));
         for (MenuCommand cmd : all) {
             JPanel line = new JPanel(new BorderLayout(4, 0));
             JCheckBox box = new JCheckBox(cmd.getLabel(), isCommandActive(cmd.getId()));
 
-            JComboBox<String> iconCombo = new JComboBox<>(getSimpleIconSuggestions());
+            // Icon selector
+            JComboBox<String> iconCombo = new JComboBox<String>(getSimpleIconSuggestions());
             iconCombo.setEditable(true);
             iconCombo.setSelectedItem(getIconFor(cmd.getId()));
-            iconCombo.setPreferredSize(new Dimension(48, 24));
+            iconCombo.setPreferredSize(new Dimension(56, 24));
             iconSelectors.put(cmd, iconCombo);
 
-            // NEW: checkbox to place button on the right side
+            // Color selector (editable HEX)
+            JComboBox<String> colorCombo = new JComboBox<String>(new String[] {
+                    "", "#FF0000", "#00AA00", "#008000", "#FFA500", "#0000FF", "#FFFF00"
+            });
+            colorCombo.setEditable(true);
+            String preHex = getBackgroundHexFor(cmd.getId()); // expect this helper to exist
+            colorCombo.setSelectedItem(preHex == null ? "" : preHex);
+            colorCombo.setPreferredSize(new Dimension(72, 24));
+            colorSelectors.put(cmd, colorCombo);
+
+            // Right side checkbox (optional)
             boolean preRight = config.rightSideIds.contains(cmd.getId());
             JCheckBox rightChk = new JCheckBox("rechts", preRight);
             rightChk.setToolTipText("Button rechts anordnen");
             rightSideChecks.put(cmd, rightChk);
 
+            // Order spinner: use stored order or suggest next free; step size = 1
+            int currentOrder = getOrderFor(cmd.getId()); // expect this helper to exist
+            int initialOrder;
+            if (currentOrder > 0) {
+                initialOrder = currentOrder;
+            } else {
+                initialOrder = nextFreeOrder;
+                usedOrders.add(Integer.valueOf(initialOrder));
+                // advance next free
+                nextFreeOrder++;
+                while (usedOrders.contains(Integer.valueOf(nextFreeOrder))) nextFreeOrder++;
+            }
+            JSpinner orderSpin = new JSpinner(new SpinnerNumberModel(initialOrder, 1, 9999, 1));
+            orderSpin.setPreferredSize(new Dimension(64, 24));
+            orderSpinners.put(cmd, orderSpin);
+
             checkboxes.put(cmd, box);
 
-            // Right area: icon selector + right-side checkbox
             JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+            right.add(new JLabel("Pos:"));
+            right.add(orderSpin);
             right.add(iconCombo);
+            right.add(colorCombo);
             right.add(rightChk);
 
             line.add(box, BorderLayout.CENTER);
@@ -148,7 +236,6 @@ public class ActionToolbar extends JToolBar {
 
         fullPanel.add(sizePanel, BorderLayout.SOUTH);
 
-        // Add third button "Standard laden" (index 0), keep OK (index 1) and Cancel (index 2)
         Object[] options = new Object[] { "Standard laden", "OK", "Abbrechen" };
         int result = JOptionPane.showOptionDialog(
                 this,
@@ -162,7 +249,7 @@ public class ActionToolbar extends JToolBar {
         );
 
         if (result == 0) {
-            // Load default buttons only; keep sizes and rightSideIds intact
+            // Load default buttons (keep sizes/rightSideIds)
             config.buttons = buildDefaultButtonsForAllCommands();
             saveToolbarSettings();
             rebuildButtons();
@@ -170,46 +257,62 @@ public class ActionToolbar extends JToolBar {
         }
 
         if (result == 1) {
-            // Validate and persist selection
+            // Build new button list and validate unique positions
             config.buttons.clear();
 
-            // Build button list
-            for (Map.Entry<MenuCommand, JCheckBox> entry : checkboxes.entrySet()) {
-                if (entry.getValue().isSelected()) {
-                    String icon = Objects.toString(iconSelectors.get(entry.getKey()).getSelectedItem(), "").trim();
-                    config.buttons.add(new ToolbarButtonConfig(entry.getKey().getId(), icon));
-                }
-            }
-
-            // Build right side set from UI (no duplicates allowed)
+            // Track duplicates: position -> ids
+            Map<Integer, java.util.List<String>> byPos = new LinkedHashMap<Integer, java.util.List<String>>();
             LinkedHashSet<String> newRight = new LinkedHashSet<String>();
-            java.util.List<String> duplicates = new ArrayList<String>();
 
-            for (Map.Entry<MenuCommand, JCheckBox> entry : rightSideChecks.entrySet()) {
+            for (Map.Entry<MenuCommand, JCheckBox> entry : checkboxes.entrySet()) {
                 MenuCommand cmd = entry.getKey();
-                boolean include = checkboxes.get(cmd).isSelected();
-                boolean toRight = entry.getValue().isSelected();
+                boolean selected = entry.getValue().isSelected();
+                if (!selected) continue;
 
-                if (include && toRight) {
-                    // Try add; if false, it would be a duplicate
-                    if (!newRight.add(cmd.getId())) {
-                        duplicates.add(cmd.getId());
-                    }
+                String icon = Objects.toString(iconSelectors.get(cmd).getSelectedItem(), "").trim();
+
+                // Normalize hex color (allow empty)
+                String hex = Objects.toString(colorSelectors.get(cmd).getSelectedItem(), "").trim();
+                if (hex.length() > 0 && !hex.startsWith("#")) hex = "#" + hex;
+                if (hex.length() == 0) hex = null;
+
+                int pos = ((Number) orderSpinners.get(cmd).getValue()).intValue();
+
+                ToolbarButtonConfig tbc = new ToolbarButtonConfig(cmd.getId(), icon);
+                tbc.backgroundHex = hex;         // keep color
+                tbc.order = Integer.valueOf(pos); // store order
+                config.buttons.add(tbc);
+
+                java.util.List<String> ids = byPos.get(Integer.valueOf(pos));
+                if (ids == null) {
+                    ids = new ArrayList<String>();
+                    byPos.put(Integer.valueOf(pos), ids);
+                }
+                ids.add(cmd.getId());
+
+                if (rightSideChecks.get(cmd).isSelected()) {
+                    newRight.add(cmd.getId());
                 }
             }
 
-            // Reject if duplicates detected (should not happen with checkboxes, but enforce contract)
-            if (!duplicates.isEmpty()) {
+            // Reject duplicates
+            java.util.List<Integer> dupPositions = new ArrayList<Integer>();
+            for (Map.Entry<Integer, java.util.List<String>> e : byPos.entrySet()) {
+                if (e.getValue().size() > 1) {
+                    dupPositions.add(e.getKey());
+                }
+            }
+            if (!dupPositions.isEmpty()) {
                 JOptionPane.showMessageDialog(
                         this,
-                        "Doppelte IDs in der rechten Spalte sind nicht zulässig: " + duplicates,
-                        "Ungültige Konfiguration",
+                        "Doppelte Positionswerte sind nicht zulässig: " + dupPositions,
+                        "Ungültige Reihenfolge",
                         JOptionPane.ERROR_MESSAGE
                 );
                 return; // do not save partial state
             }
 
-            // Persist sizes as in your original
+            // Persist sizes "wie im Original"
             config.buttonSizePx = (Integer) sizeSpinner.getValue();
             config.fontSizeRatio = ((Double) ratioSpinner.getValue()).floatValue();
 
@@ -366,6 +469,7 @@ public class ActionToolbar extends JToolBar {
     }
 
     // ÄNDERT: Standardliste setzt nun Default-Hintergründe für Record/Play
+    // ÄNDERT: Default-Buttons mit sequentieller Standard-Reihenfolge versehen (1..n)
     private List<ToolbarButtonConfig> buildDefaultButtonsForAllCommands() {
         List<ToolbarButtonConfig> list = new ArrayList<ToolbarButtonConfig>();
         List<MenuCommand> all = new ArrayList<MenuCommand>(CommandRegistryImpl.getInstance().getAll());
@@ -374,10 +478,13 @@ public class ActionToolbar extends JToolBar {
                 return a.getLabel().compareToIgnoreCase(b.getLabel());
             }
         });
+        int pos = 1;
         for (MenuCommand cmd : all) {
             ToolbarButtonConfig tbc = new ToolbarButtonConfig(cmd.getId(), defaultIconFor(cmd));
-            // Requires: add 'public String backgroundHex;' to ToolbarButtonConfig
-            tbc.backgroundHex = defaultBackgroundHexFor(cmd);
+            tbc.order = Integer.valueOf(pos++); // Requires: 'public Integer order;' in ToolbarButtonConfig
+            // Keep your default backgrounds if you use them
+            String bg = defaultBackgroundHexFor(cmd);
+            if (bg != null) tbc.backgroundHex = bg;
             list.add(tbc);
         }
         return list;
@@ -432,6 +539,42 @@ public class ActionToolbar extends JToolBar {
         return "●";
     }
 
+    // NEU: Liefere gespeicherte Position, 0 wenn unbekannt (wird als "am Ende" behandelt)
+    private int getOrderFor(String id) {
+        if (config == null || config.buttons == null) return 0;
+        for (ToolbarButtonConfig b : config.buttons) {
+            if (id.equals(b.id)) {
+                return (b.order == null) ? 0 : b.order.intValue();
+            }
+        }
+        return 0;
+    }
 
+    // NEU: Vergleich nach 'order' (kleiner zuerst), dann Label zur Stabilität
+    private Comparator<ToolbarButtonConfig> buttonOrderComparator() {
+        return new Comparator<ToolbarButtonConfig>() {
+            @Override public int compare(ToolbarButtonConfig a, ToolbarButtonConfig b) {
+                int oa = normalizeOrder(a.order);
+                int ob = normalizeOrder(b.order);
+                if (oa != ob) return (oa < ob) ? -1 : 1;
+                String la = labelOf(a.id);
+                String lb = labelOf(b.id);
+                return la.compareToIgnoreCase(lb);
+            }
+        };
+    }
 
+    // NEU: Behandle fehlende/ungültige Orders als "sehr groß" -> am Ende einsortieren
+    private int normalizeOrder(Integer ord) {
+        if (ord == null) return Integer.MAX_VALUE;
+        int v = ord.intValue();
+        return (v <= 0) ? Integer.MAX_VALUE : v;
+    }
+
+    // NEU: Hole Label zur stabilen Zweitsortierung
+    private String labelOf(String id) {
+        if (id == null) return "";
+        java.util.Optional<MenuCommand> mc = CommandRegistryImpl.getInstance().getById(id);
+        return mc.isPresent() ? mc.get().getLabel() : id;
+    }
 }
