@@ -14,7 +14,7 @@ public final class MetaEvent {
         LOAD,
         NETWORK_QUIET,
         AJAX_STARTED,
-        AJAX_COMPLETED
+        PROMPT_CLOSED, PROMPT_OPENED, AUTH_REQUIRED, AJAX_COMPLETED
     }
 
     private final Kind kind;

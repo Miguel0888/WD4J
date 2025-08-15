@@ -1,131 +1,130 @@
 package de.bund.zrb.service;
 
-import com.google.gson.JsonObject;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Request;
+import de.bund.zrb.PageImpl;
 import de.bund.zrb.WebDriver;
-import de.bund.zrb.meta.MetaEvent;
-import de.bund.zrb.meta.MetaEventService;
-import de.bund.zrb.meta.MetaEventServiceImpl;
-import de.bund.zrb.websocket.WDEventNames;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
-import de.bund.zrb.support.JsonToPlaywrightMapper;
-import de.bund.zrb.event.WDBrowsingContextEvent;
-import de.bund.zrb.event.WDNetworkEvent;
+import de.bund.zrb.websocket.WDEventNames;
 
-import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-/** Subscribe to the missing BiDi events (per in 'WDEventNames' matrix) and publish them as MetaEvents. */
+/**
+ * Bridges for WebDriver BiDi events that Playwright does NOT expose as onX/offX.
+ * API intentionally mirrors Playwright's on/off style per Page.
+ */
 public final class BiDiExtraHookInstaller {
 
-    private final MetaEventService events = MetaEventServiceImpl.getInstance();
-    private final List<Runnable> detach = new CopyOnWriteArrayList<Runnable>();
+    // key = eventName + "@" + identityHash(page)
+    private final Map<String, Map<Consumer<?>, Consumer<Object>>> wires = new ConcurrentHashMap<String, Map<Consumer<?>, Consumer<Object>>>();
 
-    public void installForPage(Page page) {
-        // Support only our PageImpl to access WebDriver and context id
-        if (!(page instanceof de.bund.zrb.PageImpl)) return;
+    // ---------- public on/off API (Page-scoped) ----------
 
-        final de.bund.zrb.PageImpl p = (de.bund.zrb.PageImpl) page;
-        final WebDriver wd = p.getWebDriver();
-        final String ctx = p.getBrowsingContextId();
-
-        // --- BrowsingContext: fragmentNavigated ---
-        subscribe(wd, WDEventNames.FRAGMENT_NAVIGATED.getName(), ctx, new Consumer<JsonObject>() {
-            public void accept(JsonObject json) {
-                WDBrowsingContextEvent.FragmentNavigated ev =
-                        JsonToPlaywrightMapper.mapToInterface(json, WDBrowsingContextEvent.FragmentNavigated.class);
-                Map<String,String> d = new HashMap<String,String>();
-                safePut(d, "phase", "fragmentNavigated");
-                safePut(d, "url", ev.getParams().getUrl());
-                events.publish(MetaEvent.of(MetaEvent.Kind.URL_CHANGED, d));
-            }
+    public void onFragmentNavigated(Page page, Consumer<Page> handler) {
+        subscribePageEvent(page, WDEventNames.FRAGMENT_NAVIGATED.getName(), handler, new Consumer<Object>() {
+            @Override public void accept(Object ignored) { handler.accept(page); }
         });
+    }
 
-        // --- BrowsingContext: historyUpdated ---
-        subscribe(wd, WDEventNames.HISTORY_UPDATED.getName(), ctx, new Consumer<JsonObject>() {
-            public void accept(JsonObject json) {
-                WDBrowsingContextEvent.HistoryUpdated ev =
-                        JsonToPlaywrightMapper.mapToInterface(json, WDBrowsingContextEvent.HistoryUpdated.class);
-                Map<String,String> d = new HashMap<String,String>();
-                safePut(d, "phase", "historyUpdated");
-                safePut(d, "url", ev.getParams().getUrl());
-                events.publish(MetaEvent.of(MetaEvent.Kind.URL_CHANGED, d));
-            }
+    public void offFragmentNavigated(Page page, Consumer<Page> handler) {
+        unsubscribePageEvent(page, WDEventNames.FRAGMENT_NAVIGATED.getName(), handler);
+    }
+
+    public void onHistoryUpdated(Page page, Consumer<Page> handler) {
+        subscribePageEvent(page, WDEventNames.HISTORY_UPDATED.getName(), handler, new Consumer<Object>() {
+            @Override public void accept(Object ignored) { handler.accept(page); }
         });
+    }
 
-        // --- BrowsingContext: navigationAborted ---
-        subscribe(wd, WDEventNames.NAVIGATION_ABORTED.getName(), ctx, new Consumer<JsonObject>() {
-            public void accept(JsonObject json) {
-                WDBrowsingContextEvent.NavigationAborted ev =
-                        JsonToPlaywrightMapper.mapToInterface(json, WDBrowsingContextEvent.NavigationAborted.class);
-                Map<String,String> d = new HashMap<String,String>();
-                safePut(d, "phase", "aborted");
-                safePut(d, "url", ev.getParams().getUrl());
-                events.publish(MetaEvent.of(MetaEvent.Kind.URL_CHANGED, d));
-            }
+    public void offHistoryUpdated(Page page, Consumer<Page> handler) {
+        unsubscribePageEvent(page, WDEventNames.HISTORY_UPDATED.getName(), handler);
+    }
+
+    public void onNavigationCommitted(Page page, Consumer<Page> handler) {
+        subscribePageEvent(page, WDEventNames.NAVIGATION_COMMITTED.getName(), handler, new Consumer<Object>() {
+            @Override public void accept(Object ignored) { handler.accept(page); }
         });
+    }
 
-        // --- BrowsingContext: navigationCommitted ---
-        subscribe(wd, WDEventNames.NAVIGATION_COMMITTED.getName(), ctx, new Consumer<JsonObject>() {
-            public void accept(JsonObject json) {
-                WDBrowsingContextEvent.NavigationCommitted ev =
-                        JsonToPlaywrightMapper.mapToInterface(json, WDBrowsingContextEvent.NavigationCommitted.class);
-                Map<String,String> d = new HashMap<String,String>();
-                safePut(d, "phase", "committed");
-                safePut(d, "url", ev.getParams().getUrl());
-                events.publish(MetaEvent.of(MetaEvent.Kind.URL_CHANGED, d));
-            }
+    public void offNavigationCommitted(Page page, Consumer<Page> handler) {
+        unsubscribePageEvent(page, WDEventNames.NAVIGATION_COMMITTED.getName(), handler);
+    }
+
+    public void onNavigationAborted(Page page, Consumer<Page> handler) {
+        subscribePageEvent(page, WDEventNames.NAVIGATION_ABORTED.getName(), handler, new Consumer<Object>() {
+            @Override public void accept(Object ignored) { handler.accept(page); }
         });
+    }
 
-        // --- BrowsingContext: userPromptClosed ---
-        subscribe(wd, WDEventNames.USER_PROMPT_CLOSED.getName(), ctx, new Consumer<JsonObject>() {
-            public void accept(JsonObject json) {
-                WDBrowsingContextEvent.UserPromptClosed ev =
-                        JsonToPlaywrightMapper.mapToInterface(json, WDBrowsingContextEvent.UserPromptClosed.class);
-                Map<String,String> d = new HashMap<String,String>();
-                d.put("userPrompt", "closed");
-                // Use a neutral meta kind that is already present; avoid adding new kinds
-                events.publish(MetaEvent.of(MetaEvent.Kind.AJAX_COMPLETED, d));
-            }
-        });
+    public void offNavigationAborted(Page page, Consumer<Page> handler) {
+        unsubscribePageEvent(page, WDEventNames.NAVIGATION_ABORTED.getName(), handler);
+    }
 
-        // --- Network: authRequired ---
-        subscribe(wd, WDEventNames.AUTH_REQUIRED.getName(), ctx, new Consumer<JsonObject>() {
-            public void accept(JsonObject json) {
-                WDNetworkEvent.AuthRequired ev =
-                        JsonToPlaywrightMapper.mapToInterface(json, WDNetworkEvent.AuthRequired.class);
-                Map<String,String> d = new HashMap<String,String>();
-                d.put("auth", "required");
-                // If request is present, add URL/method for context
-                try {
-                    if (ev.getParams() != null && ev.getParams().getRequest() != null) {
-                        safePut(d, "url", ev.getParams().getRequest().getUrl());
-                        safePut(d, "method", ev.getParams().getRequest().getMethod());
-                    }
-                } catch (Throwable ignore) { }
-                events.publish(MetaEvent.of(MetaEvent.Kind.AJAX_STARTED, d));
+    /** BiDi network.authRequired (Playwright hat dafür kein onX). */
+    public void onAuthRequired(Page page, Consumer<Request> handler) {
+        subscribePageEvent(page, WDEventNames.AUTH_REQUIRED.getName(), handler, new Consumer<Object>() {
+            @Override public void accept(Object ev) {
+                if (ev instanceof Request) handler.accept((Request) ev);
+                // Wenn der Mapper mal nicht greift, ignorieren wir stumm statt ClassCast
             }
         });
     }
 
-    public void uninstallAll() {
-        for (Runnable r : detach) {
-            try { r.run(); } catch (Throwable ignore) { }
+    public void offAuthRequired(Page page, Consumer<Request> handler) {
+        unsubscribePageEvent(page, WDEventNames.AUTH_REQUIRED.getName(), handler);
+    }
+
+    // ---------- core wiring helpers ----------
+
+    private <T> void subscribePageEvent(Page page,
+                                        String eventName,
+                                        Consumer<T> userHandler,
+                                        Consumer<Object> wireHandler) {
+        Objects.requireNonNull(page, "page");
+        Objects.requireNonNull(userHandler, "handler");
+
+        if (!(page instanceof PageImpl)) {
+            throw new IllegalArgumentException("BiDiExtraHookInstaller requires PageImpl");
         }
-        detach.clear();
+        final PageImpl p = (PageImpl) page;
+        final WebDriver wd = p.getWebDriver();
+        final String ctxId = p.getBrowsingContextId();
+
+        // store wrapper so we can remove exactly the same instance
+        Map<Consumer<?>, Consumer<Object>> byHandler = wires.computeIfAbsent(key(eventName, page), k -> new ConcurrentHashMap<Consumer<?>, Consumer<Object>>());
+        byHandler.put(userHandler, wireHandler);
+
+        WDSubscriptionRequest req = new WDSubscriptionRequest(eventName, ctxId, null);
+        wd.addEventListener(req, wireHandler);
     }
 
-    // ---------- intern ----------
+    private <T> void unsubscribePageEvent(Page page, String eventName, Consumer<T> userHandler) {
+        Objects.requireNonNull(page, "page");
+        Objects.requireNonNull(userHandler, "handler");
 
-    private void subscribe(final WebDriver wd, final String event, final String ctx, final Consumer<JsonObject> handler) {
-        final WDSubscriptionRequest req = new WDSubscriptionRequest(event, ctx, null);
-        wd.addEventListener(req, handler);
-        // Ensure we remove the exact same handler instance
-        detach.add(new Runnable() { public void run() { wd.removeEventListener(event, ctx, handler); } });
+        if (!(page instanceof PageImpl)) return; // nothing to do
+        final PageImpl p = (PageImpl) page;
+        final WebDriver wd = p.getWebDriver();
+        final String ctxId = p.getBrowsingContextId();
+
+        Map<Consumer<?>, Consumer<Object>> byHandler = wires.get(key(eventName, page));
+        if (byHandler == null) return;
+
+        @SuppressWarnings("unchecked")
+        Consumer<Object> wire = byHandler.remove(userHandler);
+        if (wire != null) {
+            wd.removeEventListener(eventName, ctxId, wire);
+        }
+
+        if (byHandler.isEmpty()) {
+            wires.remove(key(eventName, page));
+        }
     }
 
-    private static void safePut(Map<String, String> d, String k, String v) {
-        if (v != null && v.length() > 0) d.put(k, v);
+    private static String key(String eventName, Page page) {
+        return eventName + "@" + System.identityHashCode(page);
     }
 }
