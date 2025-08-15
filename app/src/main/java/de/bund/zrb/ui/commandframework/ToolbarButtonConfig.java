@@ -3,6 +3,7 @@ package de.bund.zrb.ui.commandframework;
 public class ToolbarButtonConfig {
     public String id;
     public String icon;
+    public String backgroundHex;
 
     public ToolbarButtonConfig() {
         // für Gson

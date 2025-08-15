@@ -31,6 +31,7 @@ public class ActionToolbar extends JToolBar {
         rebuildButtons();
     }
 
+    // ÄNDERT: Hintergrundfarbe anwenden, falls gesetzt
     private void rebuildButtons() {
         removeAll();
 
@@ -39,16 +40,26 @@ public class ActionToolbar extends JToolBar {
             CommandRegistryImpl.getInstance().getById(btnCfg.id).ifPresent(cmd -> {
                 JButton btn = new JButton(btnCfg.icon);
                 btn.setMargin(new Insets(0, 0, 0, 0)); // optional
-//                btn.setBorder(BorderFactory.createEmptyBorder());
                 btn.setToolTipText(cmd.getLabel());
                 btn.setPreferredSize(new Dimension(config.buttonSizePx, config.buttonSizePx));
 
                 int fontSize = (int) (config.buttonSizePx * config.fontSizeRatio);
                 btn.setFont(btn.getFont().deriveFont((float) fontSize));
-
-//                btn.setContentAreaFilled(false);
                 btn.setFocusPainted(false);
-//                btn.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+
+                // Apply background color if configured
+                // (Requires: add 'public String backgroundHex;' to ToolbarButtonConfig)
+                if (btnCfg.backgroundHex != null && btnCfg.backgroundHex.trim().length() > 0) {
+                    try {
+                        String hex = btnCfg.backgroundHex.trim();
+                        if (!hex.startsWith("#")) hex = "#" + hex;
+                        btn.setOpaque(true);
+                        btn.setContentAreaFilled(true);
+                        btn.setBackground(Color.decode(hex));
+                    } catch (NumberFormatException ignore) {
+                        // Ignore invalid hex and render default look
+                    }
+                }
 
                 btn.addActionListener(e -> cmd.perform());
                 leftPanel.add(btn);
@@ -58,17 +69,12 @@ public class ActionToolbar extends JToolBar {
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 2));
         JButton configBtn = new JButton("⚙");
         configBtn.setMargin(new Insets(0, 0, 0, 0));
-//        configBtn.setBorder(BorderFactory.createEmptyBorder());
         configBtn.setToolTipText("Toolbar anpassen");
         configBtn.setPreferredSize(new Dimension(config.buttonSizePx, config.buttonSizePx));
-        configBtn.addActionListener(e -> openConfigDialog());
-
         int fontSize = (int) (config.buttonSizePx * config.fontSizeRatio);
         configBtn.setFont(configBtn.getFont().deriveFont((float) fontSize));
-//        configBtn.setContentAreaFilled(false);
         configBtn.setFocusPainted(false);
-//        configBtn.setBorder(BorderFactory.createLineBorder(Color.BLACK));
-
+        configBtn.addActionListener(e -> openConfigDialog());
         rightPanel.add(configBtn);
 
         setLayout(new BorderLayout());
@@ -79,25 +85,43 @@ public class ActionToolbar extends JToolBar {
         repaint();
     }
 
+    // ÄNDERT: zweite Spalte für Farbe hinzufügen und speichern; "Standard laden" bleibt
     private void openConfigDialog() {
         List<MenuCommand> all = new ArrayList<>(CommandRegistryImpl.getInstance().getAll());
-        Map<MenuCommand, JCheckBox> checkboxes = new LinkedHashMap<>();
-        Map<MenuCommand, JComboBox<String>> iconSelectors = new LinkedHashMap<>();
+        Map<MenuCommand, JCheckBox> checkboxes = new LinkedHashMap<MenuCommand, JCheckBox>();
+        Map<MenuCommand, JComboBox<String>> iconSelectors = new LinkedHashMap<MenuCommand, JComboBox<String>>();
+        Map<MenuCommand, JComboBox<String>> colorSelectors = new LinkedHashMap<MenuCommand, JComboBox<String>>();
 
         JPanel commandPanel = new JPanel(new GridLayout(0, 1));
         for (MenuCommand cmd : all) {
             JPanel line = new JPanel(new BorderLayout(4, 0));
             JCheckBox box = new JCheckBox(cmd.getLabel(), isCommandActive(cmd.getId()));
 
-            JComboBox<String> iconCombo = new JComboBox<>(getSimpleIconSuggestions());
+            // Icon selector (unchanged)
+            JComboBox<String> iconCombo = new JComboBox<String>(getSimpleIconSuggestions());
             iconCombo.setEditable(true);
             iconCombo.setSelectedItem(getIconFor(cmd.getId()));
-            iconCombo.setPreferredSize(new Dimension(48, 24));
+            iconCombo.setPreferredSize(new Dimension(56, 24));
             iconSelectors.put(cmd, iconCombo);
 
+            // NEW: Color selector as editable hex (keep it simple)
+            JComboBox<String> colorCombo = new JComboBox<String>(new String[] {
+                    "", "#FF0000", "#00AA00", "#008000", "#FFA500", "#0000FF", "#FFFF00"
+            });
+            colorCombo.setEditable(true);
+            String pre = getBackgroundHexFor(cmd.getId());
+            colorCombo.setSelectedItem(pre == null ? "" : pre);
+            colorCombo.setPreferredSize(new Dimension(72, 24));
+            colorSelectors.put(cmd, colorCombo);
+
             checkboxes.put(cmd, box);
+
+            JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+            right.add(iconCombo);
+            right.add(colorCombo);
+
             line.add(box, BorderLayout.CENTER);
-            line.add(iconCombo, BorderLayout.EAST);
+            line.add(right, BorderLayout.EAST);
             commandPanel.add(line);
         }
 
@@ -114,41 +138,65 @@ public class ActionToolbar extends JToolBar {
 
         fullPanel.add(sizePanel, BorderLayout.SOUTH);
 
-    // Add third button "Standard laden" (index 0), keep OK (index 1) and Cancel (index 2)
-    Object[] options = new Object[] { "Standard laden", "OK", "Abbrechen" };
-    int result = JOptionPane.showOptionDialog(
-            this,
-            fullPanel,
-            "Toolbar konfigurieren",
-            JOptionPane.YES_NO_CANCEL_OPTION,
-            JOptionPane.PLAIN_MESSAGE,
-            null,
-            options,
-            options[1] // default: "OK"
-    );
+        // Add third button "Standard laden"
+        Object[] options = new Object[] { "Standard laden", "OK", "Abbrechen" };
+        int result = JOptionPane.showOptionDialog(
+                this,
+                fullPanel,
+                "Toolbar konfigurieren",
+                JOptionPane.YES_NO_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                options,
+                options[1] // default: "OK"
+        );
 
-    if (result == 0) {
-        // Load default buttons only; keep sizes intact
-        config.buttons = buildDefaultButtonsForAllCommands();
-        saveToolbarSettings();
-        rebuildButtons();
-        return;
-    }
+        if (result == 0) {
+            // Load default buttons (incl. default colors); keep sizes
+            config.buttons = buildDefaultButtonsForAllCommands();
+            saveToolbarSettings();
+            rebuildButtons();
+            return;
+        }
 
-    if (result == 1) {
+        if (result == 1) {
             config.buttons.clear();
             for (Map.Entry<MenuCommand, JCheckBox> entry : checkboxes.entrySet()) {
                 if (entry.getValue().isSelected()) {
                     String icon = Objects.toString(iconSelectors.get(entry.getKey()).getSelectedItem(), "").trim();
-                    config.buttons.add(new ToolbarButtonConfig(entry.getKey().getId(), icon));
+
+                    // Normalize color (allow empty)
+                    String hex = Objects.toString(colorSelectors.get(entry.getKey()).getSelectedItem(), "").trim();
+                    if (hex.length() > 0 && !hex.startsWith("#")) {
+                        hex = "#" + hex;
+                    }
+
+                    // Create config entry and set optional background
+                    ToolbarButtonConfig tbc = new ToolbarButtonConfig(entry.getKey().getId(), icon);
+                    // Requires: add 'public String backgroundHex;' to ToolbarButtonConfig
+                    tbc.backgroundHex = (hex.length() == 0) ? null : hex;
+
+                    config.buttons.add(tbc);
                 }
             }
+            // Keep original size handling as-is
             config.buttonSizePx = (Integer) sizeSpinner.getValue();
             config.fontSizeRatio = ((Double) ratioSpinner.getValue()).floatValue();
 
             saveToolbarSettings();
             rebuildButtons();
         }
+    }
+
+    // NEU: Bereits gespeicherte Hintergrundfarbe für ein Command ermitteln
+    private String getBackgroundHexFor(String id) {
+        for (ToolbarButtonConfig b : config.buttons) {
+            if (b.id.equals(id)) {
+                // Requires: add 'public String backgroundHex;' to ToolbarButtonConfig
+                return b.backgroundHex;
+            }
+        }
+        return null;
     }
 
     private boolean isCommandActive(String id) {
@@ -272,6 +320,7 @@ public class ActionToolbar extends JToolBar {
         return cfg;
     }
 
+    // ÄNDERT: Standardliste setzt nun Default-Hintergründe für Record/Play
     private List<ToolbarButtonConfig> buildDefaultButtonsForAllCommands() {
         List<ToolbarButtonConfig> list = new ArrayList<ToolbarButtonConfig>();
         List<MenuCommand> all = new ArrayList<MenuCommand>(CommandRegistryImpl.getInstance().getAll());
@@ -281,9 +330,21 @@ public class ActionToolbar extends JToolBar {
             }
         });
         for (MenuCommand cmd : all) {
-            list.add(new ToolbarButtonConfig(cmd.getId(), defaultIconFor(cmd)));
+            ToolbarButtonConfig tbc = new ToolbarButtonConfig(cmd.getId(), defaultIconFor(cmd));
+            // Requires: add 'public String backgroundHex;' to ToolbarButtonConfig
+            tbc.backgroundHex = defaultBackgroundHexFor(cmd);
+            list.add(tbc);
         }
         return list;
+    }
+
+    // NEU: Hintergrund pro Command ableiten (Record=rot, Play=grün, sonst null)
+    private String defaultBackgroundHexFor(MenuCommand cmd) {
+        // Implement simple rules without changing existing semantics
+        String id = (cmd.getId() == null) ? "" : cmd.getId().toLowerCase(Locale.ROOT);
+        if (id.contains("record")) return "#FF0000";        // red
+        if (id.contains("testsuite.play") || id.contains("play")) return "#00AA00"; // green
+        return null; // keep default look
     }
 
     /** Map command IDs to legible, monochrome-friendly Unicode icons. */
