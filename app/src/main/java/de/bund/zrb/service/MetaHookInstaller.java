@@ -4,8 +4,6 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Request;
 import com.microsoft.playwright.Response;
-import com.microsoft.playwright.Frame;
-
 import de.bund.zrb.PageImpl;
 import de.bund.zrb.WebDriver;
 import de.bund.zrb.meta.MetaEvent;
@@ -19,30 +17,29 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
- * Installiert Playwright- und (zusätzlich) BiDi-Hooks und publiziert NUR die
- * vom Nutzer gewünschten Meta-Events in die bestehende Textbox.
+ * Installiert Playwright- und BiDi-Listener und publiziert MetaEvents in die UI-Textbox (MetaEventService).
+ * - Playwright onX/offX: Request/Response + DOM Meilensteine
+ * - BiDi-only: fragmentNavigated/historyUpdated/navigationCommitted/Aborted/Failed/Started
  *
- * Sichtbare Events in der UI:
- *  - NAVIGATION_STARTED
- *  - FRAGMENT_NAVIGATED
- *  - HISTORY_UPDATED
- *  - DOM_CONTENT_LOADED
- *  - LOAD
- *  - NAVIGATION_ABORTED
- *  - NAVIGATION_COMMITTED
- *  - NAVIGATION_FAILED
- *  - BEFORE_REQUEST_SENT
- *  - FETCH_ERROR
- *  - RESPONSE_COMPLETED
- *  - RESPONSE_STARTED
- *
- * Keine Prompts, keine sonstigen Events.
+ * Jeder Auslöser hat genau EINEN klaren Namen:
+ *   BEFORE_REQUEST_SENT  -> NETWORK_REQUEST_SENT
+ *   RESPONSE_STARTED     -> NETWORK_RESPONSE_STARTED
+ *   RESPONSE_COMPLETED   -> NETWORK_RESPONSE_FINISHED
+ *   FETCH_ERROR          -> NETWORK_REQUEST_FAILED
+ *   DOM_CONTENT_LOADED   -> DOM_READY
+ *   LOAD                 -> PAGE_LOADED
+ *   NAVIGATION_STARTED   -> NAVIGATION_STARTED
+ *   FRAGMENT_NAVIGATED   -> URL_FRAGMENT_CHANGED
+ *   HISTORY_UPDATED      -> HISTORY_CHANGED
+ *   NAVIGATION_COMMITTED -> NAVIGATION_COMMITTED
+ *   NAVIGATION_ABORTED   -> NAVIGATION_ABORTED
+ *   NAVIGATION_FAILED    -> NAVIGATION_FAILED
  */
 public final class MetaHookInstaller {
 
     private final MetaEventService events;
 
-    /** pro Schlüssel (Context oder Page) Liste von "Abmeldungen" (offX / removeEventListener) */
+    // Für sauberes Abhängen speichern wir für jedes Target alle Off-Aktionen.
     private final Map<Object, List<Runnable>> detachActions = new ConcurrentHashMap<Object, List<Runnable>>();
 
     public MetaHookInstaller() {
@@ -53,250 +50,226 @@ public final class MetaHookInstaller {
         this.events = events;
     }
 
-    // =====================================================================================
-    // Public API
-    // =====================================================================================
-
-    /** Context-Modus: Netzwerk-Hooks (context-weit) + Weitergabe neuer Pages an installOnPage */
+    /** Installiert Hooks auf einem BrowserContext und allen vorhandenen/neuen Pages. */
     public void installOnContext(final BrowserContext ctx) {
         if (ctx == null) return;
         final List<Runnable> detach = bucket(ctx);
 
-        // -------------------- Netzwerk (Playwright) --------------------
-        // BEFORE_REQUEST_SENT
+        // ---------- Netzwerk (Kontext-weit, via Playwright) ----------
         final Consumer<Request> onReq = new Consumer<Request>() {
-            @Override public void accept(Request r) {
-                Map<String,String> d = new LinkedHashMap<String,String>();
-                put(d, "method", r.method());
-                put(d, "type",   r.resourceType());
-                put(d, "url",    r.url());
-                publish("BEFORE_REQUEST_SENT", d);
+            public void accept(Request r) {
+                Map<String, String> d = new LinkedHashMap<String, String>();
+                putIfNotNull(d, "url", r.url());
+                putIfNotNull(d, "method", r.method());
+                putIfNotNull(d, "resourceType", r.resourceType());
+                events.publish(MetaEvent.of(MetaEvent.Kind.NETWORK_REQUEST_SENT, d));
             }
         };
         ctx.onRequest(onReq);
-        detach.add(new Runnable() { @Override public void run() { ctx.offRequest(onReq); } });
+        detach.add(new Runnable() { public void run() { ctx.offRequest(onReq); } });
 
-        // RESPONSE_STARTED
         final Consumer<Response> onRespStart = new Consumer<Response>() {
-            @Override public void accept(Response resp) {
-                Map<String,String> d = new LinkedHashMap<String,String>();
-                put(d, "url", resp.url());
-                put(d, "status", String.valueOf(resp.status()));
-                publish("RESPONSE_STARTED", d);
+            public void accept(Response resp) {
+                Map<String, String> d = new LinkedHashMap<String, String>();
+                putIfNotNull(d, "url", resp.url());
+                d.put("status", String.valueOf(resp.status()));
+                events.publish(MetaEvent.of(MetaEvent.Kind.NETWORK_RESPONSE_STARTED, d));
             }
         };
         ctx.onResponse(onRespStart);
-        detach.add(new Runnable() { @Override public void run() { ctx.offResponse(onRespStart); } });
+        detach.add(new Runnable() { public void run() { ctx.offResponse(onRespStart); } });
 
-        // RESPONSE_COMPLETED
         final Consumer<Request> onReqFinished = new Consumer<Request>() {
-            @Override public void accept(Request r) {
+            public void accept(Request r) {
+                Map<String, String> d = new LinkedHashMap<String, String>();
+                putIfNotNull(d, "url", r.url());
                 Response resp = r.response();
-                Map<String,String> d = new LinkedHashMap<String,String>();
-                put(d, "url", r.url());
-                put(d, "status", (resp != null ? String.valueOf(resp.status()) : "-1"));
-                publish("RESPONSE_COMPLETED", d);
+                d.put("status", String.valueOf(resp != null ? resp.status() : -1));
+                events.publish(MetaEvent.of(MetaEvent.Kind.NETWORK_RESPONSE_FINISHED, d));
             }
         };
         ctx.onRequestFinished(onReqFinished);
-        detach.add(new Runnable() { @Override public void run() { ctx.offRequestFinished(onReqFinished); } });
+        detach.add(new Runnable() { public void run() { ctx.offRequestFinished(onReqFinished); } });
 
-        // FETCH_ERROR
         final Consumer<Request> onReqFailed = new Consumer<Request>() {
-            @Override public void accept(Request r) {
-                Map<String,String> d = new LinkedHashMap<String,String>();
-                put(d, "url", r.url());
-                put(d, "error", nvl(r.failure()));
-                publish("FETCH_ERROR", d);
+            public void accept(Request r) {
+                Map<String, String> d = new LinkedHashMap<String, String>();
+                putIfNotNull(d, "url", r.url());
+                putIfNotNull(d, "error", r.failure());
+                d.put("status", "FAILED");
+                events.publish(MetaEvent.of(MetaEvent.Kind.NETWORK_REQUEST_FAILED, d));
             }
         };
         ctx.onRequestFailed(onReqFailed);
-        detach.add(new Runnable() { @Override public void run() { ctx.offRequestFailed(onReqFailed); } });
+        detach.add(new Runnable() { public void run() { ctx.offRequestFailed(onReqFailed); } });
 
-        // -------------------- bereits offene Pages (für DOM+Nav) --------------------
+        // Bereits offene Pages anhängen
         List<Page> pages = ctx.pages();
-        if (pages != null) {
-            for (Page p : pages) {
-                installOnPage(p);
-            }
-        }
+        if (pages != null) for (Page p : pages) installOnPage(p);
 
-        // neue Pages
+        // Neue Pages beobachten
         final Consumer<Page> onPage = new Consumer<Page>() {
-            @Override public void accept(Page p) { installOnPage(p); }
+            public void accept(Page page) { installOnPage(page); }
         };
         ctx.onPage(onPage);
-        detach.add(new Runnable() { @Override public void run() { ctx.offPage(onPage); } });
+        detach.add(new Runnable() { public void run() { ctx.offPage(onPage); } });
     }
 
-    /** Page-Modus: DOM-Meilensteine (Playwright) + BiDi-Only Navigationsereignisse + (optional) Netzwerk pro Page */
+    /** Installiert Hooks auf einer einzelnen Page (DOM + optional Netzwerk + BiDi-only Navigation). */
     public void installOnPage(final Page page) {
         if (page == null) return;
         final List<Runnable> detach = bucket(page);
 
-        // -------------------- DOM (Playwright) --------------------
-        // DOM_CONTENT_LOADED
+        // ---------- DOM Meilensteine ----------
         final Consumer<Page> onDom = new Consumer<Page>() {
-            @Override public void accept(Page p) {
-                publish("DOM_CONTENT_LOADED", null);
-            }
+            public void accept(Page p) { events.publish(MetaEvent.of(MetaEvent.Kind.DOM_READY)); }
         };
         page.onDOMContentLoaded(onDom);
-        detach.add(new Runnable() { @Override public void run() { page.offDOMContentLoaded(onDom); } });
+        detach.add(new Runnable() { public void run() { page.offDOMContentLoaded(onDom); } });
 
-        // LOAD
         final Consumer<Page> onLoad = new Consumer<Page>() {
-            @Override public void accept(Page p) {
-                publish("LOAD", null);
-            }
+            public void accept(Page p) { events.publish(MetaEvent.of(MetaEvent.Kind.PAGE_LOADED)); }
         };
         page.onLoad(onLoad);
-        detach.add(new Runnable() { @Override public void run() { page.offLoad(onLoad); } });
+        detach.add(new Runnable() { public void run() { page.offLoad(onLoad); } });
 
-        // -------------------- Navigation Start (Playwright ersatzweise über Frame-Navigation) --------------------
-        // Wir wollen NAVIGATION_STARTED taggen. Playwright bietet dafür kein direktes onX,
-        // aber frameNavigated ist das nächstliegende Signal. Nur Main-Frame berücksichtigen.
-        final Consumer<Frame> onFrameNav = new Consumer<Frame>() {
-            @Override public void accept(Frame f) {
-                try {
-                    if (f == page.mainFrame()) {
-                        Map<String,String> d = new LinkedHashMap<String,String>();
-                        put(d, "url", safeUrl(page));
-                        publish("NAVIGATION_STARTED", d);
-                    }
-                } catch (Throwable ignore) {}
-            }
-        };
-        page.onFrameNavigated(onFrameNav);
-        detach.add(new Runnable() { @Override public void run() { page.offFrameNavigated(onFrameNav); } });
-
-        // -------------------- Netzwerk (Playwright) – Page-lokal (für Page-Modus nützlich) --------------------
+        // ---------- Optional: Page-spezifisches Netzwerk (redundant zu Context, aber nützlich pro Seite) ----------
         final Consumer<Request> onReq = new Consumer<Request>() {
-            @Override public void accept(Request r) {
-                Map<String,String> d = new LinkedHashMap<String,String>();
-                put(d, "method", r.method());
-                put(d, "type",   r.resourceType());
-                put(d, "url",    r.url());
-                publish("BEFORE_REQUEST_SENT", d);
+            public void accept(Request r) {
+                Map<String, String> d = new LinkedHashMap<String, String>();
+                putIfNotNull(d, "url", r.url());
+                putIfNotNull(d, "method", r.method());
+                putIfNotNull(d, "resourceType", r.resourceType());
+                events.publish(MetaEvent.of(MetaEvent.Kind.NETWORK_REQUEST_SENT, d));
             }
         };
         page.onRequest(onReq);
-        detach.add(new Runnable() { @Override public void run() { page.offRequest(onReq); } });
+        detach.add(new Runnable() { public void run() { page.offRequest(onReq); } });
 
         final Consumer<Response> onRespStart = new Consumer<Response>() {
-            @Override public void accept(Response resp) {
-                Map<String,String> d = new LinkedHashMap<String,String>();
-                put(d, "url", resp.url());
-                put(d, "status", String.valueOf(resp.status()));
-                publish("RESPONSE_STARTED", d);
+            public void accept(Response resp) {
+                Map<String, String> d = new LinkedHashMap<String, String>();
+                putIfNotNull(d, "url", resp.url());
+                d.put("status", String.valueOf(resp.status()));
+                events.publish(MetaEvent.of(MetaEvent.Kind.NETWORK_RESPONSE_STARTED, d));
             }
         };
         page.onResponse(onRespStart);
-        detach.add(new Runnable() { @Override public void run() { page.offResponse(onRespStart); } });
+        detach.add(new Runnable() { public void run() { page.offResponse(onRespStart); } });
 
         final Consumer<Request> onReqFinished = new Consumer<Request>() {
-            @Override public void accept(Request r) {
+            public void accept(Request r) {
+                Map<String, String> d = new LinkedHashMap<String, String>();
+                putIfNotNull(d, "url", r.url());
                 Response resp = r.response();
-                Map<String,String> d = new LinkedHashMap<String,String>();
-                put(d, "url", r.url());
-                put(d, "status", (resp != null ? String.valueOf(resp.status()) : "-1"));
-                publish("RESPONSE_COMPLETED", d);
+                d.put("status", String.valueOf(resp != null ? resp.status() : -1));
+                events.publish(MetaEvent.of(MetaEvent.Kind.NETWORK_RESPONSE_FINISHED, d));
             }
         };
         page.onRequestFinished(onReqFinished);
-        detach.add(new Runnable() { @Override public void run() { page.offRequestFinished(onReqFinished); } });
+        detach.add(new Runnable() { public void run() { page.offRequestFinished(onReqFinished); } });
 
         final Consumer<Request> onReqFailed = new Consumer<Request>() {
-            @Override public void accept(Request r) {
-                Map<String,String> d = new LinkedHashMap<String,String>();
-                put(d, "url", r.url());
-                put(d, "error", nvl(r.failure()));
-                publish("FETCH_ERROR", d);
+            public void accept(Request r) {
+                Map<String, String> d = new LinkedHashMap<String, String>();
+                putIfNotNull(d, "url", r.url());
+                putIfNotNull(d, "error", r.failure());
+                d.put("status", "FAILED");
+                events.publish(MetaEvent.of(MetaEvent.Kind.NETWORK_REQUEST_FAILED, d));
             }
         };
         page.onRequestFailed(onReqFailed);
-        detach.add(new Runnable() { @Override public void run() { page.offRequestFailed(onReqFailed); } });
+        detach.add(new Runnable() { public void run() { page.offRequestFailed(onReqFailed); } });
 
-        // -------------------- BiDi-Only Navigationsereignisse (nicht in Playwright onX) --------------------
+        // ---------- BiDi-only Navigation (per Kontext-ID) ----------
         if (page instanceof PageImpl) {
             final PageImpl p = (PageImpl) page;
             final WebDriver wd = p.getWebDriver();
             final String ctxId = p.getBrowsingContextId();
 
-            // FRAGMENT_NAVIGATED
+            // navigationStarted
+            final Consumer<Object> onNavStarted = new Consumer<Object>() {
+                public void accept(Object ev) {
+                    Map<String, String> d = new LinkedHashMap<String, String>();
+                    putIfNotNull(d, "url", safeUrl(page));
+                    events.publish(MetaEvent.of(MetaEvent.Kind.NAVIGATION_STARTED, d));
+                }
+            };
+            subscribe(wd, WDEventNames.NAVIGATION_STARTED.getName(), ctxId, onNavStarted, detach);
+
+            // fragmentNavigated
             final Consumer<Object> onFragment = new Consumer<Object>() {
-                @Override public void accept(Object ev) {
-                    Map<String,String> d = new LinkedHashMap<String,String>();
-                    put(d, "url", safeUrl(page));
-                    publish("FRAGMENT_NAVIGATED", d);
+                public void accept(Object ev) {
+                    Map<String, String> d = new LinkedHashMap<String, String>();
+                    putIfNotNull(d, "url", safeUrl(page));
+                    events.publish(MetaEvent.of(MetaEvent.Kind.URL_FRAGMENT_CHANGED, d));
                 }
             };
-            subscribe(wd, WDEventNames.FRAGMENT_NAVIGATED.getName(), ctxId, onFragment);
-            detach.add(new Runnable() { @Override public void run() { wd.removeEventListener(WDEventNames.FRAGMENT_NAVIGATED.getName(), ctxId, onFragment); } });
+            subscribe(wd, WDEventNames.FRAGMENT_NAVIGATED.getName(), ctxId, onFragment, detach);
 
-            // HISTORY_UPDATED
+            // historyUpdated
             final Consumer<Object> onHistory = new Consumer<Object>() {
-                @Override public void accept(Object ev) {
-                    Map<String,String> d = new LinkedHashMap<String,String>();
-                    put(d, "url", safeUrl(page));
-                    publish("HISTORY_UPDATED", d);
+                public void accept(Object ev) {
+                    Map<String, String> d = new LinkedHashMap<String, String>();
+                    putIfNotNull(d, "url", safeUrl(page));
+                    events.publish(MetaEvent.of(MetaEvent.Kind.HISTORY_CHANGED, d));
                 }
             };
-            subscribe(wd, WDEventNames.HISTORY_UPDATED.getName(), ctxId, onHistory);
-            detach.add(new Runnable() { @Override public void run() { wd.removeEventListener(WDEventNames.HISTORY_UPDATED.getName(), ctxId, onHistory); } });
+            subscribe(wd, WDEventNames.HISTORY_UPDATED.getName(), ctxId, onHistory, detach);
 
-            // NAVIGATION_COMMITTED
+            // navigationCommitted
             final Consumer<Object> onCommitted = new Consumer<Object>() {
-                @Override public void accept(Object ev) {
-                    Map<String,String> d = new LinkedHashMap<String,String>();
-                    put(d, "url", safeUrl(page));
-                    publish("NAVIGATION_COMMITTED", d);
+                public void accept(Object ev) {
+                    Map<String, String> d = new LinkedHashMap<String, String>();
+                    putIfNotNull(d, "url", safeUrl(page));
+                    events.publish(MetaEvent.of(MetaEvent.Kind.NAVIGATION_COMMITTED, d));
                 }
             };
-            subscribe(wd, WDEventNames.NAVIGATION_COMMITTED.getName(), ctxId, onCommitted);
-            detach.add(new Runnable() { @Override public void run() { wd.removeEventListener(WDEventNames.NAVIGATION_COMMITTED.getName(), ctxId, onCommitted); } });
+            subscribe(wd, WDEventNames.NAVIGATION_COMMITTED.getName(), ctxId, onCommitted, detach);
 
-            // NAVIGATION_ABORTED
+            // navigationAborted
             final Consumer<Object> onAborted = new Consumer<Object>() {
-                @Override public void accept(Object ev) {
-                    Map<String,String> d = new LinkedHashMap<String,String>();
-                    put(d, "url", safeUrl(page));
-                    publish("NAVIGATION_ABORTED", d);
+                public void accept(Object ev) {
+                    Map<String, String> d = new LinkedHashMap<String, String>();
+                    putIfNotNull(d, "url", safeUrl(page));
+                    events.publish(MetaEvent.of(MetaEvent.Kind.NAVIGATION_ABORTED, d));
                 }
             };
-            subscribe(wd, WDEventNames.NAVIGATION_ABORTED.getName(), ctxId, onAborted);
-            detach.add(new Runnable() { @Override public void run() { wd.removeEventListener(WDEventNames.NAVIGATION_ABORTED.getName(), ctxId, onAborted); } });
+            subscribe(wd, WDEventNames.NAVIGATION_ABORTED.getName(), ctxId, onAborted, detach);
 
-            // NAVIGATION_FAILED
+            // navigationFailed
             final Consumer<Object> onFailed = new Consumer<Object>() {
-                @Override public void accept(Object ev) {
-                    Map<String,String> d = new LinkedHashMap<String,String>();
-                    put(d, "url", safeUrl(page));
-                    publish("NAVIGATION_FAILED", d);
+                public void accept(Object ev) {
+                    Map<String, String> d = new LinkedHashMap<String, String>();
+                    putIfNotNull(d, "url", safeUrl(page));
+                    events.publish(MetaEvent.of(MetaEvent.Kind.NAVIGATION_FAILED, d));
                 }
             };
-            subscribe(wd, WDEventNames.NAVIGATION_FAILED.getName(), ctxId, onFailed);
-            detach.add(new Runnable() { @Override public void run() { wd.removeEventListener(WDEventNames.NAVIGATION_FAILED.getName(), ctxId, onFailed); } });
+            subscribe(wd, WDEventNames.NAVIGATION_FAILED.getName(), ctxId, onFailed, detach);
         }
     }
 
-    /** Entfernt alle zuvor installierten Hooks (sowohl Playwright als auch BiDi). */
+    /** Entfernt alle zuvor installierten Hooks. */
     public void uninstallAll() {
         for (Map.Entry<Object, List<Runnable>> e : detachActions.entrySet()) {
-            for (Runnable r : e.getValue()) {
-                try { r.run(); } catch (Throwable ignore) {}
-            }
+            List<Runnable> actions = e.getValue();
+            for (Runnable r : actions) { try { r.run(); } catch (Throwable ignore) { } }
         }
         detachActions.clear();
     }
 
-    // =====================================================================================
-    // Helpers
-    // =====================================================================================
+    // ---------- Helpers ----------
 
-    private void subscribe(final WebDriver wd, final String eventName, final String contextId, final Consumer<Object> handler) {
+    private void subscribe(final WebDriver wd,
+                           final String eventName,
+                           final String contextId,
+                           final Consumer<Object> handler,
+                           final List<Runnable> detach) {
         WDSubscriptionRequest req = new WDSubscriptionRequest(eventName, contextId, null);
         wd.addEventListener(req, handler);
+        detach.add(new Runnable() {
+            public void run() { wd.removeEventListener(eventName, contextId, handler); }
+        });
     }
 
     private List<Runnable> bucket(Object key) {
@@ -308,26 +281,11 @@ public final class MetaHookInstaller {
         return list;
     }
 
-    private void publish(String kindName, Map<String,String> details) {
-        // Erwartet: MetaEvent.Kind enthält die gewünschten Konstanten.
-        // Wenn deine Enum anders heißt/liegt, passe dies bitte zentral an.
-        MetaEvent.Kind kind = MetaEvent.Kind.valueOf(kindName);
-        if (details == null || details.isEmpty()) {
-            events.publish(MetaEvent.of(kind));
-        } else {
-            events.publish(MetaEvent.of(kind, details));
-        }
-    }
-
-    private static void put(Map<String,String> m, String k, String v) {
-        if (v != null) m.put(k, v);
-    }
-
-    private static String nvl(String s) {
-        return s == null ? "" : s;
+    private static void putIfNotNull(Map<String, String> m, String k, String v) {
+        if (v != null && !v.isEmpty()) m.put(k, v);
     }
 
     private static String safeUrl(Page p) {
-        try { return nvl(p.url()); } catch (Throwable t) { return ""; }
+        try { return p.url(); } catch (Throwable t) { return null; }
     }
 }

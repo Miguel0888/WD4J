@@ -8,13 +8,18 @@ import java.util.Map;
 public final class MetaEvent {
 
     public enum Kind {
+        NETWORK_RESPONSE_STARTED,
+        NETWORK_RESPONSE_FINISHED,
+        NETWORK_REQUEST_FAILED,
+        DOM_READY,
+        PAGE_LOADED,
         NAVIGATION_STARTED,
-        URL_CHANGED,
-        DOMCONTENTLOADED,
-        LOAD,
-        NETWORK_QUIET,
-        AJAX_STARTED,
-        PROMPT_CLOSED, PROMPT_OPENED, AUTH_REQUIRED, AJAX_COMPLETED
+        URL_FRAGMENT_CHANGED,
+        HISTORY_CHANGED,
+        NAVIGATION_COMMITTED,
+        NAVIGATION_ABORTED,
+        NAVIGATION_FAILED,
+        NETWORK_REQUEST_SENT
     }
 
     private final Kind kind;
