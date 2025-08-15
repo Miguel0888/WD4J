@@ -165,18 +165,27 @@ public class ActionToolbar extends JToolBar {
 
     private void loadToolbarSettings() {
         Path file = Paths.get(System.getProperty("user.home"), ".mainframemate", "toolbar.json");
+
+        // Case 1: No file yet -> initialize with defaults (not empty!)
         if (!Files.exists(file)) {
-            config = new ToolbarConfig();
-            config.buttonSizePx = 48;
-            config.fontSizeRatio = 0.75f;
-            config.buttons = new ArrayList<>();
+            config = createDefaultConfigWithButtons();
             return;
         }
+
+        // Case 2: Load file; if broken or empty, heal to defaults
         try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
             config = gson.fromJson(reader, ToolbarConfig.class);
+            ensureConfig();
+            if (config.buttons == null || config.buttons.isEmpty()) {
+                // Heal empty list that could be written by older versions
+                config.buttons = buildDefaultButtonsForAllCommands();
+                saveToolbarSettings(); // persist healing once
+            }
+            if (config.buttonSizePx <= 0) config.buttonSizePx = 48;
+            if (config.fontSizeRatio <= 0f) config.fontSizeRatio = 0.75f;
         } catch (IOException e) {
             System.err.println("⚠️ Fehler beim Laden der Toolbar-Konfiguration: " + e.getMessage());
-            config = new ToolbarConfig();
+            config = createDefaultConfigWithButtons();
         }
     }
 
