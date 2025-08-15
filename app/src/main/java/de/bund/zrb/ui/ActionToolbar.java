@@ -164,7 +164,7 @@ public class ActionToolbar extends JToolBar {
     }
 
     private void loadToolbarSettings() {
-        Path file = Paths.get(System.getProperty("user.home"), ".mainframemate", "toolbar.json");
+        Path file = Paths.get(System.getProperty("user.home"), ".wd4j", "toolbar.json");
 
         // Case 1: No file yet -> initialize with defaults (not empty!)
         if (!Files.exists(file)) {
