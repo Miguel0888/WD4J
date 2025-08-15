@@ -1,11 +1,13 @@
 package de.bund.zrb.service;
 
 import com.microsoft.playwright.BrowserContext;
-import com.microsoft.playwright.Frame;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Request;
 import com.microsoft.playwright.Response;
+import com.microsoft.playwright.Frame;
+
 import de.bund.zrb.PageImpl;
+import de.bund.zrb.WebDriver;
 import de.bund.zrb.meta.MetaEvent;
 import de.bund.zrb.meta.MetaEventService;
 import de.bund.zrb.meta.MetaEventServiceImpl;
@@ -16,12 +18,31 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-/** Installiert Playwright/BiDi-Hooks und publiziert MetaEvents für den UI-Drawer. */
+/**
+ * Installiert Playwright- und (zusätzlich) BiDi-Hooks und publiziert NUR die
+ * vom Nutzer gewünschten Meta-Events in die bestehende Textbox.
+ *
+ * Sichtbare Events in der UI:
+ *  - NAVIGATION_STARTED
+ *  - FRAGMENT_NAVIGATED
+ *  - HISTORY_UPDATED
+ *  - DOM_CONTENT_LOADED
+ *  - LOAD
+ *  - NAVIGATION_ABORTED
+ *  - NAVIGATION_COMMITTED
+ *  - NAVIGATION_FAILED
+ *  - BEFORE_REQUEST_SENT
+ *  - FETCH_ERROR
+ *  - RESPONSE_COMPLETED
+ *  - RESPONSE_STARTED
+ *
+ * Keine Prompts, keine sonstigen Events.
+ */
 public final class MetaHookInstaller {
 
     private final MetaEventService events;
 
-    /** pro Context/Page die passenden Off-Actions, damit sauber entfernt werden kann */
+    /** pro Schlüssel (Context oder Page) Liste von "Abmeldungen" (offX / removeEventListener) */
     private final Map<Object, List<Runnable>> detachActions = new ConcurrentHashMap<Object, List<Runnable>>();
 
     public MetaHookInstaller() {
@@ -32,242 +53,250 @@ public final class MetaHookInstaller {
         this.events = events;
     }
 
-    /** Context-weit: Netzwerk + „neue Seite“-Hook; außerdem bestehende Seiten nachrüsten. */
+    // =====================================================================================
+    // Public API
+    // =====================================================================================
+
+    /** Context-Modus: Netzwerk-Hooks (context-weit) + Weitergabe neuer Pages an installOnPage */
     public void installOnContext(final BrowserContext ctx) {
         if (ctx == null) return;
-
         final List<Runnable> detach = bucket(ctx);
 
-        // --- Netzwerk (context-weit)
+        // -------------------- Netzwerk (Playwright) --------------------
+        // BEFORE_REQUEST_SENT
         final Consumer<Request> onReq = new Consumer<Request>() {
-            public void accept(Request r) {
-                Map<String,String> d = new HashMap<String,String>();
-                d.put("url", nvl(r.url()));
-                if (r.method() != null) d.put("method", r.method());
-                if (r.resourceType() != null) d.put("type", r.resourceType());
-                events.publish(MetaEvent.of(MetaEvent.Kind.AJAX_STARTED, d));
+            @Override public void accept(Request r) {
+                Map<String,String> d = new LinkedHashMap<String,String>();
+                put(d, "method", r.method());
+                put(d, "type",   r.resourceType());
+                put(d, "url",    r.url());
+                publish("BEFORE_REQUEST_SENT", d);
             }
         };
         ctx.onRequest(onReq);
-        detach.add(new Runnable() { public void run() { ctx.offRequest(onReq); } });
+        detach.add(new Runnable() { @Override public void run() { ctx.offRequest(onReq); } });
 
-        final Consumer<Response> onResp = new Consumer<Response>() {
-            public void accept(Response r) {
-                Map<String,String> d = new HashMap<String,String>();
-                d.put("url", nvl(r.url()));
-                d.put("status", String.valueOf(r.status()));
-                events.publish(MetaEvent.of(MetaEvent.Kind.AJAX_COMPLETED, d));
+        // RESPONSE_STARTED
+        final Consumer<Response> onRespStart = new Consumer<Response>() {
+            @Override public void accept(Response resp) {
+                Map<String,String> d = new LinkedHashMap<String,String>();
+                put(d, "url", resp.url());
+                put(d, "status", String.valueOf(resp.status()));
+                publish("RESPONSE_STARTED", d);
             }
         };
-        ctx.onResponse(onResp);
-        detach.add(new Runnable() { public void run() { ctx.offResponse(onResp); } });
+        ctx.onResponse(onRespStart);
+        detach.add(new Runnable() { @Override public void run() { ctx.offResponse(onRespStart); } });
 
+        // RESPONSE_COMPLETED
+        final Consumer<Request> onReqFinished = new Consumer<Request>() {
+            @Override public void accept(Request r) {
+                Response resp = r.response();
+                Map<String,String> d = new LinkedHashMap<String,String>();
+                put(d, "url", r.url());
+                put(d, "status", (resp != null ? String.valueOf(resp.status()) : "-1"));
+                publish("RESPONSE_COMPLETED", d);
+            }
+        };
+        ctx.onRequestFinished(onReqFinished);
+        detach.add(new Runnable() { @Override public void run() { ctx.offRequestFinished(onReqFinished); } });
+
+        // FETCH_ERROR
         final Consumer<Request> onReqFailed = new Consumer<Request>() {
-            public void accept(Request r) {
-                Map<String,String> d = new HashMap<String,String>();
-                d.put("url", nvl(r.url()));
-                d.put("status", "FAILED");
-                d.put("error", nvl(r.failure()));
-                events.publish(MetaEvent.of(MetaEvent.Kind.AJAX_COMPLETED, d));
+            @Override public void accept(Request r) {
+                Map<String,String> d = new LinkedHashMap<String,String>();
+                put(d, "url", r.url());
+                put(d, "error", nvl(r.failure()));
+                publish("FETCH_ERROR", d);
             }
         };
         ctx.onRequestFailed(onReqFailed);
-        detach.add(new Runnable() { public void run() { ctx.offRequestFailed(onReqFailed); } });
+        detach.add(new Runnable() { @Override public void run() { ctx.offRequestFailed(onReqFailed); } });
 
-        // bereits offene Seiten nachrüsten
+        // -------------------- bereits offene Pages (für DOM+Nav) --------------------
         List<Page> pages = ctx.pages();
-        if (pages != null) for (Page p : pages) installOnPage(p);
+        if (pages != null) {
+            for (Page p : pages) {
+                installOnPage(p);
+            }
+        }
 
-        // neue Seiten automatisch bestücken
+        // neue Pages
         final Consumer<Page> onPage = new Consumer<Page>() {
-            public void accept(Page page) { installOnPage(page); }
+            @Override public void accept(Page p) { installOnPage(p); }
         };
         ctx.onPage(onPage);
-        detach.add(new Runnable() { public void run() { ctx.offPage(onPage); } });
+        detach.add(new Runnable() { @Override public void run() { ctx.offPage(onPage); } });
     }
 
-    /** Page-spezifische Hooks (Load-Meilensteine, Frame-Navigation, optional Netz-Events, BiDi-Extras). */
+    /** Page-Modus: DOM-Meilensteine (Playwright) + BiDi-Only Navigationsereignisse + (optional) Netzwerk pro Page */
     public void installOnPage(final Page page) {
         if (page == null) return;
-
         final List<Runnable> detach = bucket(page);
 
-        // --- LOAD
-        final Consumer<Page> onLoad = new Consumer<Page>() {
-            public void accept(Page p) { events.publish(MetaEvent.of(MetaEvent.Kind.LOAD)); }
-        };
-        page.onLoad(onLoad);
-        detach.add(new Runnable() { public void run() { page.offLoad(onLoad); } });
-
-        // --- DOMContentLoaded
+        // -------------------- DOM (Playwright) --------------------
+        // DOM_CONTENT_LOADED
         final Consumer<Page> onDom = new Consumer<Page>() {
-            public void accept(Page p) { events.publish(MetaEvent.of(MetaEvent.Kind.DOMCONTENTLOADED)); }
+            @Override public void accept(Page p) {
+                publish("DOM_CONTENT_LOADED", null);
+            }
         };
         page.onDOMContentLoaded(onDom);
-        detach.add(new Runnable() { public void run() { page.offDOMContentLoaded(onDom); } });
+        detach.add(new Runnable() { @Override public void run() { page.offDOMContentLoaded(onDom); } });
 
-        // --- Main-Frame navigiert → URL_CHANGED
+        // LOAD
+        final Consumer<Page> onLoad = new Consumer<Page>() {
+            @Override public void accept(Page p) {
+                publish("LOAD", null);
+            }
+        };
+        page.onLoad(onLoad);
+        detach.add(new Runnable() { @Override public void run() { page.offLoad(onLoad); } });
+
+        // -------------------- Navigation Start (Playwright ersatzweise über Frame-Navigation) --------------------
+        // Wir wollen NAVIGATION_STARTED taggen. Playwright bietet dafür kein direktes onX,
+        // aber frameNavigated ist das nächstliegende Signal. Nur Main-Frame berücksichtigen.
         final Consumer<Frame> onFrameNav = new Consumer<Frame>() {
-            public void accept(Frame f) {
+            @Override public void accept(Frame f) {
                 try {
                     if (f == page.mainFrame()) {
-                        Map<String,String> d = new HashMap<String,String>();
-                        d.put("url", nvl(page.url()));
-                        events.publish(MetaEvent.of(MetaEvent.Kind.URL_CHANGED, d));
+                        Map<String,String> d = new LinkedHashMap<String,String>();
+                        put(d, "url", safeUrl(page));
+                        publish("NAVIGATION_STARTED", d);
                     }
-                } catch (Throwable ignore) { }
+                } catch (Throwable ignore) {}
             }
         };
         page.onFrameNavigated(onFrameNav);
-        detach.add(new Runnable() { public void run() { page.offFrameNavigated(onFrameNav); } });
+        detach.add(new Runnable() { @Override public void run() { page.offFrameNavigated(onFrameNav); } });
 
-        // --- optionale Page-Netzwerk-Events (nützlich pro Seite, zusätzlich zu Context-Hooks)
+        // -------------------- Netzwerk (Playwright) – Page-lokal (für Page-Modus nützlich) --------------------
         final Consumer<Request> onReq = new Consumer<Request>() {
-            public void accept(Request r) {
-                Map<String,String> d = new HashMap<String,String>();
-                d.put("url", nvl(r.url()));
-                if (r.method() != null) d.put("method", r.method());
-                if (r.resourceType() != null) d.put("type", r.resourceType());
-                events.publish(MetaEvent.of(MetaEvent.Kind.AJAX_STARTED, d));
+            @Override public void accept(Request r) {
+                Map<String,String> d = new LinkedHashMap<String,String>();
+                put(d, "method", r.method());
+                put(d, "type",   r.resourceType());
+                put(d, "url",    r.url());
+                publish("BEFORE_REQUEST_SENT", d);
             }
         };
         page.onRequest(onReq);
-        detach.add(new Runnable() { public void run() { page.offRequest(onReq); } });
+        detach.add(new Runnable() { @Override public void run() { page.offRequest(onReq); } });
 
-        final Consumer<Response> onResp = new Consumer<Response>() {
-            public void accept(Response r) {
-                Map<String,String> d = new HashMap<String,String>();
-                d.put("url", nvl(r.url()));
-                d.put("status", String.valueOf(r.status()));
-                events.publish(MetaEvent.of(MetaEvent.Kind.AJAX_COMPLETED, d));
+        final Consumer<Response> onRespStart = new Consumer<Response>() {
+            @Override public void accept(Response resp) {
+                Map<String,String> d = new LinkedHashMap<String,String>();
+                put(d, "url", resp.url());
+                put(d, "status", String.valueOf(resp.status()));
+                publish("RESPONSE_STARTED", d);
             }
         };
-        page.onResponse(onResp);
-        detach.add(new Runnable() { public void run() { page.offResponse(onResp); } });
+        page.onResponse(onRespStart);
+        detach.add(new Runnable() { @Override public void run() { page.offResponse(onRespStart); } });
+
+        final Consumer<Request> onReqFinished = new Consumer<Request>() {
+            @Override public void accept(Request r) {
+                Response resp = r.response();
+                Map<String,String> d = new LinkedHashMap<String,String>();
+                put(d, "url", r.url());
+                put(d, "status", (resp != null ? String.valueOf(resp.status()) : "-1"));
+                publish("RESPONSE_COMPLETED", d);
+            }
+        };
+        page.onRequestFinished(onReqFinished);
+        detach.add(new Runnable() { @Override public void run() { page.offRequestFinished(onReqFinished); } });
 
         final Consumer<Request> onReqFailed = new Consumer<Request>() {
-            public void accept(Request r) {
-                Map<String,String> d = new HashMap<String,String>();
-                d.put("url", nvl(r.url()));
-                d.put("status", "FAILED");
-                d.put("error", nvl(r.failure()));
-                events.publish(MetaEvent.of(MetaEvent.Kind.AJAX_COMPLETED, d));
+            @Override public void accept(Request r) {
+                Map<String,String> d = new LinkedHashMap<String,String>();
+                put(d, "url", r.url());
+                put(d, "error", nvl(r.failure()));
+                publish("FETCH_ERROR", d);
             }
         };
         page.onRequestFailed(onReqFailed);
-        detach.add(new Runnable() { public void run() { page.offRequestFailed(onReqFailed); } });
+        detach.add(new Runnable() { @Override public void run() { page.offRequestFailed(onReqFailed); } });
 
-        // --- Dialoge (PROMPT_OPENED) – promptClosed kommt über BiDi unten
-        final Consumer<com.microsoft.playwright.Dialog> onDialog = new Consumer<com.microsoft.playwright.Dialog>() {
-            public void accept(com.microsoft.playwright.Dialog dialog) {
-                Map<String,String> d = new HashMap<String,String>();
-                d.put("type", nvl(dialog.type()));
-                d.put("message", nvl(dialog.message()));
-                events.publish(MetaEvent.of(MetaEvent.Kind.PROMPT_OPENED, d));
-            }
-        };
-        page.onDialog(onDialog);
-        detach.add(new Runnable() { public void run() { page.offDialog(onDialog); } });
+        // -------------------- BiDi-Only Navigationsereignisse (nicht in Playwright onX) --------------------
+        if (page instanceof PageImpl) {
+            final PageImpl p = (PageImpl) page;
+            final WebDriver wd = p.getWebDriver();
+            final String ctxId = p.getBrowsingContextId();
 
-        // --- BiDi-Only: Fragment-Navigation, History-Update, Commit/Abort, PromptClosed, AuthRequired
-        installBiDiExtrasOnPage(page, detach);
+            // FRAGMENT_NAVIGATED
+            final Consumer<Object> onFragment = new Consumer<Object>() {
+                @Override public void accept(Object ev) {
+                    Map<String,String> d = new LinkedHashMap<String,String>();
+                    put(d, "url", safeUrl(page));
+                    publish("FRAGMENT_NAVIGATED", d);
+                }
+            };
+            subscribe(wd, WDEventNames.FRAGMENT_NAVIGATED.getName(), ctxId, onFragment);
+            detach.add(new Runnable() { @Override public void run() { wd.removeEventListener(WDEventNames.FRAGMENT_NAVIGATED.getName(), ctxId, onFragment); } });
+
+            // HISTORY_UPDATED
+            final Consumer<Object> onHistory = new Consumer<Object>() {
+                @Override public void accept(Object ev) {
+                    Map<String,String> d = new LinkedHashMap<String,String>();
+                    put(d, "url", safeUrl(page));
+                    publish("HISTORY_UPDATED", d);
+                }
+            };
+            subscribe(wd, WDEventNames.HISTORY_UPDATED.getName(), ctxId, onHistory);
+            detach.add(new Runnable() { @Override public void run() { wd.removeEventListener(WDEventNames.HISTORY_UPDATED.getName(), ctxId, onHistory); } });
+
+            // NAVIGATION_COMMITTED
+            final Consumer<Object> onCommitted = new Consumer<Object>() {
+                @Override public void accept(Object ev) {
+                    Map<String,String> d = new LinkedHashMap<String,String>();
+                    put(d, "url", safeUrl(page));
+                    publish("NAVIGATION_COMMITTED", d);
+                }
+            };
+            subscribe(wd, WDEventNames.NAVIGATION_COMMITTED.getName(), ctxId, onCommitted);
+            detach.add(new Runnable() { @Override public void run() { wd.removeEventListener(WDEventNames.NAVIGATION_COMMITTED.getName(), ctxId, onCommitted); } });
+
+            // NAVIGATION_ABORTED
+            final Consumer<Object> onAborted = new Consumer<Object>() {
+                @Override public void accept(Object ev) {
+                    Map<String,String> d = new LinkedHashMap<String,String>();
+                    put(d, "url", safeUrl(page));
+                    publish("NAVIGATION_ABORTED", d);
+                }
+            };
+            subscribe(wd, WDEventNames.NAVIGATION_ABORTED.getName(), ctxId, onAborted);
+            detach.add(new Runnable() { @Override public void run() { wd.removeEventListener(WDEventNames.NAVIGATION_ABORTED.getName(), ctxId, onAborted); } });
+
+            // NAVIGATION_FAILED
+            final Consumer<Object> onFailed = new Consumer<Object>() {
+                @Override public void accept(Object ev) {
+                    Map<String,String> d = new LinkedHashMap<String,String>();
+                    put(d, "url", safeUrl(page));
+                    publish("NAVIGATION_FAILED", d);
+                }
+            };
+            subscribe(wd, WDEventNames.NAVIGATION_FAILED.getName(), ctxId, onFailed);
+            detach.add(new Runnable() { @Override public void run() { wd.removeEventListener(WDEventNames.NAVIGATION_FAILED.getName(), ctxId, onFailed); } });
+        }
     }
 
-    /** Entfernt alle installierten Hooks dieser Installer-Instanz. */
+    /** Entfernt alle zuvor installierten Hooks (sowohl Playwright als auch BiDi). */
     public void uninstallAll() {
-        for (Map.Entry<Object,List<Runnable>> e : detachActions.entrySet()) {
+        for (Map.Entry<Object, List<Runnable>> e : detachActions.entrySet()) {
             for (Runnable r : e.getValue()) {
-                try { r.run(); } catch (Throwable ignore) { }
+                try { r.run(); } catch (Throwable ignore) {}
             }
         }
         detachActions.clear();
     }
 
-    // ------------------------- helpers -------------------------
+    // =====================================================================================
+    // Helpers
+    // =====================================================================================
 
-    private void installBiDiExtrasOnPage(final Page page, final List<Runnable> detach) {
-        if (!(page instanceof PageImpl)) return;
-
-        final PageImpl p = (PageImpl) page;
-        final de.bund.zrb.WebDriver wd = p.getWebDriver();
-        final String ctxId = p.getBrowsingContextId();
-
-        // FRAGMENT_NAVIGATED → URL_CHANGED(reason=fragment)
-        final Consumer<Object> onFragment = new Consumer<Object>() {
-            public void accept(Object ev) {
-                Map<String,String> d = new HashMap<String,String>();
-                d.put("reason", "fragment");
-                d.put("url", nvl(page.url()));
-                events.publish(MetaEvent.of(MetaEvent.Kind.URL_CHANGED, d));
-            }
-        };
-        subscribe(wd, WDEventNames.FRAGMENT_NAVIGATED.getName(), ctxId, onFragment, detach);
-
-        // HISTORY_UPDATED → URL_CHANGED(reason=history)
-        final Consumer<Object> onHistory = new Consumer<Object>() {
-            public void accept(Object ev) {
-                Map<String,String> d = new HashMap<String,String>();
-                d.put("reason", "historyUpdated");
-                d.put("url", nvl(page.url()));
-                events.publish(MetaEvent.of(MetaEvent.Kind.URL_CHANGED, d));
-            }
-        };
-        subscribe(wd, WDEventNames.HISTORY_UPDATED.getName(), ctxId, onHistory, detach);
-
-        // NAVIGATION_COMMITTED → URL_CHANGED(reason=committed)
-        final Consumer<Object> onCommit = new Consumer<Object>() {
-            public void accept(Object ev) {
-                Map<String,String> d = new HashMap<String,String>();
-                d.put("reason", "committed");
-                d.put("url", nvl(page.url()));
-                events.publish(MetaEvent.of(MetaEvent.Kind.URL_CHANGED, d));
-            }
-        };
-        subscribe(wd, WDEventNames.NAVIGATION_COMMITTED.getName(), ctxId, onCommit, detach);
-
-        // NAVIGATION_ABORTED → URL_CHANGED(reason=aborted)
-        final Consumer<Object> onAbort = new Consumer<Object>() {
-            public void accept(Object ev) {
-                Map<String,String> d = new HashMap<String,String>();
-                d.put("reason", "aborted");
-                d.put("url", nvl(page.url()));
-                events.publish(MetaEvent.of(MetaEvent.Kind.URL_CHANGED, d));
-            }
-        };
-        subscribe(wd, WDEventNames.NAVIGATION_ABORTED.getName(), ctxId, onAbort, detach);
-
-        // USER_PROMPT_CLOSED → PROMPT_CLOSED
-        final Consumer<Object> onPromptClosed = new Consumer<Object>() {
-            public void accept(Object ev) {
-                events.publish(MetaEvent.of(MetaEvent.Kind.PROMPT_CLOSED));
-            }
-        };
-        subscribe(wd, WDEventNames.USER_PROMPT_CLOSED.getName(), ctxId, onPromptClosed, detach);
-
-        // AUTH_REQUIRED → AUTH_REQUIRED (falls vorhanden)
-        final Consumer<Object> onAuth = new Consumer<Object>() {
-            public void accept(Object ev) {
-                Map<String,String> d = new HashMap<String,String>();
-                // Mapper liefert für authRequired ein Request-ähnliches Objekt → URL falls möglich mitgeben
-                if (ev instanceof Request) {
-                    Request r = (Request) ev;
-                    d.put("url", nvl(r.url()));
-                    if (r.method() != null) d.put("method", r.method());
-                }
-                events.publish(MetaEvent.of(MetaEvent.Kind.AUTH_REQUIRED, d.isEmpty() ? null : d));
-            }
-        };
-        subscribe(wd, WDEventNames.AUTH_REQUIRED.getName(), ctxId, onAuth, detach);
-    }
-
-    private void subscribe(final de.bund.zrb.WebDriver wd,
-                           final String eventName,
-                           final String contextId,
-                           final Consumer<Object> handler,
-                           final List<Runnable> detach) {
+    private void subscribe(final WebDriver wd, final String eventName, final String contextId, final Consumer<Object> handler) {
         WDSubscriptionRequest req = new WDSubscriptionRequest(eventName, contextId, null);
         wd.addEventListener(req, handler);
-        detach.add(new Runnable() { public void run() { wd.removeEventListener(eventName, contextId, handler); } });
     }
 
     private List<Runnable> bucket(Object key) {
@@ -279,5 +308,26 @@ public final class MetaHookInstaller {
         return list;
     }
 
-    private static String nvl(String s) { return s == null ? "" : s; }
+    private void publish(String kindName, Map<String,String> details) {
+        // Erwartet: MetaEvent.Kind enthält die gewünschten Konstanten.
+        // Wenn deine Enum anders heißt/liegt, passe dies bitte zentral an.
+        MetaEvent.Kind kind = MetaEvent.Kind.valueOf(kindName);
+        if (details == null || details.isEmpty()) {
+            events.publish(MetaEvent.of(kind));
+        } else {
+            events.publish(MetaEvent.of(kind, details));
+        }
+    }
+
+    private static void put(Map<String,String> m, String k, String v) {
+        if (v != null) m.put(k, v);
+    }
+
+    private static String nvl(String s) {
+        return s == null ? "" : s;
+    }
+
+    private static String safeUrl(Page p) {
+        try { return nvl(p.url()); } catch (Throwable t) { return ""; }
+    }
 }
