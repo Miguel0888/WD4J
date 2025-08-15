@@ -723,9 +723,11 @@ public class ActionToolbar extends JToolBar {
         String id = (cmd.getId() == null) ? "" : cmd.getId().toLowerCase(Locale.ROOT);
 
         // Playback / Recording
-        if (id.contains("record"))                                     return "⦿";
-        if (id.contains("testsuite.play") || id.contains("play"))      return "▶";
-        if (id.contains("testsuite.stop") || id.contains("stop"))      return "■";
+        if (id.contains("record.play"))      return "▶";
+        if (id.contains("record.stop"))      return "■";
+        if (id.contains("record.toggle"))    return "⦿";
+        if (id.contains("testsuite.play"))     return "▶";
+        if (id.contains("testsuite.stop"))     return "■";
 
         // Browser / Tabs / Navigation
         if (id.contains("browser.launch") || id.contains("launch"))    return "🌐";
