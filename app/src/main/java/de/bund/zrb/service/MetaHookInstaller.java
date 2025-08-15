@@ -5,6 +5,7 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Request;
 import com.microsoft.playwright.Response;
 import de.bund.zrb.PageImpl;
+import de.bund.zrb.UserContextImpl;
 import de.bund.zrb.WebDriver;
 import de.bund.zrb.meta.MetaEvent;
 import de.bund.zrb.meta.MetaEventService;
@@ -21,7 +22,7 @@ import java.util.function.Consumer;
  * - Playwright onX/offX: Request/Response + DOM Meilensteine
  * - BiDi-only: fragmentNavigated/historyUpdated/navigationCommitted/Aborted/Failed/Started
  *
- * Jeder Auslöser hat genau EINEN klaren Namen:
+ * Eindeutige Namen:
  *   BEFORE_REQUEST_SENT  -> NETWORK_REQUEST_SENT
  *   RESPONSE_STARTED     -> NETWORK_RESPONSE_STARTED
  *   RESPONSE_COMPLETED   -> NETWORK_RESPONSE_FINISHED
@@ -34,13 +35,21 @@ import java.util.function.Consumer;
  *   NAVIGATION_COMMITTED -> NAVIGATION_COMMITTED
  *   NAVIGATION_ABORTED   -> NAVIGATION_ABORTED
  *   NAVIGATION_FAILED    -> NAVIGATION_FAILED
+ *
+ * NEU: Jeder Event trägt jetzt "userContextId" und – falls verfügbar – "browsingContextId",
+ * damit die UI pro User/Tab filtern kann.
  */
 public final class MetaHookInstaller {
 
     private final MetaEventService events;
 
-    // Für sauberes Abhängen speichern wir für jedes Target alle Off-Aktionen.
+    // Alle Off-Aktionen pro Target (Context oder Page)
     private final Map<Object, List<Runnable>> detachActions = new ConcurrentHashMap<Object, List<Runnable>>();
+
+    // ---- Scope (für UI-Filterung) ----
+    private volatile String ownerUserContextId; // wird in installOnContext gesetzt
+    private final Set<String> ownedBrowsingContextIds =
+            Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
     public MetaHookInstaller() {
         this(MetaEventServiceImpl.getInstance());
@@ -55,10 +64,18 @@ public final class MetaHookInstaller {
         if (ctx == null) return;
         final List<Runnable> detach = bucket(ctx);
 
+        // Scope erfassen (UserContext-ID)
+        if (ctx instanceof UserContextImpl) {
+            try {
+                ownerUserContextId = ((UserContextImpl) ctx).getUserContext().value();
+            } catch (Throwable ignore) {}
+        }
+
         // ---------- Netzwerk (Kontext-weit, via Playwright) ----------
         final Consumer<Request> onReq = new Consumer<Request>() {
             public void accept(Request r) {
                 Map<String, String> d = new LinkedHashMap<String, String>();
+                scopeForContext(d); // userContextId
                 putIfNotNull(d, "url", r.url());
                 putIfNotNull(d, "method", r.method());
                 putIfNotNull(d, "resourceType", r.resourceType());
@@ -71,6 +88,7 @@ public final class MetaHookInstaller {
         final Consumer<Response> onRespStart = new Consumer<Response>() {
             public void accept(Response resp) {
                 Map<String, String> d = new LinkedHashMap<String, String>();
+                scopeForContext(d);
                 putIfNotNull(d, "url", resp.url());
                 d.put("status", String.valueOf(resp.status()));
                 events.publish(MetaEvent.of(MetaEvent.Kind.NETWORK_RESPONSE_STARTED, d));
@@ -82,6 +100,7 @@ public final class MetaHookInstaller {
         final Consumer<Request> onReqFinished = new Consumer<Request>() {
             public void accept(Request r) {
                 Map<String, String> d = new LinkedHashMap<String, String>();
+                scopeForContext(d);
                 putIfNotNull(d, "url", r.url());
                 Response resp = r.response();
                 d.put("status", String.valueOf(resp != null ? resp.status() : -1));
@@ -94,6 +113,7 @@ public final class MetaHookInstaller {
         final Consumer<Request> onReqFailed = new Consumer<Request>() {
             public void accept(Request r) {
                 Map<String, String> d = new LinkedHashMap<String, String>();
+                scopeForContext(d);
                 putIfNotNull(d, "url", r.url());
                 putIfNotNull(d, "error", r.failure());
                 d.put("status", "FAILED");
@@ -115,28 +135,44 @@ public final class MetaHookInstaller {
         detach.add(new Runnable() { public void run() { ctx.offPage(onPage); } });
     }
 
-    /** Installiert Hooks auf einer einzelnen Page (DOM + optional Netzwerk + BiDi-only Navigation). */
+    /** Installiert Hooks auf einer einzelnen Page (DOM + Netzwerk + BiDi-only Navigation). */
     public void installOnPage(final Page page) {
         if (page == null) return;
         final List<Runnable> detach = bucket(page);
 
+        // Scope: BrowsingContext-ID merken (falls PageImpl)
+        if (page instanceof PageImpl) {
+            try {
+                ownedBrowsingContextIds.add(((PageImpl) page).getBrowsingContextId());
+            } catch (Throwable ignore) {}
+        }
+
         // ---------- DOM Meilensteine ----------
         final Consumer<Page> onDom = new Consumer<Page>() {
-            public void accept(Page p) { events.publish(MetaEvent.of(MetaEvent.Kind.DOM_READY)); }
+            public void accept(Page p) {
+                Map<String,String> d = new LinkedHashMap<String,String>();
+                scopeForPage(d, p);
+                events.publish(MetaEvent.of(MetaEvent.Kind.DOM_READY, d));
+            }
         };
         page.onDOMContentLoaded(onDom);
         detach.add(new Runnable() { public void run() { page.offDOMContentLoaded(onDom); } });
 
         final Consumer<Page> onLoad = new Consumer<Page>() {
-            public void accept(Page p) { events.publish(MetaEvent.of(MetaEvent.Kind.PAGE_LOADED)); }
+            public void accept(Page p) {
+                Map<String,String> d = new LinkedHashMap<String,String>();
+                scopeForPage(d, p);
+                events.publish(MetaEvent.of(MetaEvent.Kind.PAGE_LOADED, d));
+            }
         };
         page.onLoad(onLoad);
         detach.add(new Runnable() { public void run() { page.offLoad(onLoad); } });
 
-        // ---------- Optional: Page-spezifisches Netzwerk (redundant zu Context, aber nützlich pro Seite) ----------
+        // ---------- Page-spezifisches Netzwerk ----------
         final Consumer<Request> onReq = new Consumer<Request>() {
             public void accept(Request r) {
                 Map<String, String> d = new LinkedHashMap<String, String>();
+                scopeForPage(d, page); // userContextId + browsingContextId
                 putIfNotNull(d, "url", r.url());
                 putIfNotNull(d, "method", r.method());
                 putIfNotNull(d, "resourceType", r.resourceType());
@@ -149,6 +185,7 @@ public final class MetaHookInstaller {
         final Consumer<Response> onRespStart = new Consumer<Response>() {
             public void accept(Response resp) {
                 Map<String, String> d = new LinkedHashMap<String, String>();
+                scopeForPage(d, page);
                 putIfNotNull(d, "url", resp.url());
                 d.put("status", String.valueOf(resp.status()));
                 events.publish(MetaEvent.of(MetaEvent.Kind.NETWORK_RESPONSE_STARTED, d));
@@ -160,6 +197,7 @@ public final class MetaHookInstaller {
         final Consumer<Request> onReqFinished = new Consumer<Request>() {
             public void accept(Request r) {
                 Map<String, String> d = new LinkedHashMap<String, String>();
+                scopeForPage(d, page);
                 putIfNotNull(d, "url", r.url());
                 Response resp = r.response();
                 d.put("status", String.valueOf(resp != null ? resp.status() : -1));
@@ -172,6 +210,7 @@ public final class MetaHookInstaller {
         final Consumer<Request> onReqFailed = new Consumer<Request>() {
             public void accept(Request r) {
                 Map<String, String> d = new LinkedHashMap<String, String>();
+                scopeForPage(d, page);
                 putIfNotNull(d, "url", r.url());
                 putIfNotNull(d, "error", r.failure());
                 d.put("status", "FAILED");
@@ -181,66 +220,66 @@ public final class MetaHookInstaller {
         page.onRequestFailed(onReqFailed);
         detach.add(new Runnable() { public void run() { page.offRequestFailed(onReqFailed); } });
 
-        // ---------- BiDi-only Navigation (per Kontext-ID) ----------
+        // ---------- BiDi-only Navigation ----------
         if (page instanceof PageImpl) {
             final PageImpl p = (PageImpl) page;
             final WebDriver wd = p.getWebDriver();
             final String ctxId = p.getBrowsingContextId();
 
-            // navigationStarted
             final Consumer<Object> onNavStarted = new Consumer<Object>() {
                 public void accept(Object ev) {
                     Map<String, String> d = new LinkedHashMap<String, String>();
+                    scopeForPage(d, page);
                     putIfNotNull(d, "url", safeUrl(page));
                     events.publish(MetaEvent.of(MetaEvent.Kind.NAVIGATION_STARTED, d));
                 }
             };
             subscribe(wd, WDEventNames.NAVIGATION_STARTED.getName(), ctxId, onNavStarted, detach);
 
-            // fragmentNavigated
             final Consumer<Object> onFragment = new Consumer<Object>() {
                 public void accept(Object ev) {
                     Map<String, String> d = new LinkedHashMap<String, String>();
+                    scopeForPage(d, page);
                     putIfNotNull(d, "url", safeUrl(page));
                     events.publish(MetaEvent.of(MetaEvent.Kind.URL_FRAGMENT_CHANGED, d));
                 }
             };
             subscribe(wd, WDEventNames.FRAGMENT_NAVIGATED.getName(), ctxId, onFragment, detach);
 
-            // historyUpdated
             final Consumer<Object> onHistory = new Consumer<Object>() {
                 public void accept(Object ev) {
                     Map<String, String> d = new LinkedHashMap<String, String>();
+                    scopeForPage(d, page);
                     putIfNotNull(d, "url", safeUrl(page));
                     events.publish(MetaEvent.of(MetaEvent.Kind.HISTORY_CHANGED, d));
                 }
             };
             subscribe(wd, WDEventNames.HISTORY_UPDATED.getName(), ctxId, onHistory, detach);
 
-            // navigationCommitted
             final Consumer<Object> onCommitted = new Consumer<Object>() {
                 public void accept(Object ev) {
                     Map<String, String> d = new LinkedHashMap<String, String>();
+                    scopeForPage(d, page);
                     putIfNotNull(d, "url", safeUrl(page));
                     events.publish(MetaEvent.of(MetaEvent.Kind.NAVIGATION_COMMITTED, d));
                 }
             };
             subscribe(wd, WDEventNames.NAVIGATION_COMMITTED.getName(), ctxId, onCommitted, detach);
 
-            // navigationAborted
             final Consumer<Object> onAborted = new Consumer<Object>() {
                 public void accept(Object ev) {
                     Map<String, String> d = new LinkedHashMap<String, String>();
+                    scopeForPage(d, page);
                     putIfNotNull(d, "url", safeUrl(page));
                     events.publish(MetaEvent.of(MetaEvent.Kind.NAVIGATION_ABORTED, d));
                 }
             };
             subscribe(wd, WDEventNames.NAVIGATION_ABORTED.getName(), ctxId, onAborted, detach);
 
-            // navigationFailed
             final Consumer<Object> onFailed = new Consumer<Object>() {
                 public void accept(Object ev) {
                     Map<String, String> d = new LinkedHashMap<String, String>();
+                    scopeForPage(d, page);
                     putIfNotNull(d, "url", safeUrl(page));
                     events.publish(MetaEvent.of(MetaEvent.Kind.NAVIGATION_FAILED, d));
                 }
@@ -287,5 +326,20 @@ public final class MetaHookInstaller {
 
     private static String safeUrl(Page p) {
         try { return p.url(); } catch (Throwable t) { return null; }
+    }
+
+    // ---- Scope-Helfer (fügen userContextId/browsingContextId an jedes Event an) ----
+
+    private void scopeForContext(Map<String,String> d) {
+        if (ownerUserContextId != null) d.put("userContextId", ownerUserContextId);
+    }
+
+    private void scopeForPage(Map<String,String> d, Page p) {
+        scopeForContext(d);
+        if (p instanceof PageImpl) {
+            try {
+                d.put("browsingContextId", ((PageImpl) p).getBrowsingContextId());
+            } catch (Throwable ignore) {}
+        }
     }
 }

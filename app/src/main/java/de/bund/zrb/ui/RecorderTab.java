@@ -1,12 +1,12 @@
 package de.bund.zrb.ui;
 
+import com.microsoft.playwright.BrowserContext;
 import de.bund.zrb.event.ApplicationEventBus;
 import de.bund.zrb.event.TestSuiteSavedEvent;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.*;
-
 import de.bund.zrb.meta.MetaEvent;
 import de.bund.zrb.meta.MetaEventFormatter;
 import de.bund.zrb.meta.MetaEventListener;
@@ -19,6 +19,7 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /** Swing tab for one user; delegate recording to service. */
 public final class RecorderTab extends JPanel implements RecorderTabUi {
@@ -38,14 +39,18 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     private int lastDividerLocation = -1;
 
     private final MetaEventService metaService = MetaEventServiceImpl.getInstance();
+
+    // UserContext-Filter für Meta-Events dieses Tabs
+    private final String myUserContextId;
+
     private final MetaEventListener metaListener = new MetaEventListener() {
         public void onMetaEvent(final MetaEvent event) {
-            // Append on EDT
-            SwingUtilities.invokeLater(new Runnable() {
-                public void run() {
-                    appendMetaLine(MetaEventFormatter.format(event));
-                }
-            });
+            Map<String,String> d = event.getDetails();
+            if (myUserContextId != null && d != null) {
+                String uc = d.get("userContextId");
+                if (uc != null && !uc.equals(myUserContextId)) return; // fremde Events ignorieren
+            }
+            SwingUtilities.invokeLater(() -> appendMetaLine(MetaEventFormatter.format(event)));
         }
     };
 
@@ -55,6 +60,9 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         super(new BorderLayout(8, 8));
         this.rightDrawer = rightDrawer;
         this.selectedUser = user;
+
+        // UserContext-ID für diesen Tab ermitteln (falls noch kein Context existiert -> null, dann wird nicht gefiltert)
+        this.myUserContextId = resolveUserContextId(user.getUsername());
 
         // Fill suites
         for (TestSuite suite : TestRegistry.getInstance().getAll()) {
@@ -393,5 +401,16 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         } else {
             metaArea.append("\n" + line);
         }
+    }
+
+    /** Ermittelt die UserContext-ID für einen Benutzer über das Mapping. */
+    private static String resolveUserContextId(String username) {
+        BrowserContext ctx = UserContextMappingService.getInstance().getContextForUser(username);
+        if (ctx instanceof de.bund.zrb.UserContextImpl) {
+            try {
+                return ((de.bund.zrb.UserContextImpl) ctx).getUserContext().value();
+            } catch (Throwable ignore) { }
+        }
+        return null; // noch kein Context vorhanden -> keine Filterung
     }
 }
