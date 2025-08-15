@@ -6,37 +6,37 @@ public enum WDEventNames {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // 🔹 Browsing Context Events
-    CONTEXT_CREATED("browsingContext.contextCreated"),
-    CONTEXT_DESTROYED("browsingContext.contextDestroyed"),
-    NAVIGATION_STARTED("browsingContext.navigationStarted"),
+    CONTEXT_CREATED("browsingContext.contextCreated"), // -> onWebSocket, onFrameAttached, onPopup
+    CONTEXT_DESTROYED("browsingContext.contextDestroyed"), // -> onClose
+    NAVIGATION_STARTED("browsingContext.navigationStarted"), // -> onFrameNavigated
     FRAGMENT_NAVIGATED("browsingContext.fragmentNavigated"),
     HISTORY_UPDATED("browsingContext.historyUpdated"),
-    DOM_CONTENT_LOADED("browsingContext.domContentLoaded"),
-    LOAD("browsingContext.load"),
-    DOWNLOAD_WILL_BEGIN("browsingContext.downloadWillBegin"),
+    DOM_CONTENT_LOADED("browsingContext.domContentLoaded"), // -> onDOMContentLoaded
+    LOAD("browsingContext.load"), // -> onLoad
+    DOWNLOAD_WILL_BEGIN("browsingContext.downloadWillBegin"), // -> onDownload
     NAVIGATION_ABORTED("browsingContext.navigationAborted"),
     NAVIGATION_COMMITTED("browsingContext.navigationCommitted"),
-    NAVIGATION_FAILED("browsingContext.navigationFailed"),
+    NAVIGATION_FAILED("browsingContext.navigationFailed"), // -> onCrash
     USER_PROMPT_CLOSED("browsingContext.userPromptClosed"),
-    USER_PROMPT_OPENED("browsingContext.userPromptOpened"),
+    USER_PROMPT_OPENED("browsingContext.userPromptOpened"), // -> onDialog
 
     // 🔹 Network Events
     AUTH_REQUIRED("network.authRequired"),
-    BEFORE_REQUEST_SENT("network.beforeRequestSent"),
-    FETCH_ERROR("network.fetchError"),
-    RESPONSE_COMPLETED("network.responseCompleted"),
-    RESPONSE_STARTED("network.responseStarted"),
+    BEFORE_REQUEST_SENT("network.beforeRequestSent"), // -> onRequest
+    FETCH_ERROR("network.fetchError"), // -> onRequestFailed
+    RESPONSE_COMPLETED("network.responseCompleted"), // -> onRequestFinished
+    RESPONSE_STARTED("network.responseStarted"), // -> onResponse
 
     // 🔹 Script Events
-    MESSAGE("script.message"),
-    REALM_CREATED("script.realmCreated"),
+    MESSAGE("script.message"), // -> non PlayWright official: BrowserImpl#onMessage
+    REALM_CREATED("script.realmCreated"), // -> onWorker
     REALM_DESTROYED("script.realmDestroyed"),
 
     // 🔹 Log Events
-    ENTRY_ADDED("log.entryAdded"),
+    ENTRY_ADDED("log.entryAdded"), // -> onConsoleMessage
 
     // 🔹 Input Events
-    FILE_DIALOG_OPENED("input.fileDialogOpened");
+    FILE_DIALOG_OPENED("input.fileDialogOpened"); // -> onFileChooser
 
 
     // 🔹 Weitere Module (Session, Browser Storage, Input, WebExtension) haben aktuell laut W3C-Spec keine Events
