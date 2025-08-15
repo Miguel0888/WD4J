@@ -58,7 +58,7 @@ public class MainWindow {
         frame.setJMenuBar(mb);
 
         // ✅ Toolbar (Singleton-artig, ohne Param.)
-        ActionToolbar toolbar = new ActionToolbar(commandRegistry);
+        ActionToolbar toolbar = new ActionToolbar();
         frame.add(toolbar, BorderLayout.NORTH);
 
         // Outer SplitPane: Links und Rest
