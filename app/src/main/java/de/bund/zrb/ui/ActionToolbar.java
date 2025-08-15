@@ -24,6 +24,8 @@ public class ActionToolbar extends JToolBar {
     private ToolbarConfig config;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
+    private static final String SUPPRESS_CLICK_PROP = "suppressNextClick";
+
     public ActionToolbar() {
         setFloatable(false);
 
@@ -85,11 +87,13 @@ public class ActionToolbar extends JToolBar {
 
     /** Create JButtons with drag capability and add to given panel. */
     // ÄNDERT: starte DnD erst bei echter Bewegung; lasse einfache Klicks ungestört
+    // ÄNDERT: ActionListener unterdrückt Klick, wenn vorher ein Drag gestartet wurde
     private void createButtonsIntoPanel(final JPanel panel, final java.util.List<ToolbarButtonConfig> list) {
         for (final ToolbarButtonConfig btnCfg : list) {
             CommandRegistryImpl.getInstance().getById(btnCfg.id).ifPresent(cmd -> {
                 JButton btn = new JButton(btnCfg.icon);
                 btn.putClientProperty("cmdId", btnCfg.id);
+                btn.putClientProperty(SUPPRESS_CLICK_PROP, Boolean.FALSE); // initialize flag
                 btn.setMargin(new Insets(0, 0, 0, 0));
                 btn.setToolTipText(cmd.getLabel());
                 btn.setPreferredSize(new Dimension(config.buttonSizePx, config.buttonSizePx));
@@ -111,10 +115,21 @@ public class ActionToolbar extends JToolBar {
                     }
                 }
 
-                // Wire command action
-                btn.addActionListener(e -> cmd.perform());
+                // Action: perform only if no drag happened
+                btn.addActionListener(new java.awt.event.ActionListener() {
+                    @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                        JComponent src = (JComponent) e.getSource();
+                        boolean suppress = Boolean.TRUE.equals(src.getClientProperty(SUPPRESS_CLICK_PROP));
+                        if (suppress) {
+                            // Reset flag and do not perform action
+                            src.putClientProperty(SUPPRESS_CLICK_PROP, Boolean.FALSE);
+                            return;
+                        }
+                        cmd.perform();
+                    }
+                });
 
-                // Enable drag ONLY after small movement threshold
+                // Enable drag with movement threshold (siehe Adapter unten)
                 btn.setTransferHandler(new DragButtonTransferHandler());
                 DragInitiatorMouseAdapter dima = new DragInitiatorMouseAdapter();
                 btn.addMouseListener(dima);
@@ -126,15 +141,14 @@ public class ActionToolbar extends JToolBar {
     }
 
     // NEU: starte Drag erst ab Bewegungsschwelle; blockiere Clicks nicht
+    // ÄNDERT: Setze Unterdrückungs-Flag und entarme den Button beim Drag-Start
     private static final class DragInitiatorMouseAdapter extends java.awt.event.MouseAdapter {
-        // Use small threshold to avoid stealing simple clicks
         private static final int DRAG_THRESHOLD_PX = 5;
 
         private java.awt.Point pressPoint;
         private boolean dragStarted = false;
 
         @Override public void mousePressed(java.awt.event.MouseEvent e) {
-            // Remember press location
             pressPoint = e.getPoint();
             dragStarted = false;
         }
@@ -146,9 +160,18 @@ public class ActionToolbar extends JToolBar {
             int dy = Math.abs(e.getY() - pressPoint.y);
             if (dx >= DRAG_THRESHOLD_PX || dy >= DRAG_THRESHOLD_PX) {
                 JComponent c = (JComponent) e.getSource();
+                // Mark next click as suppressed
+                c.putClientProperty(SUPPRESS_CLICK_PROP, Boolean.TRUE);
+
+                // Disarm button so Swing does not fire action on release
+                if (c instanceof AbstractButton) {
+                    ButtonModel m = ((AbstractButton) c).getModel();
+                    m.setArmed(false);
+                    m.setPressed(false);
+                }
+
                 TransferHandler th = c.getTransferHandler();
                 if (th != null) {
-                    // Start drag now – click already propagated on simple press/release
                     th.exportAsDrag(c, e, TransferHandler.MOVE);
                     dragStarted = true;
                 }
@@ -156,7 +179,6 @@ public class ActionToolbar extends JToolBar {
         }
 
         @Override public void mouseReleased(java.awt.event.MouseEvent e) {
-            // Reset state
             pressPoint = null;
             dragStarted = false;
         }
