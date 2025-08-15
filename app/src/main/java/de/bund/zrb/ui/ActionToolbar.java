@@ -32,41 +32,50 @@ public class ActionToolbar extends JToolBar {
     }
 
     // ÄNDERT: Hintergrundfarbe anwenden, falls gesetzt
+    // ÄNDERT: Buttons je nach ID-Set links oder rechts platzieren (Farbhintergründe bleiben erhalten)
     private void rebuildButtons() {
         removeAll();
 
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
-        for (ToolbarButtonConfig btnCfg : config.buttons) {
-            CommandRegistryImpl.getInstance().getById(btnCfg.id).ifPresent(cmd -> {
-                JButton btn = new JButton(btnCfg.icon);
-                btn.setMargin(new Insets(0, 0, 0, 0)); // optional
-                btn.setToolTipText(cmd.getLabel());
-                btn.setPreferredSize(new Dimension(config.buttonSizePx, config.buttonSizePx));
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 2));
 
-                int fontSize = (int) (config.buttonSizePx * config.fontSizeRatio);
-                btn.setFont(btn.getFont().deriveFont((float) fontSize));
-                btn.setFocusPainted(false);
+        if (config != null && config.buttons != null) {
+            for (final ToolbarButtonConfig btnCfg : config.buttons) {
+                CommandRegistryImpl.getInstance().getById(btnCfg.id).ifPresent(cmd -> {
+                    JButton btn = new JButton(btnCfg.icon);
+                    btn.setMargin(new Insets(0, 0, 0, 0));
+                    btn.setToolTipText(cmd.getLabel());
+                    btn.setPreferredSize(new Dimension(config.buttonSizePx, config.buttonSizePx));
 
-                // Apply background color if configured
-                // (Requires: add 'public String backgroundHex;' to ToolbarButtonConfig)
-                if (btnCfg.backgroundHex != null && btnCfg.backgroundHex.trim().length() > 0) {
+                    int fontSize = (int) (config.buttonSizePx * config.fontSizeRatio);
+                    btn.setFont(btn.getFont().deriveFont((float) fontSize));
+                    btn.setFocusPainted(false);
+
+                    // Apply configured background color if available
                     try {
-                        String hex = btnCfg.backgroundHex.trim();
-                        if (!hex.startsWith("#")) hex = "#" + hex;
-                        btn.setOpaque(true);
-                        btn.setContentAreaFilled(true);
-                        btn.setBackground(Color.decode(hex));
+                        // Requires: ToolbarButtonConfig has field 'public String backgroundHex;'
+                        if (btnCfg.backgroundHex != null && btnCfg.backgroundHex.trim().length() > 0) {
+                            String hex = btnCfg.backgroundHex.trim();
+                            if (!hex.startsWith("#")) hex = "#" + hex;
+                            btn.setOpaque(true);
+                            btn.setContentAreaFilled(true);
+                            btn.setBackground(Color.decode(hex));
+                        }
                     } catch (NumberFormatException ignore) {
                         // Ignore invalid hex and render default look
                     }
-                }
 
-                btn.addActionListener(e -> cmd.perform());
-                leftPanel.add(btn);
-            });
+                    // Place button on left or right depending on config.rightSideIds
+                    if (isRightAligned(btnCfg.id)) {
+                        rightPanel.add(btn);
+                    } else {
+                        leftPanel.add(btn);
+                    }
+                });
+            }
         }
 
-        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 2));
+        // Keep gear button at the far right
         JButton configBtn = new JButton("⚙");
         configBtn.setMargin(new Insets(0, 0, 0, 0));
         configBtn.setToolTipText("Toolbar anpassen");
@@ -87,38 +96,39 @@ public class ActionToolbar extends JToolBar {
 
     // ÄNDERT: zweite Spalte für Farbe hinzufügen und speichern; "Standard laden" bleibt
     private void openConfigDialog() {
+        // Ensure rightSideIds exists to avoid NPE
+        if (config.rightSideIds == null) {
+            config.rightSideIds = new LinkedHashSet<String>();
+        }
+
         List<MenuCommand> all = new ArrayList<>(CommandRegistryImpl.getInstance().getAll());
         Map<MenuCommand, JCheckBox> checkboxes = new LinkedHashMap<MenuCommand, JCheckBox>();
         Map<MenuCommand, JComboBox<String>> iconSelectors = new LinkedHashMap<MenuCommand, JComboBox<String>>();
-        Map<MenuCommand, JComboBox<String>> colorSelectors = new LinkedHashMap<MenuCommand, JComboBox<String>>();
+        Map<MenuCommand, JCheckBox> rightSideChecks = new LinkedHashMap<MenuCommand, JCheckBox>();
 
         JPanel commandPanel = new JPanel(new GridLayout(0, 1));
         for (MenuCommand cmd : all) {
             JPanel line = new JPanel(new BorderLayout(4, 0));
             JCheckBox box = new JCheckBox(cmd.getLabel(), isCommandActive(cmd.getId()));
 
-            // Icon selector (unchanged)
-            JComboBox<String> iconCombo = new JComboBox<String>(getSimpleIconSuggestions());
+            JComboBox<String> iconCombo = new JComboBox<>(getSimpleIconSuggestions());
             iconCombo.setEditable(true);
             iconCombo.setSelectedItem(getIconFor(cmd.getId()));
-            iconCombo.setPreferredSize(new Dimension(56, 24));
+            iconCombo.setPreferredSize(new Dimension(48, 24));
             iconSelectors.put(cmd, iconCombo);
 
-            // NEW: Color selector as editable hex (keep it simple)
-            JComboBox<String> colorCombo = new JComboBox<String>(new String[] {
-                    "", "#FF0000", "#00AA00", "#008000", "#FFA500", "#0000FF", "#FFFF00"
-            });
-            colorCombo.setEditable(true);
-            String pre = getBackgroundHexFor(cmd.getId());
-            colorCombo.setSelectedItem(pre == null ? "" : pre);
-            colorCombo.setPreferredSize(new Dimension(72, 24));
-            colorSelectors.put(cmd, colorCombo);
+            // NEW: checkbox to place button on the right side
+            boolean preRight = config.rightSideIds.contains(cmd.getId());
+            JCheckBox rightChk = new JCheckBox("rechts", preRight);
+            rightChk.setToolTipText("Button rechts anordnen");
+            rightSideChecks.put(cmd, rightChk);
 
             checkboxes.put(cmd, box);
 
+            // Right area: icon selector + right-side checkbox
             JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
             right.add(iconCombo);
-            right.add(colorCombo);
+            right.add(rightChk);
 
             line.add(box, BorderLayout.CENTER);
             line.add(right, BorderLayout.EAST);
@@ -138,7 +148,7 @@ public class ActionToolbar extends JToolBar {
 
         fullPanel.add(sizePanel, BorderLayout.SOUTH);
 
-        // Add third button "Standard laden"
+        // Add third button "Standard laden" (index 0), keep OK (index 1) and Cancel (index 2)
         Object[] options = new Object[] { "Standard laden", "OK", "Abbrechen" };
         int result = JOptionPane.showOptionDialog(
                 this,
@@ -152,7 +162,7 @@ public class ActionToolbar extends JToolBar {
         );
 
         if (result == 0) {
-            // Load default buttons (incl. default colors); keep sizes
+            // Load default buttons only; keep sizes and rightSideIds intact
             config.buttons = buildDefaultButtonsForAllCommands();
             saveToolbarSettings();
             rebuildButtons();
@@ -160,28 +170,51 @@ public class ActionToolbar extends JToolBar {
         }
 
         if (result == 1) {
+            // Validate and persist selection
             config.buttons.clear();
+
+            // Build button list
             for (Map.Entry<MenuCommand, JCheckBox> entry : checkboxes.entrySet()) {
                 if (entry.getValue().isSelected()) {
                     String icon = Objects.toString(iconSelectors.get(entry.getKey()).getSelectedItem(), "").trim();
-
-                    // Normalize color (allow empty)
-                    String hex = Objects.toString(colorSelectors.get(entry.getKey()).getSelectedItem(), "").trim();
-                    if (hex.length() > 0 && !hex.startsWith("#")) {
-                        hex = "#" + hex;
-                    }
-
-                    // Create config entry and set optional background
-                    ToolbarButtonConfig tbc = new ToolbarButtonConfig(entry.getKey().getId(), icon);
-                    // Requires: add 'public String backgroundHex;' to ToolbarButtonConfig
-                    tbc.backgroundHex = (hex.length() == 0) ? null : hex;
-
-                    config.buttons.add(tbc);
+                    config.buttons.add(new ToolbarButtonConfig(entry.getKey().getId(), icon));
                 }
             }
-            // Keep original size handling as-is
+
+            // Build right side set from UI (no duplicates allowed)
+            LinkedHashSet<String> newRight = new LinkedHashSet<String>();
+            java.util.List<String> duplicates = new ArrayList<String>();
+
+            for (Map.Entry<MenuCommand, JCheckBox> entry : rightSideChecks.entrySet()) {
+                MenuCommand cmd = entry.getKey();
+                boolean include = checkboxes.get(cmd).isSelected();
+                boolean toRight = entry.getValue().isSelected();
+
+                if (include && toRight) {
+                    // Try add; if false, it would be a duplicate
+                    if (!newRight.add(cmd.getId())) {
+                        duplicates.add(cmd.getId());
+                    }
+                }
+            }
+
+            // Reject if duplicates detected (should not happen with checkboxes, but enforce contract)
+            if (!duplicates.isEmpty()) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Doppelte IDs in der rechten Spalte sind nicht zulässig: " + duplicates,
+                        "Ungültige Konfiguration",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return; // do not save partial state
+            }
+
+            // Persist sizes as in your original
             config.buttonSizePx = (Integer) sizeSpinner.getValue();
             config.fontSizeRatio = ((Double) ratioSpinner.getValue()).floatValue();
+
+            // Persist right-side IDs
+            config.rightSideIds = newRight;
 
             saveToolbarSettings();
             rebuildButtons();
@@ -296,6 +329,7 @@ public class ActionToolbar extends JToolBar {
     }
 
     /** Ensure config object exists and fields are sane. */
+    // ÄNDERT: rightSideIds sicher initialisieren (falls null)
     private void ensureConfig() {
         if (config == null) {
             config = createDefaultConfigWithButtons();
@@ -309,6 +343,17 @@ public class ActionToolbar extends JToolBar {
         }
         if (config.buttonSizePx <= 0) config.buttonSizePx = 48;
         if (config.fontSizeRatio <= 0f) config.fontSizeRatio = 0.75f;
+
+        // NEW: initialize right side set
+        if (config.rightSideIds == null) {
+            config.rightSideIds = new LinkedHashSet<String>(); // keep user order when editing JSON
+        }
+    }
+
+    // NEU: Prüfe, ob eine ID rechts ausgerichtet werden soll
+    private boolean isRightAligned(String id) {
+        if (config == null || config.rightSideIds == null || id == null) return false;
+        return config.rightSideIds.contains(id);
     }
 
     /** Create a fully initialized config with non-empty default buttons. */
