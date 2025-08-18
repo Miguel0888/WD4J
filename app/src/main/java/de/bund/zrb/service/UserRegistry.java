@@ -55,6 +55,11 @@ public class UserRegistry {
         return null;
     }
 
+    public List<User> getAllUsers() {
+        // Return a defensive copy to avoid external modification of the internal list
+        return new ArrayList<User>(users);
+    }
+
     public static class User {
         private String username;
         private String encryptedPassword;
