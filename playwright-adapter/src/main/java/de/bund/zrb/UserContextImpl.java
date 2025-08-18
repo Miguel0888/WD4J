@@ -224,4 +224,22 @@ public class UserContextImpl implements BrowserContext {
     public WDUserContext getUserContext() { return userContext; }
     public void register(PageImpl page) { pages.add(page); }
     public double getDefaultTimeout() { return defaultTimeout; }
+
+    // Prüfe, ob dieser UserContext eine Page mit der gegebenen BrowsingContext-ID enthält
+    public boolean hasPage(String browsingContextId) {
+        // Guard clauses
+        if (isClosed) return false;
+        if (browsingContextId == null || browsingContextId.length() == 0) return false;
+
+        // Iterate pages in a safe, read-only manner
+        // Use the internal iterable to access PageImpl (needed for getBrowsingContextId()).
+        for (PageImpl p : pages) {
+            // Compare IDs; stop early on match
+            if (browsingContextId.equals(p.getBrowsingContextId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 }

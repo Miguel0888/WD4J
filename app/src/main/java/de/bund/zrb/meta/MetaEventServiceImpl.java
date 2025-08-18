@@ -12,12 +12,9 @@ import de.bund.zrb.type.browsingContext.WDInfo;
 import de.bund.zrb.type.browsingContext.WDNavigationInfo;
 import de.bund.zrb.type.log.WDLogEntry;
 import de.bund.zrb.type.network.WDBaseParameters;
-import de.bund.zrb.type.script.WDRealm;
 import de.bund.zrb.type.script.WDSource;
 import de.bund.zrb.websocket.WDEvent;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -103,7 +100,7 @@ public final class MetaEventServiceImpl implements MetaEventService {
     public void publish(WDEvent<?> event) {
         if (event == null) return;
 
-        // 1) Extract browsingContextId targeted to existing DTOs without reflection
+        // 1) Extract browsingContextId using strongly-typed DTOs only
         String browsingContextId = tryExtractBrowsingContextId(event);
 
         // 2) Resolve userContextId by scanning existing contexts (no duplicate state)
@@ -113,151 +110,131 @@ public final class MetaEventServiceImpl implements MetaEventService {
         dispatch(event, userContextId, browsingContextId);
     }
 
-    // ---------------- Context extraction (targeted per module/DTO) ----------------
+    // ---------------- Context extraction (typed, no reflection) ----------------
 
-    /**
-     * Extract browsingContextId from event parameters across known modules and DTOs,
-     * using direct getters instead of reflection.
-     */
+    /** Extract browsingContextId from event params across known modules and DTOs. */
     private String tryExtractBrowsingContextId(WDEvent<?> event) {
-        // --- Network module events: all params extend WDBaseParameters with getContextId() -> WDBrowsingContext
+        // --- Network module: params extend WDBaseParameters -> getContextId(): WDBrowsingContext
         if (event instanceof WDNetworkEvent.AuthRequired
                 || event instanceof WDNetworkEvent.BeforeRequestSent
                 || event instanceof WDNetworkEvent.FetchError
                 || event instanceof WDNetworkEvent.ResponseStarted
                 || event instanceof WDNetworkEvent.ResponseCompleted) {
-            // Cast to base network event type and get parameters
-            WDBaseParameters params = (WDBaseParameters) event.getParams();
-            if (params != null) {
-                WDBrowsingContext ctx = params.getContextId();
-                return getIdFromContext(ctx);  // directly get the ID from WDBrowsingContext
+            Object p = event.getParams();
+            if (p instanceof WDBaseParameters) {
+                WDBrowsingContext ctx = ((WDBaseParameters) p).getContextId();
+                return getIdFromContext(ctx);
             }
             return null;
         }
 
-        // --- BrowsingContext module events ---
+        // --- BrowsingContext module ---
         if (event instanceof WDBrowsingContextEvent.Created) {
-            WDInfo params = ((WDBrowsingContextEvent.Created) event).getParams();
-            return (params != null) ? getIdFromContext(params.getContext()) : null;
+            WDInfo p = ((WDBrowsingContextEvent.Created) event).getParams();
+            return p != null ? getIdFromContext(p.getContext()) : null;
         }
         if (event instanceof WDBrowsingContextEvent.Destroyed) {
-            WDInfo params = ((WDBrowsingContextEvent.Destroyed) event).getParams();
-            return (params != null) ? getIdFromContext(params.getContext()) : null;
+            WDInfo p = ((WDBrowsingContextEvent.Destroyed) event).getParams();
+            return p != null ? getIdFromContext(p.getContext()) : null;
         }
         if (event instanceof WDBrowsingContextEvent.NavigationStarted) {
-            WDNavigationInfo params = ((WDBrowsingContextEvent.NavigationStarted) event).getParams();
-            return (params != null) ? getIdFromContext(params.getContext()) : null;
+            WDNavigationInfo p = ((WDBrowsingContextEvent.NavigationStarted) event).getParams();
+            return p != null ? getIdFromContext(p.getContext()) : null;
         }
         if (event instanceof WDBrowsingContextEvent.FragmentNavigated) {
-            WDNavigationInfo params = ((WDBrowsingContextEvent.FragmentNavigated) event).getParams();
-            return (params != null) ? getIdFromContext(params.getContext()) : null;
+            WDNavigationInfo p = ((WDBrowsingContextEvent.FragmentNavigated) event).getParams();
+            return p != null ? getIdFromContext(p.getContext()) : null;
         }
         if (event instanceof WDBrowsingContextEvent.DomContentLoaded) {
-            WDNavigationInfo params = ((WDBrowsingContextEvent.DomContentLoaded) event).getParams();
-            return (params != null) ? getIdFromContext(params.getContext()) : null;
+            WDNavigationInfo p = ((WDBrowsingContextEvent.DomContentLoaded) event).getParams();
+            return p != null ? getIdFromContext(p.getContext()) : null;
         }
         if (event instanceof WDBrowsingContextEvent.Load) {
-            WDNavigationInfo params = ((WDBrowsingContextEvent.Load) event).getParams();
-            return (params != null) ? getIdFromContext(params.getContext()) : null;
+            WDNavigationInfo p = ((WDBrowsingContextEvent.Load) event).getParams();
+            return p != null ? getIdFromContext(p.getContext()) : null;
         }
         if (event instanceof WDBrowsingContextEvent.DownloadWillBegin) {
-            WDNavigationInfo params = ((WDBrowsingContextEvent.DownloadWillBegin) event).getParams();
-            return (params != null) ? getIdFromContext(params.getContext()) : null;
+            WDNavigationInfo p = ((WDBrowsingContextEvent.DownloadWillBegin) event).getParams();
+            return p != null ? getIdFromContext(p.getContext()) : null;
         }
         if (event instanceof WDBrowsingContextEvent.NavigationAborted) {
-            WDNavigationInfo params = ((WDBrowsingContextEvent.NavigationAborted) event).getParams();
-            return (params != null) ? getIdFromContext(params.getContext()) : null;
+            WDNavigationInfo p = ((WDBrowsingContextEvent.NavigationAborted) event).getParams();
+            return p != null ? getIdFromContext(p.getContext()) : null;
         }
         if (event instanceof WDBrowsingContextEvent.NavigationFailed) {
-            WDNavigationInfo params = ((WDBrowsingContextEvent.NavigationFailed) event).getParams();
-            return (params != null) ? getIdFromContext(params.getContext()) : null;
+            WDNavigationInfo p = ((WDBrowsingContextEvent.NavigationFailed) event).getParams();
+            return p != null ? getIdFromContext(p.getContext()) : null;
         }
         if (event instanceof WDBrowsingContextEvent.NavigationCommitted) {
-            WDNavigationInfo params = ((WDBrowsingContextEvent.NavigationCommitted) event).getParams();
-            return (params != null) ? getIdFromContext(params.getContext()) : null;
+            WDNavigationInfo p = ((WDBrowsingContextEvent.NavigationCommitted) event).getParams();
+            return p != null ? getIdFromContext(p.getContext()) : null;
         }
         if (event instanceof WDBrowsingContextEvent.HistoryUpdated) {
-            // HistoryUpdated has its own parameter type with a context field
-            WDBrowsingContextEvent.HistoryUpdated.HistoryUpdatedParameters params =
+            WDBrowsingContextEvent.HistoryUpdated.HistoryUpdatedParameters p =
                     ((WDBrowsingContextEvent.HistoryUpdated) event).getParams();
-            return (params != null) ? getIdFromContext(params.getContext()) : null;
+            return p != null ? getIdFromContext(p.getContext()) : null;
         }
         if (event instanceof WDBrowsingContextEvent.UserPromptOpened) {
-            // These events carry the context ID directly as a String in their params
-            WDBrowsingContextEvent.UserPromptOpened.UserPromptOpenedParameters params =
+            WDBrowsingContextEvent.UserPromptOpened.UserPromptOpenedParameters p =
                     ((WDBrowsingContextEvent.UserPromptOpened) event).getParams();
-            return (params != null) ? params.getContext() : null;  // already a String ID
+            return p != null ? p.getContext() : null; // already a String id
         }
         if (event instanceof WDBrowsingContextEvent.UserPromptClosed) {
-            WDBrowsingContextEvent.UserPromptClosed.UserPromptClosedParameters params =
+            WDBrowsingContextEvent.UserPromptClosed.UserPromptClosedParameters p =
                     ((WDBrowsingContextEvent.UserPromptClosed) event).getParams();
-            return (params != null) ? params.getContext() : null;  // already a String ID
+            return p != null ? p.getContext() : null; // already a String id
         }
 
-        // --- Log module events: WDLogEntry contains a WDSource, which may have context or realm
+        // --- Log module: log.entryAdded -> WDLogEntry has concrete subtypes with getSource()
         if (event instanceof WDLogEvent.EntryAdded) {
-            WDLogEntry entry = ((WDLogEvent.EntryAdded) event).getParams();
-            if (entry != null) {
-                WDSource source = entry.getSource();
-                return getIdFromSource(source);  // extract context ID from the WDSource
-            }
-            return null;
+            WDLogEvent.EntryAdded e = (WDLogEvent.EntryAdded) event;
+            WDLogEntry entry = e.getParams();
+            return getIdFromLogEntry(entry);
         }
 
-        // --- Script module events ---
+        // --- Script module ---
         if (event instanceof WDScriptEvent.Message) {
-            WDScriptEvent.Message.MessageParameters params = ((WDScriptEvent.Message) event).getParams();
-            if (params != null) {
-                WDSource source = params.getSource();
-                return getIdFromSource(source);
-            }
-            return null;
+            WDScriptEvent.Message.MessageParameters p = ((WDScriptEvent.Message) event).getParams();
+            if (p == null) return null;
+            WDSource source = p.getSource();
+            return getIdFromSource(source);
         }
         if (event instanceof WDScriptEvent.RealmCreated) {
-            WDScriptEvent.RealmCreated.RealmCreatedParameters params = ((WDScriptEvent.RealmCreated) event).getParams();
-            if (params != null) {
-                WDRealm realm = params.getRealm();
-                return getIdFromRealm(realm);
-            }
+            // No reliable browsing context without an extra lookup; do not guess via realm
             return null;
         }
         if (event instanceof WDScriptEvent.RealmDestroyed) {
-            // RealmDestroyed events do not include a browsing context
+            // No browsing context in this event
             return null;
         }
 
-        // Unknown or unsupported event type (no context to extract)
+        // Unknown or events without context
         return null;
     }
 
-    // --- DTO-specific helper methods (no reflection) ---
+    // ---------------- DTO-specific helpers (typed, no reflection) ----------------
 
     /** Get the string ID from a WDBrowsingContext object. */
     private String getIdFromContext(WDBrowsingContext ctx) {
-        return (ctx != null) ? ctx.value() : null;
+        return ctx != null ? ctx.value() : null;
     }
 
-    /** Extract browsingContextId from a WDRealm (if present). */
-    private String getIdFromRealm(WDRealm realm) {
-        if (realm == null) return null;
-        String realmId = realm.value();
-        // ToDo: Get Context from RealmId:
-        WDBrowsingContext ctx = null;
-
-        return (ctx != null) ? ctx.value() : null;
-    }
-
-    /** Extract browsingContextId from a WDSource via its context or realm. */
+    /** Extract browsingContextId from a WDSource via its context. Avoid realm because it cannot be resolved locally. */
     private String getIdFromSource(WDSource source) {
         if (source == null) return null;
-        // Prefer direct context if available
         WDBrowsingContext ctx = source.getContext();
-        if (ctx != null) {
-            return ctx.value();
+        return getIdFromContext(ctx);
+    }
+
+    /** Extract browsingContextId from a WDLogEntry by casting to BaseWDLogEntry (which provides getSource()). */
+    private String getIdFromLogEntry(WDLogEntry entry) {
+        if (entry == null) return null;
+        if (entry instanceof WDLogEntry.BaseWDLogEntry) {
+            WDSource src = ((WDLogEntry.BaseWDLogEntry) entry).getSource();
+            return getIdFromSource(src);
         }
-        // Fallback to realm's context if direct context is not set
-        String realm = source.getRealm();
-        return realm;
+        // If more implementations appear that do not extend BaseWDLogEntry, handle them explicitly here.
+        return null;
     }
 
     // ---------------- Resolve user context by scanning existing contexts ----------------
@@ -276,7 +253,8 @@ public final class MetaEventServiceImpl implements MetaEventService {
             if (bc instanceof de.bund.zrb.UserContextImpl) {
                 de.bund.zrb.UserContextImpl uc = (de.bund.zrb.UserContextImpl) bc;
 
-                if (userContextOwnsBrowsing(uc, browsingContextId)) {
+                // Use public helper; do not reflect internals
+                if (uc.hasPage(browsingContextId)) {
                     try {
                         return uc.getUserContext().value();
                     } catch (Throwable ignore) {
@@ -286,39 +264,6 @@ public final class MetaEventServiceImpl implements MetaEventService {
             }
         }
         return null;
-    }
-
-    /** Check via public helper if present; otherwise reflect into pages map (minimal, no extra state). */
-    private boolean userContextOwnsBrowsing(de.bund.zrb.UserContextImpl uc, String browsingContextId) {
-        if (uc == null || browsingContextId == null) return false;
-
-        // 1) Try dedicated helper if present: hasPage(String)
-        try {
-            Method m = uc.getClass().getMethod("hasPage", String.class);
-            Object r = m.invoke(uc, browsingContextId);
-            if (r instanceof Boolean) return ((Boolean) r).booleanValue();
-        } catch (Throwable ignore) {
-            // Fall through to minimal reflective peek
-        }
-
-        // 2) Reflect into 'pages.pages' Map<String, PageImpl> as seen in debugger
-        try {
-            Field fPages = uc.getClass().getDeclaredField("pages");
-            fPages.setAccessible(true);
-            Object pagesObj = fPages.get(uc);
-            if (pagesObj == null) return false;
-
-            Field fInner = pagesObj.getClass().getDeclaredField("pages");
-            fInner.setAccessible(true);
-            Object mapObj = fInner.get(pagesObj);
-            if (mapObj instanceof Map) {
-                Map<?,?> m = (Map<?,?>) mapObj;
-                return m.containsKey(browsingContextId);
-            }
-        } catch (Throwable ignore) {
-            // Return false if not accessible
-        }
-        return false;
     }
 
     // ---------------- Dispatch ----------------
