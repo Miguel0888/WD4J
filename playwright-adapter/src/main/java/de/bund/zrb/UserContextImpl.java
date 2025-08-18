@@ -242,4 +242,12 @@ public class UserContextImpl implements BrowserContext {
         return false;
     }
 
+    // Finde PageImpl anhand der BrowsingContext-ID (oder null)
+    private PageImpl findPage(String browsingContextId) {
+        if (isClosed || browsingContextId == null || browsingContextId.length() == 0) return null;
+        for (PageImpl p : pages) {
+            if (browsingContextId.equals(p.getBrowsingContextId())) return p;
+        }
+        return null;
+    }
 }
