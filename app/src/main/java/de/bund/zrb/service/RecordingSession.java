@@ -23,7 +23,7 @@ public final class RecordingSession {
     private Page activePage;
     private boolean recording;
 
-    private MetaHookInstaller metaHooks;
+    private WDEventHookInstaller metaHooks;
 
     // Configuration
     private boolean contextMode = true; // default; make configurable via Settings if needed
@@ -65,7 +65,7 @@ public final class RecordingSession {
         }
 
         // --- NEW: install meta hooks so the UI drawer can see live meta events ---
-        metaHooks = new MetaHookInstaller();
+        metaHooks = new WDEventHookInstaller();
         if (contextMode) {
             metaHooks.installOnContext(activeContext);
         } else {

@@ -39,6 +39,7 @@ import java.util.function.Consumer;
  * NEU: Jeder Event trägt jetzt "userContextId" und – falls verfügbar – "browsingContextId",
  * damit die UI pro User/Tab filtern kann.
  */
+@Deprecated // use new event listeners with webdriver DTOs
 public final class MetaHookInstaller {
 
     private final MetaEventService events;

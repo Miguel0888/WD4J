@@ -7,11 +7,11 @@ import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.*;
-import de.bund.zrb.meta.MetaEvent;
-import de.bund.zrb.meta.MetaEventFormatter;
-import de.bund.zrb.meta.MetaEventListener;
 import de.bund.zrb.meta.MetaEventService;
 import de.bund.zrb.meta.MetaEventServiceImpl;
+import de.bund.zrb.meta.WDEventFormatter;
+import de.bund.zrb.meta.WDEventListener;
+import de.bund.zrb.websocket.WDEvent;
 
 import javax.swing.*;
 import javax.swing.text.DefaultCaret;
@@ -19,7 +19,6 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 /** Swing tab for one user; delegate recording to service. */
 public final class RecorderTab extends JPanel implements RecorderTabUi {
@@ -31,7 +30,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     private final JToggleButton recordToggle = new JToggleButton("\u2B24"); // red dot
     private final JComboBox<String> suiteDropdown = new JComboBox<String>();
 
-    // --- New: bottom drawer (meta monitor) ---
+    // --- Bottom drawer (meta monitor) ---
     private final JSplitPane centerSplit;
     private final JTextArea metaArea = new JTextArea();
     private final JPanel metaPanel = new JPanel(new BorderLayout(6, 6));
@@ -40,24 +39,22 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
     private final MetaEventService metaService = MetaEventServiceImpl.getInstance();
 
-    // UserContext-Filter für Meta-Events dieses Tabs
+    // UserContext filter for this tab
     private String myUserContextId;
 
-    private final MetaEventListener metaListener = new MetaEventListener() {
-        public void onMetaEvent(final MetaEvent event) {
-            Map<String,String> d = event.getDetails();
-            if(myUserContextId == null) {
-                myUserContextId = resolveUserContextId(selectedUser.getUsername());
-            }
-            // fremde Events ignorieren
-            if (myUserContextId != null && d != null) {
-                String uc = d.get("userContextId");
-                if (uc != null && uc.equals(myUserContextId)) {
-                    SwingUtilities.invokeLater(() -> appendMetaLine(MetaEventFormatter.format(event)));
-                };
-            }
+    // --- New: typed WD listener (scoped to this user context) ---
+    private final WDEventListener wdListener = new WDEventListener() {
+        @Override
+        public void onWDEvent(final WDEvent<?> event) {
+            // Always update UI on EDT
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override public void run() {
+                    appendMetaLine(WDEventFormatter.format(event));
+                }
+            });
         }
     };
+    private volatile boolean wdListenerRegistered = false;
 
     private RecordingSession session;
 
@@ -66,7 +63,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         this.rightDrawer = rightDrawer;
         this.selectedUser = user;
 
-        // UserContext-ID für diesen Tab ermitteln (falls noch kein Context existiert -> null, dann wird nicht gefiltert)
+        // Resolve userContextId for this tab (may be null initially, then register later)
         this.myUserContextId = resolveUserContextId(user.getUsername());
 
         // Fill suites
@@ -116,7 +113,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         exportButton.setToolTipText("In gewählte Suite exportieren");
         exportButton.addActionListener(e -> exportToSuite());
 
-        // --- New: meta toggle button in toolbar ---
+        // Meta toggle button in toolbar
         metaToggle.setSelected(true);
         metaToggle.setToolTipText("Meta-Drawer ein-/ausblenden");
         metaToggle.addActionListener(e -> setMetaDrawerVisible(metaToggle.isSelected()));
@@ -139,7 +136,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
         add(topPanel, BorderLayout.NORTH);
 
-        // --- Center split: actions (top) + meta drawer (bottom) ---
+        // Center split: actions (top) + meta drawer (bottom)
         JScrollPane actionsScroll = new JScrollPane(actionTable);
 
         // Configure meta area
@@ -163,24 +160,23 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         metaPanel.add(new JScrollPane(metaArea), BorderLayout.CENTER);
 
         centerSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, actionsScroll, metaPanel);
-        centerSplit.setResizeWeight(0.8);           // Prefer space for actions
-        centerSplit.setOneTouchExpandable(true);    // Show collapse/expand arrows
-        centerSplit.setDividerSize(10);             // Easier to grab
+        centerSplit.setResizeWeight(0.8);
+        centerSplit.setOneTouchExpandable(true);
+        centerSplit.setDividerSize(10);
         add(centerSplit, BorderLayout.CENTER);
 
         // Register with coordinator (inject BrowserService via RightDrawer)
         this.session = RecorderCoordinator.getInstance()
                 .registerTab(selectedUser.getUsername(), this, rightDrawer.getBrowserService());
 
-        // Subscribe to meta events (experimental)
-        metaService.addListener(metaListener);
+        // Try to register typed WD listener now (works once user context exists)
+        tryRegisterWdListener();
 
         // Initialize drawer opened
         SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
+            @Override public void run() {
                 setMetaDrawerVisible(true);
                 if (lastDividerLocation <= 0) {
-                    // Set a reasonable initial height for the drawer
                     centerSplit.setDividerLocation(0.75);
                 }
             }
@@ -227,6 +223,8 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     public void onRecordingStateChanged(boolean recording) {
         setRecordingUiState(recording);
         if (recording) {
+            // Ensure WD listener is registered when recording starts (context may appear just-in-time)
+            tryRegisterWdListener();
             // Optionally clear meta log when starting fresh
             // metaArea.setText("");
         }
@@ -370,11 +368,12 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
             } catch (Exception ignore) {
                 // Swallow to not block tab closing
             }
-            de.bund.zrb.service.RecorderCoordinator.getInstance().unregisterTab(this);
+            RecorderCoordinator.getInstance().unregisterTab(this);
             session = null;
         }
-        // Remove meta listener to avoid leaks
-        metaService.removeListener(metaListener);
+        // Remove typed WD listener to avoid leaks
+        metaService.removeListener(wdListener);
+        wdListenerRegistered = false;
     }
 
     // ---------- Private helpers ----------
@@ -408,7 +407,20 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         }
     }
 
-    /** Ermittelt die UserContext-ID für einen Benutzer über das Mapping. */
+    /** Try to register WD listener once the userContextId is known. */
+    private void tryRegisterWdListener() {
+        if (wdListenerRegistered) return;
+
+        if (myUserContextId == null) {
+            myUserContextId = resolveUserContextId(selectedUser.getUsername());
+        }
+        if (myUserContextId == null) return;
+
+        metaService.addListenerForUserContext(wdListener, myUserContextId);
+        wdListenerRegistered = true;
+    }
+
+    /** Resolve the UserContext-ID for a username via mapping. */
     private static String resolveUserContextId(String username) {
         BrowserContext ctx = UserContextMappingService.getInstance().getContextForUser(username);
         if (ctx instanceof de.bund.zrb.UserContextImpl) {
