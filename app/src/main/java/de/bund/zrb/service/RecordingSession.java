@@ -66,10 +66,9 @@ public final class RecordingSession {
 
         // --- NEW: install meta hooks so the UI drawer can see live meta events ---
         metaHooks = new MetaHookInstaller();
-        if (activeContext != null) {
+        if (contextMode) {
             metaHooks.installOnContext(activeContext);
-        }
-        if (activePage != null) {
+        } else {
             metaHooks.installOnPage(activePage);
         }
 
