@@ -23,10 +23,11 @@ public final class RecordingSession {
     private Page activePage;
     private boolean recording;
 
-    private WDEventHookInstaller metaHooks;
+    // **NEU: hält die UI-Appender (damit wir beim Stop detach'en können)**
+    private final List<WDUiAppender> uiAppenders = new ArrayList<WDUiAppender>();
 
     // Configuration
-    private boolean contextMode = true; // default; make configurable via Settings if needed
+    private boolean contextMode = false; // default; make configurable via Settings if needed
 
     public RecordingSession(String username, BrowserService browserService) {
         this.username = Objects.requireNonNull(username, "username");
@@ -64,18 +65,19 @@ public final class RecordingSession {
             recorderService.addListener(l);
         }
 
-        // --- NEW: install meta hooks so the UI drawer can see live meta events ---
-        metaHooks = new WDEventHookInstaller();
-        if (contextMode) {
-            metaHooks.installOnContext(activeContext);
-        } else {
-            metaHooks.installOnPage(activePage);
+        // **NEU: Page-Events -> UI spiegeln (nur Page-Mode)**
+        if (!contextMode && activePage != null) {
+            for (de.bund.zrb.ui.RecorderListener l : listeners) {
+                if (l instanceof RecorderTabUi) {
+                    uiAppenders.add(WDUiAppender.attachToPage(activePage, (RecorderTabUi) l));
+                }
+            }
         }
+        // (Optional: Context-Mode später analog mit WDContextExtension/WDUiAppender.attachToContext)
 
         recording = true;
         notifyUiRecordingState(true);
     }
-
 
     /** Stop recording and detach listeners. */
     public synchronized void stop() {
@@ -86,11 +88,11 @@ public final class RecordingSession {
             }
         }
 
-        // --- NEW: remove meta hooks (avoid leaking listeners) ---
-        if (metaHooks != null) {
-            try { metaHooks.uninstallAll(); } catch (Throwable ignore) { }
-            metaHooks = null;
+        // **NEU: UI-Appender sauber abbauen**
+        for (WDUiAppender a : uiAppenders) {
+            try { a.detachAll(); } catch (Throwable ignore) {}
         }
+        uiAppenders.clear();
 
         if (activePage != null) {
             browserService.getBrowser().getRecordingEventRouter().removePageListener(activePage, recorderService);

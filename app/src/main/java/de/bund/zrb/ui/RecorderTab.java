@@ -7,10 +7,7 @@ import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.*;
-import de.bund.zrb.meta.MetaEventService;
-import de.bund.zrb.meta.MetaEventServiceImpl;
 import de.bund.zrb.meta.WDEventFormatter;
-import de.bund.zrb.meta.WDEventListener;
 import de.bund.zrb.websocket.WDEvent;
 
 import javax.swing.*;
@@ -37,24 +34,9 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     private final JToggleButton metaToggle = new JToggleButton("Meta-Events");
     private int lastDividerLocation = -1;
 
-    private final MetaEventService metaService = MetaEventServiceImpl.getInstance();
 
     // UserContext filter for this tab
     private String myUserContextId;
-
-    // --- New: typed WD listener (scoped to this user context) ---
-    private final WDEventListener wdListener = new WDEventListener() {
-        @Override
-        public void onWDEvent(final WDEvent<?> event) {
-            // Always update UI on EDT
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override public void run() {
-                    appendMetaLine(WDEventFormatter.format(event));
-                }
-            });
-        }
-    };
-    private volatile boolean wdListenerRegistered = false;
 
     private RecordingSession session;
 
@@ -169,9 +151,6 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         this.session = RecorderCoordinator.getInstance()
                 .registerTab(selectedUser.getUsername(), this, rightDrawer.getBrowserService());
 
-        // Try to register typed WD listener now (works once user context exists)
-        tryRegisterWdListener();
-
         // Initialize drawer opened
         SwingUtilities.invokeLater(new Runnable() {
             @Override public void run() {
@@ -217,17 +196,16 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         });
     }
 
+    @Override
+    public void appendMeta(final String line) {
+        SwingUtilities.invokeLater(() -> appendMetaLine(line));
+    }
+
     // ---------- RecorderListener (actions) ----------
 
     @Override
     public void onRecordingStateChanged(boolean recording) {
         setRecordingUiState(recording);
-        if (recording) {
-            // Ensure WD listener is registered when recording starts (context may appear just-in-time)
-            tryRegisterWdListener();
-            // Optionally clear meta log when starting fresh
-            // metaArea.setText("");
-        }
     }
 
     @Override
@@ -371,9 +349,6 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
             RecorderCoordinator.getInstance().unregisterTab(this);
             session = null;
         }
-        // Remove typed WD listener to avoid leaks
-        metaService.removeListener(wdListener);
-        wdListenerRegistered = false;
     }
 
     // ---------- Private helpers ----------
@@ -405,19 +380,6 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         } else {
             metaArea.append("\n" + line);
         }
-    }
-
-    /** Try to register WD listener once the userContextId is known. */
-    private void tryRegisterWdListener() {
-        if (wdListenerRegistered) return;
-
-        if (myUserContextId == null) {
-            myUserContextId = resolveUserContextId(selectedUser.getUsername());
-        }
-        if (myUserContextId == null) return;
-
-        metaService.addListenerForUserContext(wdListener, myUserContextId);
-        wdListenerRegistered = true;
     }
 
     /** Resolve the UserContext-ID for a username via mapping. */

@@ -5,6 +5,8 @@ import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.*;
 import de.bund.zrb.command.request.parameters.browsingContext.CaptureScreenshotParameters;
 import de.bund.zrb.command.request.parameters.browsingContext.CreateType;
+import de.bund.zrb.ext.WDPageExtension;
+import de.bund.zrb.ext.WDPageExtensionSupport;
 import de.bund.zrb.support.ScreenshotPreprocessor;
 import de.bund.zrb.type.browsingContext.WDNavigationInfo;
 import de.bund.zrb.type.script.*;
@@ -34,7 +36,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
-public class PageImpl implements Page {
+public class PageImpl implements Page, WDPageExtension {
     private final WDBrowsingContext browsingContext; // aka. browsing context or navigable in WebDriver BiDi
     private final WDUserContext userContextId; // aka. simply as contextId in CDP - default is "default"
     private boolean isClosed;
@@ -50,6 +52,13 @@ public class PageImpl implements Page {
     private WDSubscription consoleMessageSubscription;
 
     private List<WDScriptResult.AddPreloadScriptResult> addPreloadScriptResults = new ArrayList<>();
+
+    private final WDPageExtensionSupport extension = new WDPageExtensionSupport(this);
+
+    @Override
+    public WDPageExtensionSupport wdExt() {
+        return extension;
+    }
 
     /**
      * Constructor for a new page.

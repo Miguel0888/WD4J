@@ -11,4 +11,12 @@ public interface RecorderTabUi extends RecorderListener, RecordingStateListener 
     boolean isVisibleActive();
     void setActions(List<TestAction> actions);
     void setRecordingUiState(boolean recording);
+
+    /** Neue Methode: eine einzelne Logzeile anhängen. */
+    void appendMeta(String line);
+
+    /** Bequemlichkeit: Events direkt durchreichen. */
+    default void appendEvent(Object event) {
+        appendMeta(event == null ? "null" : event.toString());
+    }
 }
