@@ -41,16 +41,21 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     private final MetaEventService metaService = MetaEventServiceImpl.getInstance();
 
     // UserContext-Filter für Meta-Events dieses Tabs
-    private final String myUserContextId;
+    private String myUserContextId;
 
     private final MetaEventListener metaListener = new MetaEventListener() {
         public void onMetaEvent(final MetaEvent event) {
             Map<String,String> d = event.getDetails();
+            if(myUserContextId == null) {
+                myUserContextId = resolveUserContextId(selectedUser.getUsername());
+            }
+            // fremde Events ignorieren
             if (myUserContextId != null && d != null) {
                 String uc = d.get("userContextId");
-                if (uc != null && !uc.equals(myUserContextId)) return; // fremde Events ignorieren
+                if (uc != null && uc.equals(myUserContextId)) {
+                    SwingUtilities.invokeLater(() -> appendMetaLine(MetaEventFormatter.format(event)));
+                };
             }
-            SwingUtilities.invokeLater(() -> appendMetaLine(MetaEventFormatter.format(event)));
         }
     };
 
