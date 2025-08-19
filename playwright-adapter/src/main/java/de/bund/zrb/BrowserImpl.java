@@ -4,12 +4,9 @@ import com.microsoft.playwright.*;
 import de.bund.zrb.manager.WDInputManager;
 import de.bund.zrb.manager.WDScriptManager;
 import de.bund.zrb.api.WebSocketManager;
-import de.bund.zrb.support.Pages;
 import de.bund.zrb.support.ScriptHelper;
 import de.bund.zrb.command.response.WDBrowsingContextResult;
 import de.bund.zrb.command.response.WDScriptResult;
-import de.bund.zrb.type.browser.WDUserContext;
-import de.bund.zrb.type.browser.WDUserContextInfo;
 import de.bund.zrb.type.script.*;
 import de.bund.zrb.websocket.WDEventNames;
 import de.bund.zrb.event.WDScriptEvent;
@@ -17,9 +14,8 @@ import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.session.WDSubscription;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
 import de.bund.zrb.websocket.WDException;
-import de.bund.zrb.util.PlaywrightEventMapper;
+import de.bund.zrb.support.EventMapperImpl;
 
-import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -54,7 +50,7 @@ public class BrowserImpl implements Browser {
 
         // ToDo: May be moved to WD4J partly
         WebSocketManager webSocketManager = new WebSocketManagerImpl(webSocketImpl);
-        dispatcher = new EventDispatcher(new PlaywrightEventMapper(this));
+        dispatcher = new EventDispatcher(new EventMapperImpl());
         this.webDriver = new WebDriver(webSocketManager, dispatcher).connect(browserType.name());
 
         onContextSwitch(this::setActivePageId);

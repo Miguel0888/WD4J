@@ -20,6 +20,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+/**
+ * ToDo: WebSockeFrames wurden hier fälschlicherweise eingesetzt. Sie sind für Verbindungen der Seite selbst gedacht,
+ * nicht für DIE verbindung zumn Browser über WebDriverBidi & WebSocket
+ *
+ */
 public class WebSocketManagerImpl implements WebSocketManager {
     private final Gson gson = GsonMapperFactory.getGson(); // ✅ Nutzt zentrale Fabrik
 

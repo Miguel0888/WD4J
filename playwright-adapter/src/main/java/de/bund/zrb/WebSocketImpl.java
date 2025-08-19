@@ -11,6 +11,12 @@ import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+
+/**
+ * ToDo: WebSocket & WebSockeFrames wurden hier fälschlicherweise eingesetzt. Sie sind für Verbindungen der Seite selbst gedacht,
+ * nicht für DIE verbindung zum Browser über WebDriverBidi & WebSocket
+ *
+ */
 public class WebSocketImpl implements WebSocket {
     private WebSocketClient webSocketClient;
     private boolean isClosed = false;

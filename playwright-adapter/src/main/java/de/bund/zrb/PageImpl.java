@@ -70,6 +70,16 @@ public class PageImpl implements Page, WDPageExtension {
     private final java.util.Map<java.util.function.Consumer<Download>,       java.util.function.Consumer<Object>> downloadAdapters   = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.function.Consumer<FileChooser>,       java.util.function.Consumer<Object>> fileChooserAdapters   = new java.util.concurrent.ConcurrentHashMap<>();
 
+    private final Map<Consumer<Page>,  Consumer<Object>> crashAdapters         = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<Consumer<Page>,  Consumer<Object>> popupAdapters         = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private final Map<Consumer<Frame>, Consumer<Object>> frameAttachedAdapters = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<Consumer<Frame>, Consumer<Object>> frameDetachedAdapters = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<Consumer<Frame>, Consumer<Object>> frameNavigatedAdapters= new java.util.concurrent.ConcurrentHashMap<>();
+
+    // Optional:
+    private final Map<Consumer<WebSocket>, Consumer<Object>> webSocketAdapters = new java.util.concurrent.ConcurrentHashMap<>();
+
     @Override
     public WDPageExtensionSupport wdExt() {
         return extension;
@@ -262,19 +272,29 @@ public class PageImpl implements Page, WDPageExtension {
 //        }
 //    }
 
-
     @Override
     public void onCrash(Consumer<Page> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.NAVIGATION_FAILED.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(wdSubscriptionRequest, handler);
-        }
+        if (handler == null || crashAdapters.containsKey(handler)) return;
+
+        Consumer<Object> adapter = ev -> {
+            WDBrowsingContextEvent.NavigationFailed wd = as(ev, WDBrowsingContextEvent.NavigationFailed.class);
+            if (wd != null) {
+                // Playwrights onCrash liefert die Page – hier genügt die aktuelle Instanz.
+                handler.accept(this);
+            }
+        };
+
+        crashAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.NAVIGATION_FAILED.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
     }
 
     @Override
     public void offCrash(Consumer<Page> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.NAVIGATION_FAILED.getName(), getBrowsingContextId(), handler);
+        if (handler == null) return;
+        Consumer<Object> adapter = crashAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.NAVIGATION_FAILED.getName(), getBrowsingContextId(), adapter);
         }
     }
 
@@ -440,20 +460,16 @@ public class PageImpl implements Page, WDPageExtension {
         }
     }
 
-
     @Override
     public void onWebSocket(Consumer<WebSocket> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.CONTEXT_CREATED.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(wdSubscriptionRequest, handler);
-        }
+        throw new UnsupportedOperationException(
+                "Page.onWebSocket ist derzeit nicht unterstützt (WebDriver BiDi bietet keine Page-WebSocket-Events).");
     }
 
     @Override
     public void offWebSocket(Consumer<WebSocket> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.CONTEXT_CREATED.getName(), getBrowsingContextId(), handler);
-        }
+        throw new UnsupportedOperationException(
+                "Page.offWebSocket ist derzeit nicht unterstützt (WebDriver BiDi bietet keine Page-WebSocket-Events).");
     }
 
     @Override
@@ -504,16 +520,29 @@ public class PageImpl implements Page, WDPageExtension {
 
     @Override
     public void onFileChooser(Consumer<FileChooser> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest request = new WDSubscriptionRequest(WDEventNames.FILE_DIALOG_OPENED.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(request, handler);
-        }
+        if (handler == null || fileChooserAdapters.containsKey(handler)) return;
+
+        Consumer<Object> adapter = ev -> {
+            // Falls du eine konkrete WD-Eventklasse hast, nutze sie hier statt der direkten Mapper-Konvertierung:
+            // WDBrowsingContextEvent.FileDialogOpened wd = as(ev, WDBrowsingContextEvent.FileDialogOpened.class);
+            // if (wd != null) handler.accept(new FileChooserImpl(browser, wd));
+            if (ev instanceof JsonObject) {
+                FileChooser chooser = JsonToPlaywrightMapper.mapToInterface((JsonObject) ev, FileChooser.class);
+                if (chooser != null) handler.accept(chooser);
+            }
+        };
+
+        fileChooserAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.FILE_DIALOG_OPENED.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
     }
 
     @Override
     public void offFileChooser(Consumer<FileChooser> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.FILE_DIALOG_OPENED.getName(), getBrowsingContextId(), handler);
+        if (handler == null) return;
+        Consumer<Object> adapter = fileChooserAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.FILE_DIALOG_OPENED.getName(), getBrowsingContextId(), adapter);
         }
     }
 
@@ -523,16 +552,15 @@ public class PageImpl implements Page, WDPageExtension {
 
     @Override
     public void onFrameAttached(Consumer<Frame> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest request = new WDSubscriptionRequest(WDEventNames.CONTEXT_CREATED.getName(), null, null);
-            webDriver.addEventListener(request, event -> {
-                WDBrowsingContextEvent.Created created = JsonToPlaywrightMapper.mapToInterface((JsonObject) event, WDBrowsingContextEvent.Created.class);
-                WDInfo info = created.getParams();
+        if (handler == null || frameAttachedAdapters.containsKey(handler)) return;
 
+        Consumer<Object> adapter = ev -> {
+            WDBrowsingContextEvent.Created created = as(ev, WDBrowsingContextEvent.Created.class);
+            if (created != null) {
+                WDInfo info = created.getParams();
                 if (info.getParent() != null) {
                     Frame frame = new FrameImpl(
-                            browser,
-                            this,
+                            browser, this,
                             info.getUserContext(),
                             info.getClientWindow(),
                             info.getUrl(),
@@ -540,29 +568,34 @@ public class PageImpl implements Page, WDPageExtension {
                     );
                     handler.accept(frame);
                 }
-            });
-        }
+            }
+        };
+
+        frameAttachedAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.CONTEXT_CREATED.getName(), null, null);
+        webDriver.addEventListener(req, adapter);
     }
 
     @Override
     public void offFrameAttached(Consumer<Frame> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.CONTEXT_CREATED.getName(), null, handler);
+        if (handler == null) return;
+        Consumer<Object> adapter = frameAttachedAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.CONTEXT_CREATED.getName(), null, adapter);
         }
     }
 
     @Override
     public void onFrameDetached(Consumer<Frame> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest request = new WDSubscriptionRequest(WDEventNames.CONTEXT_DESTROYED.getName(), null, null);
-            webDriver.addEventListener(request, event -> {
-                WDBrowsingContextEvent.Destroyed destroyed = JsonToPlaywrightMapper.mapToInterface((JsonObject) event, WDBrowsingContextEvent.Destroyed.class);
-                WDInfo info = destroyed.getParams();
+        if (handler == null || frameDetachedAdapters.containsKey(handler)) return;
 
+        Consumer<Object> adapter = ev -> {
+            WDBrowsingContextEvent.Destroyed destroyed = as(ev, WDBrowsingContextEvent.Destroyed.class);
+            if (destroyed != null) {
+                WDInfo info = destroyed.getParams();
                 if (info.getParent() != null) {
                     Frame frame = new FrameImpl(
-                            browser,
-                            this,
+                            browser, this,
                             info.getUserContext(),
                             info.getClientWindow(),
                             info.getUrl(),
@@ -570,35 +603,38 @@ public class PageImpl implements Page, WDPageExtension {
                     );
                     handler.accept(frame);
                 }
-            });
-        }
+            }
+        };
+
+        frameDetachedAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.CONTEXT_DESTROYED.getName(), null, null);
+        webDriver.addEventListener(req, adapter);
     }
 
     @Override
     public void offFrameDetached(Consumer<Frame> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.CONTEXT_DESTROYED.getName(), null, handler);
+        if (handler == null) return;
+        Consumer<Object> adapter = frameDetachedAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.CONTEXT_DESTROYED.getName(), null, adapter);
         }
     }
 
     @Override
     public void onFrameNavigated(Consumer<Frame> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest request = new WDSubscriptionRequest(WDEventNames.NAVIGATION_STARTED.getName(), null, null);
-            webDriver.addEventListener(request, event -> {
-                WDBrowsingContextEvent.NavigationStarted started =
-                        JsonToPlaywrightMapper.mapToInterface((JsonObject) event, WDBrowsingContextEvent.NavigationStarted.class);
-                WDNavigationInfo navInfo = started.getParams();
+        if (handler == null || frameNavigatedAdapters.containsKey(handler)) return;
 
-                // Hole den Tree für genau diesen Context
+        Consumer<Object> adapter = ev -> {
+            WDBrowsingContextEvent.NavigationStarted started = as(ev, WDBrowsingContextEvent.NavigationStarted.class);
+            if (started != null) {
+                WDNavigationInfo navInfo = started.getParams();
                 WDBrowsingContextResult.GetTreeResult tree =
                         webDriver.browsingContext().getTree(navInfo.getContext(), 1L);
 
                 for (WDInfo info : tree.getContexts()) {
                     if (info.getParent() != null) {
                         Frame frame = new FrameImpl(
-                                browser,
-                                this,
+                                browser, this,
                                 info.getUserContext(),
                                 info.getClientWindow(),
                                 info.getUrl(),
@@ -607,14 +643,20 @@ public class PageImpl implements Page, WDPageExtension {
                         handler.accept(frame);
                     }
                 }
-            });
-        }
+            }
+        };
+
+        frameNavigatedAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.NAVIGATION_STARTED.getName(), null, null);
+        webDriver.addEventListener(req, adapter);
     }
 
     @Override
     public void offFrameNavigated(Consumer<Frame> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.NAVIGATION_STARTED.getName(), null, handler);
+        if (handler == null) return;
+        Consumer<Object> adapter = frameNavigatedAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.NAVIGATION_STARTED.getName(), null, adapter);
         }
     }
 
@@ -651,20 +693,26 @@ public class PageImpl implements Page, WDPageExtension {
 
     @Override
     public void onPopup(Consumer<Page> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.CONTEXT_CREATED.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(wdSubscriptionRequest, jsonObject -> {
-                // Stelle sicher, dass jsonObject tatsächlich ein JsonObject ist
-                Page popupPage = JsonToPlaywrightMapper.mapToInterface((JsonObject) jsonObject, Page.class);
-                handler.accept(popupPage);
-            });
-        }
+        if (handler == null || popupAdapters.containsKey(handler)) return;
+
+        Consumer<Object> adapter = ev -> {
+            if (ev instanceof JsonObject) {
+                Page popup = JsonToPlaywrightMapper.mapToInterface((JsonObject) ev, Page.class);
+                if (popup != null) handler.accept(popup);
+            }
+        };
+
+        popupAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.CONTEXT_CREATED.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
     }
 
     @Override
     public void offPopup(Consumer<Page> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.CONTEXT_CREATED.getName(), getBrowsingContextId(), handler);
+        if (handler == null) return;
+        Consumer<Object> adapter = popupAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.CONTEXT_CREATED.getName(), getBrowsingContextId(), adapter);
         }
     }
 
