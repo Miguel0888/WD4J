@@ -126,13 +126,14 @@ final class WDUiAppender {
         detachers.add(() -> page.offWorker(onWorker));
 
         // Downloads / FileChooser
-        Consumer<Download> onDl = sink::accept;
-        page.onDownload(onDl);
-        detachers.add(() -> page.offDownload(onDl));
+        // Currently not supported yet by WebDriverBiDi
+//        Consumer<Download> onDl = sink::accept;
+//        page.onDownload(onDl);
+//        detachers.add(() -> page.offDownload(onDl));
 
-        Consumer<FileChooser> onFc = sink::accept;
-        page.onFileChooser(onFc);
-        detachers.add(() -> page.offFileChooser(onFc));
+//        Consumer<FileChooser> onFc = sink::accept;
+//        page.onFileChooser(onFc);
+//        detachers.add(() -> page.offFileChooser(onFc));
 
         // Frames / Popup
         Consumer<Frame> onFrameAttach = sink::accept;
@@ -185,13 +186,15 @@ final class WDUiAppender {
         ext.onFragmentNavigated(cFrag);
         detachers.add(() -> ext.offFragmentNavigated(cFrag));
 
-        Consumer<de.bund.zrb.event.WDBrowsingContextEvent.NavigationCommitted> cCommit = sink::accept;
-        ext.onNavigationCommitted(cCommit);
-        detachers.add(() -> ext.offNavigationCommitted(cCommit));
+        // Currently not supported yet by WebDriverBiDi
+//        Consumer<de.bund.zrb.event.WDBrowsingContextEvent.NavigationCommitted> cCommit = sink::accept;
+//        ext.onNavigationCommitted(cCommit);
+//        detachers.add(() -> ext.offNavigationCommitted(cCommit));
 
-        Consumer<de.bund.zrb.event.WDBrowsingContextEvent.NavigationAborted> cAbort = sink::accept;
-        ext.onNavigationAborted(cAbort);
-        detachers.add(() -> ext.offNavigationAborted(cAbort));
+        // Currently not supported yet by WebDriverBiDi
+//        Consumer<de.bund.zrb.event.WDBrowsingContextEvent.NavigationAborted> cAbort = sink::accept;
+//        ext.onNavigationAborted(cAbort);
+//        detachers.add(() -> ext.offNavigationAborted(cAbort));
 
         // Script: channel message
         Consumer<WDScriptEvent.Message> cMsg = sink::accept;
