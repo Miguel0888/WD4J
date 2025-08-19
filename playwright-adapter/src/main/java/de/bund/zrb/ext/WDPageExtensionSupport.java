@@ -5,7 +5,6 @@ import de.bund.zrb.PageImpl;
 import de.bund.zrb.support.JsonToPlaywrightMapper;
 import de.bund.zrb.websocket.WDEventNames;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
-import de.bund.zrb.WebDriver;
 import de.bund.zrb.event.WDBrowsingContextEvent;
 import de.bund.zrb.event.WDNetworkEvent;
 import de.bund.zrb.event.WDScriptEvent;
@@ -19,13 +18,9 @@ import java.util.function.Consumer;
 public final class WDPageExtensionSupport {
 
     private final PageImpl page;
-    private final WebDriver wd;
-    private final String ctxId;
 
     public WDPageExtensionSupport(PageImpl page) {
         this.page  = page;
-        this.wd    = page.getWebDriver();
-        this.ctxId = page.getBrowsingContextId();
     }
 
     // pro Eventtyp: extern -> intern (für off)
@@ -88,20 +83,20 @@ public final class WDPageExtensionSupport {
     /** Entfernt alle registrierten Listener. */
     public void detachAll() {
         // pro Map alles deregistrieren
-        mNetBefore.forEach((k,v) -> wd.removeEventListener(WDEventNames.BEFORE_REQUEST_SENT.getName(), ctxId, v));
-        mNetStart .forEach((k,v) -> wd.removeEventListener(WDEventNames.RESPONSE_STARTED.getName(),     ctxId, v));
-        mNetDone  .forEach((k,v) -> wd.removeEventListener(WDEventNames.RESPONSE_COMPLETED.getName(),   ctxId, v));
-        mNetErr   .forEach((k,v) -> wd.removeEventListener(WDEventNames.FETCH_ERROR.getName(),          ctxId, v));
+        mNetBefore.forEach((k,v) -> page.getWebDriver().removeEventListener(WDEventNames.BEFORE_REQUEST_SENT.getName(), page.getBrowsingContextId(), v));
+        mNetStart .forEach((k,v) -> page.getWebDriver().removeEventListener(WDEventNames.RESPONSE_STARTED.getName(), page.getBrowsingContextId(), v));
+        mNetDone  .forEach((k,v) -> page.getWebDriver().removeEventListener(WDEventNames.RESPONSE_COMPLETED.getName(), page.getBrowsingContextId(), v));
+        mNetErr   .forEach((k,v) -> page.getWebDriver().removeEventListener(WDEventNames.FETCH_ERROR.getName(), page.getBrowsingContextId(), v));
 
-        mNavStart.forEach((k,v) -> wd.removeEventListener(WDEventNames.NAVIGATION_STARTED.getName(),    ctxId, v));
-        mFrag    .forEach((k,v) -> wd.removeEventListener(WDEventNames.FRAGMENT_NAVIGATED.getName(),    ctxId, v));
-        mHist    .forEach((k,v) -> wd.removeEventListener(WDEventNames.HISTORY_UPDATED.getName(),       ctxId, v));
-        mCommit  .forEach((k,v) -> wd.removeEventListener(WDEventNames.NAVIGATION_COMMITTED.getName(),  ctxId, v));
-        mAbort   .forEach((k,v) -> wd.removeEventListener(WDEventNames.NAVIGATION_ABORTED.getName(),    ctxId, v));
-        mFail    .forEach((k,v) -> wd.removeEventListener(WDEventNames.NAVIGATION_FAILED.getName(),     ctxId, v));
+        mNavStart.forEach((k,v) -> page.getWebDriver().removeEventListener(WDEventNames.NAVIGATION_STARTED.getName(), page.getBrowsingContextId(), v));
+        mFrag    .forEach((k,v) -> page.getWebDriver().removeEventListener(WDEventNames.FRAGMENT_NAVIGATED.getName(), page.getBrowsingContextId(), v));
+        mHist    .forEach((k,v) -> page.getWebDriver().removeEventListener(WDEventNames.HISTORY_UPDATED.getName(), page.getBrowsingContextId(), v));
+        mCommit  .forEach((k,v) -> page.getWebDriver().removeEventListener(WDEventNames.NAVIGATION_COMMITTED.getName(), page.getBrowsingContextId(), v));
+        mAbort   .forEach((k,v) -> page.getWebDriver().removeEventListener(WDEventNames.NAVIGATION_ABORTED.getName(), page.getBrowsingContextId(), v));
+        mFail    .forEach((k,v) -> page.getWebDriver().removeEventListener(WDEventNames.NAVIGATION_FAILED.getName(), page.getBrowsingContextId(), v));
 
-        mScript  .forEach((k,v) -> wd.removeEventListener(WDEventNames.MESSAGE.getName(),               ctxId, v));
-        mLog     .forEach((k,v) -> wd.removeEventListener(WDEventNames.ENTRY_ADDED.getName(),           ctxId, v));
+        mScript  .forEach((k,v) -> page.getWebDriver().removeEventListener(WDEventNames.MESSAGE.getName(), page.getBrowsingContextId(), v));
+        mLog     .forEach((k,v) -> page.getWebDriver().removeEventListener(WDEventNames.ENTRY_ADDED.getName(), page.getBrowsingContextId(), v));
 
         mNetBefore.clear(); mNetStart.clear(); mNetDone.clear(); mNetErr.clear();
         mNavStart.clear();  mFrag.clear();     mHist.clear();    mCommit.clear(); mAbort.clear(); mFail.clear();
@@ -130,8 +125,8 @@ public final class WDPageExtensionSupport {
             }
         };
 
-        WDSubscriptionRequest req = new WDSubscriptionRequest(eventName, ctxId, null);
-        wd.addEventListener(req, internal);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(eventName, page.getBrowsingContextId(), null);
+        page.getWebDriver().addEventListener(req, internal);
         store.put(external, internal);
     }
 
@@ -141,7 +136,7 @@ public final class WDPageExtensionSupport {
         if (external == null) return;
         Consumer<Object> internal = store.remove(external);
         if (internal != null) {
-            wd.removeEventListener(eventName, ctxId, internal);
+            page.getWebDriver().removeEventListener(eventName, page.getBrowsingContextId(), internal);
         }
     }
 }
