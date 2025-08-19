@@ -5,17 +5,16 @@ import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.*;
 import de.bund.zrb.command.request.parameters.browsingContext.CaptureScreenshotParameters;
 import de.bund.zrb.command.request.parameters.browsingContext.CreateType;
+import de.bund.zrb.event.*;
 import de.bund.zrb.ext.WDPageExtension;
 import de.bund.zrb.ext.WDPageExtensionSupport;
 import de.bund.zrb.support.ScreenshotPreprocessor;
 import de.bund.zrb.type.browsingContext.WDNavigationInfo;
 import de.bund.zrb.type.script.*;
-import de.bund.zrb.event.FrameImpl;
 import de.bund.zrb.support.PlaywrightResponse;
 import de.bund.zrb.support.ScriptHelper;
 import de.bund.zrb.command.response.WDBrowsingContextResult;
 import de.bund.zrb.command.response.WDScriptResult;
-import de.bund.zrb.event.WDBrowsingContextEvent;
 import de.bund.zrb.type.browser.WDClientWindow;
 import de.bund.zrb.type.browsingContext.WDInfo;
 import de.bund.zrb.type.browsingContext.WDLocator;
@@ -54,6 +53,22 @@ public class PageImpl implements Page, WDPageExtension {
     private List<WDScriptResult.AddPreloadScriptResult> addPreloadScriptResults = new ArrayList<>();
 
     private final WDPageExtensionSupport extension = new WDPageExtensionSupport(this);
+
+    // --- Adapter-Mapping je Eventtyp (extern -> interner Adapter) ---
+    private final java.util.Map<java.util.function.Consumer<Response>,      java.util.function.Consumer<Object>> respAdapters        = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.function.Consumer<Request>,       java.util.function.Consumer<Object>> reqBeforeAdapters   = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.function.Consumer<Request>,       java.util.function.Consumer<Object>> reqFailedAdapters   = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.function.Consumer<Request>,       java.util.function.Consumer<Object>> reqFinishedAdapters = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private final java.util.Map<java.util.function.Consumer<ConsoleMessage>, java.util.function.Consumer<Object>> consoleAdapters    = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.function.Consumer<Dialog>,         java.util.function.Consumer<Object>> dialogAdapters     = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.function.Consumer<Page>,           java.util.function.Consumer<Object>> domLoadedAdapters  = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.function.Consumer<Page>,           java.util.function.Consumer<Object>> loadAdapters       = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.function.Consumer<Page>,           java.util.function.Consumer<Object>> closeAdapters      = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private final java.util.Map<java.util.function.Consumer<Worker>,         java.util.function.Consumer<Object>> workerAdapters     = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.function.Consumer<Download>,       java.util.function.Consumer<Object>> downloadAdapters   = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.function.Consumer<FileChooser>,       java.util.function.Consumer<Object>> fileChooserAdapters   = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Override
     public WDPageExtensionSupport wdExt() {
@@ -193,32 +208,48 @@ public class PageImpl implements Page, WDPageExtension {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
-    public void onClose(Consumer<Page> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest subscriptionRequest = new WDSubscriptionRequest(WDEventNames.CONTEXT_DESTROYED.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(subscriptionRequest, handler);
+    public void onClose(java.util.function.Consumer<Page> handler) {
+        if (handler == null || closeAdapters.containsKey(handler)) return;
+
+        java.util.function.Consumer<Object> adapter = ev -> {
+            WDBrowsingContextEvent.Destroyed wd = as(ev, WDBrowsingContextEvent.Destroyed.class);
+            if (wd != null) handler.accept(new PageImpl(browser, wd));
+        };
+
+        closeAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.CONTEXT_DESTROYED.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
+    }
+
+    @Override
+    public void offClose(java.util.function.Consumer<Page> handler) {
+        if (handler == null) return;
+        java.util.function.Consumer<Object> adapter = closeAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.CONTEXT_DESTROYED.getName(), getBrowsingContextId(), adapter);
         }
     }
 
     @Override
-    public void offClose(Consumer<Page> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.CONTEXT_DESTROYED.getName(), getBrowsingContextId(), handler);
-        }
+    public void onConsoleMessage(java.util.function.Consumer<ConsoleMessage> handler) {
+        if (handler == null || consoleAdapters.containsKey(handler)) return;
+
+        java.util.function.Consumer<Object> adapter = ev -> {
+            WDLogEvent.EntryAdded wd = as(ev, WDLogEvent.EntryAdded.class);
+            if (wd != null) handler.accept(new ConsoleMessageImpl(browser, wd));
+        };
+
+        consoleAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.ENTRY_ADDED.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
     }
 
     @Override
-    public void onConsoleMessage(Consumer<ConsoleMessage> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.ENTRY_ADDED.getName(), this.getBrowsingContextId(), null);
-            consoleMessageSubscription = webDriver.addEventListener(wdSubscriptionRequest, handler);
-        }
-    }
-
-    @Override
-    public void offConsoleMessage(Consumer<ConsoleMessage> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.ENTRY_ADDED.getName(), getBrowsingContextId(), handler);
+    public void offConsoleMessage(java.util.function.Consumer<ConsoleMessage> handler) {
+        if (handler == null) return;
+        java.util.function.Consumer<Object> adapter = consoleAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.ENTRY_ADDED.getName(), getBrowsingContextId(), adapter);
         }
     }
 
@@ -248,109 +279,167 @@ public class PageImpl implements Page, WDPageExtension {
     }
 
     @Override
-    public void onDialog(Consumer<Dialog> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.USER_PROMPT_OPENED.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(wdSubscriptionRequest, handler);
+    public void onDialog(java.util.function.Consumer<Dialog> handler) {
+        if (handler == null || dialogAdapters.containsKey(handler)) return;
+
+        java.util.function.Consumer<Object> adapter = ev -> {
+            WDBrowsingContextEvent.UserPromptOpened wd = as(ev, WDBrowsingContextEvent.UserPromptOpened.class);
+            if (wd != null) handler.accept(new DialogImpl(browser, wd));
+        };
+
+        dialogAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.USER_PROMPT_OPENED.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
+    }
+
+    @Override
+    public void offDialog(java.util.function.Consumer<Dialog> handler) {
+        if (handler == null) return;
+        java.util.function.Consumer<Object> adapter = dialogAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.USER_PROMPT_OPENED.getName(), getBrowsingContextId(), adapter);
         }
     }
 
     @Override
-    public void offDialog(Consumer<Dialog> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.USER_PROMPT_OPENED.getName(), getBrowsingContextId(), handler);
+    public void onDOMContentLoaded(java.util.function.Consumer<Page> handler) {
+        if (handler == null || domLoadedAdapters.containsKey(handler)) return;
+
+        java.util.function.Consumer<Object> adapter = ev -> {
+            WDBrowsingContextEvent.DomContentLoaded wd = as(ev, WDBrowsingContextEvent.DomContentLoaded.class);
+            if (wd != null) handler.accept(new PageImpl(browser, wd));
+        };
+
+        domLoadedAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.DOM_CONTENT_LOADED.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
+    }
+
+    @Override
+    public void offDOMContentLoaded(java.util.function.Consumer<Page> handler) {
+        if (handler == null) return;
+        java.util.function.Consumer<Object> adapter = domLoadedAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.DOM_CONTENT_LOADED.getName(), getBrowsingContextId(), adapter);
         }
     }
 
     @Override
-    public void onDOMContentLoaded(Consumer<Page> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.DOM_CONTENT_LOADED.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(wdSubscriptionRequest, handler);
+    public void onLoad(java.util.function.Consumer<Page> handler) {
+        if (handler == null || loadAdapters.containsKey(handler)) return;
+
+        java.util.function.Consumer<Object> adapter = ev -> {
+            WDBrowsingContextEvent.Load wd = as(ev, WDBrowsingContextEvent.Load.class);
+            if (wd != null) handler.accept(new PageImpl(browser, wd));
+        };
+
+        loadAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.LOAD.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
+    }
+
+    @Override
+    public void offLoad(java.util.function.Consumer<Page> handler) {
+        if (handler == null) return;
+        java.util.function.Consumer<Object> adapter = loadAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.LOAD.getName(), getBrowsingContextId(), adapter);
         }
     }
 
     @Override
-    public void offDOMContentLoaded(Consumer<Page> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.DOM_CONTENT_LOADED.getName(), getBrowsingContextId(), handler);
+    public void onRequest(java.util.function.Consumer<Request> handler) {
+        if (handler == null || reqBeforeAdapters.containsKey(handler)) return;
+
+        java.util.function.Consumer<Object> adapter = ev -> {
+            WDNetworkEvent.BeforeRequestSent wd = as(ev, WDNetworkEvent.BeforeRequestSent.class);
+            if (wd != null) handler.accept(new RequestImpl(wd));
+        };
+
+        reqBeforeAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.BEFORE_REQUEST_SENT.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
+    }
+
+    @Override
+    public void offRequest(java.util.function.Consumer<Request> handler) {
+        if (handler == null) return;
+        java.util.function.Consumer<Object> adapter = reqBeforeAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.BEFORE_REQUEST_SENT.getName(), getBrowsingContextId(), adapter);
+        }
+    }
+
+
+    @Override
+    public void onRequestFailed(java.util.function.Consumer<Request> handler) {
+        if (handler == null || reqFailedAdapters.containsKey(handler)) return;
+
+        java.util.function.Consumer<Object> adapter = ev -> {
+            WDNetworkEvent.FetchError wd = as(ev, WDNetworkEvent.FetchError.class);
+            if (wd != null) handler.accept(new RequestImpl(wd));
+        };
+
+        reqFailedAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.FETCH_ERROR.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
+    }
+
+    @Override
+    public void offRequestFailed(java.util.function.Consumer<Request> handler) {
+        if (handler == null) return;
+        java.util.function.Consumer<Object> adapter = reqFailedAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.FETCH_ERROR.getName(), getBrowsingContextId(), adapter);
         }
     }
 
     @Override
-    public void onLoad(Consumer<Page> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.LOAD.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(wdSubscriptionRequest, handler);
+    public void onRequestFinished(java.util.function.Consumer<Request> handler) {
+        if (handler == null || reqFinishedAdapters.containsKey(handler)) return;
+
+        java.util.function.Consumer<Object> adapter = ev -> {
+            WDNetworkEvent.ResponseCompleted wd = as(ev, WDNetworkEvent.ResponseCompleted.class);
+            if (wd != null) handler.accept(new RequestImpl(wd));
+        };
+
+        reqFinishedAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.RESPONSE_COMPLETED.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
+    }
+
+    @Override
+    public void offRequestFinished(java.util.function.Consumer<Request> handler) {
+        if (handler == null) return;
+        java.util.function.Consumer<Object> adapter = reqFinishedAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.RESPONSE_COMPLETED.getName(), getBrowsingContextId(), adapter);
         }
     }
 
     @Override
-    public void offLoad(Consumer<Page> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.LOAD.getName(), getBrowsingContextId(), handler);
-        }
+    public void onResponse(java.util.function.Consumer<Response> handler) {
+        if (handler == null || respAdapters.containsKey(handler)) return;
+
+        java.util.function.Consumer<Object> adapter = ev -> {
+            WDNetworkEvent.ResponseStarted wd = as(ev, WDNetworkEvent.ResponseStarted.class);
+            if (wd != null) handler.accept(new ResponseImpl(wd, null));
+        };
+
+        respAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.RESPONSE_STARTED.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
     }
 
     @Override
-    public void onRequest(Consumer<Request> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.BEFORE_REQUEST_SENT.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(wdSubscriptionRequest, handler);
+    public void offResponse(java.util.function.Consumer<Response> handler) {
+        if (handler == null) return;
+        java.util.function.Consumer<Object> adapter = respAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.RESPONSE_STARTED.getName(), getBrowsingContextId(), adapter);
         }
     }
 
-    @Override
-    public void offRequest(Consumer<Request> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.BEFORE_REQUEST_SENT.getName(), getBrowsingContextId(), handler);
-        }
-    }
-
-    @Override
-    public void onRequestFailed(Consumer<Request> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.FETCH_ERROR.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(wdSubscriptionRequest, handler);
-        }
-    }
-
-    @Override
-    public void offRequestFailed(Consumer<Request> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.FETCH_ERROR.getName(), getBrowsingContextId(), handler);
-        }
-    }
-
-    @Override
-    public void onRequestFinished(Consumer<Request> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.RESPONSE_COMPLETED.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(wdSubscriptionRequest, handler);
-        }
-    }
-
-    @Override
-    public void offRequestFinished(Consumer<Request> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.RESPONSE_COMPLETED.getName(), getBrowsingContextId(), handler);
-        }
-    }
-
-    @Override
-    public void onResponse(Consumer<Response> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.RESPONSE_STARTED.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(wdSubscriptionRequest, handler);
-        }
-    }
-
-    @Override
-    public void offResponse(Consumer<Response> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.RESPONSE_STARTED.getName(), getBrowsingContextId(), handler);
-        }
-    }
 
     @Override
     public void onWebSocket(Consumer<WebSocket> handler) {
@@ -368,32 +457,48 @@ public class PageImpl implements Page, WDPageExtension {
     }
 
     @Override
-    public void onWorker(Consumer<Worker> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.REALM_CREATED.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(wdSubscriptionRequest, handler);
+    public void onWorker(java.util.function.Consumer<Worker> handler) {
+        if (handler == null || workerAdapters.containsKey(handler)) return;
+
+        java.util.function.Consumer<Object> adapter = ev -> {
+            WDScriptEvent.RealmCreated wd = as(ev, WDScriptEvent.RealmCreated.class);
+            if (wd != null) handler.accept(new WorkerImpl(wd));
+        };
+
+        workerAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.REALM_CREATED.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
+    }
+
+    @Override
+    public void offWorker(java.util.function.Consumer<Worker> handler) {
+        if (handler == null) return;
+        java.util.function.Consumer<Object> adapter = workerAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.REALM_CREATED.getName(), getBrowsingContextId(), adapter);
         }
     }
 
     @Override
-    public void offWorker(Consumer<Worker> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.REALM_CREATED.getName(), getBrowsingContextId(), handler);
-        }
+    public void onDownload(java.util.function.Consumer<Download> handler) {
+        if (handler == null || downloadAdapters.containsKey(handler)) return;
+
+        java.util.function.Consumer<Object> adapter = ev -> {
+            WDBrowsingContextEvent.DownloadWillBegin wd = as(ev, WDBrowsingContextEvent.DownloadWillBegin.class);
+            if (wd != null) handler.accept(new DownloadImpl(browser, wd));
+        };
+
+        downloadAdapters.put(handler, adapter);
+        WDSubscriptionRequest req = new WDSubscriptionRequest(WDEventNames.DOWNLOAD_WILL_BEGIN.getName(), getBrowsingContextId(), null);
+        webDriver.addEventListener(req, adapter);
     }
 
     @Override
-    public void onDownload(Consumer<Download> handler) {
-        if (handler != null) {
-            WDSubscriptionRequest request = new WDSubscriptionRequest(WDEventNames.DOWNLOAD_WILL_BEGIN.getName(), this.getBrowsingContextId(), null);
-            webDriver.addEventListener(request, handler);
-        }
-    }
-
-    @Override
-    public void offDownload(Consumer<Download> handler) {
-        if (handler != null) {
-            webDriver.removeEventListener(WDEventNames.DOWNLOAD_WILL_BEGIN.getName(), getBrowsingContextId(), handler);
+    public void offDownload(java.util.function.Consumer<Download> handler) {
+        if (handler == null) return;
+        java.util.function.Consumer<Object> adapter = downloadAdapters.remove(handler);
+        if (adapter != null) {
+            webDriver.removeEventListener(WDEventNames.DOWNLOAD_WILL_BEGIN.getName(), getBrowsingContextId(), adapter);
         }
     }
 
@@ -2198,5 +2303,16 @@ public class PageImpl implements Page, WDPageExtension {
     private static String cssEsc(String s) {
         return s.replace("\\", "\\\\").replace("'", "\\'");
     }
+
+    private static <T> T as(Object ev, Class<T> cls) {
+        if (cls.isInstance(ev)) return cls.cast(ev);
+        if (ev instanceof com.google.gson.JsonObject) {
+            try {
+                return de.bund.zrb.support.JsonToPlaywrightMapper.mapToInterface((com.google.gson.JsonObject) ev, cls);
+            } catch (Throwable ignore) { /* not our type */ }
+        }
+        return null;
+    }
+
 
 }
