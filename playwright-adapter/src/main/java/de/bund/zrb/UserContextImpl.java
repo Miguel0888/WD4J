@@ -143,7 +143,7 @@ public class UserContextImpl implements BrowserContext, WDContextExtension {
         for (Page p : pages()) p.offRequestFinished(handler);
     }
 
-    @Override
+    @Override // Schould use FETCH_ERROR
     public void onRequestFailed(final Consumer<Request> handler) {
         if (handler == null) return;
 

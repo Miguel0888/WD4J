@@ -18,11 +18,9 @@ import java.util.function.Consumer;
 public final class WDContextExtensionSupport {
 
     private final UserContextImpl ctx;
-    private final BrowserImpl browser; // für getWebDriver()
 
     public WDContextExtensionSupport(UserContextImpl ctx) {
         this.ctx = ctx;
-        this.browser = (BrowserImpl) ctx.browser();
     }
 
     // Listener-Maps (extern -> intern)
@@ -120,7 +118,7 @@ public final class WDContextExtensionSupport {
 
         // Context-weit abonnieren (Server schickt alle passenden; wir filtern oben)
         WDSubscriptionRequest req = new WDSubscriptionRequest(eventName, null, null);
-        browser.getWebDriver().addEventListener(req, internal);
+        ((BrowserImpl) ctx.browser()).getWebDriver().addEventListener(req, internal);
         store.put(external, internal);
     }
 
@@ -142,20 +140,20 @@ public final class WDContextExtensionSupport {
         if (external == null) return;
         Consumer<Object> internal = store.remove(external);
         if (internal != null) {
-            browser.getWebDriver().removeEventListener(eventName, null, internal);
+            ((BrowserImpl) ctx.browser()).getWebDriver().removeEventListener(eventName, null, internal);
         }
     }
 
     /** Alles deregistrieren. */
     public void detachAll() {
-        mCommit.forEach((k,v) -> browser.getWebDriver().removeEventListener(WDEventNames.NAVIGATION_COMMITTED.getName(), null, v));
-        mAbort .forEach((k,v) -> browser.getWebDriver().removeEventListener(WDEventNames.NAVIGATION_ABORTED.getName(),  null, v));
-        mFrag  .forEach((k,v) -> browser.getWebDriver().removeEventListener(WDEventNames.FRAGMENT_NAVIGATED.getName(),  null, v));
-        mHist  .forEach((k,v) -> browser.getWebDriver().removeEventListener(WDEventNames.HISTORY_UPDATED.getName(),     null, v));
-        mPrompt.forEach((k,v) -> browser.getWebDriver().removeEventListener(WDEventNames.USER_PROMPT_CLOSED.getName(),  null, v));
-        mAuth  .forEach((k,v) -> browser.getWebDriver().removeEventListener(WDEventNames.AUTH_REQUIRED.getName(),       null, v));
-        mRealmD.forEach((k,v) -> browser.getWebDriver().removeEventListener(WDEventNames.REALM_DESTROYED.getName(),     null, v));
-        mMsg   .forEach((k,v) -> browser.getWebDriver().removeEventListener(WDEventNames.MESSAGE.getName(),             null, v));
+        mCommit.forEach((k,v) -> ((BrowserImpl) ctx.browser()).getWebDriver().removeEventListener(WDEventNames.NAVIGATION_COMMITTED.getName(), null, v));
+        mAbort .forEach((k,v) -> ((BrowserImpl) ctx.browser()).getWebDriver().removeEventListener(WDEventNames.NAVIGATION_ABORTED.getName(),  null, v));
+        mFrag  .forEach((k,v) -> ((BrowserImpl) ctx.browser()).getWebDriver().removeEventListener(WDEventNames.FRAGMENT_NAVIGATED.getName(),  null, v));
+        mHist  .forEach((k,v) -> ((BrowserImpl) ctx.browser()).getWebDriver().removeEventListener(WDEventNames.HISTORY_UPDATED.getName(),     null, v));
+        mPrompt.forEach((k,v) -> ((BrowserImpl) ctx.browser()).getWebDriver().removeEventListener(WDEventNames.USER_PROMPT_CLOSED.getName(),  null, v));
+        mAuth  .forEach((k,v) -> ((BrowserImpl) ctx.browser()).getWebDriver().removeEventListener(WDEventNames.AUTH_REQUIRED.getName(),       null, v));
+        mRealmD.forEach((k,v) -> ((BrowserImpl) ctx.browser()).getWebDriver().removeEventListener(WDEventNames.REALM_DESTROYED.getName(),     null, v));
+        mMsg   .forEach((k,v) -> ((BrowserImpl) ctx.browser()).getWebDriver().removeEventListener(WDEventNames.MESSAGE.getName(),             null, v));
 
         mCommit.clear(); mAbort.clear(); mFrag.clear(); mHist.clear(); mPrompt.clear(); mAuth.clear(); mRealmD.clear(); mMsg.clear();
     }
