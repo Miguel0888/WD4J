@@ -65,15 +65,19 @@ public final class RecordingSession {
             recorderService.addListener(l);
         }
 
-        // **NEU: Page-Events -> UI spiegeln (nur Page-Mode)**
-        if (!contextMode && activePage != null) {
+        if (contextMode && activeContext != null) {
+            for (de.bund.zrb.ui.RecorderListener l : listeners) {
+                if (l instanceof RecorderTabUi) {
+                    uiAppenders.add(WDUiAppender.attachToContext(activeContext, ((RecorderTabUi) l)::appendEvent));
+                }
+            }
+        } else if (!contextMode && activePage != null) {
             for (de.bund.zrb.ui.RecorderListener l : listeners) {
                 if (l instanceof RecorderTabUi) {
                     uiAppenders.add(WDUiAppender.attachToPage(activePage, ((RecorderTabUi) l)::appendEvent));
                 }
             }
         }
-        // (Optional: Context-Mode später analog mit WDContextExtension/WDUiAppender.attachToContext)
 
         recording = true;
         notifyUiRecordingState(true);

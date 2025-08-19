@@ -5,6 +5,8 @@ import com.microsoft.playwright.options.BindingCallback;
 import com.microsoft.playwright.options.Cookie;
 import com.microsoft.playwright.options.FunctionCallback;
 import com.microsoft.playwright.options.Geolocation;
+import de.bund.zrb.ext.WDContextExtension;
+import de.bund.zrb.ext.WDContextExtensionSupport;
 import de.bund.zrb.support.Pages;
 import de.bund.zrb.type.browser.WDUserContext;
 import de.bund.zrb.type.browser.WDUserContextInfo;
@@ -16,7 +18,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
-public class UserContextImpl implements BrowserContext {
+public class UserContextImpl implements BrowserContext, WDContextExtension {
     private final Pages pages;
     private final BrowserImpl browser;
     private boolean isClosed = false;
@@ -29,6 +31,13 @@ public class UserContextImpl implements BrowserContext {
     private final Map<Consumer<Response>, Consumer<Page>> responseWires         = new HashMap<Consumer<Response>, Consumer<Page>>();
     private final Map<Consumer<Request>,  Consumer<Page>> requestFinishedWires  = new HashMap<Consumer<Request>,  Consumer<Page>>();
     private final Map<Consumer<Request>,  Consumer<Page>> requestFailedWires    = new HashMap<Consumer<Request>,  Consumer<Page>>();
+
+    private final WDContextExtensionSupport ctxExt = new WDContextExtensionSupport(this);
+
+    @Override
+    public WDContextExtensionSupport wdCtxExt() {
+        return ctxExt;
+    }
 
     public UserContextImpl(BrowserImpl browser) {
         this.browser = browser;
