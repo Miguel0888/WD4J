@@ -92,8 +92,8 @@ public final class WDEventFormatter {
         }
 
         // Script
-        if (event instanceof WDScriptEvent.Message) {
-            return formatScriptMessage((WDScriptEvent.Message) event);
+        if (event instanceof WDScriptEvent.MessageWD) {
+            return formatScriptMessage((WDScriptEvent.MessageWD) event);
         }
         if (event instanceof WDScriptEvent.RealmCreated) {
             return "[script] " + safe(event.getMethod()) + " realmCreated";
@@ -215,8 +215,8 @@ public final class WDEventFormatter {
 
     // region ---------- Script formatters ----------
 
-    private static String formatScriptMessage(WDScriptEvent.Message e) {
-        WDScriptEvent.Message.MessageParameters p = e.getParams();
+    private static String formatScriptMessage(WDScriptEvent.MessageWD e) {
+        WDScriptEvent.MessageWD.MessageParameters p = e.getParams();
         WDSource src = p != null ? p.getSource() : null;
         String ctx = contextAbbr(src != null ? src.getContext() : null);
         // Keep message compact; do not serialize data payloads here

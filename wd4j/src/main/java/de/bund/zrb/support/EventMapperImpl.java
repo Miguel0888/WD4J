@@ -79,7 +79,7 @@ public class EventMapperImpl implements EventMapper {
             case REALM_DESTROYED:
                 return new WDScriptEvent.RealmDestroyed(json);
             case MESSAGE:
-                return new WDScriptEvent.Message(json); // (Channels ggf. später gesondert)
+                return new WDScriptEvent.MessageWD(json); // (Channels ggf. später gesondert)
 
             // ── Log Events ────────────────────────────────────────────────────────────
             case ENTRY_ADDED:

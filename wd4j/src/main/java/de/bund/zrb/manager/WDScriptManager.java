@@ -7,16 +7,16 @@ import de.bund.zrb.command.response.WDScriptResult;
 import de.bund.zrb.type.browser.WDUserContext;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.script.*;
-import de.bund.zrb.api.WebSocketManager;
+import de.bund.zrb.api.WDWebSocketManager;
 
 import java.util.List;
 
 public class WDScriptManager implements WDModule {
 
-    private final WebSocketManager webSocketManager;
+    private final WDWebSocketManager WDWebSocketManager;
 
-    public WDScriptManager(WebSocketManager webSocketManager) {
-        this.webSocketManager = webSocketManager;
+    public WDScriptManager(WDWebSocketManager WDWebSocketManager) {
+        this.WDWebSocketManager = WDWebSocketManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,7 +36,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.AddPreloadScript(script),
                 WDScriptResult.AddPreloadScriptResult.class
         );
@@ -50,7 +50,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script, List<WDChannelValue> arguments) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.AddPreloadScript(script, arguments),
                 WDScriptResult.AddPreloadScriptResult.class
         );
@@ -66,7 +66,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script, List<WDChannelValue> arguments, List<WDBrowsingContext> browsingContexts) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.AddPreloadScript(script, arguments, browsingContexts),
                 WDScriptResult.AddPreloadScriptResult.class
         );
@@ -84,7 +84,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script, List<WDChannelValue> arguments, List<WDBrowsingContext> WDBrowsingContexts, List<WDUserContext> WDUserContexts, String sandbox) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.AddPreloadScript(script, arguments, WDBrowsingContexts, WDUserContexts, sandbox),
                 WDScriptResult.AddPreloadScriptResult.class
         );
@@ -98,7 +98,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public WDScriptResult.AddPreloadScriptResult addPreloadScript(String script, String context) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.AddPreloadScript(script, context), // ToDo: Improve this
                 WDScriptResult.AddPreloadScriptResult.class
         );
@@ -116,7 +116,7 @@ public class WDScriptManager implements WDModule {
             throw new IllegalArgumentException("Handles list must not be null or empty.");
         }
 
-        webSocketManager.sendAndWaitForResponse(
+        WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.Disown(WDHandles, target),
                 WDEmptyResult.class
         );
@@ -131,7 +131,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public <T> WDEvaluateResult callFunction(String functionDeclaration, boolean awaitPromise, WDTarget target, List<WDLocalValue> arguments) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.CallFunction(functionDeclaration, awaitPromise, target, arguments),
                 WDEvaluateResult.class
         );
@@ -147,7 +147,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public <T> WDEvaluateResult callFunction(String functionDeclaration, boolean awaitPromise, WDTarget target, List<WDLocalValue> arguments, WDLocalValue thisArg) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.CallFunction(functionDeclaration, awaitPromise, target, arguments, thisArg),
                 WDEvaluateResult.class
         );
@@ -166,7 +166,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public <T> WDEvaluateResult callFunction(String functionDeclaration, boolean awaitPromise, WDTarget target, List<WDLocalValue> arguments, WDLocalValue thisArg, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.CallFunction(functionDeclaration, awaitPromise, target, arguments,
                         resultOwnership, serializationOptions, thisArg),
                 WDEvaluateResult.class
@@ -187,7 +187,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public <T> WDEvaluateResult callFunction(String functionDeclaration, boolean awaitPromise, WDTarget target, List<WDLocalValue> arguments, WDLocalValue thisArg, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions, boolean userActivation) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.CallFunction(functionDeclaration, awaitPromise, target, arguments,
                         resultOwnership, serializationOptions, thisArg, userActivation),
                 WDEvaluateResult.class
@@ -203,7 +203,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public WDEvaluateResult evaluate(String script, WDTarget target, boolean awaitPromise) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.Evaluate(script, target, awaitPromise),
                 WDEvaluateResult.class
         );
@@ -221,7 +221,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public WDEvaluateResult evaluate(String script, WDTarget target, boolean awaitPromise, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.Evaluate(script, target, awaitPromise, resultOwnership, serializationOptions),
                 WDEvaluateResult.class
         );
@@ -240,7 +240,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public WDEvaluateResult evaluate(String script, WDTarget target, boolean awaitPromise, WDResultOwnership resultOwnership, WDSerializationOptions serializationOptions, boolean userActivation) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.Evaluate(script, target, awaitPromise, resultOwnership, serializationOptions, userActivation),
                 WDEvaluateResult.class
         );
@@ -253,7 +253,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public WDScriptResult.GetRealmsResult getRealms() {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.GetRealms(),
                 WDScriptResult.GetRealmsResult.class
         );
@@ -267,7 +267,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public WDScriptResult.GetRealmsResult getRealms(WDBrowsingContext context) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.GetRealms(context),
                 WDScriptResult.GetRealmsResult.class
         );
@@ -283,7 +283,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public WDScriptResult.GetRealmsResult getRealms(WDBrowsingContext context, WDRealmType type){
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.GetRealms(context, type),
                 WDScriptResult.GetRealmsResult.class
         );
@@ -296,7 +296,7 @@ public class WDScriptManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public void removePreloadScript(String scriptId) {
-        webSocketManager.sendAndWaitForResponse(
+        WDWebSocketManager.sendAndWaitForResponse(
                 new WDScriptRequest.RemovePreloadScript(scriptId),
                 WDEmptyResult.class
         );

@@ -3,7 +3,7 @@ package de.bund.zrb;
 import com.microsoft.playwright.*;
 import de.bund.zrb.manager.WDInputManager;
 import de.bund.zrb.manager.WDScriptManager;
-import de.bund.zrb.api.WebSocketManager;
+import de.bund.zrb.api.WDWebSocketManager;
 import de.bund.zrb.support.ScriptHelper;
 import de.bund.zrb.command.response.WDBrowsingContextResult;
 import de.bund.zrb.command.response.WDScriptResult;
@@ -42,16 +42,16 @@ public class BrowserImpl implements Browser {
     private String activePageId;
     private final PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
 
-    public BrowserImpl(BrowserTypeImpl browserType, Process process, WebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
+    public BrowserImpl(BrowserTypeImpl browserType, Process process, WDWebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
         router = new RecordingEventRouter(this); // ToDo
 
         this.browserType = browserType;
         this.process = process;
 
         // ToDo: May be moved to WD4J partly
-        WebSocketManager webSocketManager = new WebSocketManagerImpl(webSocketImpl);
+        WDWebSocketManager WDWebSocketManager = new WDWebSocketManagerImpl(webSocketImpl);
         dispatcher = new EventDispatcher(new EventMapperImpl());
-        this.webDriver = new WebDriver(webSocketManager, dispatcher).connect(browserType.name());
+        this.webDriver = new WebDriver(WDWebSocketManager, dispatcher).connect(browserType.name());
 
         onContextSwitch(this::setActivePageId);
         onRecordingEvent(BrowserImpl.CHANNEL_RECORDING_EVENTS, this::handleRecordingEvent);
@@ -60,7 +60,7 @@ public class BrowserImpl implements Browser {
         loadGlobalScripts(); // load JavaScript code relevant for the working Playwright API
     }
 
-    private void handleRecordingEvent(WDScriptEvent.Message message) {
+    private void handleRecordingEvent(WDScriptEvent.MessageWD message) {
         router.dispatch(message);
     }
 
@@ -305,14 +305,14 @@ public class BrowserImpl implements Browser {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void onMessage(Consumer<WDScriptEvent.Message> handler) {
+    void onMessage(Consumer<WDScriptEvent.MessageWD> handler) {
         if (handler != null) {
             WDSubscriptionRequest wdSubscriptionRequest = new WDSubscriptionRequest(WDEventNames.MESSAGE.getName(), null, null);
             WDSubscription tmp = webDriver.addEventListener(wdSubscriptionRequest, handler);
         }
     }
 
-    private void offMessage(Consumer<WDScriptEvent.Message> handler) {
+    private void offMessage(Consumer<WDScriptEvent.MessageWD> handler) {
         // ToDo: Will not work without the browsingContextId, thus it has to use the SubscriptionId, in future!
         if (handler != null) {
             webDriver.removeEventListener(WDEventNames.MESSAGE.getName(), null, handler);
@@ -342,7 +342,7 @@ public class BrowserImpl implements Browser {
         }
     }
 
-    public void onRecordingEvent(String channelName, Consumer<WDScriptEvent.Message> handler) {
+    public void onRecordingEvent(String channelName, Consumer<WDScriptEvent.MessageWD> handler) {
         if (handler != null) {
             onMessage(message -> {
                 if (channelName.equals(message.getParams().getChannel().value())) {

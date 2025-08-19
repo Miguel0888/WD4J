@@ -4,12 +4,12 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
-import com.microsoft.playwright.WebSocketFrame;
+import de.bund.zrb.api.WebSocketFrame;
 import de.bund.zrb.support.mapping.GsonMapperFactory;
 import de.bund.zrb.api.WDCommand;
 import de.bund.zrb.websocket.WDErrorResponse;
 import de.bund.zrb.websocket.WDException;
-import de.bund.zrb.api.WebSocketManager;
+import de.bund.zrb.api.WDWebSocketManager;
 
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
@@ -25,18 +25,18 @@ import java.util.function.Predicate;
  * nicht für DIE verbindung zumn Browser über WebDriverBidi & WebSocket
  *
  */
-public class WebSocketManagerImpl implements WebSocketManager {
+public class WDWebSocketManagerImpl implements WDWebSocketManager {
     private final Gson gson = GsonMapperFactory.getGson(); // ✅ Nutzt zentrale Fabrik
 
-    private final WebSocketImpl webSocket; // ToDo: Should be WebSocket instead of WebSocketImpl
+    private final WDWebSocketImpl webSocket; // ToDo: Should be WebSocket instead of WebSocketImpl
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Deprecated // since WebSocketConnection should not be a singleton anymore?
-    private static volatile WebSocketManagerImpl instance; // ToDo: Remove singleton pattern
+    private static volatile WDWebSocketManagerImpl instance; // ToDo: Remove singleton pattern
 
     @Deprecated // since WebSocketConnection should not be a singleton anymore?
-    public WebSocketManagerImpl(WebSocketImpl webSocket) {
+    public WDWebSocketManagerImpl(WDWebSocketImpl webSocket) {
         this.webSocket = webSocket;
     }
 

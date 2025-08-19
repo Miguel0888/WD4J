@@ -194,7 +194,7 @@ final class WDUiAppender {
         // ext.onNavigationAborted(cAbort);
         // detachers.add(() -> ext.offNavigationAborted(cAbort));
 
-        Consumer<WDScriptEvent.Message> cMsg =
+        Consumer<WDScriptEvent.MessageWD> cMsg =
                 e -> sink.accept(WDEventNames.MESSAGE.getName(), e);
         ext.onScriptMessage(cMsg);
         detachers.add(() -> ext.offScriptMessage(cMsg));
@@ -221,7 +221,7 @@ final class WDUiAppender {
         // ext.onNavigationAborted(cAbort);
         // a.detachers.add(() -> ext.offNavigationAborted(cAbort));
 
-        Consumer<de.bund.zrb.event.WDScriptEvent.Message> cMsg =
+        Consumer<WDScriptEvent.MessageWD> cMsg =
                 e -> a.sink.accept(WDEventNames.MESSAGE.getName(), e);
         ext.onScriptMessage(cMsg);
         a.detachers.add(() -> ext.offScriptMessage(cMsg));

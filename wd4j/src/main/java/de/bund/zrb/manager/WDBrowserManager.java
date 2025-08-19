@@ -6,14 +6,14 @@ import de.bund.zrb.command.response.WDBrowserResult;
 import de.bund.zrb.command.response.WDEmptyResult;
 import de.bund.zrb.type.browser.WDClientWindowInfo;
 import de.bund.zrb.type.browser.WDUserContextInfo;
-import de.bund.zrb.api.WebSocketManager;
+import de.bund.zrb.api.WDWebSocketManager;
 
 public class WDBrowserManager implements WDModule {
 
-    private final WebSocketManager webSocketManager;
+    private final WDWebSocketManager WDWebSocketManager;
 
-    public WDBrowserManager(WebSocketManager webSocketManager) {
-        this.webSocketManager = webSocketManager;
+    public WDBrowserManager(WDWebSocketManager WDWebSocketManager) {
+        this.WDWebSocketManager = WDWebSocketManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -29,7 +29,7 @@ public class WDBrowserManager implements WDModule {
      * Closes the browser.
      */
     public void closeBrowser() {
-        webSocketManager.sendAndWaitForResponse(new WDBrowserRequest.Close(), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDBrowserRequest.Close(), WDEmptyResult.class);
         System.out.println("Browser closed successfully.");
     }
 
@@ -40,7 +40,7 @@ public class WDBrowserManager implements WDModule {
      */
     public WDUserContextInfo createUserContext() {
         WDUserContextInfo result =
-                webSocketManager.sendAndWaitForResponse(new WDBrowserRequest.CreateUserContext(), WDUserContextInfo.class);
+                WDWebSocketManager.sendAndWaitForResponse(new WDBrowserRequest.CreateUserContext(), WDUserContextInfo.class);
         System.out.println("User context created: " + result.getUserContext().value());
         return result;
     }
@@ -53,7 +53,7 @@ public class WDBrowserManager implements WDModule {
      */
     public WDBrowserResult.GetClientWindowsResult getClientWindows() {
         WDBrowserResult.GetClientWindowsResult result =
-                webSocketManager.sendAndWaitForResponse(new WDBrowserRequest.GetClientWindows(), WDBrowserResult.GetClientWindowsResult.class);
+                WDWebSocketManager.sendAndWaitForResponse(new WDBrowserRequest.GetClientWindows(), WDBrowserResult.GetClientWindowsResult.class);
 
         System.out.println("Client windows retrieved: " + result.getClientWindows());
         return result;
@@ -68,7 +68,7 @@ public class WDBrowserManager implements WDModule {
      */
     public WDBrowserResult.GetUserContextsResult getUserContexts() {
         WDBrowserResult.GetUserContextsResult result =
-                webSocketManager.sendAndWaitForResponse(new WDBrowserRequest.GetUserContexts(), WDBrowserResult.GetUserContextsResult.class);
+                WDWebSocketManager.sendAndWaitForResponse(new WDBrowserRequest.GetUserContexts(), WDBrowserResult.GetUserContextsResult.class);
 
         System.out.println("User contexts retrieved: " + result.getUserContexts());
         return result;
@@ -82,7 +82,7 @@ public class WDBrowserManager implements WDModule {
      * @throws RuntimeException if the removal fails.
      */
     public void removeUserContext(String contextId) {
-        webSocketManager.sendAndWaitForResponse(new WDBrowserRequest.RemoveUserContext(contextId), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDBrowserRequest.RemoveUserContext(contextId), WDEmptyResult.class);
         System.out.println("User context removed: " + contextId);
     }
 
@@ -94,7 +94,7 @@ public class WDBrowserManager implements WDModule {
      * @throws RuntimeException if setting the state fails.
      */
     public WDClientWindowInfo setClientWindowState(String clientWindowId, String state) {
-        WDClientWindowInfo result = webSocketManager.sendAndWaitForResponse(new WDBrowserRequest.SetClientWindowState(clientWindowId, state), WDClientWindowInfo.class);
+        WDClientWindowInfo result = WDWebSocketManager.sendAndWaitForResponse(new WDBrowserRequest.SetClientWindowState(clientWindowId, state), WDClientWindowInfo.class);
         System.out.println("Client window state set: " + result.getClientWindow().value());
         return result;
     }

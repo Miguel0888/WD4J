@@ -7,16 +7,16 @@ import de.bund.zrb.command.request.parameters.network.SetCacheBehaviorParameters
 import de.bund.zrb.command.response.WDEmptyResult;
 import de.bund.zrb.command.response.WDNetworkResult;
 import de.bund.zrb.type.network.WDAuthCredentials;
-import de.bund.zrb.api.WebSocketManager;
+import de.bund.zrb.api.WDWebSocketManager;
 
 import java.util.List;
 
 public class WDNetworkManager implements WDModule {
 
-    private final WebSocketManager webSocketManager;
+    private final WDWebSocketManager WDWebSocketManager;
 
-    public WDNetworkManager(WebSocketManager webSocketManager) {
-        this.webSocketManager = webSocketManager;
+    public WDNetworkManager(WDWebSocketManager WDWebSocketManager) {
+        this.WDWebSocketManager = WDWebSocketManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,7 +35,7 @@ public class WDNetworkManager implements WDModule {
      * @return The intercept ID of the added rule.
      */
     public WDNetworkResult.AddInterceptResult addIntercept(List<AddInterceptParameters.InterceptPhase> phases) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDNetworkRequest.AddIntercept(phases),
                 WDNetworkResult.AddInterceptResult.class
         );
@@ -47,7 +47,7 @@ public class WDNetworkManager implements WDModule {
      * @param requestId The ID of the intercepted request.
      */
     public void continueRequest(String requestId) {
-        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueRequest(requestId), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueRequest(requestId), WDEmptyResult.class);
     }
 
     /**
@@ -56,7 +56,7 @@ public class WDNetworkManager implements WDModule {
      * @param requestId The ID of the intercepted response.
      */
     public void continueResponse(String requestId) {
-        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueResponse(requestId), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueResponse(requestId), WDEmptyResult.class);
     }
 
 
@@ -67,7 +67,7 @@ public class WDNetworkManager implements WDModule {
      * @param authChallengeResponse The authentication challenge response.
      */
     public void continueWithAuth(String requestId, WDAuthCredentials authChallengeResponse) {
-        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueWithAuth(requestId, authChallengeResponse), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ContinueWithAuth(requestId, authChallengeResponse), WDEmptyResult.class);
     }
 
     /**
@@ -76,7 +76,7 @@ public class WDNetworkManager implements WDModule {
      * @param requestId The ID of the intercepted request.
      */
     public void failRequest(String requestId) {
-        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.FailRequest(requestId), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDNetworkRequest.FailRequest(requestId), WDEmptyResult.class);
     }
 
     /**
@@ -85,7 +85,7 @@ public class WDNetworkManager implements WDModule {
      * @param requestId The ID of the intercepted request.
      */
     public void provideResponse(String requestId) {
-        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ProvideResponse(requestId), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDNetworkRequest.ProvideResponse(requestId), WDEmptyResult.class);
     }
 
     /**
@@ -94,7 +94,7 @@ public class WDNetworkManager implements WDModule {
      * @param interceptId The ID of the intercept to remove.
      */
     public void removeIntercept(String interceptId) {
-        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.RemoveIntercept(interceptId), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDNetworkRequest.RemoveIntercept(interceptId), WDEmptyResult.class);
     }
 
     /**
@@ -103,6 +103,6 @@ public class WDNetworkManager implements WDModule {
      * @param cacheBehavior The cache behavior to set.
      */
     public void setCacheBehavior(SetCacheBehaviorParameters.CacheBehavior cacheBehavior) {
-        webSocketManager.sendAndWaitForResponse(new WDNetworkRequest.SetCacheBehavior(cacheBehavior), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDNetworkRequest.SetCacheBehavior(cacheBehavior), WDEmptyResult.class);
     }
 }

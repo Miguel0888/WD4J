@@ -1,7 +1,7 @@
 package de.bund.zrb;
 
-import com.microsoft.playwright.WebSocket;
-import com.microsoft.playwright.WebSocketFrame;
+import de.bund.zrb.api.WDWebSocket;
+import de.bund.zrb.api.WebSocketFrame;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
@@ -17,12 +17,12 @@ import java.util.function.Predicate;
  * nicht für DIE verbindung zum Browser über WebDriverBidi & WebSocket
  *
  */
-public class WebSocketImpl implements WebSocket {
+public class WDWebSocketImpl implements WDWebSocket {
     private WebSocketClient webSocketClient;
     private boolean isClosed = false;
     private String url;
 
-    private final List<Consumer<WebSocket>> onCloseListeners = new CopyOnWriteArrayList<>();
+    private final List<Consumer<WDWebSocket>> onCloseListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<WebSocketFrame>> onFrameReceivedListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<WebSocketFrame>> onFrameSentListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<String>> onSocketErrorListeners = new CopyOnWriteArrayList<>();
@@ -33,12 +33,12 @@ public class WebSocketImpl implements WebSocket {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
-    public void onClose(Consumer<WebSocket> handler) {
+    public void onClose(Consumer<WDWebSocket> handler) {
         onCloseListeners.add(handler);
     }
 
     @Override
-    public void offClose(Consumer<WebSocket> handler) {
+    public void offClose(Consumer<WDWebSocket> handler) {
         onCloseListeners.remove(handler);
     }
 
@@ -207,7 +207,7 @@ public class WebSocketImpl implements WebSocket {
     /// **WebSocket-Verwaltung**
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public WebSocketImpl(URI uri, Double timeout) {
+    public WDWebSocketImpl(URI uri, Double timeout) {
         this(uri);
         this.timeout = timeout;
         // Connection-Lost-Detection-Intervall auf 0 setzen → dann wird keine Ping/Pong-Prüfung gemacht:
@@ -215,7 +215,7 @@ public class WebSocketImpl implements WebSocket {
     }
 
 
-    public WebSocketImpl(URI uri) {
+    public WDWebSocketImpl(URI uri) {
         this.url = uri.toString();
         webSocketClient = new WebSocketClient(uri) {
             @Override
@@ -241,7 +241,7 @@ public class WebSocketImpl implements WebSocket {
                 System.out.println("WebSocket closed. Code: " + code + ", Reason: " + reason);
 
                 // Alle registrierten `onClose`-Listener mit `this` benachrichtigen
-                onCloseListeners.forEach(listener -> listener.accept(WebSocketImpl.this));
+                onCloseListeners.forEach(listener -> listener.accept(WDWebSocketImpl.this));
             }
 
             @Override

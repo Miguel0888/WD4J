@@ -4,7 +4,7 @@ import de.bund.zrb.EventDispatcher;
 
 import java.lang.reflect.Type;
 
-public interface WebSocketManager {
+public interface WDWebSocketManager {
 
     /**
      * Send the given command and wait for a typed response.

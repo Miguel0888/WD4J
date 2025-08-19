@@ -23,10 +23,10 @@ public class WDScriptEvent implements WDModule {
      * @see WDChannel
      * @see WDScriptRequest.CallFunction
      */
-    public static class Message extends WDEvent<Message.MessageParameters> {
+    public static class MessageWD extends WDEvent<MessageWD.MessageParameters> {
         private String method = WDEventNames.MESSAGE.getName();
 
-        public Message(JsonObject json) {
+        public MessageWD(JsonObject json) {
             super(json, MessageParameters.class);
         }
 

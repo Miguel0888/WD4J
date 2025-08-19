@@ -3,27 +3,25 @@ package de.bund.zrb.manager;
 import de.bund.zrb.api.markerInterfaces.WDModule;
 import de.bund.zrb.command.request.WDBrowsingContextRequest;
 import de.bund.zrb.command.request.parameters.browsingContext.CaptureScreenshotParameters;
-import de.bund.zrb.command.request.parameters.browsingContext.CreateParameters;
 import de.bund.zrb.command.request.parameters.browsingContext.CreateType;
 import de.bund.zrb.command.request.parameters.browsingContext.SetViewportParameters;
 import de.bund.zrb.command.response.WDBrowsingContextResult;
 import de.bund.zrb.command.response.WDEmptyResult;
 import de.bund.zrb.type.browser.WDUserContext;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
-import de.bund.zrb.type.browsingContext.WDInfo;
 import de.bund.zrb.type.browsingContext.WDLocator;
 import de.bund.zrb.type.script.WDRemoteReference;
 import de.bund.zrb.type.script.WDSerializationOptions;
-import de.bund.zrb.api.WebSocketManager;
+import de.bund.zrb.api.WDWebSocketManager;
 
 import java.util.List;
 
 public class WDBrowsingContextManager implements WDModule {
 
-    private final WebSocketManager webSocketManager;
+    private final WDWebSocketManager WDWebSocketManager;
 
-    public WDBrowsingContextManager(WebSocketManager webSocketManager) {
-        this.webSocketManager = webSocketManager;
+    public WDBrowsingContextManager(WDWebSocketManager WDWebSocketManager) {
+        this.WDWebSocketManager = WDWebSocketManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -43,14 +41,14 @@ public class WDBrowsingContextManager implements WDModule {
      */
     // Required for Firefox ESR ?
     public WDBrowsingContextResult.CreateResult create() {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.Create(CreateType.TAB),
                 WDBrowsingContextResult.CreateResult.class
         );
     }
 
     public WDBrowsingContextResult.CreateResult create(CreateType type, WDBrowsingContext referenceContext, Boolean background, WDUserContext userContext) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.Create(type, referenceContext, background, userContext),
                 WDBrowsingContextResult.CreateResult.class
         );
@@ -70,7 +68,7 @@ public class WDBrowsingContextManager implements WDModule {
             throw new IllegalArgumentException("Cannot navigate: URL is null or empty!");
         }
 
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.Navigate(url, contextId),
                 WDBrowsingContextResult.NavigateResult.class
         );
@@ -78,28 +76,28 @@ public class WDBrowsingContextManager implements WDModule {
 
 
     public WDBrowsingContextResult.GetTreeResult getTree() {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.GetTree(),
                 WDBrowsingContextResult.GetTreeResult.class
         );
     }
 
     public WDBrowsingContextResult.GetTreeResult getTree(String browsingContextId) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.GetTree(new WDBrowsingContext(browsingContextId)),
                 WDBrowsingContextResult.GetTreeResult.class
         );
     }
 
     public WDBrowsingContextResult.GetTreeResult getTree(WDBrowsingContext context) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.GetTree(context),
                 WDBrowsingContextResult.GetTreeResult.class
         );
     }
 
     public WDBrowsingContextResult.GetTreeResult getTree(WDBrowsingContext context, Long depth) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.GetTree(context, depth),
                 WDBrowsingContextResult.GetTreeResult.class
         );
@@ -112,7 +110,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @throws RuntimeException if the activation fails.
      */
     public void activate(String contextId) {
-        webSocketManager.sendAndWaitForResponse(
+        WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.Activate(contextId),
                 WDEmptyResult.class
         );
@@ -126,7 +124,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @return The screenshot as a base64-encoded string.
      */
     public WDBrowsingContextResult.CaptureScreenshotResult captureScreenshot(String contextId) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.CaptureScreenshot(contextId),
                 WDBrowsingContextResult.CaptureScreenshotResult.class
         );
@@ -139,7 +137,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @return The screenshot as a base64-encoded string.
      */
     public WDBrowsingContextResult.CaptureScreenshotResult captureScreenshot(WDBrowsingContext context, CaptureScreenshotParameters.Origin origin, CaptureScreenshotParameters.ImageFormat format, CaptureScreenshotParameters.ClipRectangle clip) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.CaptureScreenshot(context, origin, format, clip),
                 WDBrowsingContextResult.CaptureScreenshotResult.class
         );
@@ -152,7 +150,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @throws RuntimeException if the close operation fails.
      */
     public void close(String contextId) {
-        webSocketManager.sendAndWaitForResponse(
+        WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.Close(contextId, null),
                 WDEmptyResult.class
         );
@@ -166,7 +164,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @throws RuntimeException if the close operation fails.
      */
     public void close(String contextId, Boolean prompt) {
-        webSocketManager.sendAndWaitForResponse(
+        WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.Close(contextId, prompt),
                 WDEmptyResult.class
         );
@@ -182,7 +180,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @throws RuntimeException if handling the prompt fails.
      */
     public void handleUserPrompt(String contextId, Boolean accept, String userText) {
-        webSocketManager.sendAndWaitForResponse(
+        WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.HandleUserPrompt(contextId, accept, userText),
                 WDEmptyResult.class
         );
@@ -196,7 +194,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @return The response containing the located nodes.
      */
     public WDBrowsingContextResult.LocateNodesResult locateNodes(String contextId, WDLocator locator) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.LocateNodes(contextId, locator),
                 WDBrowsingContextResult.LocateNodesResult.class
         );
@@ -210,7 +208,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @return The response containing the located nodes.
      */
     public WDBrowsingContextResult.LocateNodesResult locateNodes(String contextId, WDLocator locator, Integer maxNodeCount) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.LocateNodes(contextId, locator, maxNodeCount),
                 WDBrowsingContextResult.LocateNodesResult.class
         );
@@ -225,7 +223,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @return The response containing the located nodes.
      */
     public WDBrowsingContextResult.LocateNodesResult locateNodes(WDBrowsingContext context, WDLocator locator, Integer maxNodeCount) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.LocateNodes(context, locator, maxNodeCount),
                 WDBrowsingContextResult.LocateNodesResult.class
         );
@@ -240,7 +238,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @return The response containing the located nodes.
      */
     public WDBrowsingContextResult.LocateNodesResult locateNodes(WDBrowsingContext context, WDLocator locator, Integer maxNodeCount, WDSerializationOptions WDSerializationOptions, List<WDRemoteReference.SharedReference> startNodes) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.LocateNodes(context, locator, maxNodeCount, WDSerializationOptions, startNodes),
                 WDBrowsingContextResult.LocateNodesResult.class
         );
@@ -256,7 +254,7 @@ public class WDBrowsingContextManager implements WDModule {
          * @throws RuntimeException if the print operation fails.
          */
     public WDBrowsingContextResult.PrintResult print(String contextId) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.Print(contextId),
                 WDBrowsingContextResult.PrintResult.class
         );
@@ -269,7 +267,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @throws RuntimeException if the reload operation fails.
      */
     public void reload(String contextId) {
-        webSocketManager.sendAndWaitForResponse(
+        WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.Reload(contextId),
                 WDEmptyResult.class
         );
@@ -284,7 +282,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @throws RuntimeException if setting the viewport size fails.
      */
     public void setViewport(String contextId, int width, int height) {
-        webSocketManager.sendAndWaitForResponse(
+        WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.SetViewport(
                         contextId,
                         new SetViewportParameters.Viewport(width, height),
@@ -302,7 +300,7 @@ public class WDBrowsingContextManager implements WDModule {
      * @throws RuntimeException if traversing history fails.
      */
     public WDBrowsingContextResult.TraverseHistoryResult traverseHistory(String contextId, int delta) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDBrowsingContextRequest.TraverseHistory(contextId, delta),
                 WDBrowsingContextResult.TraverseHistoryResult.class
         );

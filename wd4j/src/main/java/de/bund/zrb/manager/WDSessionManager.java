@@ -8,14 +8,14 @@ import de.bund.zrb.command.response.WDSessionResult;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.session.WDSubscription;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
-import de.bund.zrb.api.WebSocketManager;
+import de.bund.zrb.api.WDWebSocketManager;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 public class WDSessionManager implements WDModule {
-    private final WebSocketManager webSocketManager;
+    private final WDWebSocketManager WDWebSocketManager;
     private final Map<WDSubscriptionRequest, String> subscriptionIds = new ConcurrentHashMap<>();
     private final Set<String> subscribedEvents = new HashSet<>();
 
@@ -24,11 +24,11 @@ public class WDSessionManager implements WDModule {
      * Da einige Browser einen Standard-Kontext erstellen, wird mit diesem direkt ein neuer Browsing-Kontext erstellt.
      * Damit das Verhalten konsistent ist, wird ein neuer Kontext erstellt, wenn kein Standard-Kontext gefunden wird.
      *
-     * @param webSocketManager The high-level api
+     * @param WDWebSocketManager The high-level api
      * @return Die erstellte Session
      */
-    public WDSessionManager(WebSocketManager webSocketManager) throws ExecutionException, InterruptedException {
-        this.webSocketManager = webSocketManager;
+    public WDSessionManager(WDWebSocketManager WDWebSocketManager) throws ExecutionException, InterruptedException {
+        this.WDWebSocketManager = WDWebSocketManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,7 +44,7 @@ public class WDSessionManager implements WDModule {
      * Ruft den Status der WebDriver BiDi Session ab.
      */
     public WDSessionResult.StatusResult status() {
-        return webSocketManager.sendAndWaitForResponse(new WDSessionRequest.Status(), WDSessionResult.StatusResult.class);
+        return WDWebSocketManager.sendAndWaitForResponse(new WDSessionRequest.Status(), WDSessionResult.StatusResult.class);
     }
 
     // new() - Since plain "new" is a reserved word in Java!
@@ -52,7 +52,7 @@ public class WDSessionManager implements WDModule {
      * Erstellt eine neue Session mit dem gegebenen Browser.
      */
     public WDSessionResult.NewResult newSession(String browserName) {
-        return webSocketManager.sendAndWaitForResponse(new WDSessionRequest.New(browserName), WDSessionResult.NewResult.class);
+        return WDWebSocketManager.sendAndWaitForResponse(new WDSessionRequest.New(browserName), WDSessionResult.NewResult.class);
     }
 
 
@@ -61,7 +61,7 @@ public class WDSessionManager implements WDModule {
      * Beendet die aktuelle WebDriver BiDi Session.
      */
     public void endSession() {
-        webSocketManager.sendAndWaitForResponse(new WDSessionRequest.End(), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDSessionRequest.End(), WDEmptyResult.class);
     }
 
     /**
@@ -86,7 +86,7 @@ public class WDSessionManager implements WDModule {
         String subscriptionId = subscribeCommand.getId().toString();
 
         // Sende den Subscribe-Command
-        WDSessionResult.SubscribeResult result = webSocketManager.sendAndWaitForResponse(
+        WDSessionResult.SubscribeResult result = WDWebSocketManager.sendAndWaitForResponse(
                 subscribeCommand, WDSessionResult.SubscribeResult.class);
 
         // Bug fix: Falls die Antwort leer ist, erstelle ein Fallback-Result mit der ID
@@ -128,7 +128,7 @@ public class WDSessionManager implements WDModule {
             // 🔹 Unsubscribe-Request mit Events und Contexts senden
             WDSessionRequest.Unsubscribe unsubscribeRequest = new WDSessionRequest.Unsubscribe(unsubscribeParameters);
 
-            webSocketManager.sendAndWaitForResponse(unsubscribeRequest, WDEmptyResult.class);
+            WDWebSocketManager.sendAndWaitForResponse(unsubscribeRequest, WDEmptyResult.class);
             subscribedEvents.removeAll(eventsToRemove);
 
             System.out.println("[INFO] Unsubscribed from events: " + eventsToRemove + " for contexts: " + contexts);
@@ -149,7 +149,7 @@ public class WDSessionManager implements WDModule {
                 new UnsubscribeParameters.WDUnsubscribeByIDRequestParams(Collections.singletonList(subscription));
 
         // Sende den Unsubscribe-Command mit der Subscription-ID
-        webSocketManager.sendAndWaitForResponse(new WDSessionRequest.Unsubscribe(unsubscribeParameters), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDSessionRequest.Unsubscribe(unsubscribeParameters), WDEmptyResult.class);
 
         // Entferne die Subscription aus der Map (Vergleich als String)
         subscriptionIds.entrySet().removeIf(entry -> entry.getValue().equals(subscription.value()));
@@ -178,7 +178,7 @@ public class WDSessionManager implements WDModule {
                 new UnsubscribeParameters.WDUnsubscribeByIDRequestParams(subscriptionsToRemove);
 
         // Sende den Unsubscribe-Command für alle aktiven Subscriptions
-        webSocketManager.sendAndWaitForResponse(new WDSessionRequest.Unsubscribe(unsubscribeParameters), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDSessionRequest.Unsubscribe(unsubscribeParameters), WDEmptyResult.class);
 
         // Leere die Subscription-Map
         subscriptionIds.clear();

@@ -32,7 +32,7 @@ public final class WDPageExtensionSupport {
     private final Map<Consumer<WDScriptEvent.RealmDestroyed>,               Consumer<Object>> mRealmD = new ConcurrentHashMap<>();
 
     // (Optional, da kein Playwright-Interface): script.message direkt anbieten
-    private final Map<Consumer<WDScriptEvent.Message>,                      Consumer<Object>> mMsg    = new ConcurrentHashMap<>();
+    private final Map<Consumer<WDScriptEvent.MessageWD>,                      Consumer<Object>> mMsg    = new ConcurrentHashMap<>();
 
     // ---------- Public API: on/off nur für NICHT-gemappte Fälle ----------
 
@@ -86,10 +86,10 @@ public final class WDPageExtensionSupport {
     }
 
     // Kein Playwright-Interface → hier auch anbieten
-    public void onScriptMessage(Consumer<WDScriptEvent.Message> h) {
-        subscribeTyped(WDEventNames.MESSAGE.getName(), h, mMsg, WDScriptEvent.Message.class);
+    public void onScriptMessage(Consumer<WDScriptEvent.MessageWD> h) {
+        subscribeTyped(WDEventNames.MESSAGE.getName(), h, mMsg, WDScriptEvent.MessageWD.class);
     }
-    public void offScriptMessage(Consumer<WDScriptEvent.Message> h) {
+    public void offScriptMessage(Consumer<WDScriptEvent.MessageWD> h) {
         unsubscribeTyped(WDEventNames.MESSAGE.getName(), h, mMsg);
     }
 

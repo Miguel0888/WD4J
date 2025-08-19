@@ -1,6 +1,6 @@
 package de.bund.zrb;
 
-import de.bund.zrb.api.WebSocketManager;
+import de.bund.zrb.api.WDWebSocketManager;
 import de.bund.zrb.command.response.WDSessionResult;
 import de.bund.zrb.manager.*;
 import de.bund.zrb.type.session.WDSubscription;
@@ -26,7 +26,7 @@ import java.util.function.Consumer;
  */
 public class WebDriver {
 
-    private final WebSocketManager webSocketManager;
+    private final WDWebSocketManager WDWebSocketManager;
 
     private WDBrowserManager browser;
     private WDSessionManager session;
@@ -43,21 +43,21 @@ public class WebDriver {
     private final EventDispatcher dispatcher;
 
     // ToDo: Use WebSocket Interface instead of WebSocketImpl, here !!!
-    public WebDriver(WebSocketManager webSocketManager, EventDispatcher dispatcher) throws ExecutionException, InterruptedException {
-        this.webSocketManager = webSocketManager;
+    public WebDriver(WDWebSocketManager WDWebSocketManager, EventDispatcher dispatcher) throws ExecutionException, InterruptedException {
+        this.WDWebSocketManager = WDWebSocketManager;
 
-        this.browser = new WDBrowserManager(webSocketManager);
-        this.session = new WDSessionManager(webSocketManager);
-        this.browsingContext = new WDBrowsingContextManager(webSocketManager);
-        this.script = new WDScriptManager(webSocketManager);
-        this.input = new WDInputManager(webSocketManager);
-        this.storage = new WDStorageManager(webSocketManager);
-        this.network = new WDNetworkManager(webSocketManager);
-        this.log = new WDLogManager(webSocketManager);
-        this.webExtension = new WDWebExtensionManager(webSocketManager);
+        this.browser = new WDBrowserManager(WDWebSocketManager);
+        this.session = new WDSessionManager(WDWebSocketManager);
+        this.browsingContext = new WDBrowsingContextManager(WDWebSocketManager);
+        this.script = new WDScriptManager(WDWebSocketManager);
+        this.input = new WDInputManager(WDWebSocketManager);
+        this.storage = new WDStorageManager(WDWebSocketManager);
+        this.network = new WDNetworkManager(WDWebSocketManager);
+        this.log = new WDLogManager(WDWebSocketManager);
+        this.webExtension = new WDWebExtensionManager(WDWebSocketManager);
 
         this.dispatcher = dispatcher;
-        webSocketManager.registerEventListener(dispatcher); // 🔥 Events aktivieren!
+        WDWebSocketManager.registerEventListener(dispatcher); // 🔥 Events aktivieren!
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -166,7 +166,7 @@ public class WebDriver {
 
 
     public boolean isConnected() {
-        return webSocketManager.isConnected();
+        return WDWebSocketManager.isConnected();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

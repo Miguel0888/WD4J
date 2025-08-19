@@ -37,8 +37,8 @@ public interface WDPageExtension {
     default void offRealmDestroyed(Consumer<WDScriptEvent.RealmDestroyed> h){ wdExt().offRealmDestroyed(h); }
 
     // --- Channels / script.message (kein offizielles PW-Interface) ---
-    default void onScriptMessage(Consumer<WDScriptEvent.Message> h) { wdExt().onScriptMessage(h); }
-    default void offScriptMessage(Consumer<WDScriptEvent.Message> h){ wdExt().offScriptMessage(h); }
+    default void onScriptMessage(Consumer<WDScriptEvent.MessageWD> h) { wdExt().onScriptMessage(h); }
+    default void offScriptMessage(Consumer<WDScriptEvent.MessageWD> h){ wdExt().offScriptMessage(h); }
 
     /** Alle Listener sauber deregistrieren. */
     default void detachAllWd() { wdExt().detachAll(); }

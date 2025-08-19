@@ -6,14 +6,14 @@ import de.bund.zrb.command.request.parameters.storage.CookieFilter;
 import de.bund.zrb.command.request.parameters.storage.SetCookieParameters;
 import de.bund.zrb.command.response.WDStorageResult;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
-import de.bund.zrb.api.WebSocketManager;
+import de.bund.zrb.api.WDWebSocketManager;
 
 public class WDStorageManager implements WDModule {
 
-    private final WebSocketManager webSocketManager;
+    private final WDWebSocketManager WDWebSocketManager;
 
-    public WDStorageManager(WebSocketManager webSocketManager) {
-        this.webSocketManager = webSocketManager;
+    public WDStorageManager(WDWebSocketManager WDWebSocketManager) {
+        this.WDWebSocketManager = WDWebSocketManager;
     }
 
 
@@ -34,7 +34,7 @@ public class WDStorageManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public WDStorageResult.GetCookieResult getCookies(WDBrowsingContext contextId) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDStorageRequest.GetCookies(contextId),
                 WDStorageResult.GetCookieResult.class
         );
@@ -48,7 +48,7 @@ public class WDStorageManager implements WDModule {
      * @throws RuntimeException if the operation fails.
      */
     public WDStorageResult.SetCookieResult setCookie(String contextId, SetCookieParameters.PartialCookie cookie) {
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDStorageRequest.SetCookie(contextId, cookie),
                 WDStorageResult.SetCookieResult.class
         );
@@ -64,7 +64,7 @@ public class WDStorageManager implements WDModule {
     public WDStorageResult.DeleteCookiesResult deleteCookie(String contextId, String name) {
         CookieFilter cookieFilter = new CookieFilter(name, null, null, null, null, null, null, null, null);
 
-        return webSocketManager.sendAndWaitForResponse(
+        return WDWebSocketManager.sendAndWaitForResponse(
                 new WDStorageRequest.DeleteCookies(contextId, cookieFilter),
                 WDStorageResult.DeleteCookiesResult.class
         );

@@ -19,7 +19,7 @@ public class RecordingEventRouter {
         this.browser = browser;
     }
 
-    public synchronized void dispatch(WDScriptEvent.Message message) {
+    public synchronized void dispatch(WDScriptEvent.MessageWD message) {
         String contextId = message.getParams().getSource().getContext().value();
 
         Page page = browser.getAllPages().stream()
@@ -95,6 +95,6 @@ public class RecordingEventRouter {
     }
 
     public interface RecordingEventListener {
-        void onRecordingEvent(WDScriptEvent.Message message);
+        void onRecordingEvent(WDScriptEvent.MessageWD message);
     }
 }

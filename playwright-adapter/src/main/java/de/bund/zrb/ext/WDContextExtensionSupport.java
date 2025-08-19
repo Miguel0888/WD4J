@@ -31,7 +31,7 @@ public final class WDContextExtensionSupport {
     private final Map<Consumer<WDBrowsingContextEvent.UserPromptClosed>,    Consumer<Object>> mPrompt = new ConcurrentHashMap<>();
     private final Map<Consumer<WDNetworkEvent.AuthRequired>,                Consumer<Object>> mAuth   = new ConcurrentHashMap<>();
     private final Map<Consumer<WDScriptEvent.RealmDestroyed>,               Consumer<Object>> mRealmD = new ConcurrentHashMap<>();
-    private final Map<Consumer<WDScriptEvent.Message>,                      Consumer<Object>> mMsg    = new ConcurrentHashMap<>();
+    private final Map<Consumer<WDScriptEvent.MessageWD>,                      Consumer<Object>> mMsg    = new ConcurrentHashMap<>();
 
     // ---------- Public API ----------
     public void onNavigationCommitted(Consumer<WDBrowsingContextEvent.NavigationCommitted> h) {
@@ -83,10 +83,10 @@ public final class WDContextExtensionSupport {
         unsubscribeTyped(WDEventNames.REALM_DESTROYED.getName(), h, mRealmD);
     }
 
-    public void onScriptMessage(Consumer<WDScriptEvent.Message> h) {
-        subscribeTyped(WDEventNames.MESSAGE.getName(), h, mMsg, WDScriptEvent.Message.class);
+    public void onScriptMessage(Consumer<WDScriptEvent.MessageWD> h) {
+        subscribeTyped(WDEventNames.MESSAGE.getName(), h, mMsg, WDScriptEvent.MessageWD.class);
     }
-    public void offScriptMessage(Consumer<WDScriptEvent.Message> h) {
+    public void offScriptMessage(Consumer<WDScriptEvent.MessageWD> h) {
         unsubscribeTyped(WDEventNames.MESSAGE.getName(), h, mMsg);
     }
 

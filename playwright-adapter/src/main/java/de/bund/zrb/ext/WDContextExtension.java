@@ -36,8 +36,8 @@ public interface WDContextExtension {
     default void offRealmDestroyed(Consumer<WDScriptEvent.RealmDestroyed> h){ wdCtxExt().offRealmDestroyed(h); }
 
     // --- Channels / script.message ---
-    default void onScriptMessage(Consumer<WDScriptEvent.Message> h) { wdCtxExt().onScriptMessage(h); }
-    default void offScriptMessage(Consumer<WDScriptEvent.Message> h){ wdCtxExt().offScriptMessage(h); }
+    default void onScriptMessage(Consumer<WDScriptEvent.MessageWD> h) { wdCtxExt().onScriptMessage(h); }
+    default void offScriptMessage(Consumer<WDScriptEvent.MessageWD> h){ wdCtxExt().offScriptMessage(h); }
 
     /** Alles sauber deregistrieren. */
     default void detachAllWdCtx() { wdCtxExt().detachAll(); }

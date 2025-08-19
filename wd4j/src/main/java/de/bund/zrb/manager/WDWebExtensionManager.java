@@ -5,16 +5,16 @@ import de.bund.zrb.command.request.WDWebExtensionRequest;
 import de.bund.zrb.command.request.parameters.webExtension.ExtensionData;
 import de.bund.zrb.command.response.WDWebExtensionResult;
 import de.bund.zrb.type.webExtension.WDExtension;
-import de.bund.zrb.api.WebSocketManager;
+import de.bund.zrb.api.WDWebSocketManager;
 
 import de.bund.zrb.command.response.WDEmptyResult;
 
 public class WDWebExtensionManager implements WDModule {
 
-    private final WebSocketManager webSocketManager;
+    private final WDWebSocketManager WDWebSocketManager;
 
-    public WDWebExtensionManager(WebSocketManager webSocketManager) {
-        this.webSocketManager = webSocketManager;
+    public WDWebExtensionManager(WDWebSocketManager WDWebSocketManager) {
+        this.WDWebSocketManager = WDWebSocketManager;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,7 +35,7 @@ public class WDWebExtensionManager implements WDModule {
      */
     public WDWebExtensionResult.InstallResult install(ExtensionData extensionData) {
         try {
-            WDWebExtensionResult.InstallResult result = webSocketManager.sendAndWaitForResponse(
+            WDWebExtensionResult.InstallResult result = WDWebSocketManager.sendAndWaitForResponse(
                     new WDWebExtensionRequest.Install(extensionData), WDWebExtensionResult.InstallResult.class
             );
             System.out.println("Web extension installed: " + result.getExtension().value());
@@ -54,7 +54,7 @@ public class WDWebExtensionManager implements WDModule {
      */
     public void uninstall(WDExtension extension) {
         try {
-            webSocketManager.sendAndWaitForResponse(
+            WDWebSocketManager.sendAndWaitForResponse(
                     new WDWebExtensionRequest.Uninstall(extension), WDEmptyResult.class
             );
             System.out.println("Web extension uninstalled: " + extension.value());

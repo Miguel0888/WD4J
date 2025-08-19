@@ -134,7 +134,7 @@ public class BrowserTypeImpl implements BrowserType {
     //
     @Override
     public Browser connect(String wsEndpoint, ConnectOptions options) {
-        WebSocketImpl webSocketImpl = new WebSocketImpl(URI.create(wsEndpoint), options.timeout);
+        WDWebSocketImpl webSocketImpl = new WDWebSocketImpl(URI.create(wsEndpoint), options.timeout);
         try {
             webSocketImpl.connect();
         } catch (InterruptedException e) {

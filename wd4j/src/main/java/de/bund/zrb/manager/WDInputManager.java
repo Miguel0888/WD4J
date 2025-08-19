@@ -5,16 +5,16 @@ import de.bund.zrb.command.request.WDInputRequest;
 import de.bund.zrb.command.request.parameters.input.sourceActions.SourceActions;
 import de.bund.zrb.command.response.WDEmptyResult;
 import de.bund.zrb.type.script.WDRemoteReference;
-import de.bund.zrb.api.WebSocketManager;
+import de.bund.zrb.api.WDWebSocketManager;
 
 import java.util.List;
 
 public class WDInputManager implements WDModule {
 
-    private final WebSocketManager webSocketManager;
+    private final WDWebSocketManager WDWebSocketManager;
 
-    public WDInputManager(WebSocketManager webSocketManager) {
-        this.webSocketManager = webSocketManager;
+    public WDInputManager(WDWebSocketManager WDWebSocketManager) {
+        this.WDWebSocketManager = WDWebSocketManager;
     }
 
 
@@ -46,7 +46,7 @@ public class WDInputManager implements WDModule {
             throw new IllegalArgumentException("Actions list must not be null or empty.");
         }
 
-        webSocketManager.sendAndWaitForResponse(new WDInputRequest.PerformActions(contextId, actions), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDInputRequest.PerformActions(contextId, actions), WDEmptyResult.class);
         System.out.println("Performed actions in context: " + contextId);
     }
 
@@ -57,7 +57,7 @@ public class WDInputManager implements WDModule {
      * @throws RuntimeException if the release operation fails.
      */
     public void releaseActions(String contextId) {
-        webSocketManager.sendAndWaitForResponse(new WDInputRequest.ReleaseActions(contextId), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDInputRequest.ReleaseActions(contextId), WDEmptyResult.class);
         System.out.println("Released actions in context: " + contextId);
     }
 
@@ -75,7 +75,7 @@ public class WDInputManager implements WDModule {
             throw new IllegalArgumentException("File paths list must not be null or empty.");
         }
 
-        webSocketManager.sendAndWaitForResponse(new WDInputRequest.SetFiles(contextId, sharedReference, files), WDEmptyResult.class);
+        WDWebSocketManager.sendAndWaitForResponse(new WDInputRequest.SetFiles(contextId, sharedReference, files), WDEmptyResult.class);
         System.out.println("Files set for element: " + sharedReference);
     }
 }

@@ -1,5 +1,5 @@
 package de.bund.zrb.api;
 
-public interface WebSocketMessage {
+public interface WDWebSocketMessage {
     String getType();
 }

@@ -2,10 +2,10 @@ package de.bund.zrb.websocket;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import de.bund.zrb.api.WebSocketMessage;
+import de.bund.zrb.api.WDWebSocketMessage;
 import de.bund.zrb.support.mapping.GsonMapperFactory;
 
-public abstract class WDEvent<T> implements WebSocketMessage {
+public abstract class WDEvent<T> implements WDWebSocketMessage {
     private final Gson gson = GsonMapperFactory.getGson();
     private String type = "event";
 //    private String method;

@@ -58,7 +58,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
     }
 
     @Override
-    public void onRecordingEvent(WDScriptEvent.Message message) {
+    public void onRecordingEvent(WDScriptEvent.MessageWD message) {
         WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) message.getParams().getData();
         List<RecordedEvent> events = extractRecordedEvents(data);
 
