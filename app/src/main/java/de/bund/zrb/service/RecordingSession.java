@@ -69,13 +69,13 @@ public final class RecordingSession {
         if (contextMode && activeContext != null) {
             for (de.bund.zrb.ui.RecorderListener l : listeners) {
                 if (l instanceof RecorderTabUi) {
-                    uiAppenders.add(WDUiAppender.attachToContext(activeContext, ((RecorderTabUi) l)::appendEvent));
+                    uiAppenders.add(WDUiAppender.attachToContext(activeContext, ((RecorderTabUi) l)::appendEventJson));
                 }
             }
         } else if (!contextMode && activePage != null) {
             for (de.bund.zrb.ui.RecorderListener l : listeners) {
                 if (l instanceof RecorderTabUi) {
-                    uiAppenders.add(WDUiAppender.attachToPage(activePage, ((RecorderTabUi) l)::appendEvent));
+                    uiAppenders.add(WDUiAppender.attachToPage(activePage, ((RecorderTabUi) l)::appendEventJson));
                 }
             }
         }
