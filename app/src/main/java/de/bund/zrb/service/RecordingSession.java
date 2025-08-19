@@ -33,7 +33,7 @@ public final class RecordingSession {
 
     // Gemeinsame Enable-Flags: gelten sowohl für Page- als auch Context-Mode
     private final EnumMap<WDEventNames, Boolean> eventFlags =
-            new EnumMap<WDEventNames, Boolean>(WDEventNames.class);
+            WDEventFlagPresets.recorderDefaults();
 
     // Mode
     private boolean contextMode = true;
