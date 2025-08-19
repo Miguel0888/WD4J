@@ -35,7 +35,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         // NEU: Context-Mode laden (Default: false = Page-Mode)
         Boolean contextModeSetting = SettingsService.getInstance().get("recording.contextMode", Boolean.class);
-        boolean contextMode = contextModeSetting != null ? contextModeSetting.booleanValue() : false;
+        boolean contextMode = contextModeSetting != null ? contextModeSetting.booleanValue() : true;
 
         // --- UI-Controls ---
         // WebSocket Timeout
@@ -66,8 +66,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         reportDirPanel.add(reportDirField, BorderLayout.CENTER);
         reportDirPanel.add(browseBtn, BorderLayout.EAST);
 
-        // NEU: Recording-Modus (Checkbox ODER Radiobuttons)
-        // Variante A: einfache Checkbox
+        // Recording-Modus (Checkbox ODER Radiobuttons)
         JCheckBox chkContextMode = new JCheckBox("Recording im Context-Mode (ein BrowserContext pro Benutzer)", contextMode);
 
         // --- Layout ---
