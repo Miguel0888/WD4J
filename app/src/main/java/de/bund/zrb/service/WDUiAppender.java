@@ -214,13 +214,15 @@ final class WDUiAppender {
         ext.onFragmentNavigated(cFrag);
         a.detachers.add(() -> ext.offFragmentNavigated(cFrag));
 
-        java.util.function.Consumer<de.bund.zrb.event.WDBrowsingContextEvent.NavigationCommitted> cCommit = a.sink::accept;
-        ext.onNavigationCommitted(cCommit);
-        a.detachers.add(() -> ext.offNavigationCommitted(cCommit));
+        //Not supported yet
+//        java.util.function.Consumer<de.bund.zrb.event.WDBrowsingContextEvent.NavigationCommitted> cCommit = a.sink::accept;
+//        ext.onNavigationCommitted(cCommit);
+//        a.detachers.add(() -> ext.offNavigationCommitted(cCommit));
 
-        java.util.function.Consumer<de.bund.zrb.event.WDBrowsingContextEvent.NavigationAborted> cAbort = a.sink::accept;
-        ext.onNavigationAborted(cAbort);
-        a.detachers.add(() -> ext.offNavigationAborted(cAbort));
+        //Not supported yet
+//        java.util.function.Consumer<de.bund.zrb.event.WDBrowsingContextEvent.NavigationAborted> cAbort = a.sink::accept;
+//        ext.onNavigationAborted(cAbort);
+//        a.detachers.add(() -> ext.offNavigationAborted(cAbort));
 
         // Falls gewünscht/aktiv: HistoryUpdated, UserPromptClosed
         // java.util.function.Consumer<de.bund.zrb.event.WDBrowsingContextEvent.HistoryUpdated> cHist = a.sink::accept;
