@@ -69,7 +69,7 @@ public final class RecordingSession {
         if (!contextMode && activePage != null) {
             for (de.bund.zrb.ui.RecorderListener l : listeners) {
                 if (l instanceof RecorderTabUi) {
-                    uiAppenders.add(WDUiAppender.attachToPage(activePage, (RecorderTabUi) l));
+                    uiAppenders.add(WDUiAppender.attachToPage(activePage, ((RecorderTabUi) l)::appendEvent));
                 }
             }
         }
