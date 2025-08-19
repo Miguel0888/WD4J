@@ -45,9 +45,10 @@ final class WDUiAppender {
         page.onConsoleMessage(onConsole);
         detachers.add(() -> page.offConsoleMessage(onConsole));
 
-        Consumer<Page> onCrash = sink::accept;
-        page.onCrash(onCrash);
-        detachers.add(() -> page.offCrash(onCrash));
+        // Not supported yet by WebDriver BiDi
+//        Consumer<Page> onCrash = sink::accept;
+//        page.onCrash(onCrash);
+//        detachers.add(() -> page.offCrash(onCrash));
 
         Consumer<Dialog> onDialog = sink::accept;
         page.onDialog(onDialog);
@@ -124,9 +125,10 @@ final class WDUiAppender {
         ext.onFragmentNavigated(cFrag);
         detachers.add(() -> ext.offFragmentNavigated(cFrag));
 
-        Consumer<WDBrowsingContextEvent.HistoryUpdated> cHist = sink::accept;
-        ext.onHistoryUpdated(cHist);
-        detachers.add(() -> ext.offHistoryUpdated(cHist));
+        // Not supported yet by WebDriver BiDi
+//        Consumer<WDBrowsingContextEvent.HistoryUpdated> cHist = sink::accept;
+//        ext.onHistoryUpdated(cHist);
+//        detachers.add(() -> ext.offHistoryUpdated(cHist));
 
         Consumer<WDBrowsingContextEvent.NavigationCommitted> cCommit = sink::accept;
         ext.onNavigationCommitted(cCommit);
