@@ -178,6 +178,7 @@ final class WDUiAppender {
         if (!(page instanceof WDPageExtension)) return;
         WDPageExtension ext = (WDPageExtension) page;
 
+        // ToDo: Maybe map this on NavigationStarted, too?
         Consumer<de.bund.zrb.event.WDBrowsingContextEvent.FragmentNavigated> cFrag =
                 e -> sink.accept(WDEventNames.FRAGMENT_NAVIGATED.getName(), e);
         ext.onFragmentNavigated(cFrag);
@@ -194,10 +195,11 @@ final class WDUiAppender {
         // ext.onNavigationAborted(cAbort);
         // detachers.add(() -> ext.offNavigationAborted(cAbort));
 
-        Consumer<WDScriptEvent.MessageWD> cMsg =
-                e -> sink.accept(WDEventNames.MESSAGE.getName(), e);
-        ext.onScriptMessage(cMsg);
-        detachers.add(() -> ext.offScriptMessage(cMsg));
+        //Not required, special event for Channels:
+//        Consumer<WDScriptEvent.MessageWD> cMsg =
+//                e -> sink.accept(WDEventNames.MESSAGE.getName(), e);
+//        ext.onScriptMessage(cMsg);
+//        detachers.add(() -> ext.offScriptMessage(cMsg));
     }
 
     // ---------- WD-Extension: Context ----------
@@ -221,9 +223,10 @@ final class WDUiAppender {
         // ext.onNavigationAborted(cAbort);
         // a.detachers.add(() -> ext.offNavigationAborted(cAbort));
 
-        Consumer<WDScriptEvent.MessageWD> cMsg =
-                e -> a.sink.accept(WDEventNames.MESSAGE.getName(), e);
-        ext.onScriptMessage(cMsg);
-        a.detachers.add(() -> ext.offScriptMessage(cMsg));
+        //Not required, special event for Channels:
+//        Consumer<WDScriptEvent.MessageWD> cMsg =
+//                e -> a.sink.accept(WDEventNames.MESSAGE.getName(), e);
+//        ext.onScriptMessage(cMsg);
+//        a.detachers.add(() -> ext.offScriptMessage(cMsg));
     }
 }

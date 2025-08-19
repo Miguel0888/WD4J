@@ -7,8 +7,6 @@ import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.*;
-import de.bund.zrb.meta.WDEventFormatter;
-import de.bund.zrb.websocket.WDEvent;
 
 import javax.swing.*;
 import javax.swing.text.DefaultCaret;
