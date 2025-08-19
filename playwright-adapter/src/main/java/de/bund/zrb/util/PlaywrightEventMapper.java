@@ -32,15 +32,15 @@ public class PlaywrightEventMapper implements EventMapper {
             case NAVIGATION_STARTED:
                 return new FrameImpl(browser, new WDBrowsingContextEvent.NavigationStarted(json));
             case NAVIGATION_COMMITTED:
-                return new FrameImpl(browser, new WDBrowsingContextEvent.NavigationCommitted(json)); // ToDo: Correct?
+                new WDBrowsingContextEvent.NavigationCommitted(json);
             case NAVIGATION_FAILED:
                 return new FrameImpl(browser, new WDBrowsingContextEvent.NavigationFailed(json));
             case NAVIGATION_ABORTED:
-                return new FrameImpl(browser, new WDBrowsingContextEvent.NavigationAborted(json));
+                new WDBrowsingContextEvent.NavigationAborted(json);
             case FRAGMENT_NAVIGATED:
-                return new FrameImpl(browser, new WDBrowsingContextEvent.FragmentNavigated(json));
+                new WDBrowsingContextEvent.FragmentNavigated(json);
             case HISTORY_UPDATED:
-                return new FrameImpl(browser, new WDBrowsingContextEvent.HistoryUpdated(json));
+                new WDBrowsingContextEvent.HistoryUpdated(json);
 
             case DOM_CONTENT_LOADED:
                 return new PageImpl(browser, new WDBrowsingContextEvent.DomContentLoaded(json));
@@ -53,11 +53,11 @@ public class PlaywrightEventMapper implements EventMapper {
             case USER_PROMPT_OPENED:
                 return new DialogImpl(browser, new WDBrowsingContextEvent.UserPromptOpened(json));
             case USER_PROMPT_CLOSED:
-                return new DialogImpl(browser, new WDBrowsingContextEvent.UserPromptClosed(json));
+                new WDBrowsingContextEvent.UserPromptClosed(json);
 
             // 🔹 Network Events
             case AUTH_REQUIRED: //
-                return new RequestImpl(new WDNetworkEvent.AuthRequired(json)); // Besser als AuthChallenge // ToDo: Correct?
+                new WDNetworkEvent.AuthRequired(json);
 
             case BEFORE_REQUEST_SENT:
                 return new RequestImpl(new WDNetworkEvent.BeforeRequestSent(json));
@@ -75,7 +75,7 @@ public class PlaywrightEventMapper implements EventMapper {
             case REALM_CREATED:
                 return new WorkerImpl(new WDScriptEvent.RealmCreated(json));
             case REALM_DESTROYED:
-                return new WorkerImpl(new WDScriptEvent.RealmDestroyed(json));
+                new WDScriptEvent.RealmDestroyed(json);
             case MESSAGE://ToDo: This is not quite correct, since message is used for "Channels" (they have a ChannelID)
                 return new WDScriptEvent.Message(json); // Might not be relevant for PlayWright!
 
