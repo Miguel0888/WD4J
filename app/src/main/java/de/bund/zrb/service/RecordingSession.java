@@ -27,11 +27,12 @@ public final class RecordingSession {
     private final List<WDUiAppender> uiAppenders = new ArrayList<WDUiAppender>();
 
     // Configuration
-    private boolean contextMode = false; // default; make configurable via Settings if needed
+    private boolean contextMode = true;
 
-    public RecordingSession(String username, BrowserService browserService) {
+    public RecordingSession(String username, BrowserService browserService, boolean contextMode) {
         this.username = Objects.requireNonNull(username, "username");
         this.browserService = Objects.requireNonNull(browserService, "browserService");
+        this.contextMode = contextMode;
     }
 
     // ---------- Lifecycle ----------

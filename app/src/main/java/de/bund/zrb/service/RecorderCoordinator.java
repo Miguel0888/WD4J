@@ -21,7 +21,8 @@ public final class RecorderCoordinator {
         if (!tabs.contains(tabUi)) tabs.add(tabUi);
         RecordingSession s = sessions.get(username);
         if (s == null) {
-            s = new RecordingSession(username, browserService);
+            Boolean cm = SettingsService.getInstance().get("recording.contextMode", Boolean.class);
+            s = new RecordingSession(username, browserService, Boolean.TRUE.equals(cm));
             sessions.put(username, s);
         }
         // Ensure UI listens to recorder updates and state changes

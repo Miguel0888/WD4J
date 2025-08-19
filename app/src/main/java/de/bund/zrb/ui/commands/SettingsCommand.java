@@ -24,7 +24,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
     @Override
     public void perform() {
-        // Aktuellen Wert laden
+        // --- existierende Werte laden ---
         Double websocketTimeout = SettingsService.getInstance().get("websocketTimeout", Double.class);
         double spinnerValue = websocketTimeout != null ? websocketTimeout : 30_000.0;
 
@@ -33,6 +33,11 @@ public class SettingsCommand extends ShortcutMenuCommand {
             currentReportDir = "C:/Reports";
         }
 
+        // NEU: Context-Mode laden (Default: false = Page-Mode)
+        Boolean contextModeSetting = SettingsService.getInstance().get("recording.contextMode", Boolean.class);
+        boolean contextMode = contextModeSetting != null ? contextModeSetting.booleanValue() : false;
+
+        // --- UI-Controls ---
         // WebSocket Timeout
         SpinnerNumberModel spinnerModel = new SpinnerNumberModel(
                 spinnerValue, 0.0, Double.MAX_VALUE, 100.0
@@ -61,7 +66,11 @@ public class SettingsCommand extends ShortcutMenuCommand {
         reportDirPanel.add(reportDirField, BorderLayout.CENTER);
         reportDirPanel.add(browseBtn, BorderLayout.EAST);
 
-        // Layout
+        // NEU: Recording-Modus (Checkbox ODER Radiobuttons)
+        // Variante A: einfache Checkbox
+        JCheckBox chkContextMode = new JCheckBox("Recording im Context-Mode (ein BrowserContext pro Benutzer)", contextMode);
+
+        // --- Layout ---
         JPanel contentPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(6, 8, 6, 8);
@@ -70,13 +79,19 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         int row = 0;
 
-        // Row 1: WebSocket Timeout
+        // Row 1: Context-Mode
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1;
+        contentPanel.add(chkContextMode, gbc);
+        gbc.gridwidth = 1;
+
+        // Row 2: WebSocket Timeout
+        row++;
         gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0;
         contentPanel.add(new JLabel("WebSocket Timeout (ms):"), gbc);
         gbc.gridx = 1; gbc.gridy = row; gbc.weightx = 1;
         contentPanel.add(websocketTimeoutSpinner, gbc);
 
-        // Row 2: Report-Verzeichnis
+        // Row 3: Report-Verzeichnis
         row++;
         gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0;
         contentPanel.add(new JLabel("Report-Verzeichnis:"), gbc);
@@ -86,7 +101,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         JScrollPane scrollPane = new JScrollPane(contentPanel);
         scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scrollPane.setPreferredSize(new Dimension(520, 240));
+        scrollPane.setPreferredSize(new Dimension(520, 260)); // leicht erhöht
 
         int result = JOptionPane.showConfirmDialog(
                 null, scrollPane, "Einstellungen",
@@ -113,6 +128,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
             newSettings.put("websocketTimeout", timeoutValue);
             newSettings.put("reportBaseDir", reportDir);
+
+            // NEU: Context-Mode speichern
+            newSettings.put("recording.contextMode", chkContextMode.isSelected());
 
             newSettings.forEach(SettingsService.getInstance()::set);
         }
