@@ -117,9 +117,9 @@ final class WDUiAppender {
         detachers.add(() -> page.offResponse(onResp));
 
         // WebSocket / Worker
-        Consumer<WebSocket> onWs = ws -> sink.accept("playwright.webSocket", ws);
-        page.onWebSocket(onWs);
-        detachers.add(() -> page.offWebSocket(onWs));
+//        Consumer<WebSocket> onWs = ws -> sink.accept("playwright.webSocket", ws);
+//        page.onWebSocket(onWs);
+//        detachers.add(() -> page.offWebSocket(onWs));
 
         Consumer<Worker> onWorker = w -> sink.accept(WDEventNames.REALM_CREATED.getName(), w);
         page.onWorker(onWorker);
