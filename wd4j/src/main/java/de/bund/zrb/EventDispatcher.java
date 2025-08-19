@@ -20,11 +20,11 @@ import java.util.function.Consumer;
 public class EventDispatcher {
     private final Gson gson = GsonMapperFactory.getGson(); // ToDo: Maybe removed
 
-    private final Map<String, ConcurrentLinkedQueue<Consumer<Object>>> eventListeners = new ConcurrentHashMap<>();
-    private final BiFunction<String, JsonObject, Object> eventMapper;
+    private final Map<String, ConcurrentLinkedQueue<Consumer<Object>>> playwrightEventListeners = new ConcurrentHashMap<>();
+    private final BiFunction<String, JsonObject, Object> mapToPlaywright;
 
-    public EventDispatcher(BiFunction<String, JsonObject, Object> eventMapper) {
-        this.eventMapper = eventMapper;
+    public EventDispatcher(BiFunction<String, JsonObject, Object> mapToPlaywright) {
+        this.mapToPlaywright = mapToPlaywright;
     }
 
     public void processEvent(JsonObject jsonMessage) {
@@ -58,8 +58,8 @@ public class EventDispatcher {
         // Fallback:
 //        event = mapToPlaywrightInterface(eventType, params, event);
 
-        if (eventListeners.containsKey(eventType)) {
-            for (Consumer<Object> listener : eventListeners.get(eventType)) {
+        if (playwrightEventListeners.containsKey(eventType)) {
+            for (Consumer<Object> listener : playwrightEventListeners.get(eventType)) {
                 System.out.println("[DEBUG] Calling listener for event: " + eventType);
                 listener.accept(event);
             }
@@ -68,14 +68,14 @@ public class EventDispatcher {
         }
     }
 
-    public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> listener, WDSessionManager sessionManager) {
+    public <T> WDSubscription addPlaywrightEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> listener, WDSessionManager sessionManager) {
         // Registriere das Event in WebDriver BiDi und speichere die Subscription-ID
         WDSessionResult.SubscribeResult result = sessionManager.subscribe(subscriptionRequest);
         WDSubscription subscription = (result != null) ? result.getSubscription() : null;
 
         // Hole oder erzeuge die Liste der Listener für alle Events
         subscriptionRequest.getEvents().forEach(event -> {
-            ConcurrentLinkedQueue<Consumer<Object>> listeners = eventListeners.computeIfAbsent(event, k -> new ConcurrentLinkedQueue<>());
+            ConcurrentLinkedQueue<Consumer<Object>> listeners = playwrightEventListeners.computeIfAbsent(event, k -> new ConcurrentLinkedQueue<>());
 
             // Listener zur Liste hinzufügen
             listeners.add((Consumer<Object>) listener);
@@ -84,24 +84,24 @@ public class EventDispatcher {
         return subscription;
     }
 
-    public <T> void removeEventListener(String eventType, Consumer<T> listener, WDSessionManager sessionManager) {
-        removeEventListener(eventType, null, listener, sessionManager);
+    public <T> void removePlaywrightEventListener(String eventType, Consumer<T> listener, WDSessionManager sessionManager) {
+        removePlaywrightEventListener(eventType, null, listener, sessionManager);
     }
 
-    public <T> void removeEventListener(String eventType, String browsingContextId, Consumer<T> listener, WDSessionManager sessionManager) {
-        if (eventListeners.containsKey(eventType)) {
-            eventListeners.get(eventType).remove(listener);
-            if (eventListeners.get(eventType).isEmpty()) {
+    public <T> void removePlaywrightEventListener(String eventType, String browsingContextId, Consumer<T> listener, WDSessionManager sessionManager) {
+        if (playwrightEventListeners.containsKey(eventType)) {
+            playwrightEventListeners.get(eventType).remove(listener);
+            if (playwrightEventListeners.get(eventType).isEmpty()) {
                 WDBrowsingContext browsingContext = (browsingContextId != null) ? new WDBrowsingContext(browsingContextId) : null;
                 // 🛑 Letzter Listener wurde entfernt → WebDriver BiDi Unsubscribe senden
                 sessionManager.unsubscribe(Collections.singletonList(eventType), browsingContext == null ? null : Collections.singletonList(browsingContext));
-                eventListeners.remove(eventType);
+                playwrightEventListeners.remove(eventType);
             }
         }
     }
 
     // ToDo: Not supported yet
-    public <T> void removeEventListener(WDSubscription subscription, Consumer<T> listener, WDSessionManager sessionManager) {
+    public <T> void removePlaywrightEventListener(WDSubscription subscription, Consumer<T> listener, WDSessionManager sessionManager) {
         if (subscription == null || listener == null) {
             throw new IllegalArgumentException("Subscription and listener must not be null.");
         }
@@ -109,14 +109,14 @@ public class EventDispatcher {
         sessionManager.unsubscribe(subscription);
 
         // 🔹 Entferne den Listener aus eventListeners
-        eventListeners.values().forEach(listeners -> listeners.remove(listener));
+        playwrightEventListeners.values().forEach(listeners -> listeners.remove(listener));
 
         System.out.println("[INFO] Removed listener for Subscription-ID: " + subscription.value());
     }
 
 
     public Object mapEvent(String eventType, JsonObject json) {
-        return eventMapper.apply(eventType, json);
+        return mapToPlaywright.apply(eventType, json);
     }
 
 

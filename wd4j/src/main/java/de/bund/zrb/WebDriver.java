@@ -172,21 +172,21 @@ public class WebDriver {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> handler) {
-        return dispatcher.addEventListener(subscriptionRequest, handler, session());
+        return dispatcher.addPlaywrightEventListener(subscriptionRequest, handler, session());
     }
 
     public <T> void removeEventListener(String eventType, String browsingContextId, Consumer<T> listener) {
-        dispatcher.removeEventListener(eventType, browsingContextId, listener, session());
+        dispatcher.removePlaywrightEventListener(eventType, browsingContextId, listener, session());
     }
 
     // ToDo: Not supported yet
     public <T> void removeEventListener(WDSubscription subscription, Consumer<T> listener) {
-        dispatcher.removeEventListener(subscription, listener, session());
+        dispatcher.removePlaywrightEventListener(subscription, listener, session());
     }
 
     @Deprecated // Since it does neither use the subscription id nor the browsing context id, thus terminating all listeners for the event type
     public <T> void removeEventListener(String eventType, Consumer<T> listener) {
-        dispatcher.removeEventListener(eventType, listener, session());
+        dispatcher.removePlaywrightEventListener(eventType, listener, session());
     }
 
 
