@@ -4,9 +4,12 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.ui.RecorderListener;
+import de.bund.zrb.websocket.WDEventNames;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /** Own recording lifecycle for exactly one user (context or page mode). */
@@ -15,18 +18,24 @@ public final class RecordingSession {
     private final String username;
     private final BrowserService browserService;
 
-    private final java.util.List<de.bund.zrb.ui.RecorderListener> listeners =
-            new java.util.ArrayList<de.bund.zrb.ui.RecorderListener>();
+    private final List<RecorderListener> listeners = new ArrayList<RecorderListener>();
 
     private RecorderService recorderService; // underlying recorder (context or page bound)
     private BrowserContext activeContext;
     private Page activePage;
     private boolean recording;
 
-    // **NEU: hält die UI-Appender (damit wir beim Stop detach'en können)**
+    // Hält die UI-Appender (damit wir beim Stop detach'en können)
     private final List<WDUiAppender> uiAppenders = new ArrayList<WDUiAppender>();
 
-    // Configuration
+    // Konfiguration für Playwright-Wiring (Attach/Detach-Lambdas)
+    private WDEventWiringConfig wiringConfig = WDEventWiringConfig.defaults();
+
+    // Gemeinsame Enable-Flags: gelten sowohl für Page- als auch Context-Mode
+    private final EnumMap<WDEventNames, Boolean> eventFlags =
+            new EnumMap<WDEventNames, Boolean>(WDEventNames.class);
+
+    // Mode
     private boolean contextMode = true;
 
     public RecordingSession(String username, BrowserService browserService, boolean contextMode) {
@@ -62,20 +71,35 @@ public final class RecordingSession {
         }
 
         // Wire UI listeners
-        for (de.bund.zrb.ui.RecorderListener l : listeners) {
+        for (RecorderListener l : listeners) {
             recorderService.addListener(l);
         }
 
+        // UI-Appender mit gemeinsamer Flag-Map + Wiring-Config
         if (contextMode && activeContext != null) {
-            for (de.bund.zrb.ui.RecorderListener l : listeners) {
+            for (RecorderListener l : listeners) {
                 if (l instanceof RecorderTabUi) {
-                    uiAppenders.add(WDUiAppender.attachToContext(activeContext, ((RecorderTabUi) l)::appendEventJson));
+                    uiAppenders.add(
+                            WDUiAppender.attachToContext(
+                                    activeContext,
+                                    ((RecorderTabUi) l)::appendEventJson,
+                                    wiringConfig,
+                                    eventFlags
+                            )
+                    );
                 }
             }
         } else if (!contextMode && activePage != null) {
-            for (de.bund.zrb.ui.RecorderListener l : listeners) {
+            for (RecorderListener l : listeners) {
                 if (l instanceof RecorderTabUi) {
-                    uiAppenders.add(WDUiAppender.attachToPage(activePage, ((RecorderTabUi) l)::appendEventJson));
+                    uiAppenders.add(
+                            WDUiAppender.attachToPage(
+                                    activePage,
+                                    ((RecorderTabUi) l)::appendEventJson,
+                                    wiringConfig,
+                                    eventFlags
+                            )
+                    );
                 }
             }
         }
@@ -87,13 +111,14 @@ public final class RecordingSession {
     /** Stop recording and detach listeners. */
     public synchronized void stop() {
         if (!recording) return;
+
         if (recorderService != null) {
-            for (de.bund.zrb.ui.RecorderListener l : listeners) {
+            for (RecorderListener l : listeners) {
                 recorderService.removeListener(l);
             }
         }
 
-        // **NEU: UI-Appender sauber abbauen**
+        // UI-Appender sauber abbauen
         for (WDUiAppender a : uiAppenders) {
             try { a.detachAll(); } catch (Throwable ignore) {}
         }
@@ -131,7 +156,7 @@ public final class RecordingSession {
     }
 
     private void notifyUiRecordingState(boolean on) {
-        for (de.bund.zrb.ui.RecorderListener l : listeners) {
+        for (RecorderListener l : listeners) {
             if (l instanceof RecordingStateListener) {
                 ((RecordingStateListener) l).onRecordingStateChanged(on);
             }
@@ -153,8 +178,79 @@ public final class RecordingSession {
         if (recorderService != null) recorderService.clearRecordedEvents();
     }
 
-    // ---------- Config ----------
+    // ---------- Config (Mode & Event-Flags & Wiring) ----------
 
     public synchronized void setContextMode(boolean contextMode) { this.contextMode = contextMode; }
     public String getUsername() { return username; }
+
+    /** Ersetzt die gesamte Event-Flag-Map (gilt für Page & Context) und aktualisiert laufende Appender. */
+    public synchronized void setEventFlags(Map<WDEventNames, Boolean> newFlags) {
+        this.eventFlags.clear();
+        if (newFlags != null) this.eventFlags.putAll(newFlags);
+        // Live-Update aller laufenden UI-Appender
+        for (WDUiAppender a : uiAppenders) {
+            a.update(this.eventFlags);
+        }
+    }
+
+    /** Schaltet ein einzelnes Event an/aus (gilt für Page & Context) und aktualisiert laufende Appender. */
+    public synchronized void setEventEnabled(WDEventNames event, boolean enabled) {
+        this.eventFlags.put(event, Boolean.valueOf(enabled));
+        for (WDUiAppender a : uiAppenders) {
+            a.update(this.eventFlags);
+        }
+    }
+
+    /** Liefert eine Kopie der aktuellen Flags (read-only für Aufrufer). */
+    public synchronized Map<WDEventNames, Boolean> getEventFlags() {
+        return new EnumMap<WDEventNames, Boolean>(this.eventFlags);
+    }
+
+    /** Setzt eine neue Wiring-Config. Wirkt erst nach Stop/Start oder nach {@link #refreshUiWiring()}. */
+    public synchronized void setWiringConfig(WDEventWiringConfig cfg) {
+        this.wiringConfig = (cfg != null) ? cfg : WDEventWiringConfig.defaults();
+    }
+
+    /**
+     * Baut die UI-Wiring neu auf (z. B. nach setWiringConfig), falls gerade aufgenommen wird.
+     * Stoppt NICHT die eigentliche RecorderService-Pipeline.
+     */
+    public synchronized void refreshUiWiring() {
+        if (!recording) return;
+
+        // alte UI-Appender abbauen
+        for (WDUiAppender a : uiAppenders) {
+            try { a.detachAll(); } catch (Throwable ignore) {}
+        }
+        uiAppenders.clear();
+
+        // neu anhängen mit aktueller wiringConfig + eventFlags
+        if (contextMode && activeContext != null) {
+            for (RecorderListener l : listeners) {
+                if (l instanceof RecorderTabUi) {
+                    uiAppenders.add(
+                            WDUiAppender.attachToContext(
+                                    activeContext,
+                                    ((RecorderTabUi) l)::appendEventJson,
+                                    wiringConfig,
+                                    eventFlags
+                            )
+                    );
+                }
+            }
+        } else if (!contextMode && activePage != null) {
+            for (RecorderListener l : listeners) {
+                if (l instanceof RecorderTabUi) {
+                    uiAppenders.add(
+                            WDUiAppender.attachToPage(
+                                    activePage,
+                                    ((RecorderTabUi) l)::appendEventJson,
+                                    wiringConfig,
+                                    eventFlags
+                            )
+                    );
+                }
+            }
+        }
+    }
 }
