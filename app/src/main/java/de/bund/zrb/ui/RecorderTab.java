@@ -7,12 +7,12 @@ import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.*;
+import de.bund.zrb.websocket.WDEventNames;
 
 import javax.swing.*;
 import javax.swing.text.DefaultCaret;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.*;
 import java.util.List;
 
 /** Swing tab for one user; delegate recording to service. */
@@ -32,6 +32,10 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     private final JToggleButton metaToggle = new JToggleButton("Meta-Events");
     private int lastDividerLocation = -1;
 
+    // Header-Leiste für Meta (wir hängen hier die Checkboxen rein)
+    private final JPanel metaHeader = new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 4));
+    // Panel für die Event-Checkboxen (damit man sie einfach erneuern könnte)
+    private JPanel eventCheckboxPanel;
 
     // UserContext filter for this tab
     private String myUserContextId;
@@ -126,15 +130,16 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         DefaultCaret caret = (DefaultCaret) metaArea.getCaret();
         caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 
-        // Meta header with clear button
-        JPanel metaHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-        JLabel metaTitle = new JLabel("Meta-Events (experimentell)");
+        // Meta header mit Titel, Clear und (gleich) Checkboxen
+        JLabel metaTitle = new JLabel("Events");
         JButton clearBtn = new JButton("Clear");
         clearBtn.setFocusable(false);
         clearBtn.setToolTipText("Meta-Log leeren");
         clearBtn.addActionListener(e -> metaArea.setText(""));
         metaHeader.add(metaTitle);
         metaHeader.add(clearBtn);
+        // Platz für Checkboxen schaffen
+        metaHeader.add(Box.createHorizontalStrut(10));
 
         metaPanel.add(metaHeader, BorderLayout.NORTH);
         metaPanel.add(new JScrollPane(metaArea), BorderLayout.CENTER);
@@ -148,6 +153,9 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         // Register with coordinator (inject BrowserService via RightDrawer)
         this.session = RecorderCoordinator.getInstance()
                 .registerTab(selectedUser.getUsername(), this, rightDrawer.getBrowserService());
+
+        // Checkboxen erst NACH dem Registrieren und auf dem EDT erzeugen
+        SwingUtilities.invokeLater(this::buildEventCheckboxes);
 
         // Initialize drawer opened
         SwingUtilities.invokeLater(new Runnable() {
@@ -196,7 +204,9 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
     @Override
     public void appendMeta(final String line) {
-        SwingUtilities.invokeLater(() -> appendMetaLine(line));
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override public void run() { appendMetaLine(line); }
+        });
     }
 
     // ---------- RecorderListener (actions) ----------
@@ -204,6 +214,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     @Override
     public void onRecordingStateChanged(boolean recording) {
         setRecordingUiState(recording);
+        SwingUtilities.invokeLater(this::buildEventCheckboxes);
     }
 
     @Override
@@ -368,6 +379,58 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         }
         centerSplit.revalidate();
         centerSplit.repaint();
+    }
+
+    /** Erzeugt/erneuert die Event-Checkboxen rechts vom "Clear"-Button und verkabelt sie mit der Session. */
+    private void buildEventCheckboxes() {
+        if (session == null) return;
+
+        if (eventCheckboxPanel != null) {
+            metaHeader.remove(eventCheckboxPanel);
+            eventCheckboxPanel = null;
+        }
+
+        EnumMap<WDEventNames, Boolean> flags = session.getEventFlags();
+        if (flags == null || flags.isEmpty()) {
+            flags = de.bund.zrb.service.WDEventFlagPresets.recorderDefaults();
+        }
+
+        // WICHTIG: WrapLayout, damit die Checkboxes umbrechen
+        eventCheckboxPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 8, 0));
+
+        for (WDEventNames ev : WDEventNames.values()) {
+            if (!flags.containsKey(ev)) continue;
+            boolean selected = Boolean.TRUE.equals(flags.get(ev));
+            JCheckBox cb = new JCheckBox(prettyLabel(ev), selected);
+            cb.setFocusable(false);
+            String tt = ev.getDescription();
+            cb.setToolTipText((tt == null || tt.trim().isEmpty()) ? ev.getName() : tt);
+            cb.addActionListener(ae -> session.setEventFlag(ev, cb.isSelected()));
+            eventCheckboxPanel.add(cb);
+        }
+
+        metaHeader.add(eventCheckboxPanel);
+        metaHeader.revalidate();
+        metaHeader.repaint();
+    }
+
+    /** Kleine Anzeige-Labels für die Events. */
+    private static String prettyLabel(WDEventNames ev) {
+        switch (ev) {
+            case BEFORE_REQUEST_SENT: return "request";
+            case RESPONSE_STARTED:    return "response";
+            case RESPONSE_COMPLETED:  return "done";
+            case FETCH_ERROR:         return "error";
+            case DOM_CONTENT_LOADED:  return "dom";
+            case LOAD:                return "load";
+            case ENTRY_ADDED:         return "console";
+            case CONTEXT_CREATED:     return "ctx+";
+            case CONTEXT_DESTROYED:   return "ctx-";
+            case FRAGMENT_NAVIGATED:  return "hash";
+            case NAVIGATION_STARTED:  return "nav";
+            default:
+                return ev.name().toLowerCase().replace('_', ' ');
+        }
     }
 
     /** Append a single formatted meta line and keep caret at bottom. */

@@ -201,8 +201,13 @@ public final class RecordingSession {
         }
     }
 
-    /** Liefert eine Kopie der aktuellen Flags (read-only für Aufrufer). */
-    public synchronized Map<WDEventNames, Boolean> getEventFlags() {
+    /** Alias für UI: wird von den Checkboxen aufgerufen. */
+    public synchronized void setEventFlag(WDEventNames ev, boolean selected) {
+        setEventEnabled(ev, selected);
+    }
+
+    /** Defensive Kopie der aktuellen Flags, damit die UI nicht direkt in die Map schreibt. */
+    public synchronized EnumMap<WDEventNames, Boolean> getEventFlags() {
         return new EnumMap<WDEventNames, Boolean>(this.eventFlags);
     }
 
