@@ -3,7 +3,7 @@ package de.bund.zrb.type.emulation;
 import de.bund.zrb.support.mapping.EnumWrapper;
 
 /**
- * Represent the emulation.GeolocationPositionError struct.
+ * Represent the emulation.GeolocationPositionError.
  * Currently only "positionUnavailable" is defined.
  */
 public enum WDGeolocationPositionError implements EnumWrapper {
@@ -13,6 +13,6 @@ public enum WDGeolocationPositionError implements EnumWrapper {
 
     WDGeolocationPositionError(String value) { this.value = value; }
 
-    @Override // confirmed
+    @Override
     public String value() { return value; }
 }

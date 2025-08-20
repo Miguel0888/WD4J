@@ -1,13 +1,14 @@
 package de.bund.zrb.command.request.parameters.emulation;
 
+import de.bund.zrb.api.WDCommand;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.browser.WDUserContext;
 import java.util.List;
 
 /**
- * Parameters for emulation.setLocaleOverride
+ * Parameters for emulation.setLocaleOverride.
  */
-public class SetLocaleOverrideParameters {
+public class SetLocaleOverrideParameters implements WDCommand.Params {
     private String locale; // nullable
     private List<WDBrowsingContext> contexts; // optional
     private List<WDUserContext> userContexts; // optional

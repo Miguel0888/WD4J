@@ -11,7 +11,9 @@ import de.bund.zrb.type.emulation.*;
 import java.util.List;
 
 /**
- * Facade for emulation.* commands (Clean API).
+ * Facade for emulation.* commands.
+ * Provides higher-level methods that map directly to WebDriver BiDi emulation commands.
+ * Each method hides details of request construction and response handling.
  */
 public class WDEmulationManager {
     private final WDWebSocketManager ws;

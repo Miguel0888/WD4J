@@ -86,7 +86,7 @@ public class EventMapperImpl implements EventMapper {
             case ENTRY_ADDED:
                 return new WDLogEvent.EntryAdded(json);
 
-            // ── Input Events ─────────────────────────────────────────────────────────
+            // ── Input Events ──────────────────────────────────────────────────────────
             case FILE_DIALOG_OPENED:
                 return new WDInputEvent.FileDialogOpened(json);
 

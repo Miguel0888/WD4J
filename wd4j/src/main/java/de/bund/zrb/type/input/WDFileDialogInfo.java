@@ -12,7 +12,7 @@ public class WDFileDialogInfo {
     private boolean multiple;
 
     public WDFileDialogInfo() {
-        // Gson no-args
+        // Required for Gson no-args constructor
     }
 
     public WDFileDialogInfo(WDBrowsingContext context, WDRemoteReference.SharedReference element, boolean multiple) {

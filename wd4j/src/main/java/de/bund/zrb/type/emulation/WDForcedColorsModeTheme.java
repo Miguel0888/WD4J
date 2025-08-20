@@ -15,7 +15,7 @@ public enum WDForcedColorsModeTheme implements EnumWrapper {
         this.value = value;
     }
 
-    @Override // confirmed
+    @Override
     public String value() {
         return value;
     }

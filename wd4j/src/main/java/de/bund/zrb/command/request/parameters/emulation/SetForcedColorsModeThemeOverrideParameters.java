@@ -1,5 +1,6 @@
 package de.bund.zrb.command.request.parameters.emulation;
 
+import de.bund.zrb.api.WDCommand;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.browser.WDUserContext;
 import de.bund.zrb.type.emulation.WDForcedColorsModeTheme;
@@ -7,9 +8,10 @@ import de.bund.zrb.type.emulation.WDForcedColorsModeTheme;
 import java.util.List;
 
 /**
- * Parameters for emulation.setForcedColorsModeThemeOverride
+ * Parameters for emulation.setForcedColorsModeThemeOverride.
+ * At least one of contexts or userContexts may be provided; both cannot be used simultaneously.
  */
-public class SetForcedColorsModeThemeOverrideParameters {
+public class SetForcedColorsModeThemeOverrideParameters implements WDCommand.Params {
     private WDForcedColorsModeTheme theme; // nullable
     private List<WDBrowsingContext> contexts; // optional
     private List<WDUserContext> userContexts; // optional

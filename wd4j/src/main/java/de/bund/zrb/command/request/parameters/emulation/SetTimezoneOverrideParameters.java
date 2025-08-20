@@ -1,13 +1,14 @@
 package de.bund.zrb.command.request.parameters.emulation;
 
+import de.bund.zrb.api.WDCommand;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.browser.WDUserContext;
 import java.util.List;
 
 /**
- * Parameters for emulation.setTimezoneOverride
+ * Parameters for emulation.setTimezoneOverride.
  */
-public class SetTimezoneOverrideParameters {
+public class SetTimezoneOverrideParameters implements WDCommand.Params {
     private String timezone; // nullable
     private List<WDBrowsingContext> contexts; // optional
     private List<WDUserContext> userContexts; // optional

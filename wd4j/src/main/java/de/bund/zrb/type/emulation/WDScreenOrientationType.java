@@ -2,7 +2,9 @@ package de.bund.zrb.type.emulation;
 
 import de.bund.zrb.support.mapping.EnumWrapper;
 
-/** Represent the orientation type as per spec. */
+/**
+ * Represent the orientation type as per spec.
+ */
 public enum WDScreenOrientationType implements EnumWrapper {
     PORTRAIT_PRIMARY("portrait-primary"),
     PORTRAIT_SECONDARY("portrait-secondary"),
@@ -13,5 +15,6 @@ public enum WDScreenOrientationType implements EnumWrapper {
 
     WDScreenOrientationType(String value) { this.value = value; }
 
+    @Override
     public String value() { return value; }
 }

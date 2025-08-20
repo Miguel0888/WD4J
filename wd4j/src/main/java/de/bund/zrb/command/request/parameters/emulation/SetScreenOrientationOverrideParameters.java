@@ -1,15 +1,15 @@
 package de.bund.zrb.command.request.parameters.emulation;
 
+import de.bund.zrb.api.WDCommand;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.browser.WDUserContext;
 import de.bund.zrb.type.emulation.WDScreenOrientation;
-
 import java.util.List;
 
 /**
- * Parameters for emulation.setScreenOrientationOverride
+ * Parameters for emulation.setScreenOrientationOverride.
  */
-public class SetScreenOrientationOverrideParameters {
+public class SetScreenOrientationOverrideParameters implements WDCommand.Params {
     private WDScreenOrientation screenOrientation; // nullable
     private List<WDBrowsingContext> contexts; // optional
     private List<WDUserContext> userContexts; // optional

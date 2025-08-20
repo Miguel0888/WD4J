@@ -8,17 +8,19 @@ import de.bund.zrb.websocket.WDEventNames;
 
 /**
  * Input module events.
+ * Additional input events (e.g. file dialogs) are expressed as nested static classes.
  */
 public class WDInputEvent implements WDModule {
     public WDInputEvent(JsonObject json) {
-        // Intentionally empty
+        // Intentionally empty – the presence of this constructor preserves the API shape.
     }
 
+    /** Event fired when a file chooser dialog opens. */
     public static class FileDialogOpened extends WDEvent<WDFileDialogInfo> {
-        private String method = WDEventNames.FILE_DIALOG_OPENED.getName();
+        private final String method = WDEventNames.FILE_DIALOG_OPENED.getName();
 
         public FileDialogOpened(JsonObject json) {
-            // NOTE: Json passed here must be the event 'params' object
+            // NOTE: Json passed here must be the event 'params' object.
             super(json, WDFileDialogInfo.class);
         }
 
