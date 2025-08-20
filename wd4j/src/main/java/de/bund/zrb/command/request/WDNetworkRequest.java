@@ -98,4 +98,50 @@ public class WDNetworkRequest {
         }
     }
 
+    // === UPDATED TO NEW SPECS ===
+
+    public static class AddDataCollector extends WDCommandImpl<AddDataCollectorParameters> implements WDCommandData {
+        public AddDataCollector(java.util.List<de.bund.zrb.type.network.WDDataType> dataTypes, int maxEncodedDataSize) {
+            super("network.addDataCollector", new AddDataCollectorParameters(dataTypes, maxEncodedDataSize));
+        }
+        public AddDataCollector(AddDataCollectorParameters params) {
+            super("network.addDataCollector", params);
+        }
+    }
+
+    public static class GetData extends WDCommandImpl<GetDataParameters> implements WDCommandData {
+        public GetData(de.bund.zrb.type.network.WDDataType dataType, de.bund.zrb.type.network.WDRequest request) {
+            super("network.getData", new GetDataParameters(dataType, request));
+        }
+        public GetData(GetDataParameters params) {
+            super("network.getData", params);
+        }
+    }
+
+    public static class DisownData extends WDCommandImpl<DisownDataParameters> implements WDCommandData {
+        public DisownData(de.bund.zrb.type.network.WDDataType dataType, de.bund.zrb.type.network.WDCollector collector, de.bund.zrb.type.network.WDRequest request) {
+            super("network.disownData", new DisownDataParameters(dataType, collector, request));
+        }
+        public DisownData(DisownDataParameters params) {
+            super("network.disownData", params);
+        }
+    }
+
+    public static class RemoveDataCollector extends WDCommandImpl<RemoveDataCollectorParameters> implements WDCommandData {
+        public RemoveDataCollector(String collectorId) {
+            super("network.removeDataCollector", new RemoveDataCollectorParameters(new de.bund.zrb.type.network.WDCollector(collectorId)));
+        }
+        public RemoveDataCollector(de.bund.zrb.type.network.WDCollector collector) {
+            super("network.removeDataCollector", new RemoveDataCollectorParameters(collector));
+        }
+    }
+
+    public static class SetExtraHeaders extends WDCommandImpl<SetExtraHeadersParameters> implements WDCommandData {
+        public SetExtraHeaders(java.util.List<de.bund.zrb.type.network.WDHeader> headers) {
+            super("network.setExtraHeaders", new SetExtraHeadersParameters(headers));
+        }
+        public SetExtraHeaders(SetExtraHeadersParameters params) {
+            super("network.setExtraHeaders", params);
+        }
+    }
 }

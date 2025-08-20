@@ -105,4 +105,64 @@ public class WDNetworkManager implements WDModule {
     public void setCacheBehavior(SetCacheBehaviorParameters.CacheBehavior cacheBehavior) {
         WDWebSocketManager.sendAndWaitForResponse(new WDNetworkRequest.SetCacheBehavior(cacheBehavior), WDEmptyResult.class);
     }
+
+    // === UPDATED TO NEW SPECS ===
+
+    /** Add a data collector. */
+    public de.bund.zrb.type.network.WDCollector addDataCollector(java.util.List<de.bund.zrb.type.network.WDDataType> dataTypes, int maxEncodedDataSize) {
+        de.bund.zrb.command.response.WDNetworkResult.AddDataCollectorResult result =
+                WDWebSocketManager.sendAndWaitForResponse(
+                        new de.bund.zrb.command.request.WDNetworkRequest.AddDataCollector(dataTypes, maxEncodedDataSize),
+                        de.bund.zrb.command.response.WDNetworkResult.AddDataCollectorResult.class
+                );
+        return result.getCollector();
+    }
+
+    /** Convenience: Add a response body collector for all contexts. */
+    public de.bund.zrb.type.network.WDCollector addResponseBodyCollector(int maxEncodedDataSize) {
+        java.util.List<de.bund.zrb.type.network.WDDataType> types = java.util.Collections.singletonList(de.bund.zrb.type.network.WDDataType.RESPONSE);
+        return addDataCollector(types, maxEncodedDataSize);
+    }
+
+    /** Get collected data (bytes) for a request. Set disown=true to release association. */
+    public de.bund.zrb.type.network.WDBytesValue getData(de.bund.zrb.type.network.WDDataType dataType,
+                                                         de.bund.zrb.type.network.WDRequest request,
+                                                         de.bund.zrb.type.network.WDCollector collector,
+                                                         java.lang.Boolean disown) {
+        de.bund.zrb.command.response.WDNetworkGetDataResult result =
+                WDWebSocketManager.sendAndWaitForResponse(
+                        new de.bund.zrb.command.request.WDNetworkRequest.GetData(
+                                new de.bund.zrb.command.request.parameters.network.GetDataParameters(dataType, collector, disown, request)
+                        ),
+                        de.bund.zrb.command.response.WDNetworkGetDataResult.class
+                );
+        return result.getBytes();
+    }
+
+    /** Disown previously collected data for a given request and collector. */
+    public void disownData(de.bund.zrb.type.network.WDDataType dataType,
+                           de.bund.zrb.type.network.WDCollector collector,
+                           de.bund.zrb.type.network.WDRequest request) {
+        WDWebSocketManager.sendAndWaitForResponse(
+                new de.bund.zrb.command.request.WDNetworkRequest.DisownData(dataType, collector, request),
+                de.bund.zrb.command.response.WDEmptyResult.class
+        );
+    }
+
+    /** Remove a data collector. */
+    public void removeDataCollector(de.bund.zrb.type.network.WDCollector collector) {
+        WDWebSocketManager.sendAndWaitForResponse(
+                new de.bund.zrb.command.request.WDNetworkRequest.RemoveDataCollector(collector),
+                de.bund.zrb.command.response.WDEmptyResult.class
+        );
+    }
+
+    /** Set extra headers for matching contexts/userContexts. */
+    public void setExtraHeaders(java.util.List<de.bund.zrb.type.network.WDHeader> headers) {
+        WDWebSocketManager.sendAndWaitForResponse(
+                new de.bund.zrb.command.request.WDNetworkRequest.SetExtraHeaders(headers),
+                de.bund.zrb.command.response.WDEmptyResult.class
+        );
+    }
+
 }
