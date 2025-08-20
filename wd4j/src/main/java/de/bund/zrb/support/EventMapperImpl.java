@@ -7,6 +7,7 @@ import de.bund.zrb.event.WDBrowsingContextEvent;
 import de.bund.zrb.event.WDLogEvent;
 import de.bund.zrb.event.WDNetworkEvent;
 import de.bund.zrb.event.WDScriptEvent;
+import de.bund.zrb.event.WDInputEvent;
 
 /**
  * Mappt ein eingehendes BiDi-Event ausschließlich auf die passenden
@@ -84,6 +85,10 @@ public class EventMapperImpl implements EventMapper {
             // ── Log Events ────────────────────────────────────────────────────────────
             case ENTRY_ADDED:
                 return new WDLogEvent.EntryAdded(json);
+
+            // ── Input Events ─────────────────────────────────────────────────────────
+            case FILE_DIALOG_OPENED:
+                return new WDInputEvent.FileDialogOpened(json);
 
             // ── WebSocket (Page-WebSocket) ────────────────────────────────────────────
             // Nicht durch BiDi abgedeckt – bei Bedarf JS-Instrumentation.
