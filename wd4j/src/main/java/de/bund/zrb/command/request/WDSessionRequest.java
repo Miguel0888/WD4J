@@ -37,7 +37,7 @@ public class WDSessionRequest {
 
     public static class End extends WDCommandImpl<WDEmptyParameters> implements WDCommandData {
         public End() {
-            super("session.delete", new WDEmptyParameters());
+            super("session.end", new WDEmptyParameters());
         }
     }
 
