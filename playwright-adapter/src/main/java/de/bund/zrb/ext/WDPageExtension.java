@@ -40,6 +40,34 @@ public interface WDPageExtension {
     default void onScriptMessage(Consumer<WDScriptEvent.MessageWD> h) { wdExt().onScriptMessage(h); }
     default void offScriptMessage(Consumer<WDScriptEvent.MessageWD> h){ wdExt().offScriptMessage(h); }
 
+    // --- Generic RAW event subscription ---
+
+    /**
+     * Subscribes to a raw WebDriver event. All events with the specified name
+     * are forwarded to the given consumer without any conversion to a typed
+     * interface. This allows consumers to access the full WebDriver BiDi payload
+     * directly.
+     *
+     * @param event   the event identifier
+     * @param handler the consumer receiving raw event objects
+     */
+    default void onRaw(de.bund.zrb.websocket.WDEventNames event,
+                       java.util.function.Consumer<Object> handler) {
+        wdExt().onRaw(event, handler);
+    }
+
+    /**
+     * Unsubscribes a previously registered raw event handler. If the handler
+     * was not registered, this method does nothing.
+     *
+     * @param event   the event identifier
+     * @param handler the original consumer passed to {@link #onRaw(WDEventNames, java.util.function.Consumer)}
+     */
+    default void offRaw(de.bund.zrb.websocket.WDEventNames event,
+                        java.util.function.Consumer<Object> handler) {
+        wdExt().offRaw(event, handler);
+    }
+
     /** Alle Listener sauber deregistrieren. */
     default void detachAllWd() { wdExt().detachAll(); }
 }

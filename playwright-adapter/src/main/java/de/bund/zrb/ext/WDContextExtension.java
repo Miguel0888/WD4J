@@ -39,6 +39,33 @@ public interface WDContextExtension {
     default void onScriptMessage(Consumer<WDScriptEvent.MessageWD> h) { wdCtxExt().onScriptMessage(h); }
     default void offScriptMessage(Consumer<WDScriptEvent.MessageWD> h){ wdCtxExt().offScriptMessage(h); }
 
+    // --- Generic RAW event subscription ---
+    /**
+     * Subscribes to a raw WebDriver event on the context. See
+     * {@link WDContextExtensionSupport#onRaw(WDEventNames, java.util.function.Consumer)}
+     * for details.
+     *
+     * @param event   the event identifier
+     * @param handler the consumer receiving raw event objects
+     */
+    default void onRaw(de.bund.zrb.websocket.WDEventNames event,
+                       java.util.function.Consumer<Object> handler) {
+        wdCtxExt().onRaw(event, handler);
+    }
+
+    /**
+     * Unsubscribes a previously registered raw event handler on the context. See
+     * {@link WDContextExtensionSupport#offRaw(WDEventNames, java.util.function.Consumer)}
+     * for details.
+     *
+     * @param event   the event identifier
+     * @param handler the original consumer
+     */
+    default void offRaw(de.bund.zrb.websocket.WDEventNames event,
+                        java.util.function.Consumer<Object> handler) {
+        wdCtxExt().offRaw(event, handler);
+    }
+
     /** Alles sauber deregistrieren. */
     default void detachAllWdCtx() { wdCtxExt().detachAll(); }
 }

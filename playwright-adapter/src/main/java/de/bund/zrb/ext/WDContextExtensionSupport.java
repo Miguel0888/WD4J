@@ -33,6 +33,63 @@ public final class WDContextExtensionSupport {
     private final Map<Consumer<WDScriptEvent.RealmDestroyed>,               Consumer<Object>> mRealmD = new ConcurrentHashMap<>();
     private final Map<Consumer<WDScriptEvent.MessageWD>,                      Consumer<Object>> mMsg    = new ConcurrentHashMap<>();
 
+    // =====================================================================
+    // Generic RAW event support
+    //
+    // Similar to WDPageExtensionSupport, allow subscription to arbitrary
+    // WebDriver BiDi events on a context level. The raw event payload is
+    // forwarded without conversion, giving consumers access to the full
+    // information contained in the event.
+
+    /**
+     * Map of raw event handlers keyed by event name. Each event maintains its own
+     * mapping from external consumer to the internal listener registered with
+     * the underlying WebDriver. This allows proper deregistration when
+     * {@link #offRaw(WDEventNames, Consumer)} is called.
+     */
+    private final java.util.Map<WDEventNames, java.util.Map<java.util.function.Consumer<Object>, java.util.function.Consumer<Object>>> rawHandlers = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Subscribes to a raw WebDriver event on the context. Events are delivered
+     * exactly as they come from the WebDriver without filtering or mapping.
+     *
+     * @param event   the event name to subscribe to
+     * @param handler the consumer that will receive raw event objects
+     */
+    public void onRaw(WDEventNames event, java.util.function.Consumer<Object> handler) {
+        if (event == null || handler == null) return;
+        java.util.Map<java.util.function.Consumer<Object>, java.util.function.Consumer<Object>> store =
+                rawHandlers.computeIfAbsent(event, k -> new java.util.concurrent.ConcurrentHashMap<>());
+        if (store.containsKey(handler)) return;
+        java.util.function.Consumer<Object> internal = new java.util.function.Consumer<Object>() {
+            @Override public void accept(Object o) {
+                handler.accept(o);
+            }
+        };
+        // Subscribe to all contexts; the caller may ignore events not related to this context
+        WDSubscriptionRequest req = new WDSubscriptionRequest(event.getName(), null, null);
+        ((de.bund.zrb.BrowserImpl) ctx.browser()).getWebDriver().addEventListener(req, internal);
+        store.put(handler, internal);
+    }
+
+    /**
+     * Unsubscribes a previously registered raw event handler. If the handler
+     * was not registered via {@link #onRaw(WDEventNames, java.util.function.Consumer)},
+     * this method does nothing.
+     *
+     * @param event   the event name that was used for subscription
+     * @param handler the original external consumer
+     */
+    public void offRaw(WDEventNames event, java.util.function.Consumer<Object> handler) {
+        if (event == null || handler == null) return;
+        java.util.Map<java.util.function.Consumer<Object>, java.util.function.Consumer<Object>> store = rawHandlers.get(event);
+        if (store == null) return;
+        java.util.function.Consumer<Object> internal = store.remove(handler);
+        if (internal != null) {
+            ((de.bund.zrb.BrowserImpl) ctx.browser()).getWebDriver().removeEventListener(event.getName(), null, internal);
+        }
+    }
+
     // ---------- Public API ----------
     public void onNavigationCommitted(Consumer<WDBrowsingContextEvent.NavigationCommitted> h) {
         subscribeTyped(WDEventNames.NAVIGATION_COMMITTED.getName(), h, mCommit, WDBrowsingContextEvent.NavigationCommitted.class);

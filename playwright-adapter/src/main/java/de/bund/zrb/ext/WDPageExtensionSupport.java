@@ -93,6 +93,70 @@ public final class WDPageExtensionSupport {
         unsubscribeTyped(WDEventNames.MESSAGE.getName(), h, mMsg);
     }
 
+    // =====================================================================
+    // Generic RAW event support
+    //
+    // The Playwright adapter exposes only a subset of WebDriver events via typed
+    // handlers. To allow consumers to subscribe to any raw WebDriver-BiDi event
+    // (including those already mapped by Playwright), generic subscribe/unsubscribe
+    // methods are provided. These simply forward the raw event object to the
+    // external consumer without converting it to a typed interface. Consumers
+    // are responsible for interpreting the raw object.
+
+    /**
+     * Map of raw event handlers keyed by event name. Each event maintains its own
+     * mapping from external consumer to the internal listener registered with
+     * the underlying WebDriver. This allows proper deregistration when
+     * {@link #offRaw(WDEventNames, Consumer)} is called.
+     */
+    private final java.util.Map<WDEventNames, java.util.Map<java.util.function.Consumer<Object>, java.util.function.Consumer<Object>>> rawHandlers = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Subscribes to a raw WebDriver event. All events produced by the underlying
+     * WebDriver with the given event name will be forwarded as-is to the
+     * provided consumer. Unlike the typed onXxx methods, this method does
+     * not attempt to map the event to a specific interface or class; the
+     * raw object (which may be a JsonObject or another DTO) is passed
+     * directly. Consumers should ensure thread safety as callbacks may be
+     * invoked on WebDriver threads.
+     *
+     * @param event the event name to subscribe to
+     * @param handler the consumer that will receive raw event objects
+     */
+    public void onRaw(WDEventNames event, java.util.function.Consumer<Object> handler) {
+        if (event == null || handler == null) return;
+        java.util.Map<java.util.function.Consumer<Object>, java.util.function.Consumer<Object>> store =
+                rawHandlers.computeIfAbsent(event, k -> new java.util.concurrent.ConcurrentHashMap<>());
+        if (store.containsKey(handler)) return; // avoid duplicate registration
+        java.util.function.Consumer<Object> internal = new java.util.function.Consumer<Object>() {
+            @Override public void accept(Object o) {
+                handler.accept(o);
+            }
+        };
+        // Subscribe to the raw event; context filter is the current page's browsing context
+        WDSubscriptionRequest req = new WDSubscriptionRequest(event.getName(), page.getBrowsingContextId(), null);
+        page.getWebDriver().addEventListener(req, internal);
+        store.put(handler, internal);
+    }
+
+    /**
+     * Unsubscribes a previously registered raw WebDriver event handler. If the
+     * handler was not registered via {@link #onRaw(WDEventNames, java.util.function.Consumer)},
+     * this method does nothing.
+     *
+     * @param event   the event name that was used for subscription
+     * @param handler the original external consumer
+     */
+    public void offRaw(WDEventNames event, java.util.function.Consumer<Object> handler) {
+        if (event == null || handler == null) return;
+        java.util.Map<java.util.function.Consumer<Object>, java.util.function.Consumer<Object>> store = rawHandlers.get(event);
+        if (store == null) return;
+        java.util.function.Consumer<Object> internal = store.remove(handler);
+        if (internal != null) {
+            page.getWebDriver().removeEventListener(event.getName(), page.getBrowsingContextId(), internal);
+        }
+    }
+
     // ---------- intern: generisches Subscribe/Unsubscribe ----------
 
     private <E> void subscribeTyped(String eventName,

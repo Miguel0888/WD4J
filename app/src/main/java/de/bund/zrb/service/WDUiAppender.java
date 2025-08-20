@@ -27,6 +27,12 @@ final class WDUiAppender {
     // Aktivierte Events (gemeinsam für Page + Context)
     private final EnumMap<WDEventNames, Boolean> enabled;
 
+    // RAW event handlers for page and context. These maps store the external handler
+    // associated with each event so that we can deregister them later. We use
+    // Consumers of Object to handle raw WebDriver BiDi payloads.
+    private final EnumMap<WDEventNames, java.util.function.Consumer<Object>> rawPageHandlers = new EnumMap<WDEventNames, java.util.function.Consumer<Object>>(WDEventNames.class);
+    private final EnumMap<WDEventNames, java.util.function.Consumer<Object>> rawContextHandlers = new EnumMap<WDEventNames, java.util.function.Consumer<Object>>(WDEventNames.class);
+
     // Registrierte Handler (zum gezielten Abhängen)
     private final EnumMap<WDEventNames, Consumer<?>> pageHandlers = new EnumMap<WDEventNames, Consumer<?>>(WDEventNames.class);
     private final EnumMap<WDEventNames, Consumer<?>> contextHandlers = new EnumMap<WDEventNames, Consumer<?>>(WDEventNames.class);
@@ -91,29 +97,30 @@ final class WDUiAppender {
 
     // ------------------ Public API ------------------
 
-    /** Aktualisiert die Aktivierungsmatrix und registriert/entfernt Event-Handler differenziert. */
+    /**
+     * Updates the internal enabled-flag map for UI filtering. Raw event handlers are
+     * always registered and therefore are <em>not</em> attached or detached based on the
+     * new flags. Only extension-based handlers may be updated via delta methods if
+     * needed. Child appenders receive the same flag updates.
+     *
+     * @param newEnabledFlags the updated flags map; ignored if null or empty
+     */
     void update(Map<WDEventNames, Boolean> newEnabledFlags) {
         if (newEnabledFlags == null || newEnabledFlags.isEmpty()) return;
-
-        // 1) Page-Teil updaten
+        // For raw events we no longer attach/detach on flag change. However, we still allow
+        // extension event handlers (e.g. fragment navigated) to be updated if needed.
         if (page != null) {
-            applyDeltaForPage(newEnabledFlags);
-            // WD-Extension-Page-Teil
+            // Only update extension events (fragment navigated) based on flags
+            // Other Playwright events are ignored to avoid double wiring
             applyDeltaForExtensionPage(newEnabledFlags);
         }
-
-        // 2) Context-Teil updaten (inkl. WD-Extension)
         if (ctx != null) {
-            applyDeltaForContext(newEnabledFlags);
+            // Update extension events on the context
             applyDeltaForExtensionContext(newEnabledFlags);
-
-            // 3) Auf Children durchreichen
             for (WDUiAppender child : childPageAppenders) {
                 child.update(newEnabledFlags);
             }
         }
-
-        // 4) enabled-Map übernehmen
         enabled.clear();
         enabled.putAll(newEnabledFlags);
     }
@@ -131,6 +138,14 @@ final class WDUiAppender {
                 }
             }
             pageHandlers.clear();
+
+            // RAW Page: remove all registered raw handlers
+            if (page instanceof WDPageExtension) {
+                for (Map.Entry<WDEventNames, java.util.function.Consumer<Object>> e : rawPageHandlers.entrySet()) {
+                    try { ((WDPageExtension) page).offRaw(e.getKey(), e.getValue()); } catch (Throwable ignore) {}
+                }
+            }
+            rawPageHandlers.clear();
 
             // Extension-Page-Detacher
             for (Runnable r : extPageDetachers.values()) {
@@ -150,6 +165,14 @@ final class WDUiAppender {
                 }
             }
             contextHandlers.clear();
+
+            // RAW Context: remove all registered raw handlers
+            if (ctx instanceof WDContextExtension) {
+                for (Map.Entry<WDEventNames, java.util.function.Consumer<Object>> e : rawContextHandlers.entrySet()) {
+                    try { ((WDContextExtension) ctx).offRaw(e.getKey(), e.getValue()); } catch (Throwable ignore) {}
+                }
+            }
+            rawContextHandlers.clear();
 
             // Extension-Context-Detacher
             for (Runnable r : extContextDetachers.values()) {
@@ -174,31 +197,64 @@ final class WDUiAppender {
     // ------------------ Initialattachs ------------------
 
     private void attachInitialPage() {
-        // Alle als true markierten Page-Events registrieren
-        for (Map.Entry<WDEventNames, Boolean> e : enabled.entrySet()) {
-            if (TRUE(e.getValue())) attachPageEvent(e.getKey());
+        // Always attach raw event handlers for all possible events. This ensures that
+        // recording of events does not depend on UI filter flags. If the page
+        // implements the WDPageExtension, subscribe to each event via onRaw().
+        if (page instanceof WDPageExtension) {
+            for (WDEventNames ev : WDEventNames.values()) {
+                // Register raw only once per event
+                if (!rawPageHandlers.containsKey(ev)) {
+                    attachRawPageEvent(ev);
+                }
+            }
         }
-        // WD-Extension Page (z. B. FRAGMENT_NAVIGATED)
-        attachExtensionPageIfEnabled(WDEventNames.FRAGMENT_NAVIGATED);
+        // For events that are enabled in the current flag set, also attach
+        // Playwright-level handlers via the wiring config. This acts as a
+        // fallback for events that are not supported by the raw interface.
+        for (Map.Entry<WDEventNames, Boolean> e : enabled.entrySet()) {
+            if (!TRUE(e.getValue())) continue;
+            WDEventNames ev = e.getKey();
+            // Only attach Playwright wiring if raw was not attached or the
+            // wiring config provides additional event types. The attachPageEvent
+            // method checks internally if a handler already exists.
+            attachPageEvent(ev);
+        }
+        // Also attach extension events (e.g. FRAGMENT_NAVIGATED) for enabled
+        // flags. These may provide typed events beyond raw events.
+        applyDeltaForExtensionPage(enabled);
     }
 
     private void attachInitialContext() {
-        // Alle als true markierten Context-Events registrieren
-        for (Map.Entry<WDEventNames, Boolean> e : enabled.entrySet()) {
-            if (TRUE(e.getValue())) attachContextEvent(e.getKey());
+        // Always attach raw handlers for all event names on the context. This ensures
+        // complete recording regardless of UI filter settings. If the context
+        // implements WDContextExtension, subscribe to every event via onRaw().
+        if (ctx instanceof WDContextExtension) {
+            for (WDEventNames ev : WDEventNames.values()) {
+                if (!rawContextHandlers.containsKey(ev)) {
+                    attachRawContextEvent(ev);
+                }
+            }
         }
-        // WD-Extension Context
-        attachExtensionContextIfEnabled(WDEventNames.FRAGMENT_NAVIGATED);
-
-        // Existierende Seiten anhängen (nur WDPageExtension) + zukünftig kommende
+        // For events enabled in the current flag set, attach Playwright wiring as a
+        // fallback. This supports events that may not be covered by the raw API.
+        for (Map.Entry<WDEventNames, Boolean> e : enabled.entrySet()) {
+            if (!TRUE(e.getValue())) continue;
+            WDEventNames ev = e.getKey();
+            attachContextEvent(ev);
+        }
+        // Attach extension events (fragment navigated) for enabled flags.
+        applyDeltaForExtensionContext(enabled);
+        // Attach existing pages to inherit context-level subscriptions for those pages.
+        // New pages added to the context will be automatically attached via onPageHook.
         for (Page p : ctx.pages()) {
-            if (p instanceof WDPageExtension) {
+            if (p instanceof WDPageExtension || config.getAttachPage().containsKey(WDEventNames.CONTEXT_CREATED)) {
                 childPageAppenders.add(attachToPage(p, sink, config, enabled));
             }
         }
         onPageHook = new Consumer<Page>() {
             @Override public void accept(Page p) {
-                if (p instanceof WDPageExtension) {
+                // Attach to new pages that support raw events or have a Playwright wiring.
+                if (p instanceof WDPageExtension || config.getAttachPage().containsKey(WDEventNames.CONTEXT_CREATED)) {
                     childPageAppenders.add(attachToPage(p, sink, config, enabled));
                 }
             }
@@ -209,28 +265,70 @@ final class WDUiAppender {
     // ------------------ Delta-Anwendung ------------------
 
     private void applyDeltaForPage(Map<WDEventNames, Boolean> newEnabled) {
-        for (Map.Entry<WDEventNames, BiFunction<Page, BiConsumer<String,Object>, Consumer<?>>> e
-                : config.getAttachPage().entrySet()) {
-
-            WDEventNames ev = e.getKey();
+        // For each event compare old and new enabled flags and attach/detach handlers. Prefer
+        // raw handlers when available; fall back to Playwright wiring otherwise. We only
+        // register one handler per event: raw OR Playwright, not both.
+        for (WDEventNames ev : WDEventNames.values()) {
             boolean oldVal = TRUE(enabled.get(ev));
             boolean newVal = TRUE(newEnabled.get(ev));
             if (oldVal == newVal) continue;
-
-            if (newVal) attachPageEvent(ev); else detachPageEvent(ev);
+            if (newVal) {
+                boolean rawAttached = false;
+                if (page instanceof WDPageExtension) {
+                    if (!rawPageHandlers.containsKey(ev)) {
+                        attachRawPageEvent(ev);
+                        rawAttached = rawPageHandlers.containsKey(ev);
+                    }
+                }
+                if (!rawAttached) {
+                    attachPageEvent(ev);
+                }
+            } else {
+                // Detach whichever handler was previously attached
+                // Prefer raw detach if present
+                boolean detached = false;
+                if (rawPageHandlers.containsKey(ev)) {
+                    detachRawPageEvent(ev);
+                    detached = true;
+                }
+                // Only detach the Playwright handler if no raw was detached or if a
+                // Playwright handler is also present. This avoids detaching unrelated
+                // handlers when both types existed.
+                if (!detached || pageHandlers.containsKey(ev)) {
+                    detachPageEvent(ev);
+                }
+            }
         }
     }
 
     private void applyDeltaForContext(Map<WDEventNames, Boolean> newEnabled) {
-        for (Map.Entry<WDEventNames, BiFunction<BrowserContext, BiConsumer<String,Object>, Consumer<?>>> e
-                : config.getAttachContext().entrySet()) {
-
-            WDEventNames ev = e.getKey();
+        // For each event compare old and new enabled flags and attach/detach handlers. Prefer
+        // raw handlers when available; fall back to Playwright wiring otherwise.
+        for (WDEventNames ev : WDEventNames.values()) {
             boolean oldVal = TRUE(enabled.get(ev));
             boolean newVal = TRUE(newEnabled.get(ev));
             if (oldVal == newVal) continue;
-
-            if (newVal) attachContextEvent(ev); else detachContextEvent(ev);
+            if (newVal) {
+                boolean rawAttached = false;
+                if (ctx instanceof WDContextExtension) {
+                    if (!rawContextHandlers.containsKey(ev)) {
+                        attachRawContextEvent(ev);
+                        rawAttached = rawContextHandlers.containsKey(ev);
+                    }
+                }
+                if (!rawAttached) {
+                    attachContextEvent(ev);
+                }
+            } else {
+                boolean detached = false;
+                if (rawContextHandlers.containsKey(ev)) {
+                    detachRawContextEvent(ev);
+                    detached = true;
+                }
+                if (!detached || contextHandlers.containsKey(ev)) {
+                    detachContextEvent(ev);
+                }
+            }
         }
     }
 
@@ -293,6 +391,82 @@ final class WDUiAppender {
         if (off != null) {
             try { off.accept(ctx, h); } catch (Throwable ignore) {}
         }
+    }
+
+    // ------------------ RAW Attach/Detach: Page ------------------
+
+    /**
+     * Attaches a raw event handler for the given event on the page if possible. Only
+     * pages implementing {@link WDPageExtension} support raw event subscription. If
+     * the event is already attached it will not be added again.
+     *
+     * @param ev the event name
+     */
+    private void attachRawPageEvent(WDEventNames ev) {
+        if (page == null) return;
+        if (!(page instanceof WDPageExtension)) return;
+        if (rawPageHandlers.containsKey(ev)) return;
+        final WDPageExtension ext = (WDPageExtension) page;
+        java.util.function.Consumer<Object> h = new java.util.function.Consumer<Object>() {
+            @Override public void accept(Object obj) {
+                sink.accept(ev.getName(), obj);
+            }
+        };
+        ext.onRaw(ev, h);
+        rawPageHandlers.put(ev, h);
+    }
+
+    /**
+     * Detaches the raw event handler for the given event on the page if one
+     * exists. If the handler was not previously attached this method does
+     * nothing.
+     *
+     * @param ev the event name
+     */
+    private void detachRawPageEvent(WDEventNames ev) {
+        if (page == null) return;
+        if (!(page instanceof WDPageExtension)) return;
+        java.util.function.Consumer<Object> h = rawPageHandlers.remove(ev);
+        if (h == null) return;
+        ((WDPageExtension) page).offRaw(ev, h);
+    }
+
+    // ------------------ RAW Attach/Detach: Context ------------------
+
+    /**
+     * Attaches a raw event handler for the given event on the context if possible. Only
+     * contexts implementing {@link WDContextExtension} support raw event subscription. If
+     * the event is already attached it will not be added again.
+     *
+     * @param ev the event name
+     */
+    private void attachRawContextEvent(WDEventNames ev) {
+        if (ctx == null) return;
+        if (!(ctx instanceof WDContextExtension)) return;
+        if (rawContextHandlers.containsKey(ev)) return;
+        final WDContextExtension ext = (WDContextExtension) ctx;
+        java.util.function.Consumer<Object> h = new java.util.function.Consumer<Object>() {
+            @Override public void accept(Object obj) {
+                sink.accept(ev.getName(), obj);
+            }
+        };
+        ext.onRaw(ev, h);
+        rawContextHandlers.put(ev, h);
+    }
+
+    /**
+     * Detaches the raw event handler for the given event on the context if one
+     * exists. If the handler was not previously attached this method does
+     * nothing.
+     *
+     * @param ev the event name
+     */
+    private void detachRawContextEvent(WDEventNames ev) {
+        if (ctx == null) return;
+        if (!(ctx instanceof WDContextExtension)) return;
+        java.util.function.Consumer<Object> h = rawContextHandlers.remove(ev);
+        if (h == null) return;
+        ((WDContextExtension) ctx).offRaw(ev, h);
     }
 
     // ------------------ WD-Extension: Page ------------------
