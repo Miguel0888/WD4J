@@ -145,6 +145,8 @@ public class MainWindow {
         commandRegistry.register(new StartRecordCommand());
         commandRegistry.register(new StopRecordCommand());
         commandRegistry.register(new ToggleRecordCommand());
+        commandRegistry.register(new StartEventServiceCommand());
+        commandRegistry.register(new StopEventServiceCommand());
 
         commandRegistry.register(new LaunchBrowserCommand(browserService));
         commandRegistry.register(new TerminateBrowserCommand(browserService));

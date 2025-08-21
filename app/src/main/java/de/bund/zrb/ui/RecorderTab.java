@@ -27,10 +27,42 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
     // --- Bottom drawer (meta monitor) ---
     private final JSplitPane centerSplit;
-    private final JTextArea metaArea = new JTextArea();
+    /**
+     * Container for all meta event components. Each event is represented as a Swing
+     * component (e.g. {@link JLabel}). Unlike the previous plain text log, this
+     * panel uses a vertical {@link BoxLayout} so that each entry occupies its own
+     * row. Components added here should have a client property named
+     * "eventName" of type {@link String} for filtering.
+     */
+    private final JPanel metaContainer = new JPanel();
     private final JPanel metaPanel = new JPanel(new BorderLayout(6, 6));
+    /**
+     * Button to toggle visibility of the entire meta drawer. This controls
+     * whether the splitter shows or hides the bottom component. Independent of
+     * event logging.
+     */
     private final JToggleButton metaToggle = new JToggleButton("Meta-Events");
     private int lastDividerLocation = -1;
+
+    /**
+     * Previously a toggle button controlled starting and stopping of the event logging
+     * service. This field has been removed in favour of dedicated commands
+     * (see {@link de.bund.zrb.ui.commands.StartEventServiceCommand} and
+     * {@link de.bund.zrb.ui.commands.StopEventServiceCommand}). The
+     * event service is started and stopped by publishing
+     * {@link de.bund.zrb.event.EventServiceControlRequestedEvent} via
+     * {@link de.bund.zrb.event.ApplicationEventBus}.
+     */
+    // private final JToggleButton eventsToggle = new JToggleButton("Start Events");
+
+    /**
+     * Event service for this tab. A separate instance is created for each
+     * RecorderTab and bound to its {@link RecordingSession}. It is started and
+     * stopped via commands (see StartEventServiceCommand/StopEventServiceCommand)
+     * and will record all raw events in the session as well as produce UI
+     * components for enabled event types.
+     */
+    private EventService eventService;
 
     // Header-Leiste für Meta (wir hängen hier die Checkboxen rein)
     private final JPanel metaHeader = new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 4));
@@ -41,6 +73,75 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     private String myUserContextId;
 
     private RecordingSession session;
+
+    /**
+     * Starts the event service by attaching it to the current recording target (context or page).
+     * If neither a context nor a page is active, this method does nothing. The service
+     * will begin consuming raw events and dispatching them to the UI.
+     */
+    @Override
+    public void startEventService() {
+        if (eventService == null) return;
+        // Determine the current active target from the session. The recording session
+        // exposes the active context and page once recording has started. Attach to
+        // whichever is available. If recording hasn't started yet, there may be no
+        // active context or page.
+        com.microsoft.playwright.Page page = session.getActivePage();
+        com.microsoft.playwright.BrowserContext context = session.getActiveContext();
+        try {
+            if (context != null) {
+                eventService.start(context);
+            } else if (page != null) {
+                eventService.start(page);
+            }
+        } catch (Throwable ignore) {
+            // swallow to avoid UI disruption
+        }
+    }
+
+    /**
+     * Stops the event service and clears any queued events. This will detach all raw
+     * event listeners and stop dispatching to the UI. The component log remains
+     * visible until cleared manually.
+     */
+    @Override
+    public void stopEventService() {
+        if (eventService == null) return;
+        try {
+            eventService.stop();
+        } catch (Throwable ignore) {
+            // ignore
+        }
+    }
+
+    /**
+     * Applies the current event filter settings by updating the visibility of all
+     * components in the metaContainer. Each component must have a client property
+     * "eventName" containing the BiDi event name. Components whose event type
+     * is disabled in the session will be hidden, others will be shown.
+     */
+    private void applyEventFilter() {
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                for (java.awt.Component c : metaContainer.getComponents()) {
+                    Object nameObj = null;
+                    try {
+                        if (c instanceof javax.swing.JComponent) {
+                            nameObj = ((javax.swing.JComponent) c).getClientProperty("eventName");
+                        }
+                    } catch (Throwable ignore) {}
+                    boolean visible = true;
+                    if (nameObj instanceof String) {
+                        visible = session.isEventEnabled((String) nameObj);
+                    }
+                    c.setVisible(visible);
+                }
+                metaContainer.revalidate();
+                metaContainer.repaint();
+            }
+        });
+    }
 
     public RecorderTab(RightDrawer rightDrawer, UserRegistry.User user) {
         super(new BorderLayout(8, 8));
@@ -123,26 +224,30 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         // Center split: actions (top) + meta drawer (bottom)
         JScrollPane actionsScroll = new JScrollPane(actionTable);
 
-        // Configure meta area
-        metaArea.setEditable(false);
-        metaArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        metaArea.setLineWrap(false);
-        DefaultCaret caret = (DefaultCaret) metaArea.getCaret();
-        caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+        // Configure meta container for component-based logging
+        metaContainer.setLayout(new BoxLayout(metaContainer, BoxLayout.Y_AXIS));
 
-        // Meta header mit Titel, Clear und (gleich) Checkboxen
+        // Meta header with title, clear button, events toggle and (later) checkboxes
         JLabel metaTitle = new JLabel("Events");
         JButton clearBtn = new JButton("Clear");
         clearBtn.setFocusable(false);
         clearBtn.setToolTipText("Meta-Log leeren");
-        clearBtn.addActionListener(e -> metaArea.setText(""));
+        clearBtn.addActionListener(e -> {
+            // Remove all components from the container instead of clearing text
+            metaContainer.removeAll();
+            metaContainer.revalidate();
+            metaContainer.repaint();
+        });
+        // Remove the events toggle from the meta header. Event logging
+        // is now controlled exclusively via menu commands. Only the
+        // title and clear button are added here. A horizontal strut
+        // provides spacing before the dynamically added checkbox panel.
         metaHeader.add(metaTitle);
         metaHeader.add(clearBtn);
-        // Platz für Checkboxen schaffen
         metaHeader.add(Box.createHorizontalStrut(10));
 
         metaPanel.add(metaHeader, BorderLayout.NORTH);
-        metaPanel.add(new JScrollPane(metaArea), BorderLayout.CENTER);
+        metaPanel.add(new JScrollPane(metaContainer), BorderLayout.CENTER);
 
         centerSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, actionsScroll, metaPanel);
         centerSplit.setResizeWeight(0.8);
@@ -153,6 +258,11 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         // Register with coordinator (inject BrowserService via RightDrawer)
         this.session = RecorderCoordinator.getInstance()
                 .registerTab(selectedUser.getUsername(), this, rightDrawer.getBrowserService());
+
+        // Create the event service bound to this tab and session. It will be started
+        // via dedicated start/stop commands; initially it remains inactive until
+        // the user triggers event logging.
+        this.eventService = new EventService(this, session);
 
         // Checkboxen erst NACH dem Registrieren und auf dem EDT erzeugen
         SwingUtilities.invokeLater(this::buildEventCheckboxes);
@@ -204,9 +314,62 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
     @Override
     public void appendMeta(final String line) {
+        // Convert plain text into a JLabel and delegate to component-based method
+        if (line == null) return;
         SwingUtilities.invokeLater(new Runnable() {
-            @Override public void run() { appendMetaLine(line); }
+            @Override public void run() {
+                JLabel label = new JLabel(line);
+                // Default event name is unknown for plain strings
+                label.putClientProperty("eventName", null);
+                appendMeta(label);
+            }
         });
+    }
+
+    /**
+     * Appends a Swing component to the metaContainer. Components should have a
+     * client property "eventName" containing the raw event name if available;
+     * otherwise the component will always be visible regardless of filter flags.
+     * The component is added to the container and scrolled into view. Visibility
+     * is determined by {@link #applyEventFilter()}.
+     *
+     * @param component the component to append; ignored if null
+     */
+    @Override
+    public void appendMeta(javax.swing.JComponent component) {
+        if (component == null) return;
+        // Add the component to the container and mark its visibility based on current filter
+        boolean visible = true;
+        Object nameObj = component.getClientProperty("eventName");
+        if (nameObj instanceof String) {
+            visible = session.isEventEnabled((String) nameObj);
+        }
+        component.setVisible(visible);
+        metaContainer.add(component);
+        // Scroll to bottom to reveal the newest entry
+        metaContainer.revalidate();
+        metaContainer.repaint();
+        // Attempt to ensure the new component is visible in the scroll pane
+        try {
+            Rectangle bounds = component.getBounds();
+            metaContainer.scrollRectToVisible(bounds);
+        } catch (Throwable ignore) { /* no-op */ }
+    }
+
+    /**
+     * Appends an event component with an associated raw BiDi event name. The
+     * component is annotated with the event name so that filtering via
+     * checkboxes can hide or show it. If the name is null, the component
+     * will always be visible.
+     *
+     * @param bidiEventName the BiDi event name, may be null
+     * @param component     the component to append, may be null
+     */
+    @Override
+    public void appendEvent(String bidiEventName, javax.swing.JComponent component) {
+        if (component == null) return;
+        component.putClientProperty("eventName", bidiEventName);
+        appendMeta(component);
     }
 
     // ---------- RecorderListener (actions) ----------
@@ -405,13 +568,24 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
             cb.setFocusable(false);
             String tt = ev.getDescription();
             cb.setToolTipText((tt == null || tt.trim().isEmpty()) ? ev.getName() : tt);
-            cb.addActionListener(ae -> session.setEventFlag(ev, cb.isSelected()));
+            cb.addActionListener(ae -> {
+                // Update flag in session
+                session.setEventFlag(ev, cb.isSelected());
+                // Immediately update UI component visibility based on new filter
+                applyEventFilter();
+                // Propagate updated flags to EventService so it can adjust subscriptions if necessary
+                if (eventService != null) {
+                    eventService.updateFlags(session.getEventFlags());
+                }
+            });
             eventCheckboxPanel.add(cb);
         }
 
         metaHeader.add(eventCheckboxPanel);
         metaHeader.revalidate();
         metaHeader.repaint();
+        // Ensure the current filter is applied after constructing checkboxes
+        applyEventFilter();
     }
 
     /** Kleine Anzeige-Labels für die Events. */
@@ -433,14 +607,16 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         }
     }
 
-    /** Append a single formatted meta line and keep caret at bottom. */
+    /**
+     * Append a single formatted meta line. This legacy method now delegates to
+     * {@link #appendMeta(String)} to support component-based logging. The caret
+     * management previously used on a JTextArea is no longer needed because
+     * scrolling is managed by {@link #appendMeta(javax.swing.JComponent)}.
+     *
+     * @param line the line of text to append
+     */
     private void appendMetaLine(String line) {
-        if (line == null) return;
-        if (metaArea.getText().length() == 0) {
-            metaArea.setText(line);
-        } else {
-            metaArea.append("\n" + line);
-        }
+        appendMeta(line);
     }
 
     /** Resolve the UserContext-ID for a username via mapping. */

@@ -104,4 +104,80 @@ public final class RecorderCoordinator {
         if (s != null && s.isRecording()) s.stop();
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // Event service control operations
+    //
+    // These methods allow starting and stopping the event logging service on the active tab or
+    // for a specific user. The event service runs independently of the recording lifecycle and
+    // may be toggled while a recording session is active.
+
+    /**
+     * Starts the event logging service for the currently active recorder tab. If no tab is
+     * active, this method does nothing. The associated {@link RecorderTabUi} must implement
+     * {@link de.bund.zrb.service.RecorderTabUi#startEventService()} for this call to have an effect.
+     */
+    public synchronized void startEventsForActiveTab() {
+        RecorderTabUi active = null;
+        for (RecorderTabUi ui : tabs) {
+            try {
+                if (ui.isVisibleActive()) { active = ui; break; }
+            } catch (Throwable ignore) {}
+        }
+        if (active != null) {
+            try {
+                active.startEventService();
+            } catch (Throwable ignore) { /* no-op */ }
+        }
+    }
+
+    /**
+     * Stops the event logging service for the currently active recorder tab. If no tab is
+     * active, this method does nothing. The associated {@link RecorderTabUi} must implement
+     * {@link de.bund.zrb.service.RecorderTabUi#stopEventService()} for this call to have an effect.
+     */
+    public synchronized void stopEventsForActiveTab() {
+        RecorderTabUi active = null;
+        for (RecorderTabUi ui : tabs) {
+            try {
+                if (ui.isVisibleActive()) { active = ui; break; }
+            } catch (Throwable ignore) {}
+        }
+        if (active != null) {
+            try {
+                active.stopEventService();
+            } catch (Throwable ignore) { /* no-op */ }
+        }
+    }
+
+    /**
+     * Starts the event logging service for all tabs belonging to the specified user. If the user
+     * has multiple tabs open, the service will be started on each of them. This method has no
+     * effect if no session exists for the username.
+     *
+     * @param username the user whose event logging should be started
+     */
+    public synchronized void startEventsForUser(String username) {
+        if (username == null) return;
+        for (RecorderTabUi ui : tabs) {
+            if (username.equals(ui.getUsername())) {
+                try { ui.startEventService(); } catch (Throwable ignore) { /* no-op */ }
+            }
+        }
+    }
+
+    /**
+     * Stops the event logging service for all tabs belonging to the specified user. This method
+     * does nothing if no session exists for the username.
+     *
+     * @param username the user whose event logging should be stopped
+     */
+    public synchronized void stopEventsForUser(String username) {
+        if (username == null) return;
+        for (RecorderTabUi ui : tabs) {
+            if (username.equals(ui.getUsername())) {
+                try { ui.stopEventService(); } catch (Throwable ignore) { /* no-op */ }
+            }
+        }
+    }
+
 }

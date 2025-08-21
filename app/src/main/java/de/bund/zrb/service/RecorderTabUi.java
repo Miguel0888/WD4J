@@ -139,6 +139,27 @@ public interface RecorderTabUi extends RecorderListener, RecordingStateListener 
     }
 
     /**
+     * Starts the event logging service associated with this UI. Implementations
+     * should wire the event service to the current recording target (page or
+     * context) and begin dispatching components. The default implementation does
+     * nothing, allowing UIs that do not support event logging to ignore the
+     * request. This method complements {@link #stopEventService()}.
+     */
+    default void startEventService() {
+        // no-op by default
+    }
+
+    /**
+     * Stops the event logging service associated with this UI. Implementations
+     * should detach any raw event listeners and stop dispatching components to
+     * the UI. The default implementation does nothing. This method complements
+     * {@link #startEventService()}.
+     */
+    default void stopEventService() {
+        // no-op by default
+    }
+
+    /**
      * Holder for a single Gson instance (thread-safe). Used to serialize event objects to JSON
      * when falling back to string-based logging. Component-based logging should not rely on JSON.
      */
