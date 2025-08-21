@@ -412,8 +412,21 @@ final class WDUiAppender {
                 sink.accept(ev.getName(), obj);
             }
         };
-        ext.onRaw(ev, h);
-        rawPageHandlers.put(ev, h);
+        try {
+            // Attempt to subscribe to the raw event. Some BiDi events may not be supported
+            // by the underlying WebDriver implementation, in which case the call will
+            // throw (e.g. InvalidArgumentError). Guard against such failures so that
+            // unsupported events do not prevent subsequent event registrations.
+            ext.onRaw(ev, h);
+            // Only record the handler if subscription succeeds. Using the event name as the
+            // key here ensures that we can later detach exactly this handler.
+            rawPageHandlers.put(ev, h);
+        } catch (Throwable subscribeError) {
+            // Mark the event as attempted but unsupported by storing a null handler. This
+            // prevents repeated attempts to subscribe the same unsupported event in future
+            // updates. Detach operations will ignore null entries.
+            rawPageHandlers.put(ev, null);
+        }
     }
 
     /**
@@ -450,8 +463,16 @@ final class WDUiAppender {
                 sink.accept(ev.getName(), obj);
             }
         };
-        ext.onRaw(ev, h);
-        rawContextHandlers.put(ev, h);
+        try {
+            // Attempt to subscribe to the raw event on the context. Invalid or unsupported
+            // events will throw (e.g. InvalidArgumentError). Catch to avoid aborting
+            // subsequent registrations.
+            ext.onRaw(ev, h);
+            rawContextHandlers.put(ev, h);
+        } catch (Throwable subscribeError) {
+            // Mark unsupported events by storing a null handler to avoid repeated attempts.
+            rawContextHandlers.put(ev, null);
+        }
     }
 
     /**
