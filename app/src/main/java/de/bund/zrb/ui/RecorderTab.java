@@ -95,6 +95,8 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
                 eventService.start(page);
             }
         } catch (Throwable ignore) {
+            System.out.println("::: Event Worker failed to start :::");
+            ignore.printStackTrace();
             // swallow to avoid UI disruption
         }
     }

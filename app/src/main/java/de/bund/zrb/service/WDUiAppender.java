@@ -355,18 +355,27 @@ final class WDUiAppender {
 
     private void attachPageEvent(WDEventNames ev) {
         if (page == null) return;
-        if (pageHandlers.containsKey(ev)) return; // bereits registriert
-        BiFunction<Page, BiConsumer<String,Object>, Consumer<?>> on = config.getAttachPage().get(ev);
+        if (pageHandlers.containsKey(ev)) return; // already registered
+        final BiFunction<Page, BiConsumer<String,Object>, Consumer<?>> on = config.getAttachPage().get(ev);
         if (on == null) return;
-        Consumer<?> handler = on.apply(page, sink);
-        if (handler != null) pageHandlers.put(ev, handler);
+
+        try {
+            // Subscribe synchronously; if the browser does not support it, this will throw here.
+            final Consumer<?> handler = on.apply(page, sink);
+            if (handler != null) {
+                pageHandlers.put(ev, handler);
+            }
+        } catch (Throwable t) {
+            // Do not let one event abort others; just log and continue.
+            System.err.println("[WDUiAppender] PAGE subscribe failed for " + ev.getName() + " : " + t);
+        }
     }
 
     private void detachPageEvent(WDEventNames ev) {
         if (page == null) return;
-        Consumer<?> h = pageHandlers.remove(ev);
+        final Consumer<?> h = pageHandlers.remove(ev);
         if (h == null) return;
-        BiConsumer<Page, Consumer<?>> off = config.getDetachPage().get(ev);
+        final BiConsumer<Page, Consumer<?>> off = config.getDetachPage().get(ev);
         if (off != null) {
             try { off.accept(page, h); } catch (Throwable ignore) {}
         }
@@ -376,18 +385,27 @@ final class WDUiAppender {
 
     private void attachContextEvent(WDEventNames ev) {
         if (ctx == null) return;
-        if (contextHandlers.containsKey(ev)) return;
-        BiFunction<BrowserContext, BiConsumer<String,Object>, Consumer<?>> on = config.getAttachContext().get(ev);
+        if (contextHandlers.containsKey(ev)) return; // already registered
+        final BiFunction<BrowserContext, BiConsumer<String,Object>, Consumer<?>> on = config.getAttachContext().get(ev);
         if (on == null) return;
-        Consumer<?> handler = on.apply(ctx, sink);
-        if (handler != null) contextHandlers.put(ev, handler);
+
+        try {
+            // Subscribe synchronously; if the browser does not support it, this will throw here.
+            final Consumer<?> handler = on.apply(ctx, sink);
+            if (handler != null) {
+                contextHandlers.put(ev, handler);
+            }
+        } catch (Throwable t) {
+            // Keep going; do not abort wiring for other events.
+            System.err.println("[WDUiAppender] CTX  subscribe failed for " + ev.getName() + " : " + t);
+        }
     }
 
     private void detachContextEvent(WDEventNames ev) {
         if (ctx == null) return;
-        Consumer<?> h = contextHandlers.remove(ev);
+        final Consumer<?> h = contextHandlers.remove(ev);
         if (h == null) return;
-        BiConsumer<BrowserContext, Consumer<?>> off = config.getDetachContext().get(ev);
+        final BiConsumer<BrowserContext, Consumer<?>> off = config.getDetachContext().get(ev);
         if (off != null) {
             try { off.accept(ctx, h); } catch (Throwable ignore) {}
         }
@@ -402,30 +420,25 @@ final class WDUiAppender {
      *
      * @param ev the event name
      */
-    private void attachRawPageEvent(WDEventNames ev) {
+    // ------------------ RAW Attach/Detach: Page ------------------
+
+    private void attachRawPageEvent(final WDEventNames ev) {
         if (page == null) return;
         if (!(page instanceof WDPageExtension)) return;
         if (rawPageHandlers.containsKey(ev)) return;
+
         final WDPageExtension ext = (WDPageExtension) page;
-        java.util.function.Consumer<Object> h = new java.util.function.Consumer<Object>() {
-            @Override public void accept(Object obj) {
-                sink.accept(ev.getName(), obj);
-            }
+        final java.util.function.Consumer<Object> h = new java.util.function.Consumer<Object>() {
+            @Override public void accept(Object obj) { sink.accept(ev.getName(), obj); }
         };
+
         try {
-            // Attempt to subscribe to the raw event. Some BiDi events may not be supported
-            // by the underlying WebDriver implementation, in which case the call will
-            // throw (e.g. InvalidArgumentError). Guard against such failures so that
-            // unsupported events do not prevent subsequent event registrations.
+            // Subscribe synchronously; throw here if unsupported -> catch below.
             ext.onRaw(ev, h);
-            // Only record the handler if subscription succeeds. Using the event name as the
-            // key here ensures that we can later detach exactly this handler.
             rawPageHandlers.put(ev, h);
-        } catch (Throwable subscribeError) {
-            // Mark the event as attempted but unsupported by storing a null handler. This
-            // prevents repeated attempts to subscribe the same unsupported event in future
-            // updates. Detach operations will ignore null entries.
-            rawPageHandlers.put(ev, null);
+        } catch (Throwable t) {
+            // Log and keep wiring other events.
+            System.err.println("[WDUiAppender] PAGE raw subscribe failed for " + ev.getName() + " : " + t);
         }
     }
 
@@ -453,25 +466,23 @@ final class WDUiAppender {
      *
      * @param ev the event name
      */
-    private void attachRawContextEvent(WDEventNames ev) {
+    private void attachRawContextEvent(final WDEventNames ev) {
         if (ctx == null) return;
         if (!(ctx instanceof WDContextExtension)) return;
         if (rawContextHandlers.containsKey(ev)) return;
+
         final WDContextExtension ext = (WDContextExtension) ctx;
-        java.util.function.Consumer<Object> h = new java.util.function.Consumer<Object>() {
-            @Override public void accept(Object obj) {
-                sink.accept(ev.getName(), obj);
-            }
+        final java.util.function.Consumer<Object> h = new java.util.function.Consumer<Object>() {
+            @Override public void accept(Object obj) { sink.accept(ev.getName(), obj); }
         };
+
         try {
-            // Attempt to subscribe to the raw event on the context. Invalid or unsupported
-            // events will throw (e.g. InvalidArgumentError). Catch to avoid aborting
-            // subsequent registrations.
+            // Subscribe synchronously; throw here if unsupported -> catch below.
             ext.onRaw(ev, h);
             rawContextHandlers.put(ev, h);
-        } catch (Throwable subscribeError) {
-            // Mark unsupported events by storing a null handler to avoid repeated attempts.
-            rawContextHandlers.put(ev, null);
+        } catch (Throwable t) {
+            // Log and continue; never block subsequent registrations.
+            System.err.println("[WDUiAppender] CTX  raw subscribe failed for " + ev.getName() + " : " + t);
         }
     }
 

@@ -126,7 +126,10 @@ public final class RecorderCoordinator {
         if (active != null) {
             try {
                 active.startEventService();
-            } catch (Throwable ignore) { /* no-op */ }
+            } catch (Throwable ignore) {
+                System.out.println("---- Error starting event worker ----");
+                ignore.printStackTrace();
+                /* no-op */ }
         }
     }
 

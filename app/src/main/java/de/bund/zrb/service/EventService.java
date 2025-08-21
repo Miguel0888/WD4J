@@ -79,11 +79,21 @@ public final class EventService {
     public synchronized void start(Page page) {
         if (running) return;
         if (page == null) throw new IllegalArgumentException("page must not be null");
-        running = true;
-        // Attach to the page using the current session flags; all raw events will be wired
-        EnumMap<WDEventNames, Boolean> flags = session.getEventFlags();
-        appender = WDUiAppender.attachToPage(page, sink, WDEventWiringConfig.defaults(), flags);
-        startWorker();
+        try {
+            EnumMap<WDEventNames, Boolean> flags = session.getEventFlags();
+            appender = WDUiAppender.attachToPage(page, sink, WDEventWiringConfig.defaults(), flags);
+            running = true;
+            System.out.println("[EventService] start(Page) OK → starting worker");
+            startWorker();
+            // Synthetic marker: zeigt dir sofort, ob UI-Pfad funktioniert
+            queue.offer(new RawEvent("event.service.started", "EventService started (page)"));
+        } catch (Throwable t) {
+            running = false;
+            try { if (appender != null) appender.detachAll(); } catch (Throwable ignore) {}
+            appender = null;
+            System.err.println("[EventService] start(Page) failed: " + t);
+            throw t;
+        }
     }
 
     /**
@@ -95,10 +105,20 @@ public final class EventService {
     public synchronized void start(BrowserContext context) {
         if (running) return;
         if (context == null) throw new IllegalArgumentException("context must not be null");
-        running = true;
-        EnumMap<WDEventNames, Boolean> flags = session.getEventFlags();
-        appender = WDUiAppender.attachToContext(context, sink, WDEventWiringConfig.defaults(), flags);
-        startWorker();
+        try {
+            EnumMap<WDEventNames, Boolean> flags = session.getEventFlags();
+            appender = WDUiAppender.attachToContext(context, sink, WDEventWiringConfig.defaults(), flags);
+            running = true;
+            System.out.println("[EventService] start(Context) OK → starting worker");
+            startWorker();
+            queue.offer(new RawEvent("event.service.started", "EventService started (context)"));
+        } catch (Throwable t) {
+            running = false;
+            try { if (appender != null) appender.detachAll(); } catch (Throwable ignore) {}
+            appender = null;
+            System.err.println("[EventService] start(Context) failed: " + t);
+            throw t;
+        }
     }
 
     /**
