@@ -63,71 +63,48 @@ public class LocatorImpl implements Locator {
     // Webdriver Interaction
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // helper to (re)locate
-    private ElementHandleImpl locateFreshHandle() {
+    private void resolveElementHandle() {
+        if (elementHandle != null) {
+            return;
+        }
+
+        // Build WDLocator using explicit type if present (fallback to heuristic otherwise)
         WDLocator<?> locator = AdapterLocatorFactory.create(explicitType, selector);
 
         WDBrowsingContextResult.LocateNodesResult locateNodesResult =
-                page.getBrowser().getWebDriver().browsingContext()
-                        .locateNodes(page.getBrowsingContextId(), locator, Integer.MAX_VALUE);
+                page.getBrowser().getWebDriver().browsingContext().locateNodes(
+                        page.getBrowsingContextId(),
+                        locator,
+                        Integer.MAX_VALUE
+                );
 
         java.util.List<WDRemoteValue.NodeRemoteValue> nodes = locateNodesResult.getNodes();
+
         if (filterOptions != null) {
             nodes = applyFilter(nodes);
         }
+
         if (nodes.isEmpty()) {
             throw new RuntimeException("No nodes found for selector: " + selector);
         }
 
         WDRemoteValue.NodeRemoteValue node = nodes.get(0);
-        WDHandle handle = node.getHandle() != null ? new WDHandle(node.getHandle().value()) : null;
+        WDHandle handle = null;
+        if (node.getHandle() != null) {
+            handle = new WDHandle(node.getHandle().value());
+        }
         WDSharedId sharedId = node.getSharedId();
 
         if (sharedId != null) {
             WDRemoteReference.SharedReference reference = new WDRemoteReference.SharedReference(sharedId, handle);
-            return new ElementHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext()), page);
-        }
-        if (handle != null) {
+            elementHandle = new ElementHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
+        } else if (handle != null) {
             WDRemoteReference.RemoteObjectReference reference = new WDRemoteReference.RemoteObjectReference(handle, sharedId);
-            new JSHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
+            new JSHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext())); // ToDo
             throw new RuntimeException("No sharedId found for selector: " + selector + " handle: " + handle);
+        } else {
+            throw new RuntimeException("No handle found for selector: " + selector);
         }
-        throw new RuntimeException("No handle found for selector: " + selector);
-    }
-
-    // health checks
-    private boolean isHandleConnected(ElementHandleImpl h) {
-        try {
-            return WebDriverUtil.asBoolean(h.evaluate("function(){ return !!(this && this.isConnected); }"));
-        } catch (RuntimeException ignored) {
-            return false;
-        }
-    }
-
-    private boolean isHandleVisible(ElementHandleImpl h) {
-        try {
-            return WebDriverUtil.asBoolean(h.evaluate(
-                    "function(){ const r=this.getBoundingClientRect();" +
-                            "return r.width>0 && r.height>0 && window.getComputedStyle(this).visibility!=='hidden'; }"
-            ));
-        } catch (RuntimeException ignored) {
-            return false;
-        }
-    }
-
-    // re-query when stale
-    private void resolveElementHandle() {
-        if (elementHandle != null) {
-            if (isHandleConnected(elementHandle)) {
-                // Optional: also accept only if still visible; keeps flaky half-attached nodes out
-                if (isHandleVisible(elementHandle)) {
-                    return;
-                }
-            }
-            // Drop stale handle
-            elementHandle = null;
-        }
-        elementHandle = locateFreshHandle();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
