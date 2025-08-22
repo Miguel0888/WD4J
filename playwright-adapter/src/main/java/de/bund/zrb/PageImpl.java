@@ -939,17 +939,43 @@ public class PageImpl implements Page, WDPageExtension {
         }
 
         if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue remote = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
+            WDRemoteValue rv = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
 
-            if (remote instanceof WDRemoteReference.SharedReference) {
-                return new JSHandleImpl(webDriver, ((WDRemoteReference.SharedReference) remote), target);
+            // 1) Element/Objekt-Referenzen -> echtes Handle
+            if (rv instanceof WDRemoteReference.SharedReference) {
+                return new JSHandleImpl(webDriver, (WDRemoteReference.SharedReference) rv, target);
             }
-            else if(remote instanceof WDRemoteReference.RemoteObjectReference) { // ToDo: Check if this is correct, should always be a SharedReference!
-                return new JSHandleImpl(webDriver, ((WDRemoteReference.RemoteObjectReference) remote), target);
+            if (rv instanceof WDRemoteReference.RemoteObjectReference) {
+                return new JSHandleImpl(webDriver, (WDRemoteReference.RemoteObjectReference) rv, target);
             }
+            if (rv instanceof WDRemoteValue.NodeRemoteValue) {
+                WDRemoteValue.NodeRemoteValue node = (WDRemoteValue.NodeRemoteValue) rv;
+                WDRemoteReference.SharedReference ref =
+                        new WDRemoteReference.SharedReference(node.getSharedId(), node.getHandle());
+                return new ElementHandleImpl(webDriver, ref, target);
+            }
+
+            // 2) Primitives: für "undefined" gibt es kein Handle -> liefere null
+            if (rv instanceof WDPrimitiveProtocolValue.UndefinedValue) {
+                return null; // <-- exakt dein gewünschtes Verhalten
+            }
+
+            // Optional: Für andere primitive Werte könnte man hier ebenfalls null werfen lassen
+            // oder – robuster – einen kleinen "JSPrimitiveHandle" verwenden.
+            // Für die Minimaländerung gilt: alles andere ist unerwartet.
+            throw new PlaywrightException("evaluateHandle failed: primitive value has no handle ("
+                    + rv.getClass().getSimpleName() + ")");
         }
 
-        throw new RuntimeException("evaluateHandle failed: unexpected result type");
+        // Handle JS-Exception vom Zielkontext
+        if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
+            WDEvaluateResult.WDEvaluateResultError err = (WDEvaluateResult.WDEvaluateResultError) result;
+            notifyPageErrorListeners(err.getExceptionDetails().getText());
+            throw new PlaywrightException("Evaluation failed: " + err.getExceptionDetails().getText());
+        }
+
+        throw new PlaywrightException("evaluateHandle failed: unsupported result type "
+                + result.getClass().getSimpleName());
     }
 
     @Override
