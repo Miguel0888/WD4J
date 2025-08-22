@@ -273,8 +273,52 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void click(ClickOptions options) {
-        resolveElementHandle();
-        elementHandle.click(toHandleClickOptions(options));
+        // Comment: Implement retry here and re-run BiDi locateNodes on every loop.
+        final long timeout = (options != null && options.timeout != null) ? options.timeout.longValue() : 30_000L;
+        final long deadline = System.currentTimeMillis() + timeout;
+
+        // Convert existing options once and force-skip EH actionability (we do our own checks here)
+        ElementHandle.ClickOptions ehOpts = toHandleClickOptions(options);
+        try { ehOpts.setForce(true); } catch (Throwable ignored) { /* keep default if not available */ }
+
+        RuntimeException last = null;
+
+        while (System.currentTimeMillis() <= deadline) {
+            try {
+                // Always drop cached handle → trigger fresh BiDi locateNodes
+                this.elementHandle = null;
+                resolveElementHandle(); // performs browsingContext.locateNodes every time
+
+                // Minimal actionability: visible + enabled (keep it cheap and deterministic)
+                Boolean visible = WebDriverUtil.asBoolean(elementHandle.evaluate(
+                        "function(){ const s=window.getComputedStyle(this); const r=this.getBoundingClientRect();" +
+                                "return r.width>0 && r.height>0 && s.visibility!=='hidden' && s.display!=='none'; }"
+                ));
+                Boolean enabled = WebDriverUtil.asBoolean(elementHandle.evaluate(
+                        "function(){ return !this.disabled; }"
+                ));
+
+                if (Boolean.TRUE.equals(visible) && Boolean.TRUE.equals(enabled)) {
+                    elementHandle.click(ehOpts); // perform actual click (EH will not wait due to force=true)
+                    return;
+                }
+            } catch (RuntimeException ex) {
+                // Keep last error; we will retry until deadline
+                last = ex;
+            }
+
+            // Short backoff before next re-locate
+            try {
+                Thread.sleep(100L);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(ie);
+            }
+        }
+
+        // Surface a meaningful error
+        if (last != null) throw last;
+        throw new RuntimeException("Timeout waiting for actionability: CLICK");
     }
 
     private static ElementHandle.ClickOptions toHandleClickOptions(Locator.ClickOptions src) {
