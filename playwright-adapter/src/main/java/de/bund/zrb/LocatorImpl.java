@@ -63,48 +63,71 @@ public class LocatorImpl implements Locator {
     // Webdriver Interaction
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private void resolveElementHandle() {
-        if (elementHandle != null) {
-            return;
-        }
-
-        // Build WDLocator using explicit type if present (fallback to heuristic otherwise)
+    // helper to (re)locate
+    private ElementHandleImpl locateFreshHandle() {
         WDLocator<?> locator = AdapterLocatorFactory.create(explicitType, selector);
 
         WDBrowsingContextResult.LocateNodesResult locateNodesResult =
-                page.getBrowser().getWebDriver().browsingContext().locateNodes(
-                        page.getBrowsingContextId(),
-                        locator,
-                        Integer.MAX_VALUE
-                );
+                page.getBrowser().getWebDriver().browsingContext()
+                        .locateNodes(page.getBrowsingContextId(), locator, Integer.MAX_VALUE);
 
         java.util.List<WDRemoteValue.NodeRemoteValue> nodes = locateNodesResult.getNodes();
-
         if (filterOptions != null) {
             nodes = applyFilter(nodes);
         }
-
         if (nodes.isEmpty()) {
             throw new RuntimeException("No nodes found for selector: " + selector);
         }
 
         WDRemoteValue.NodeRemoteValue node = nodes.get(0);
-        WDHandle handle = null;
-        if (node.getHandle() != null) {
-            handle = new WDHandle(node.getHandle().value());
-        }
+        WDHandle handle = node.getHandle() != null ? new WDHandle(node.getHandle().value()) : null;
         WDSharedId sharedId = node.getSharedId();
 
         if (sharedId != null) {
             WDRemoteReference.SharedReference reference = new WDRemoteReference.SharedReference(sharedId, handle);
-            elementHandle = new ElementHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
-        } else if (handle != null) {
-            WDRemoteReference.RemoteObjectReference reference = new WDRemoteReference.RemoteObjectReference(handle, sharedId);
-            new JSHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext())); // ToDo
-            throw new RuntimeException("No sharedId found for selector: " + selector + " handle: " + handle);
-        } else {
-            throw new RuntimeException("No handle found for selector: " + selector);
+            return new ElementHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext()), page);
         }
+        if (handle != null) {
+            WDRemoteReference.RemoteObjectReference reference = new WDRemoteReference.RemoteObjectReference(handle, sharedId);
+            new JSHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
+            throw new RuntimeException("No sharedId found for selector: " + selector + " handle: " + handle);
+        }
+        throw new RuntimeException("No handle found for selector: " + selector);
+    }
+
+    // health checks
+    private boolean isHandleConnected(ElementHandleImpl h) {
+        try {
+            return WebDriverUtil.asBoolean(h.evaluate("function(){ return !!(this && this.isConnected); }"));
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    private boolean isHandleVisible(ElementHandleImpl h) {
+        try {
+            return WebDriverUtil.asBoolean(h.evaluate(
+                    "function(){ const r=this.getBoundingClientRect();" +
+                            "return r.width>0 && r.height>0 && window.getComputedStyle(this).visibility!=='hidden'; }"
+            ));
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    // re-query when stale
+    private void resolveElementHandle() {
+        if (elementHandle != null) {
+            if (isHandleConnected(elementHandle)) {
+                // Optional: also accept only if still visible; keeps flaky half-attached nodes out
+                if (isHandleVisible(elementHandle)) {
+                    return;
+                }
+            }
+            // Drop stale handle
+            elementHandle = null;
+        }
+        elementHandle = locateFreshHandle();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
