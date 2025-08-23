@@ -3,6 +3,7 @@ package de.bund.zrb;
 import de.bund.zrb.api.WDWebSocketManager;
 import de.bund.zrb.command.response.WDSessionResult;
 import de.bund.zrb.manager.*;
+import de.bund.zrb.service.WDEventDispatcher;
 import de.bund.zrb.type.session.WDSubscription;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
 
@@ -40,24 +41,29 @@ public class WebDriver {
 
     private String sessionId;
 
-    private final EventDispatcher dispatcher;
+    private final WDEventDispatcher dispatcher;
 
     // ToDo: Use WebSocket Interface instead of WebSocketImpl, here !!!
-    public WebDriver(WDWebSocketManager WDWebSocketManager, EventDispatcher dispatcher) throws ExecutionException, InterruptedException {
-        this.WDWebSocketManager = WDWebSocketManager;
+    public WebDriver(WDWebSocketManager webSocketManager) throws ExecutionException, InterruptedException {
+        this(webSocketManager, new WDEventDispatcher());
+    }
 
-        this.browser = new WDBrowserManager(WDWebSocketManager);
-        this.session = new WDSessionManager(WDWebSocketManager);
-        this.browsingContext = new WDBrowsingContextManager(WDWebSocketManager);
-        this.script = new WDScriptManager(WDWebSocketManager);
-        this.input = new WDInputManager(WDWebSocketManager);
-        this.storage = new WDStorageManager(WDWebSocketManager);
-        this.network = new WDNetworkManager(WDWebSocketManager);
-        this.log = new WDLogManager(WDWebSocketManager);
-        this.webExtension = new WDWebExtensionManager(WDWebSocketManager);
+    // ToDo: Use WebSocket Interface instead of WebSocketImpl, here !!!
+    public WebDriver(WDWebSocketManager webSocketManager, WDEventDispatcher dispatcher) throws ExecutionException, InterruptedException {
+        this.WDWebSocketManager = webSocketManager;
+
+        this.browser = new WDBrowserManager(webSocketManager);
+        this.session = new WDSessionManager(webSocketManager);
+        this.browsingContext = new WDBrowsingContextManager(webSocketManager);
+        this.script = new WDScriptManager(webSocketManager);
+        this.input = new WDInputManager(webSocketManager);
+        this.storage = new WDStorageManager(webSocketManager);
+        this.network = new WDNetworkManager(webSocketManager);
+        this.log = new WDLogManager(webSocketManager);
+        this.webExtension = new WDWebExtensionManager(webSocketManager);
 
         this.dispatcher = dispatcher;
-        WDWebSocketManager.registerEventListener(dispatcher); // 🔥 Events aktivieren!
+        webSocketManager.registerEventListener(dispatcher); // 🔥 Events aktivieren!
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -14,13 +14,13 @@ import de.bund.zrb.event.WDInputEvent;
  * WD-Event-DTOs. Jegliches Mapping in Playwright-Objekte passiert
  * nun in der Page/Frame-Schicht über Adapter.
  */
-public class EventMapperImpl implements EventMapper {
+public class WDEventMapperImpl implements EventMapper {
 
     // Falls der alte Konstruktor beibehalten werden muss:
     // private final BrowserImpl browser;
     // public EventMapperImpl(BrowserImpl browser) { this.browser = browser; }
 
-    public EventMapperImpl() {}
+    public WDEventMapperImpl() {}
 
     @Override
     public Object apply(String eventType, JsonObject json) {

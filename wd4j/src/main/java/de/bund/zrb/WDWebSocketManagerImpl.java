@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import de.bund.zrb.api.WebSocketFrame;
+import de.bund.zrb.service.WDEventDispatcher;
 import de.bund.zrb.support.mapping.GsonMapperFactory;
 import de.bund.zrb.api.WDCommand;
 import de.bund.zrb.websocket.WDErrorResponse;
@@ -197,7 +198,7 @@ public class WDWebSocketManagerImpl implements WDWebSocketManager {
      * @param eventDispatcher Der EventDispatcher, der die Events verarbeitet.
      */
     @Override
-    public void registerEventListener(EventDispatcher eventDispatcher) {
+    public void registerEventListener(WDEventDispatcher eventDispatcher) {
         webSocket.onFrameReceived(frame -> {
             try {
                 JsonObject json = gson.fromJson(frame.text(), JsonObject.class);

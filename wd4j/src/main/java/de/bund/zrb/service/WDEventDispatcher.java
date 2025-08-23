@@ -1,9 +1,10 @@
-package de.bund.zrb;
+package de.bund.zrb.service;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import de.bund.zrb.manager.WDSessionManager;
 import de.bund.zrb.command.response.WDSessionResult;
+import de.bund.zrb.support.WDEventMapperImpl;
 import de.bund.zrb.support.mapping.GsonMapperFactory;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.session.WDSubscription;
@@ -17,13 +18,17 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-public class EventDispatcher {
+public class WDEventDispatcher {
     private final Gson gson = GsonMapperFactory.getGson(); // ToDo: Maybe removed
 
     private final Map<String, ConcurrentLinkedQueue<Consumer<Object>>> eventListeners = new ConcurrentHashMap<>();
     private final BiFunction<String, JsonObject, Object> eventMapper;
 
-    public EventDispatcher(BiFunction<String, JsonObject, Object> eventMapper) {
+    public WDEventDispatcher() {
+        this.eventMapper = new WDEventMapperImpl();
+    }
+
+    public WDEventDispatcher(BiFunction<String, JsonObject, Object> eventMapper) {
         this.eventMapper = eventMapper;
     }
 

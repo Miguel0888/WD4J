@@ -14,7 +14,6 @@ import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.session.WDSubscription;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
 import de.bund.zrb.websocket.WDException;
-import de.bund.zrb.support.EventMapperImpl;
 
 import java.beans.PropertyChangeSupport;
 import java.util.*;
@@ -34,7 +33,6 @@ public class BrowserImpl implements Browser {
     private final BrowserTypeImpl browserType;
     private final Process process;
     private final List<UserContextImpl> userContextImpls = new ArrayList<>();
-    private final EventDispatcher dispatcher;
     private String defaultContextId = "default";
 
     private final WebDriver webDriver;
@@ -49,9 +47,8 @@ public class BrowserImpl implements Browser {
         this.process = process;
 
         // ToDo: May be moved to WD4J partly
-        WDWebSocketManager WDWebSocketManager = new WDWebSocketManagerImpl(webSocketImpl);
-        dispatcher = new EventDispatcher(new EventMapperImpl());
-        this.webDriver = new WebDriver(WDWebSocketManager, dispatcher).connect(browserType.name());
+        WDWebSocketManager webSocketManager = new WDWebSocketManagerImpl(webSocketImpl);
+        this.webDriver = new WebDriver(webSocketManager).connect(browserType.name());
 
         onContextSwitch(this::setActivePageId);
         onRecordingEvent(BrowserImpl.CHANNEL_RECORDING_EVENTS, this::handleRecordingEvent);

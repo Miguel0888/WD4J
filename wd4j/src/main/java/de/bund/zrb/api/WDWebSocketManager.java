@@ -1,6 +1,6 @@
 package de.bund.zrb.api;
 
-import de.bund.zrb.EventDispatcher;
+import de.bund.zrb.service.WDEventDispatcher;
 
 import java.lang.reflect.Type;
 
@@ -16,7 +16,7 @@ public interface WDWebSocketManager {
      */
     <T> T sendAndWaitForResponse(WDCommand command, Type responseType);
 
-    void registerEventListener(EventDispatcher eventDispatcher);
+    void registerEventListener(WDEventDispatcher eventDispatcher);
 
     /**
      * Returns true if the underlying WebSocket is connected.

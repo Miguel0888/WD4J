@@ -85,8 +85,6 @@ public final class EventService {
             running = true;
             System.out.println("[EventService] start(Page) OK → starting worker");
             startWorker();
-            // Synthetic marker: zeigt dir sofort, ob UI-Pfad funktioniert
-            queue.offer(new RawEvent("event.service.started", "EventService started (page)"));
         } catch (Throwable t) {
             running = false;
             try { if (appender != null) appender.detachAll(); } catch (Throwable ignore) {}
@@ -111,7 +109,6 @@ public final class EventService {
             running = true;
             System.out.println("[EventService] start(Context) OK → starting worker");
             startWorker();
-            queue.offer(new RawEvent("event.service.started", "EventService started (context)"));
         } catch (Throwable t) {
             running = false;
             try { if (appender != null) appender.detachAll(); } catch (Throwable ignore) {}
