@@ -14,7 +14,7 @@ import java.util.function.BiConsumer;
  * Dünner Adapter zwischen BiDi-Event-Wiring (WDUiAppender), RecordingSession und Recorder-UI.
  * Keine eigene Logik außer: anhängen/abklemmen, Flags durchreichen, Events schön darstellen.
  */
-public final class EventService {
+public final class RecorderEventController {
 
     private final RecorderTabUi ui;
     private final RecordingSession session;
@@ -41,7 +41,7 @@ public final class EventService {
         }
     };
 
-    public EventService(RecorderTabUi ui, RecordingSession session) {
+    public RecorderEventController(RecorderTabUi ui, RecordingSession session) {
         this.ui = Objects.requireNonNull(ui, "ui");
         this.session = Objects.requireNonNull(session, "session");
     }

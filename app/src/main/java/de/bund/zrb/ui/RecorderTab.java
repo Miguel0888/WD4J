@@ -43,7 +43,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     /** Der alte EventService wurde ersetzt – dieser Feldname bleibt zur Kompatibilität.
      *  Es handelt sich um den leichten Shim, der Events aus dem Dispatcher abonniert,
      *  in die Session schreibt und UI-Labels erzeugt. */
-    private EventService eventService;
+    private RecorderEventController recorderEventController;
 
     // Header für Meta (rechts vom "Clear" kommen die Checkboxen rein)
     private final JPanel metaHeader = new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 4));
@@ -163,7 +163,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
                 .registerTab(selectedUser.getUsername(), this, rightDrawer.getBrowserService());
 
         // Leichter Event-Bridge-Service (Shim), der die Dispatcher-Events konsumiert
-        this.eventService = new EventService(this, session);
+        this.recorderEventController = new RecorderEventController(this, session);
 
         // Checkboxen nach Registrierung erstellen
         SwingUtilities.invokeLater(this::buildEventCheckboxes);
@@ -266,15 +266,15 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     /** Startet den leichten Event-Bridge-Service (Shim). */
     @Override
     public void startEventService() {
-        if (eventService == null) return;
+        if (recorderEventController == null) return;
 
         com.microsoft.playwright.Page page = session.getActivePage();
         com.microsoft.playwright.BrowserContext context = session.getActiveContext();
         try {
             if (context != null) {
-                eventService.start(context);
+                recorderEventController.start(context);
             } else if (page != null) {
-                eventService.start(page);
+                recorderEventController.start(page);
             }
         } catch (Throwable t) {
             System.out.println("::: Event Worker failed to start :::");
@@ -285,9 +285,9 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     /** Stoppt den Event-Bridge-Service. */
     @Override
     public void stopEventService() {
-        if (eventService == null) return;
+        if (recorderEventController == null) return;
         try {
-            eventService.stop();
+            recorderEventController.stop();
         } catch (Throwable ignore) {
             // ignore
         }
@@ -478,8 +478,8 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
             cb.addActionListener(ae -> {
                 session.setEventFlag(ev, cb.isSelected());
                 applyEventFilter();
-                if (eventService != null) {
-                    eventService.updateFlags(session.getEventFlags());
+                if (recorderEventController != null) {
+                    recorderEventController.updateFlags(session.getEventFlags());
                 }
             });
             eventCheckboxPanel.add(cb);
