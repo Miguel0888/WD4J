@@ -2,217 +2,183 @@ package de.bund.zrb.service;
 
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
-import de.bund.zrb.ui.RecorderListener;
-import de.bund.zrb.service.RecordingSession;
 import de.bund.zrb.websocket.WDEventNames;
 
 import javax.swing.*;
-import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 
 /**
- * Service responsible for collecting raw WebDriver events, converting them into
- * UI components and dispatching them to a {@link RecorderTabUi}. It manages
- * subscription via {@link WDUiAppender} and provides start/stop lifecycle.
- *
- * <p>The EventService does not interpret the events itself; it simply
- * wraps each incoming raw event into a simple Swing component (currently a
- * {@link JLabel}) and forwards it to the recorder UI. A future enhancement
- * could map events to richer components based on their type.</p>
+ * Dünner Adapter zwischen BiDi-Event-Wiring (WDUiAppender), RecordingSession und Recorder-UI.
+ * Keine eigene Logik außer: anhängen/abklemmen, Flags durchreichen, Events schön darstellen.
  */
 public final class EventService {
-    /**
-     * Container for a raw event consisting of its BiDi name and the raw payload.
-     */
-    private static final class RawEvent {
-        final String name;
-        final Object payload;
-        RawEvent(String name, Object payload) {
-            this.name = name;
-            this.payload = payload;
-        }
-    }
 
     private final RecorderTabUi ui;
     private final RecordingSession session;
-    private final BlockingQueue<RawEvent> queue = new LinkedBlockingQueue<RawEvent>();
-    private final BiConsumer<String, Object> sink;
-    private volatile boolean running;
-    private Thread workerThread;
-    private WDUiAppender appender;
 
-    /**
-     * Constructs a new EventService bound to the given session and UI. The service will
-     * capture all raw events, record them on the associated {@link RecordingSession}
-     * and dispatch visible events to the provided UI.
-     *
-     * @param ui      the recorder tab UI to deliver components to; must not be null
-     * @param session the recording session this service belongs to; must not be null
-     */
+    // aktive Appender (Page/Context)
+    private final List<WDUiAppender> active = new CopyOnWriteArrayList<>();
+
+    // ein gemeinsamer Sink für alle Appender (EventName + RawPayload)
+    private final BiConsumer<String, Object> sink = new BiConsumer<String, Object>() {
+        @Override public void accept(String eventName, Object payload) {
+            if (eventName == null) return;
+
+            // 1) immer mitschreiben (für Timing/Analyse)
+            session.recordRawEvent(eventName, payload);
+
+            // 2) UI Eintrag bauen
+            String line = summarize(eventName, payload);
+            JLabel label = new JLabel(line);
+            // Event-Typ für UI-Filter merken
+            label.putClientProperty("eventName", eventName);
+
+            // 3) in den Recorder unten einhängen
+            ui.appendEvent(eventName, label);
+        }
+    };
+
     public EventService(RecorderTabUi ui, RecordingSession session) {
-        this.ui = Objects.requireNonNull(ui, "ui must not be null");
-        this.session = Objects.requireNonNull(session, "session must not be null");
-        // Sink: receive raw event and enqueue as RawEvent
-        this.sink = new BiConsumer<String, Object>() {
-            @Override
-            public void accept(String name, Object event) {
-                if (name != null && event != null) {
-                    queue.offer(new RawEvent(name, event));
-                }
-            }
-        };
+        this.ui = Objects.requireNonNull(ui, "ui");
+        this.session = Objects.requireNonNull(session, "session");
     }
 
-    /**
-     * Starts listening for events on the given page. If a session is already
-     * running this call has no effect. This method will subscribe for raw
-     * events according to the enabled flags and begin dispatching them to the UI.
-     *
-     * @param page the Playwright page to attach to; must not be null
-     */
-    public synchronized void start(Page page) {
-        if (running) return;
-        if (page == null) throw new IllegalArgumentException("page must not be null");
-        try {
-            EnumMap<WDEventNames, Boolean> flags = session.getEventFlags();
-            appender = WDUiAppender.attachToPage(page, sink, WDEventWiringConfig.defaults(), flags);
-            running = true;
-            System.out.println("[EventService] start(Page) OK → starting worker");
-            startWorker();
-        } catch (Throwable t) {
-            running = false;
-            try { if (appender != null) appender.detachAll(); } catch (Throwable ignore) {}
-            appender = null;
-            System.err.println("[EventService] start(Page) failed: " + t);
-            throw t;
-        }
-    }
-
-    /**
-     * Starts listening for events on the given browser context. If a session is
-     * already running this call has no effect.
-     *
-     * @param context the browser context to attach to; must not be null
-     */
+    /** Startet Event-Wiring für einen BrowserContext. */
     public synchronized void start(BrowserContext context) {
-        if (running) return;
-        if (context == null) throw new IllegalArgumentException("context must not be null");
-        try {
-            EnumMap<WDEventNames, Boolean> flags = session.getEventFlags();
-            appender = WDUiAppender.attachToContext(context, sink, WDEventWiringConfig.defaults(), flags);
-            running = true;
-            System.out.println("[EventService] start(Context) OK → starting worker");
-            startWorker();
-        } catch (Throwable t) {
-            running = false;
-            try { if (appender != null) appender.detachAll(); } catch (Throwable ignore) {}
-            appender = null;
-            System.err.println("[EventService] start(Context) failed: " + t);
-            throw t;
+        stop(); // sicherstellen, dass nix doppelt hängt
+        if (context == null) return;
+
+        // mit aktuellen Flags und Default-Wiring verbinden
+        WDUiAppender a = WDUiAppender.attachToContext(
+                context,
+                sink,
+                WDEventWiringConfig.defaults(),
+                session.getEventFlags()
+        );
+        active.add(a);
+    }
+
+    /** Startet Event-Wiring für eine Page. */
+    public synchronized void start(Page page) {
+        stop();
+        if (page == null) return;
+
+        WDUiAppender a = WDUiAppender.attachToPage(
+                page,
+                sink,
+                WDEventWiringConfig.defaults(),
+                session.getEventFlags()
+        );
+        active.add(a);
+    }
+
+    /** Aktualisiert die Enable-Flags live auf allen aktiven Appendern. */
+    public synchronized void updateFlags(Map<WDEventNames, Boolean> flags) {
+        if (flags == null) return;
+        for (WDUiAppender a : active) {
+            try { a.update(new EnumMap<WDEventNames, Boolean>(flags)); } catch (Throwable ignore) {}
         }
     }
 
-    /**
-     * Stops listening for events and cleans up resources. This method will
-     * detach event listeners and stop the dispatch thread.
-     */
+    /** Trennt alle Event-Wirings. */
     public synchronized void stop() {
-        if (!running) return;
-        running = false;
-        // Detach from the Playwright page/context
-        if (appender != null) {
-            try {
-                appender.detachAll();
-            } catch (Throwable ignore) {
-                // nothing
-            }
-            appender = null;
+        for (WDUiAppender a : active) {
+            try { a.detachAll(); } catch (Throwable ignore) {}
         }
-        // Interrupt and join worker thread
-        if (workerThread != null) {
-            try {
-                workerThread.interrupt();
-                workerThread.join(200L);
-            } catch (InterruptedException ignore) {
-                Thread.currentThread().interrupt();
-            }
-            workerThread = null;
-        }
-        // Clear queue
-        queue.clear();
+        active.clear();
     }
 
-    /**
-     * Internal helper to start the dispatch thread. Consumes raw events from
-     * the internal queue, converts them into a Swing component, and posts
-     * updates to the EDT via {@link SwingUtilities#invokeLater(Runnable)}.
-     */
-    private void startWorker() {
-        workerThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (running && !Thread.currentThread().isInterrupted()) {
-                    try {
-                        RawEvent ev = queue.take();
-                        // Record the event on the session for later use (e.g. timing)
-                        session.recordRawEvent(ev.name, ev.payload);
-                        // Determine if the event should be displayed based on current flags
-                        WDEventNames type = WDEventNames.fromName(ev.name);
-                        boolean enabled = true;
-                        if (type != null) {
-                            EnumMap<WDEventNames, Boolean> flags = session.getEventFlags();
-                            Boolean f = flags.get(type);
-                            enabled = (f != null && f.booleanValue());
-                        }
-                        if (!enabled) {
-                            continue;
-                        }
-                        // Create a simple label for the event; a richer component could be created here
-                        JLabel label = new JLabel(String.valueOf(ev.payload));
-                        // Annotate the component with the event name for filtering in the UI
-                        label.putClientProperty("eventName", ev.name);
-                        final String name = ev.name;
-                        // Dispatch the component to the UI on the EDT
-                        javax.swing.SwingUtilities.invokeLater(new Runnable() {
-                            @Override
-                            public void run() {
-                                ui.appendEvent(name, label);
-                            }
-                        });
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    } catch (Throwable t) {
-                        // Ignore individual event processing errors
-                    }
+    // -----------------------------------------------------------------------------------------------------------------
+    // Kleine Hilfen, um die Meta-Zeile kompakt & nützlich zu machen
+    // -----------------------------------------------------------------------------------------------------------------
+
+    private static String summarize(String name, Object payload) {
+        // Standard: nur Eventname
+        String base = shortName(name);
+
+        // Versuche, bei network-Events eine URL/Status kurz anzuhängen
+        if (payload instanceof Map) {
+            Map<?,?> m = (Map<?,?>) payload;
+
+            if (name.startsWith("network.beforeRequestSent")) {
+                String url = deepStr(m, "request", "url");
+                if (url != null) return base + "  " + trimUrl(url);
+            }
+            if (name.startsWith("network.responseStarted")) {
+                String url = deepStr(m, "request", "url");
+                String status = deepStr(m, "response", "status");
+                if (url != null) return base + "  " + trimUrl(url) + (status != null ? "  [" + status + "]" : "");
+            }
+            if (name.startsWith("network.responseCompleted")) {
+                String url = deepStr(m, "request", "url");
+                String status = deepStr(m, "response", "status");
+                if (url != null) return base + "  " + trimUrl(url) + (status != null ? "  [" + status + "]" : "");
+            }
+            if (name.startsWith("log.entryAdded")) {
+                String text = deepStr(m, "text");
+                if (text == null) text = deepStr(m, "args", "0", "value");
+                if (text != null) return base + "  " + ellipsize(text, 160);
+            }
+            if (name.startsWith("browsingContext.")) {
+                String url = deepStr(m, "url");
+                if (url != null) return base + "  " + trimUrl(url);
+            }
+        }
+        return base;
+    }
+
+    private static String shortName(String name) {
+        // Kürzere Labels wie im UI (request/response/done/…)
+        WDEventNames ev = WDEventNames.fromName(name);
+        if (ev == null) return name;
+        switch (ev) {
+            case BEFORE_REQUEST_SENT: return "request";
+            case RESPONSE_STARTED:    return "response";
+            case RESPONSE_COMPLETED:  return "done";
+            case FETCH_ERROR:         return "error";
+            case DOM_CONTENT_LOADED:  return "dom";
+            case LOAD:                return "load";
+            case ENTRY_ADDED:         return "console";
+            case CONTEXT_CREATED:     return "ctx+";
+            case CONTEXT_DESTROYED:   return "ctx-";
+            case FRAGMENT_NAVIGATED:  return "hash";
+            case NAVIGATION_STARTED:  return "nav";
+            default: return ev.name().toLowerCase().replace('_',' ');
+        }
+    }
+
+    // --- kleine Map-Utils (tolerant) ---
+    @SuppressWarnings("unchecked")
+    private static String deepStr(Map<?,?> m, String... path) {
+        Object cur = m;
+        for (String k : path) {
+            if (!(cur instanceof Map)) return null;
+            cur = ((Map<?, ?>) cur).get(k);
+            if (cur == null) return null;
+        }
+        return String.valueOf(cur);
+    }
+
+    private static String trimUrl(String url) {
+        if (url == null) return null;
+        // nur Pfad + Query zeigen, Host weglassen (knapper)
+        try {
+            int idx = url.indexOf("://");
+            if (idx > 0) {
+                int slash = url.indexOf('/', idx + 3);
+                if (slash > 0 && slash < url.length()-1) {
+                    return url.substring(slash);
                 }
             }
-        }, "event-service-worker");
-        workerThread.setDaemon(true);
-        workerThread.start();
+        } catch (Throwable ignore) {}
+        return url;
     }
 
-    /**
-     * Updates the enabled flags for event subscription. Calling this method
-     * while the service is running will update the underlying appender's
-     * subscriptions so that newly enabled events begin producing entries and
-     * disabled events stop. The provided map is copied into an internal
-     * EnumMap; missing entries will be treated as {@code false}.
-     *
-     * @param newFlags the updated flag map; may be null to disable all
-     */
-    public synchronized void updateFlags(Map<WDEventNames, Boolean> newFlags) {
-        // The EventService delegates filtering to the session; however we still propagate
-        // updates to the underlying appender in case it respects flag changes (e.g. to
-        // avoid unnecessary wiring). Do not store flags locally.
-        if (appender != null && newFlags != null) {
-            appender.update(new EnumMap<WDEventNames, Boolean>(newFlags));
-        }
+    private static String ellipsize(String s, int max) {
+        if (s == null || s.length() <= max) return s;
+        return s.substring(0, Math.max(0, max - 1)) + "…";
     }
 }
