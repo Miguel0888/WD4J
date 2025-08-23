@@ -29,6 +29,17 @@ public final class RecorderEventController {
         @Override public void accept(String eventName, Object payload) {
             if (eventName == null) return;
 
+            // Pseudocode im Controller-Listener:
+            String ctxId  = WDEventContextExtractor.extractContextId(eventName, payload); // ToDo: Kann man meist nicht extrahieren, muss über page bezogen werden
+            String ucId   = WDEventContextExtractor.extractUserContextId(eventName, payload);
+
+            // Wenn du eine Context→UserContext-Map führst, kannst du ucId ggf. aus ctxId ableiten.
+            // Für den schnellen Fix reicht: wenn userContextFilter gesetzt ist, alles andere ignorieren
+            if (userContextFilter != null) {
+                if (ucId != null && !userContextFilter.equals(ucId)) return; // falscher User → ignorieren
+                // optionaler Fallback: wenn ucId fehlt, aber du ctx→uc gemappt hast, dort prüfen
+            }
+
             // 1) immer mitschreiben (für Timing/Analyse)
             session.recordRawEvent(eventName, payload);
 
