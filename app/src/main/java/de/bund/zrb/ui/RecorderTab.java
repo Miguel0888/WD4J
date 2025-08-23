@@ -164,6 +164,9 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
         // Leichter Event-Bridge-Service (Shim), der die Dispatcher-Events konsumiert
         this.recorderEventController = new RecorderEventController(this, session);
+        if (myUserContextId != null && !myUserContextId.isEmpty()) {
+            this.recorderEventController.setUserContextFilter(myUserContextId);
+        }
 
         // Checkboxen nach Registrierung erstellen
         SwingUtilities.invokeLater(this::buildEventCheckboxes);

@@ -16,6 +16,8 @@ import java.util.function.BiConsumer;
  */
 public final class RecorderEventController {
 
+    private volatile String userContextFilter;
+
     private final RecorderTabUi ui;
     private final RecordingSession session;
 
@@ -180,5 +182,10 @@ public final class RecorderEventController {
     private static String ellipsize(String s, int max) {
         if (s == null || s.length() <= max) return s;
         return s.substring(0, Math.max(0, max - 1)) + "…";
+    }
+
+    public RecorderEventController setUserContextFilter(String userContextId) {
+        this.userContextFilter = userContextId;
+        return this;
     }
 }
