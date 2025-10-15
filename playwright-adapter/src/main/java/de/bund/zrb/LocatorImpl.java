@@ -20,8 +20,6 @@ import de.bund.zrb.util.AdapterLocatorFactory;
 import de.bund.zrb.util.LocatorType;
 import de.bund.zrb.util.WebDriverUtil;
 
-import static de.bund.zrb.support.DomVisibilityScripts.*;
-
 import java.nio.file.Path;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -1008,6 +1006,7 @@ public class LocatorImpl implements Locator {
 
     @Override
     public void waitFor(WaitForOptions options) {
+        // Hole den Zielzustand und das Timeout
         WaitForSelectorState state = options != null && options.state != null
                 ? options.state
                 : WaitForSelectorState.VISIBLE;
@@ -1016,74 +1015,74 @@ public class LocatorImpl implements Locator {
                 : 30_000;
 
         long start = System.currentTimeMillis();
-        RuntimeException last = null;
 
+        // Retry-Loop mit 100ms-Polling
         while (true) {
             try {
-                // Resolve fresh handle each loop (PrimeFaces may reparent/replace nodes during open)
-                this.elementHandle = null;
                 resolveElementHandle();
-
-                boolean success = false;
-
-                switch (state) {
-                    case ATTACHED: {
-                        // If resolveElementHandle() succeeded, we are attached
-                        success = (elementHandle != null);
-                        break;
-                    }
-                    case VISIBLE: {
-                        // Use robust PF-aware visibility check
-                        Boolean v = WebDriverUtil.asBoolean(elementHandle.evaluate(IS_VISIBLE));
-                        success = Boolean.TRUE.equals(v);
-                        break;
-                    }
-                    case HIDDEN: {
-                        Boolean h = WebDriverUtil.asBoolean(elementHandle.evaluate(IS_HIDDEN));
-                        success = Boolean.TRUE.equals(h);
-                        break;
-                    }
-                    case DETACHED: {
-                        // Evaluate in element context can throw if detached; treat that as success
-                        try {
-                            Boolean attached = WebDriverUtil.asBoolean(
-                                    elementHandle.evaluate("function(){ return !!this.isConnected; }")
-                            );
-                            success = Boolean.FALSE.equals(attached);
-                        } catch (RuntimeException detachedNow) {
-                            success = true; // Element got detached between resolve and eval → desired state
-                        }
-                        break;
-                    }
-                    default:
-                        success = false;
-                }
-
-                if (success) {
-                    if (state == WaitForSelectorState.VISIBLE) {
-                        // Wait 2 frames to let transitions/animations (opacity/transform) settle
-                        elementHandle.evaluate(DOUBLE_RAF);
-                    }
-                    return;
-                }
             } catch (RuntimeException e) {
-                // If resolving/evaluating failed due to transient detach, keep polling unless timeout
-                last = e;
                 if (state == WaitForSelectorState.ATTACHED) {
-                    // For ATTACHED we expect resolve to succeed eventually; fall through to timeout logic
+                    // bei ATTACHED: Element ist einfach noch nicht da → nicht schlimm
+                } else {
+                    // bei anderen States: wenn resolve scheitert, kann kein Handle evaluiert werden
+                    if ((System.currentTimeMillis() - start) > timeout) {
+                        throw new RuntimeException("Timeout waiting for state: " + state, e);
+                    }
+                    sleepQuietly(100);
+                    continue;
                 }
             }
 
-            if ((System.currentTimeMillis() - start) > timeout) {
-                if (last != null) {
-                    throw new RuntimeException("Timeout waiting for state: " + state, last);
+            boolean success = false;
+
+            switch (state) {
+                case ATTACHED:
+                    success = elementHandle != null;
+                    break;
+
+                case VISIBLE:
+                    success = WebDriverUtil.asBoolean(elementHandle.evaluate(
+                            "function() { " +
+                                    "  const rect = this.getBoundingClientRect(); " +
+                                    "  return rect.width > 0 && rect.height > 0 && window.getComputedStyle(this).visibility !== 'hidden'; " +
+                                    "}"
+                    ));
+                    break;
+
+                case HIDDEN:
+                    success = WebDriverUtil.asBoolean(elementHandle.evaluate(
+                            "function() { " +
+                                    "  const rect = this.getBoundingClientRect(); " +
+                                    "  return rect.width === 0 || rect.height === 0 || window.getComputedStyle(this).visibility === 'hidden'; " +
+                                    "}"
+                    ));
+                    break;
+
+                case DETACHED:
+                    success = WebDriverUtil.asBoolean(elementHandle.evaluate(
+                            "function() { return !this.isConnected; }"
+                    ));
+                    break;
+            }
+
+            if (success) {
+                // 🆕 Stability-Wait (nur bei VISIBLE sinnvoll)
+                if (state == WaitForSelectorState.VISIBLE) {
+                    elementHandle.evaluate(
+                            "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+                    );
                 }
+                return;
+            }
+
+            if ((System.currentTimeMillis() - start) > timeout) {
                 throw new RuntimeException("Timeout waiting for state: " + state);
             }
 
             sleepQuietly(100);
         }
     }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Helper Methods
