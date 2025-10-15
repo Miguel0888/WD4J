@@ -1019,6 +1019,8 @@ public class LocatorImpl implements Locator {
         // Retry-Loop mit 100ms-Polling
         while (true) {
             try {
+                // Always re-resolve handle (PrimeFaces dialogs can reparent/replace nodes)
+                this.elementHandle = null; // <-- minimal fix: drop cached handle each iteration
                 resolveElementHandle();
             } catch (RuntimeException e) {
                 if (state == WaitForSelectorState.ATTACHED) {
@@ -1041,12 +1043,20 @@ public class LocatorImpl implements Locator {
                     break;
 
                 case VISIBLE:
-                    success = WebDriverUtil.asBoolean(elementHandle.evaluate(
-                            "function() { " +
-                                    "  const rect = this.getBoundingClientRect(); " +
-                                    "  return rect.width > 0 && rect.height > 0 && window.getComputedStyle(this).visibility !== 'hidden'; " +
-                                    "}"
-                    ));
+                    try {
+                        // Be robust against stale handles; also guard against display:none quickly
+                        success = WebDriverUtil.asBoolean(elementHandle.evaluate(
+                                "function() { " +
+                                        "  var s = window.getComputedStyle(this);" +
+                                        "  var rects = this.getClientRects();" +
+                                        "  return rects.length > 0 && s.visibility !== 'hidden' && s.display !== 'none'; " +
+                                        "}"
+                        ));
+                    } catch (RuntimeException stale) {
+                        // Handle likely invalid after PrimeFaces reparent; retry with fresh handle
+                        // Do not fail fast; just re-poll until timeout
+                        success = false;
+                    }
                     break;
 
                 case HIDDEN:
@@ -1066,7 +1076,7 @@ public class LocatorImpl implements Locator {
             }
 
             if (success) {
-                // 🆕 Stability-Wait (nur bei VISIBLE sinnvoll)
+                // Keep tiny stability wait for animations (only for VISIBLE)
                 if (state == WaitForSelectorState.VISIBLE) {
                     elementHandle.evaluate(
                             "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
@@ -1082,6 +1092,7 @@ public class LocatorImpl implements Locator {
             sleepQuietly(100);
         }
     }
+
 
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
