@@ -1040,14 +1040,24 @@ public class LocatorImpl implements Locator {
                     success = elementHandle != null;
                     break;
 
-                case VISIBLE:
+                case VISIBLE: {
+                    // 1) kurz in den Render-Loop yielden, damit DOM-Swaps committed werden
+                    yieldToPageIfPossible();
+
+                    // 2) force re-locate: nach DOM-Replacement kann die sharedId wechseln
+                    try { this.elementHandle = null; } catch (Throwable ignore) {}
+                    resolveElementHandle();
+
+                    // 3) Sichtbarkeit erneut auf dem FRISCHEN Handle prüfen
                     success = WebDriverUtil.asBoolean(elementHandle.evaluate(
                             "function() { " +
                                     "  const rect = this.getBoundingClientRect(); " +
-                                    "  return rect.width > 0 && rect.height > 0 && window.getComputedStyle(this).visibility !== 'hidden'; " +
+                                    "  const cs = window.getComputedStyle(this);" +
+                                    "  return rect.width > 0 && rect.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'; " +
                                     "}"
                     ));
                     break;
+                }
 
                 case HIDDEN:
                     success = WebDriverUtil.asBoolean(elementHandle.evaluate(
@@ -1087,6 +1097,20 @@ public class LocatorImpl implements Locator {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Helper Methods
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // ganz oben in LocatorImpl
+    private void yieldToPageIfPossible() {
+        try {
+            if (this.elementHandle != null) {
+                this.elementHandle.evaluate(
+                        "() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
+                );
+            }
+        } catch (RuntimeException ignore) {
+            // best effort
+        }
+    }
+
 
     public void waitForActionability(ActionabilityCheck check, double timeout) {
         resolveElementHandle();
