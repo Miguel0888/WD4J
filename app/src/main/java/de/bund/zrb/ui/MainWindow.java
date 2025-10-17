@@ -9,10 +9,7 @@ import de.bund.zrb.ui.commandframework.*;
 import de.bund.zrb.ui.commands.*;
 import de.bund.zrb.ui.commands.debug.ShowDomEventsCommand;
 import de.bund.zrb.ui.commands.debug.ShowSelectorsCommand;
-import de.bund.zrb.ui.commands.tools.CaptureScreenshotCommand;
-import de.bund.zrb.ui.commands.tools.LoginUserCommand;
-import de.bund.zrb.ui.commands.tools.NavigationHomeCommand;
-import de.bund.zrb.ui.commands.tools.ShowOtpDialogCommand;
+import de.bund.zrb.ui.commands.tools.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -159,6 +156,7 @@ public class MainWindow {
 
         commandRegistry.register(new CaptureScreenshotCommand());
         commandRegistry.register(new ShowOtpDialogCommand());
+        commandRegistry.register(new ShowGrowlTesterCommand());
         commandRegistry.register(new ShowSelectorsCommand(browserService));
         commandRegistry.register(new ShowDomEventsCommand(browserService));
 
