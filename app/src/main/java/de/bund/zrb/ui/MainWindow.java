@@ -51,7 +51,7 @@ public class MainWindow {
         // Menübaum aufbauen (nachdem alle Commands da sind!)
         JMenuBar mb = MenuTreeBuilder.buildMenuBar();
         // ---- "Ansicht" direkt rechts neben "Datei" ergänzen:
-        mb.add(buildViewMenu(), Math.min(1, mb.getMenuCount())); // Position 1 = rechts neben "Datei"
+//        mb.add(buildViewMenu(), Math.min(1, mb.getMenuCount())); // Position 1 = rechts neben "Datei"
         frame.setJMenuBar(mb);
 
         // ✅ Toolbar (Singleton-artig, ohne Param.)
@@ -137,6 +137,7 @@ public class MainWindow {
         // Vorhandene/alte Commands
         commandRegistry.register(new ShowShortcutConfigMenuCommand(frame));
         commandRegistry.register(new SettingsCommand());
+        commandRegistry.register(new RegexPresetsCommand());
         commandRegistry.register(new PlayTestSuiteCommand(tabbedPane));
         commandRegistry.register(new StopPlaybackCommand());
         commandRegistry.register(new StartRecordCommand());

@@ -21,6 +21,7 @@ public class SettingsService {
     private static final String SHORTCUT_FILE_NAME = "shortcut.json";
     private static final String TESTS_FILE_NAME = "tests.json";
     private static final String SETTINGS_FILE_NAME = "settings.json";
+    private static final String REGEX_FILE_NAME = "regex.json";
 
     private static SettingsService instance;
 
@@ -134,5 +135,9 @@ public class SettingsService {
 
     public void saveTests(Object data) {
         save(TESTS_FILE_NAME, data);
+    }
+
+    public static String getRegexFileName() {
+        return REGEX_FILE_NAME;
     }
 }

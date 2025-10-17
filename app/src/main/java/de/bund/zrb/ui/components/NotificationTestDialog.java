@@ -5,6 +5,7 @@ import de.bund.zrb.dto.GrowlNotification;
 import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.service.NotificationService;
 import de.bund.zrb.service.ToolsRegistry;
+import de.bund.zrb.service.RegexPatternRegistry;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -25,6 +26,7 @@ import java.util.function.Consumer;
  * - Timeout in seconds (double) with 10.0s step; converts to ms internally.
  * - "Await + groups" returns and displays all capture groups from the message-regex.
  * - Clear history directly from the dialog.
+ * - Load regex presets from RegexPatternRegistry (regex.json).
  */
 public class NotificationTestDialog extends JDialog {
 
@@ -46,25 +48,6 @@ public class NotificationTestDialog extends JDialog {
     private static final String[] COLS = {"Zeit", "Type", "Title", "Message", "Context"};
     private static final SimpleDateFormat TS_FMT = new SimpleDateFormat("HH:mm:ss.SSS");
 
-    // Presets for regex dropdowns (editable)
-    private static final String[] TITLE_PRESETS = new String[] {
-            ".*",
-            "(?i).*success.*",
-            "(?i).*warning.*",
-            "(?i).*error.*",
-            "(?i).*fatal.*"
-    };
-    private static final String[] MESSAGE_PRESETS = new String[] {
-            ".*",
-            "(?s).*",                  // DOTALL
-            "(?i).*erfolg.*",          // deutsch "Erfolg"
-            "(?i).*fehler.*",          // deutsch "Fehler"
-            ".*\\d+.*",                // enthält Zahl
-            "(?i).*gespeichert.*",
-            "(?i).*nicht gefunden.*",
-            "(?i).*berechtigt.*"
-    };
-
     public NotificationTestDialog(Window parent) {
         super(parent, "Growl/Notification-Tester", ModalityType.MODELESS);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -74,8 +57,10 @@ public class NotificationTestDialog extends JDialog {
         // --- Controls ---
         cbSeverity = new JComboBox<String>(new String[]{"ANY","INFO","WARN","ERROR","FATAL"});
 
-        cbTitleRegex = createEditableRegexCombo(TITLE_PRESETS, 48);
-        cbMessageRegex = createEditableRegexCombo(MESSAGE_PRESETS, 64);
+        // Load presets from registry (falls leer, liefert Registry Defaults)
+        RegexPatternRegistry reg = RegexPatternRegistry.getInstance();
+        cbTitleRegex   = createEditableRegexCombo(reg.getTitlePresets(), 48);
+        cbMessageRegex = createEditableRegexCombo(reg.getMessagePresets(), 64);
 
         spTimeoutSeconds = new JSpinner(new SpinnerNumberModel(30.0d, 0.1d, 3600.0d, 10.0d)); // step 10s
         ((JSpinner.DefaultEditor) spTimeoutSeconds.getEditor()).getTextField().setColumns(6);
@@ -355,16 +340,19 @@ public class NotificationTestDialog extends JDialog {
 
     // ---------- Utilities ----------
 
-    /** Create an editable regex combo with sensible presets. */
-    private static JComboBox<String> createEditableRegexCombo(String[] presets, int columns) {
-        JComboBox<String> cb = new JComboBox<String>(presets);
+    /** Create an editable regex combo with provided presets and preferred editor width. */
+    private static JComboBox<String> createEditableRegexCombo(java.util.List<String> presets, int columns) {
+        java.util.List<String> src = (presets == null || presets.isEmpty())
+                ? java.util.Arrays.asList(".*")
+                : presets;
+
+        JComboBox<String> cb = new JComboBox<String>(src.toArray(new String[src.size()]));
         cb.setEditable(true);
-        // Widen editor
         Component editorComp = cb.getEditor().getEditorComponent();
         if (editorComp instanceof JTextField) {
             ((JTextField) editorComp).setColumns(columns);
         }
-        // Ensure we do not auto-replace user input on focus changes
+        // Keep explicit editor to avoid focus-based resets
         cb.setEditor(new BasicComboBoxEditor());
         return cb;
     }
