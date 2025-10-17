@@ -8,10 +8,7 @@ import de.bund.zrb.type.script.WDChannel;
 import de.bund.zrb.type.script.WDChannelValue;
 import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
 import de.bund.zrb.type.script.WDRemoteValue;
-
-// Nur für Preload-Registrierung (Channel-Bindung)
 import de.bund.zrb.support.ScriptHelper;
-
 
 import java.util.Map;
 import java.util.Set;
@@ -26,64 +23,59 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 /**
- * Install the growl preload script in the constructor, subscribe via onMessage,
- * filter by channel string only, map DTO like RecorderService, keep history,
- * notify listeners and sinks, and support await(..) with consumption.
+ * Install the growl preload script, subscribe via onMessage, process notifications in two phases:
+ *  A) matchers/await + programmatic handlers (may consume)
+ *  B) unhandled sinks (e.g., Swing popup) if nothing consumed
+ * Always record every event into history and notify snapshot listeners.
  */
 public final class NotificationService {
 
     private static final String GROWL_CHANNEL = "notification-events-channel";
     private static final String GROWL_SCRIPT_PATH = "scripts/primeFacesGrowl.js";
+    private static final int MAX_HISTORY = 1000;
 
-    // One instance per BrowserImpl
     private static final Map<BrowserImpl, NotificationService> INSTANCES =
             new WeakHashMap<BrowserImpl, NotificationService>();
-
-    // Track per-browser preload installation to avoid duplicates
     private static final Set<BrowserImpl> PRELOAD_INSTALLED =
             Collections.newSetFromMap(new WeakHashMap<BrowserImpl, Boolean>());
 
     private final BrowserImpl browser;
 
-    // Single-item sinks (UI/logs)
-    private final List<Consumer<GrowlNotification>> sinks = new CopyOnWriteArrayList<Consumer<GrowlNotification>>();
-    // Snapshot listeners (e.g., NotificationTestDialog)
+    // Phase A: programmatic handlers that may consume events
+    private final List<Predicate<GrowlNotification>> handlers = new CopyOnWriteArrayList<Predicate<GrowlNotification>>();
+    // Phase B: unhandled sinks (only called when no one consumed)
+    private final List<Consumer<GrowlNotification>> unhandledSinks = new CopyOnWriteArrayList<Consumer<GrowlNotification>>();
+    // Snapshot listeners for tool UI
     private final List<Consumer<List<GrowlNotification>>> listeners = new CopyOnWriteArrayList<Consumer<List<GrowlNotification>>>();
 
-    // History of notifications
+    // History
     private final List<GrowlNotification> history = new ArrayList<GrowlNotification>();
-    private static final int MAX_HISTORY = 1000;
 
-    // Consumed keys to suppress popups after await(..)
-    private final Set<String> consumed = ConcurrentHashMap.newKeySet();
-    // Await waiters
+    // Await waiters + consumed keys
     private final List<Waiter> waiters = new CopyOnWriteArrayList<Waiter>();
+    private final Set<String> consumed = ConcurrentHashMap.newKeySet();
 
     private NotificationService(final BrowserImpl browser) {
         if (browser == null) throw new IllegalArgumentException("browser must not be null");
         this.browser = browser;
 
-        // 1) Ensure preload is installed (idempotent; per browser)
         ensurePreloadInstalled(browser);
-
-        // 2) Subscribe to message bus; filter purely by channel string
+        // Subscribe to the message bus
         this.browser.onMessage(new Consumer<WDScriptEvent.MessageWD>() {
             @Override
             public void accept(WDScriptEvent.MessageWD message) {
                 try {
                     if (message == null || message.getParams() == null) return;
-
                     String channelValue = null;
                     try {
                         channelValue = message.getParams().getChannel() == null
                                 ? null
                                 : message.getParams().getChannel().value();
-                    } catch (Throwable ignore) {
-                        // leave null
-                    }
+                    } catch (Throwable ignore) { }
                     if (!GROWL_CHANNEL.equals(channelValue)) return;
 
                     GrowlNotification dto = parseFromMessage(message);
@@ -101,25 +93,16 @@ public final class NotificationService {
     private static synchronized void ensurePreloadInstalled(BrowserImpl browser) {
         if (browser == null) return;
         if (PRELOAD_INSTALLED.contains(browser)) return;
-
         try {
-            // Load script source
             String source = ScriptHelper.loadScript(GROWL_SCRIPT_PATH);
-
-            // Register preload against the growl channel
-            // Note: We must provide a WDChannelValue so the runtime routes messages to that channel.
             browser.getScriptManager().addPreloadScript(
                     source,
                     java.util.Collections.singletonList(
-                            new WDChannelValue(
-                                    new WDChannelValue.ChannelProperties(new WDChannel(GROWL_CHANNEL))
-                            )
+                            new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(GROWL_CHANNEL)))
                     )
             );
-
             PRELOAD_INSTALLED.add(browser);
         } catch (Throwable t) {
-            // Fail safe but be loud in logs to catch misconfiguration
             System.err.println("[NotificationService] Failed to install growl preload: " + t.getMessage());
         }
     }
@@ -140,43 +123,46 @@ public final class NotificationService {
         return getInstance(page.getBrowser());
     }
 
-    // ---------- Public API ----------
+    // ---------- Public API: two-phase processing hooks ----------
 
-    /** Register a sink receiving every single notification (e.g., popup util). */
+    /** Register a programmatic handler. Return true to consume the event and stop phase B. */
+    public void addHandler(Predicate<GrowlNotification> handler) {
+        if (handler != null) handlers.add(handler);
+    }
+    public void removeHandler(Predicate<GrowlNotification> handler) { handlers.remove(handler); }
+
+    /** Register an unhandled sink (called only if nothing consumed in phase A). */
     public void addSink(Consumer<GrowlNotification> sink) {
-        if (sink != null) sinks.add(sink);
+        if (sink != null) unhandledSinks.add(sink);
     }
+    public void removeSink(Consumer<GrowlNotification> sink) { unhandledSinks.remove(sink); }
 
-    public void removeSink(Consumer<GrowlNotification> sink) {
-        sinks.remove(sink);
-    }
-
-    /** Register a snapshot listener (NotificationTestDialog). Immediately push current snapshot. */
+    /** Register a snapshot listener (tool window). Push current snapshot immediately. */
     public void addListener(Consumer<List<GrowlNotification>> listener) {
         if (listener == null) return;
         listeners.add(listener);
-        // Push current snapshot on register
         listener.accept(getAll());
     }
-
-    public void removeListener(Consumer<List<GrowlNotification>> listener) {
-        listeners.remove(listener);
-    }
+    public void removeListener(Consumer<List<GrowlNotification>> listener) { listeners.remove(listener); }
 
     /** Return a defensive copy of the current history snapshot. */
     public List<GrowlNotification> getAll() {
-        synchronized (this) {
-            return new ArrayList<GrowlNotification>(history);
-        }
+        synchronized (this) { return new ArrayList<GrowlNotification>(history); }
     }
 
-    /** Tell whether the notification is not consumed (so popup may show). */
+    /** Clear history and notify listeners. */
+    public void clearHistory() {
+        synchronized (this) { history.clear(); }
+        notifySnapshotListeners();
+    }
+
+    /** Optional: tell whether popup may show (kept for compatibility). */
     public boolean shouldPopup(GrowlNotification n) {
         return !consumed.contains(keyOf(n));
     }
 
     /**
-     * Wait for first matching notification and consume it to suppress UI.
+     * Wait for first matching notification and consume it to suppress phase B.
      * severity may be null, title/message are regex or null.
      */
     public GrowlNotification await(String severity,
@@ -200,37 +186,57 @@ public final class NotificationService {
         }
     }
 
-    // ---------- Pipeline ----------
+    // ---------- Pipeline (two phases) ----------
 
     private void onIncoming(GrowlNotification n) {
-        // 0) Update history first (so snapshot includes this event)
+        // Always record into history first
         synchronized (this) {
             history.add(n);
-            // Trim if beyond cap
             if (history.size() > MAX_HISTORY) {
                 int excess = history.size() - MAX_HISTORY;
-                for (int i = 0; i < excess; i++) {
-                    history.remove(0);
-                }
+                for (int i = 0; i < excess; i++) history.remove(0);
             }
         }
 
-        // 1) Wake waiters and consume on match
+        boolean consumedByA = false;
+
+        // Phase A1: await waiters
         for (Waiter w : waiters) {
             if (!w.done.get() && w.matches(n)) {
                 w.matched = n;
                 w.done.set(true);
-                if (w.consume) consumed.add(keyOf(n));
+                if (w.consume) {
+                    consumed.add(keyOf(n)); // mark this exact event as consumed
+                    consumedByA = true;
+                }
                 w.latch.countDown();
             }
         }
 
-        // 2) Fan-out to single-item sinks
-        for (Consumer<GrowlNotification> sink : sinks) {
-            try { sink.accept(n); } catch (Throwable ignore) { }
+        // Phase A2: programmatic handlers
+        if (!consumedByA) {
+            for (Predicate<GrowlNotification> h : handlers) {
+                try {
+                    if (h != null && h.test(n)) {
+                        consumed.add(keyOf(n));
+                        consumedByA = true;
+                        break; // stop at first consumer
+                    }
+                } catch (Throwable ignore) { }
+            }
         }
 
-        // 3) Notify snapshot listeners with a fresh copy
+        // Phase B: unhandled sinks only if nothing consumed
+        if (!consumedByA) {
+            for (Consumer<GrowlNotification> sink : unhandledSinks) {
+                try { sink.accept(n); } catch (Throwable ignore) { }
+            }
+        }
+
+        notifySnapshotListeners();
+    }
+
+    private void notifySnapshotListeners() {
         List<GrowlNotification> snap = getAll();
         for (Consumer<List<GrowlNotification>> l : listeners) {
             try { l.accept(snap); } catch (Throwable ignore) { }
@@ -239,14 +245,6 @@ public final class NotificationService {
 
     // ---------- Mapping (RecorderService-Stil) ----------
 
-    /**
-     * Expect params.data:
-     * {
-     *   "type": "growl-event",
-     *   "data": { "type": "INFO|WARN|ERROR|FATAL", "title": "...", "message": "...", "timestamp": <string|number> },
-     *   "contextId": "..."? // optional
-     * }
-     */
     public static GrowlNotification parseFromMessage(WDScriptEvent.MessageWD message) {
         if (message == null || message.getParams() == null) return null;
 
@@ -258,7 +256,6 @@ public final class NotificationService {
         WDRemoteValue.ObjectRemoteValue dataObj = null;
         String contextId = null;
 
-        // Iterate envelope like RecorderService
         for (Map.Entry<WDRemoteValue, WDRemoteValue> e : env.getValue().entrySet()) {
             if (!(e.getKey() instanceof WDPrimitiveProtocolValue.StringValue)) continue;
             String key = ((WDPrimitiveProtocolValue.StringValue) e.getKey()).getValue();
@@ -282,7 +279,6 @@ public final class NotificationService {
         GrowlNotification dto = new GrowlNotification();
         String ts = null;
 
-        // Iterate nested data object
         for (Map.Entry<WDRemoteValue, WDRemoteValue> e : dataObj.getValue().entrySet()) {
             if (!(e.getKey() instanceof WDPrimitiveProtocolValue.StringValue)) continue;
             String key = ((WDPrimitiveProtocolValue.StringValue) e.getKey()).getValue();
@@ -314,9 +310,12 @@ public final class NotificationService {
         }
 
         dto.timestamp = parseLong(ts);
+        if (dto.timestamp == 0L) {
+            // Fallback for safety if script forgot timestamp
+            dto.timestamp = System.currentTimeMillis();
+        }
         dto.contextId = contextId;
 
-        // At least one of title/message required
         if ((dto.title == null || dto.title.length() == 0) &&
                 (dto.message == null || dto.message.length() == 0)) {
             return null;
@@ -325,13 +324,15 @@ public final class NotificationService {
     }
 
     // ---------- Helpers ----------
+
     private static String keyOf(GrowlNotification n) {
+        // Include timestamp to distinguish equal text events in time
         StringBuilder b = new StringBuilder();
         b.append(n.contextId == null ? "" : n.contextId).append('|');
         b.append(n.type == null ? "" : n.type).append('|');
         b.append(n.title == null ? "" : n.title).append('|');
         b.append(n.message == null ? "" : n.message).append('|');
-        b.append(n.timestamp); // << include timestamp to identify a single emission
+        b.append(n.timestamp);
         return b.toString();
     }
 

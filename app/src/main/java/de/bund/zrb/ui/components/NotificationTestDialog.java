@@ -8,14 +8,22 @@ import de.bund.zrb.service.ToolsRegistry;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.event.KeyEvent;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
+/**
+ * Visualize growl notifications, await patterns, and manage history.
+ * - Show live stream in a table (auto-refresh via service listener).
+ * - Await notifications with regex filters; optionally extract capture groups.
+ * - Clear history directly from the dialog.
+ */
 public class NotificationTestDialog extends JDialog {
 
     private final JComboBox<String> cbSeverity;
@@ -25,6 +33,7 @@ public class NotificationTestDialog extends JDialog {
     private final JSpinner spGroupIdx;
     private final JButton btnAwait;
     private final JButton btnAwaitAndExtract;
+    private final JButton btnClear;
 
     private final JTable table;
     private final DefaultTableModel model;
@@ -39,83 +48,157 @@ public class NotificationTestDialog extends JDialog {
     public NotificationTestDialog(Window parent) {
         super(parent, "Growl/Notification-Tester", ModalityType.MODELESS);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setMinimumSize(new Dimension(1000, 520));
+        setMinimumSize(new Dimension(1120, 560));
         setLocationRelativeTo(parent);
 
-        // --- Top (Filter/Actions)
-        JPanel top = new JPanel(new GridBagLayout());
-        top.setBorder(new EmptyBorder(10,10,10,10));
-        GridBagConstraints gc = new GridBagConstraints();
-        gc.insets = new Insets(4,4,4,4);
-        gc.anchor = GridBagConstraints.WEST;
-
-        cbSeverity = new JComboBox<>(new String[]{"ANY","INFO","WARN","ERROR","FATAL"});
-
-        tfTitleRegex = new JTextField();
-        tfTitleRegex.setColumns(24); // breiter
-        tfMessageRegex = new JTextField();
-        tfMessageRegex.setColumns(48); // noch breiter
-
-        spTimeoutMs = new JSpinner(new SpinnerNumberModel(30_000, 100, 300_000, 500));
-        spGroupIdx = new JSpinner(new SpinnerNumberModel(1, 0, 99, 1));
+        // --- Controls ---
+        cbSeverity = new JComboBox<String>(new String[]{"ANY","INFO","WARN","ERROR","FATAL"});
+        tfTitleRegex = new JTextField(28);
+        tfMessageRegex = new JTextField(56);
+        spTimeoutMs = new JSpinner(new SpinnerNumberModel(30_000, 100, 600_000, 500));
+        spGroupIdx  = new JSpinner(new SpinnerNumberModel(1, 0, 99, 1));
         btnAwait = new JButton("Await");
         btnAwaitAndExtract = new JButton("Await + extract group");
+        btnClear = new JButton("Clear history");
 
-        int col = 0;
-        // Zeile 1
-        gc.gridy = 0;
+        // --- Layout root ---
+        final JPanel root = new JPanel(new BorderLayout(0, 0));
+        root.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        gc.gridx = col++;                          top.add(new JLabel("Severity:"), gc);
-        gc.gridx = col++;                          top.add(cbSeverity, gc);
+        // Top (filters + actions)
+        root.add(buildNorthPanel(), BorderLayout.NORTH);
 
-        gc.gridx = col++;                          top.add(new JLabel("Title-Regex:"), gc);
-        gc.gridx = col; gc.gridwidth = 2;
-        gc.fill = GridBagConstraints.HORIZONTAL; gc.weightx = 0.4;
-        top.add(tfTitleRegex, gc);
-        col += 2;
-
-        gc.gridx = col++; gc.gridwidth = 1; gc.fill = GridBagConstraints.NONE; gc.weightx = 0;
-        top.add(new JLabel("Timeout (ms):"), gc);
-        gc.gridx = col++;                          top.add(spTimeoutMs, gc);
-
-        // Zeile 2
-        col = 0; gc.gridy = 1;
-
-        gc.gridx = col++;                          top.add(btnAwait, gc);
-        gc.gridx = col++;                          top.add(btnAwaitAndExtract, gc);
-
-        gc.gridx = col++;                          top.add(new JLabel("Message-Regex:"), gc);
-        gc.gridx = col; gc.gridwidth = 3;
-        gc.fill = GridBagConstraints.HORIZONTAL; gc.weightx = 0.6;
-        top.add(tfMessageRegex, gc);
-        col += 3;
-
-        gc.gridx = col++; gc.gridwidth = 1; gc.fill = GridBagConstraints.NONE; gc.weightx = 0;
-        top.add(new JLabel("Group #"), gc);
-        gc.gridx = col++;                          top.add(spGroupIdx, gc);
-
-        // --- Center / Bottom wie gehabt ...
-        model = new DefaultTableModel(COLS, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
+        // Center (table)
+        model = new DefaultTableModel(COLS, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
         table = new JTable(model);
-        table.setAutoCreateRowSorter(true);
-        JScrollPane scroll = new JScrollPane(table);
+        configureTable(table);
+        root.add(new JScrollPane(table), BorderLayout.CENTER);
 
+        // Status bar
         lbStatus = new JLabel("Bereit.");
-        lbStatus.setBorder(new EmptyBorder(6,10,10,10));
+        lbStatus.setBorder(new EmptyBorder(8, 2, 2, 2));
+        root.add(lbStatus, BorderLayout.SOUTH);
 
-        getContentPane().setLayout(new BorderLayout());
-        getContentPane().add(top, BorderLayout.NORTH);
-        getContentPane().add(scroll, BorderLayout.CENTER);
-        getContentPane().add(lbStatus, BorderLayout.SOUTH);
+        setContentPane(root);
 
-        resolveServiceForActivePage();
-        hookLiveUpdates();
-
+        // Wire actions
         btnAwait.addActionListener(e -> doAwait(false));
         btnAwaitAndExtract.addActionListener(e -> doAwait(true));
+        btnClear.addActionListener(e -> {
+            if (service != null) {
+                service.clearHistory();
+                lbStatus.setText("History gelöscht.");
+            }
+        });
+
+        // ESC → close
+        installEscToClose();
+
+        // Resolve & subscribe
+        resolveServiceForActivePage();
+        hookLiveUpdates();
     }
 
-    // --- Resolve NotificationService für aktive Page
+    // ---------- UI building ----------
+
+    private JPanel buildNorthPanel() {
+        JPanel north = new JPanel(new BorderLayout(8, 8));
+
+        // Filters panel (left)
+        JPanel filters = new JPanel(new GridBagLayout());
+        filters.setBorder(new TitledBorder("Filter"));
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.insets = new Insets(4, 6, 4, 6);
+        gc.anchor = GridBagConstraints.WEST;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+
+        int col = 0; int row = 0;
+
+        // Row 0
+        gc.gridy = row; gc.gridx = col++; gc.weightx = 0;
+        filters.add(new JLabel("Severity:"), gc);
+        gc.gridx = col++; gc.weightx = 0.2;
+        filters.add(cbSeverity, gc);
+
+        gc.gridx = col++; gc.weightx = 0;
+        filters.add(new JLabel("Title-Regex:"), gc);
+        gc.gridx = col++; gc.weightx = 0.4;
+        filters.add(tfTitleRegex, gc);
+
+        gc.gridx = col++; gc.weightx = 0;
+        filters.add(new JLabel("Timeout (ms):"), gc);
+        gc.gridx = col++; gc.weightx = 0.2;
+        filters.add(spTimeoutMs, gc);
+
+        // Row 1
+        col = 0; row++;
+        gc.gridy = row; gc.gridx = col++; gc.weightx = 0;
+        filters.add(new JLabel("Message-Regex:"), gc);
+        gc.gridx = col++; gc.gridwidth = 3; gc.weightx = 0.8;
+        filters.add(tfMessageRegex, gc);
+        gc.gridwidth = 1;
+
+        gc.gridx = col + 3; gc.weightx = 0;
+        filters.add(new JLabel("Group #"), gc);
+        gc.gridx = col + 4; gc.weightx = 0.2;
+        filters.add(spGroupIdx, gc);
+
+        // Actions panel (right)
+        JPanel actions = new JPanel(new GridBagLayout());
+        actions.setBorder(new TitledBorder("Aktionen"));
+        GridBagConstraints ac = new GridBagConstraints();
+        ac.insets = new Insets(6, 6, 6, 6);
+        ac.anchor = GridBagConstraints.NORTHWEST;
+        ac.fill = GridBagConstraints.HORIZONTAL;
+        ac.weightx = 1.0;
+
+        int arow = 0;
+        ac.gridx = 0; ac.gridy = arow++;
+        actions.add(btnAwait, ac);
+        ac.gridx = 0; ac.gridy = arow++;
+        actions.add(btnAwaitAndExtract, ac);
+
+        ac.gridx = 0; ac.gridy = arow++; ac.insets = new Insets(16, 6, 6, 6);
+        actions.add(btnClear, ac);
+
+        north.add(filters, BorderLayout.CENTER);
+        north.add(actions, BorderLayout.EAST);
+        return north;
+    }
+
+    private static void configureTable(JTable t) {
+        // Use nicer row height and turn on grid subtly
+        t.setRowHeight(22);
+        t.setFillsViewportHeight(true);
+        t.setAutoCreateRowSorter(true);
+        t.setAutoResizeMode(JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS);
+
+        // Prefer readable widths
+        if (t.getColumnModel().getColumnCount() >= 5) {
+            t.getColumnModel().getColumn(0).setPreferredWidth(110);  // Zeit
+            t.getColumnModel().getColumn(1).setPreferredWidth(70);   // Type
+            t.getColumnModel().getColumn(2).setPreferredWidth(220);  // Title
+            t.getColumnModel().getColumn(3).setPreferredWidth(520);  // Message
+            t.getColumnModel().getColumn(4).setPreferredWidth(140);  // Context
+        }
+    }
+
+    private void installEscToClose() {
+        // Map ESC to dispose
+        getRootPane().registerKeyboardAction(
+                e -> dispose(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+        // Make default button helpful
+        getRootPane().setDefaultButton(btnAwait);
+    }
+
+    // ---------- Service wiring ----------
+
+    /** Resolve NotificationService for the active page and prime the table. */
     private void resolveServiceForActivePage() {
         PageImpl active = BrowserServiceImpl.getInstance().getBrowser().getActivePage();
         if (active == null) {
@@ -123,15 +206,22 @@ public class NotificationTestDialog extends JDialog {
             return;
         }
         service = NotificationService.getInstance(active);
-        // initiale Füllung
         List<GrowlNotification> all = service.getAll();
-        SwingUtilities.invokeLater(() -> refill(all));
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override public void run() { refill(all); }
+        });
     }
 
-    // --- Live-Listener registrieren
+    /** Subscribe as snapshot listener and auto-unsubscribe on close. */
     private void hookLiveUpdates() {
         if (service == null) return;
-        listenerRef = (snapshot) -> SwingUtilities.invokeLater(() -> refill(snapshot));
+        listenerRef = new Consumer<List<GrowlNotification>>() {
+            @Override public void accept(final List<GrowlNotification> snapshot) {
+                SwingUtilities.invokeLater(new Runnable() {
+                    @Override public void run() { refill(snapshot); }
+                });
+            }
+        };
         service.addListener(listenerRef);
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override public void windowClosed(java.awt.event.WindowEvent e) {
@@ -139,6 +229,8 @@ public class NotificationTestDialog extends JDialog {
             }
         });
     }
+
+    // ---------- Data binding ----------
 
     private void refill(List<GrowlNotification> list) {
         model.setRowCount(0);
@@ -149,23 +241,30 @@ public class NotificationTestDialog extends JDialog {
             });
         }
         lbStatus.setText("Meldungen: " + list.size());
+        // Auto-select last row for convenience
+        if (model.getRowCount() > 0) {
+            int last = model.getRowCount() - 1;
+            table.getSelectionModel().setSelectionInterval(last, last);
+            table.scrollRectToVisible(table.getCellRect(last, 0, true));
+        }
     }
 
-    // --- Await-Aktionen (läuft im Worker)
-    private void doAwait(boolean extractGroup) {
-        // ANY → null; leere Felder → null
+    // ---------- Await flow (runs in background) ----------
+
+    private void doAwait(final boolean extractGroup) {
+        // ANY → null; empty fields → null
         String sev = (String) cbSeverity.getSelectedItem();
         if ("ANY".equals(sev)) sev = null;
 
-        String titleRx = normalizeRegex(tfTitleRegex.getText());
-        String msgRx   = normalizeRegex(tfMessageRegex.getText());
-        long timeout   = ((Number) spTimeoutMs.getValue()).longValue();
-        int groupIdx   = ((Number) spGroupIdx.getValue()).intValue();
+        final String titleRx = normalizeRegex(tfTitleRegex.getText());
+        final String msgRx   = normalizeRegex(tfMessageRegex.getText());
+        final long timeout   = ((Number) spTimeoutMs.getValue()).longValue();
+        final int groupIdx   = ((Number) spGroupIdx.getValue()).intValue();
 
         btnAwait.setEnabled(false);
         btnAwaitAndExtract.setEnabled(false);
 
-        // Statusanzeige: was matchen wir gerade?
+        // Update status
         String status = "Warte auf Notification – "
                 + "severity=" + (sev == null ? "ANY" : sev)
                 + ", titleRx=" + (titleRx == null ? "∅" : "/" + titleRx + "/")
@@ -173,18 +272,16 @@ public class NotificationTestDialog extends JDialog {
                 + ", timeout=" + timeout + "ms";
         lbStatus.setText(status);
 
-        String finalSev = sev;
+        final String finalSev = sev;
         new SwingWorker<Object, Void>() {
             @Override protected Object doInBackground() throws Exception {
                 if (extractGroup) {
-                    // Falls keine Message-Regex angegeben: alles matchen und Gruppe 1 extrahieren (meist sinnfrei),
-                    // aber damit blockiert es nicht „unmöglich“:
                     String rx = (msgRx != null ? msgRx : "(.+)");
-                    return de.bund.zrb.service.ToolsRegistry.getInstance()
+                    return ToolsRegistry.getInstance()
                             .notificationTool()
                             .awaitAndExtractGroup(rx, groupIdx, timeout);
                 } else {
-                    return de.bund.zrb.service.ToolsRegistry.getInstance()
+                    return ToolsRegistry.getInstance()
                             .notificationTool()
                             .await(finalSev, titleRx, msgRx, timeout);
                 }
@@ -206,10 +303,6 @@ public class NotificationTestDialog extends JDialog {
                                 "[" + n.type + "] " + n.title + "\n" + n.message,
                                 "Await: Treffer", mapSwingType(n.type));
                         lbStatus.setText("Await beendet.");
-                        if (model.getRowCount() > 0) {
-                            table.getSelectionModel().setSelectionInterval(model.getRowCount() - 1, model.getRowCount() - 1);
-                            table.scrollRectToVisible(table.getCellRect(model.getRowCount() - 1, 0, true));
-                        }
                     }
                 } catch (ExecutionException ex) {
                     Throwable cause = ex.getCause();
@@ -219,7 +312,8 @@ public class NotificationTestDialog extends JDialog {
                         lbStatus.setText("Timeout.");
                     } else {
                         JOptionPane.showMessageDialog(NotificationTestDialog.this,
-                                "Fehler: " + cause.getMessage(), "Await", JOptionPane.ERROR_MESSAGE);
+                                "Fehler: " + (cause == null ? ex.getMessage() : cause.getMessage()),
+                                "Await", JOptionPane.ERROR_MESSAGE);
                         lbStatus.setText("Fehler.");
                     }
                 } catch (InterruptedException ie) {
@@ -229,6 +323,8 @@ public class NotificationTestDialog extends JDialog {
             }
         }.execute();
     }
+
+    // ---------- Utilities ----------
 
     private static int mapSwingType(String sev) {
         String s = sev == null ? "" : sev.toUpperCase();
@@ -240,9 +336,9 @@ public class NotificationTestDialog extends JDialog {
     private static String emptyToNull(String s) {
         return (s == null || s.trim().isEmpty()) ? null : s.trim();
     }
+
     private static String normalizeRegex(String s) {
-        // trims; komplett leer → null (→ match all)
-        s = emptyToNull(s);
-        return s;
+        // Trim and turn empty into null → match-all semantics
+        return emptyToNull(s);
     }
 }

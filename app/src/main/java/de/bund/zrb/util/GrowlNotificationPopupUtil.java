@@ -10,7 +10,7 @@ import java.util.WeakHashMap;
 import java.util.Collections;
 import java.util.function.Consumer;
 
-/** Show Swing dialogs only for non-consumed notifications. */
+/** Show Swing dialogs only for unhandled notifications (phase B). */
 public final class GrowlNotificationPopupUtil {
 
     private GrowlNotificationPopupUtil() {}
@@ -18,25 +18,23 @@ public final class GrowlNotificationPopupUtil {
     private static final Set<BrowserImpl> HOOKED =
             Collections.newSetFromMap(new WeakHashMap<BrowserImpl, Boolean>());
 
-    /** Register once per browser. */
     public static synchronized void hook(final BrowserImpl browser) {
         if (browser == null) return;
         if (HOOKED.contains(browser)) return;
         HOOKED.add(browser);
 
         final NotificationService svc = NotificationService.getInstance(browser);
+
+        // Register as unhandled sink; service only calls us if nothing consumed it in phase A
         svc.addSink(new Consumer<GrowlNotification>() {
             @Override
-            public void accept(GrowlNotification n) {
-                if (!svc.shouldPopup(n)) return;
+            public void accept(final GrowlNotification n) {
                 final String caption = "PrimeFaces: " + ((n.title == null || n.title.length() == 0) ? n.type : n.title);
                 final String body    = (n.message == null ? "" : n.message)
                         + "\n\n(Context: " + (n.contextId == null ? "" : n.contextId) + ")";
                 final int swingType  = mapSeverityToSwing(n.type);
-
                 SwingUtilities.invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
+                    @Override public void run() {
                         JOptionPane.showMessageDialog(null, body, caption, swingType);
                     }
                 });
