@@ -1,10 +1,10 @@
 package de.bund.zrb.tools;
 
 import de.bund.zrb.PageImpl;
+import de.bund.zrb.dto.GrowlNotification;
 import de.bund.zrb.service.BrowserService;
 import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.service.NotificationService;
-import de.bund.zrb.dto.GrowlNotification;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -33,7 +33,7 @@ public class NotificationTool extends AbstractUserTool {
             throws TimeoutException, InterruptedException, ExecutionException {
 
         NotificationService svc = serviceForActivePage();
-        return svc.await(severity, titleRegex, messageRegex, timeoutMs);
+        return callAwaitWrappingTimeout(svc, severity, titleRegex, messageRegex, timeoutMs);
     }
 
     /** Await nur auf Message-Regex (beliebige Severity & Title). */
@@ -41,7 +41,7 @@ public class NotificationTool extends AbstractUserTool {
             throws TimeoutException, InterruptedException, ExecutionException {
 
         NotificationService svc = serviceForActivePage();
-        return svc.await(null, null, messageRegex, timeoutMs);
+        return callAwaitWrappingTimeout(svc, null, null, messageRegex, timeoutMs);
     }
 
     /** Await auf Message-Regex und 1. Capture-Group zurückgeben (oder null). */
@@ -49,7 +49,7 @@ public class NotificationTool extends AbstractUserTool {
             throws TimeoutException, InterruptedException, ExecutionException {
 
         NotificationService svc = serviceForActivePage();
-        GrowlNotification n = svc.await(null, null, messageRegex, timeoutMs);
+        GrowlNotification n = callAwaitWrappingTimeout(svc, null, null, messageRegex, timeoutMs);
 
         if (n == null || n.message == null) return null;
         Matcher m = Pattern.compile(messageRegex).matcher(n.message);
@@ -61,14 +61,17 @@ public class NotificationTool extends AbstractUserTool {
             throws TimeoutException, InterruptedException, ExecutionException {
         return await("INFO", titleRegex, messageRegex, timeoutMs);
     }
+
     public GrowlNotification awaitWarn(String titleRegex, String messageRegex, long timeoutMs)
             throws TimeoutException, InterruptedException, ExecutionException {
         return await("WARN", titleRegex, messageRegex, timeoutMs);
     }
+
     public GrowlNotification awaitError(String titleRegex, String messageRegex, long timeoutMs)
             throws TimeoutException, InterruptedException, ExecutionException {
         return await("ERROR", titleRegex, messageRegex, timeoutMs);
     }
+
     public GrowlNotification awaitFatal(String titleRegex, String messageRegex, long timeoutMs)
             throws TimeoutException, InterruptedException, ExecutionException {
         return await("FATAL", titleRegex, messageRegex, timeoutMs);
@@ -76,13 +79,30 @@ public class NotificationTool extends AbstractUserTool {
 
     // --- intern ---
 
+    /** Resolve NotificationService anhand aktiver Page (wie bisher). */
     private NotificationService serviceForActivePage() {
-        // Wir nehmen bewusst die aktive Page als Key (wie bei deiner bisherigen Praxis).
         PageImpl active = (PageImpl) ((BrowserServiceImpl) browserService).getBrowser().getActivePage();
         if (active == null) {
             throw new IllegalStateException("Keine aktive Page verfügbar – kann NotificationService nicht auflösen.");
         }
         return NotificationService.getInstance(active);
+    }
+
+    /** Map NotificationService.TimeoutException → java.util.concurrent.TimeoutException. */
+    private GrowlNotification callAwaitWrappingTimeout(NotificationService svc,
+                                                       String severity,
+                                                       String titleRegex,
+                                                       String messageRegex,
+                                                       long timeoutMs)
+            throws TimeoutException, InterruptedException, ExecutionException {
+        try {
+            return svc.await(severity, titleRegex, messageRegex, timeoutMs);
+        } catch (NotificationService.TimeoutException e) {
+            // Preserve message; keep your public API stable
+            TimeoutException te = new TimeoutException(e.getMessage());
+            te.initCause(e);
+            throw te;
+        }
     }
 
     private static String safeGroup(Matcher m, int idx) {

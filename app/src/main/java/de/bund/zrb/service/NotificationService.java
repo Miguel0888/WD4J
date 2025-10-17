@@ -1,225 +1,390 @@
 package de.bund.zrb.service;
 
+import de.bund.zrb.BrowserImpl;
+import de.bund.zrb.PageImpl;
 import de.bund.zrb.dto.GrowlNotification;
 import de.bund.zrb.event.WDScriptEvent;
+import de.bund.zrb.type.script.WDChannel;
+import de.bund.zrb.type.script.WDChannelValue;
 import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
 import de.bund.zrb.type.script.WDRemoteValue;
 
-import java.util.*;
-import java.util.concurrent.*;
+// Nur für Preload-Registrierung (Channel-Bindung)
+import de.bund.zrb.support.ScriptHelper;
+
+
+import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
-public class NotificationService {
+/**
+ * Install the growl preload script in the constructor, subscribe via onMessage,
+ * filter by channel string only, map DTO like RecorderService, keep history,
+ * notify listeners and sinks, and support await(..) with consumption.
+ */
+public final class NotificationService {
 
-    // ===== Singleton pro Key (Page oder BrowsingContext) =====
-    private static final Map<Object, NotificationService> INSTANCES = new ConcurrentHashMap<>();
-    public static synchronized NotificationService getInstance(Object key) {
-        if (key == null) throw new IllegalArgumentException("Key must not be null! Use Page or Context.");
-        return INSTANCES.computeIfAbsent(key, NotificationService::new);
-    }
-    public static synchronized void remove(Object key) { INSTANCES.remove(key); }
+    private static final String GROWL_CHANNEL = "notification-events-channel";
+    private static final String GROWL_SCRIPT_PATH = "scripts/primeFacesGrowl.js";
 
-    // ===== State =====
-    private final Object key;
-    private final List<GrowlNotification> buffer = new ArrayList<>();
-    private final List<Consumer<List<GrowlNotification>>> listeners = new ArrayList<>();
+    // One instance per BrowserImpl
+    private static final Map<BrowserImpl, NotificationService> INSTANCES =
+            new WeakHashMap<BrowserImpl, NotificationService>();
 
-    // Pending Waiters (await…)
-    private static final class Pending {
-        final Predicate<GrowlNotification> match;
-        final CompletableFuture<GrowlNotification> future;
-        final boolean consumeForPopup;
-        Pending(Predicate<GrowlNotification> match, boolean consumeForPopup) {
-            this.match = match;
-            this.consumeForPopup = consumeForPopup;
-            this.future = new CompletableFuture<>();
-        }
-    }
-    private final List<Pending> waiters = new ArrayList<>();
+    // Track per-browser preload installation to avoid duplicates
+    private static final Set<BrowserImpl> PRELOAD_INSTALLED =
+            Collections.newSetFromMap(new WeakHashMap<BrowserImpl, Boolean>());
 
-    // „Verbrauchte“ Meldungen (gegen Doppel-Popup)
-    // Key = signature(context|type|title|message), Value = timestamp
-    private final ConcurrentHashMap<String, Long> consumed = new ConcurrentHashMap<>();
-    private static final long CONSUME_TTL_MS = 60_000; // 1 min Hygiene
+    private final BrowserImpl browser;
 
-    private NotificationService(Object key) { this.key = key; }
+    // Single-item sinks (UI/logs)
+    private final List<Consumer<GrowlNotification>> sinks = new CopyOnWriteArrayList<Consumer<GrowlNotification>>();
+    // Snapshot listeners (e.g., NotificationTestDialog)
+    private final List<Consumer<List<GrowlNotification>>> listeners = new CopyOnWriteArrayList<Consumer<List<GrowlNotification>>>();
 
-    // ===== Listener API =====
-    public synchronized void addListener(Consumer<List<GrowlNotification>> l) {
-        if (l != null && !listeners.contains(l)) listeners.add(l);
-    }
-    public synchronized void removeListener(Consumer<List<GrowlNotification>> l) { listeners.remove(l); }
-    public synchronized List<GrowlNotification> getAll() { return new ArrayList<>(buffer); }
-    public synchronized void clear() { buffer.clear(); notifyListeners(); }
-    private void notifyListeners() {
-        List<GrowlNotification> snapshot = new ArrayList<>(buffer);
-        for (Consumer<List<GrowlNotification>> l : listeners) l.accept(snapshot);
-    }
+    // History of notifications
+    private final List<GrowlNotification> history = new ArrayList<GrowlNotification>();
+    private static final int MAX_HISTORY = 1000;
 
-    // ===== Entry point aus BrowserImpl.onNotificationEvent(...) =====
-    public void onNotificationMessage(WDScriptEvent.MessageWD msg) {
-        GrowlNotification n = mapGrowlMessage(msg);
-        if (n == null) return;
+    // Consumed keys to suppress popups after await(..)
+    private final Set<String> consumed = ConcurrentHashMap.newKeySet();
+    // Await waiters
+    private final List<Waiter> waiters = new CopyOnWriteArrayList<Waiter>();
 
-        // 1) evtl. auf einen Waiter matchen und erfüllen
-        Pending matched = null;
-        synchronized (this) {
-            for (Pending p : waiters) {
-                if (!p.future.isDone() && p.match.test(n)) {
-                    matched = p;
-                    break;
+    private NotificationService(final BrowserImpl browser) {
+        if (browser == null) throw new IllegalArgumentException("browser must not be null");
+        this.browser = browser;
+
+        // 1) Ensure preload is installed (idempotent; per browser)
+        ensurePreloadInstalled(browser);
+
+        // 2) Subscribe to message bus; filter purely by channel string
+        this.browser.onMessage(new Consumer<WDScriptEvent.MessageWD>() {
+            @Override
+            public void accept(WDScriptEvent.MessageWD message) {
+                try {
+                    if (message == null || message.getParams() == null) return;
+
+                    String channelValue = null;
+                    try {
+                        channelValue = message.getParams().getChannel() == null
+                                ? null
+                                : message.getParams().getChannel().value();
+                    } catch (Throwable ignore) {
+                        // leave null
+                    }
+                    if (!GROWL_CHANNEL.equals(channelValue)) return;
+
+                    GrowlNotification dto = parseFromMessage(message);
+                    if (dto == null) return;
+
+                    onIncoming(dto);
+                } catch (Throwable ignore) {
+                    // Never break pipeline
                 }
             }
-            if (matched != null) {
-                matched.future.complete(n);
-                if (matched.consumeForPopup) markConsumed(n);
-                waiters.remove(matched);
-            }
-
-            // 2) immer in den Buffer (z. B. fürs Protokoll / UI)
-            buffer.add(n);
-            notifyListeners();
-        }
-        cleanupConsumed();
+        });
     }
 
-    // ===== Blocking await mit Timeout =====
-    public GrowlNotification await(String type, String titleRegex, String messageRegex, long timeoutMs)
-            throws TimeoutException, InterruptedException, ExecutionException {
-        final Predicate<GrowlNotification> matcher = buildMatcher(type, titleRegex, messageRegex);
-        return await(matcher, timeoutMs, true); // standard: verbraucht → kein Popup
-    }
-
-    public GrowlNotification await(Predicate<GrowlNotification> matcher, long timeoutMs, boolean consumeForPopup)
-            throws TimeoutException, InterruptedException, ExecutionException {
-        Pending p = new Pending(matcher, consumeForPopup);
-
-        // Schneller Treffer auf bereits gepufferte Meldungen (z. B. wenn sie „knapp vorher“ kam)
-        synchronized (this) {
-            for (GrowlNotification n : buffer) {
-                if (matcher.test(n)) {
-                    p.future.complete(n);
-                    if (consumeForPopup) markConsumed(n);
-                    break;
-                }
-            }
-            if (!p.future.isDone()) {
-                waiters.add(p);
-            }
-        }
+    /** Install preload script once per browser (bind to growl channel). */
+    private static synchronized void ensurePreloadInstalled(BrowserImpl browser) {
+        if (browser == null) return;
+        if (PRELOAD_INSTALLED.contains(browser)) return;
 
         try {
-            return p.future.get(timeoutMs, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException te) {
-            synchronized (this) { waiters.remove(p); }
-            throw te;
+            // Load script source
+            String source = ScriptHelper.loadScript(GROWL_SCRIPT_PATH);
+
+            // Register preload against the growl channel
+            // Note: We must provide a WDChannelValue so the runtime routes messages to that channel.
+            browser.getScriptManager().addPreloadScript(
+                    source,
+                    java.util.Collections.singletonList(
+                            new WDChannelValue(
+                                    new WDChannelValue.ChannelProperties(new WDChannel(GROWL_CHANNEL))
+                            )
+                    )
+            );
+
+            PRELOAD_INSTALLED.add(browser);
+        } catch (Throwable t) {
+            // Fail safe but be loud in logs to catch misconfiguration
+            System.err.println("[NotificationService] Failed to install growl preload: " + t.getMessage());
         }
     }
 
-    // ===== Popup-Kontrolle =====
-    /** Wird vom Popup-Util verwendet: true = darf angezeigt werden; false = wurde für await „verbraucht“. */
+    /** Get or create service instance bound to the BrowserImpl. */
+    public static synchronized NotificationService getInstance(BrowserImpl browser) {
+        NotificationService svc = INSTANCES.get(browser);
+        if (svc == null) {
+            svc = new NotificationService(browser);
+            INSTANCES.put(browser, svc);
+        }
+        return svc;
+    }
+
+    /** Resolve by PageImpl for callers keyed by page. */
+    public static NotificationService getInstance(PageImpl page) {
+        if (page == null) throw new IllegalArgumentException("page must not be null");
+        return getInstance(page.getBrowser());
+    }
+
+    // ---------- Public API ----------
+
+    /** Register a sink receiving every single notification (e.g., popup util). */
+    public void addSink(Consumer<GrowlNotification> sink) {
+        if (sink != null) sinks.add(sink);
+    }
+
+    public void removeSink(Consumer<GrowlNotification> sink) {
+        sinks.remove(sink);
+    }
+
+    /** Register a snapshot listener (NotificationTestDialog). Immediately push current snapshot. */
+    public void addListener(Consumer<List<GrowlNotification>> listener) {
+        if (listener == null) return;
+        listeners.add(listener);
+        // Push current snapshot on register
+        listener.accept(getAll());
+    }
+
+    public void removeListener(Consumer<List<GrowlNotification>> listener) {
+        listeners.remove(listener);
+    }
+
+    /** Return a defensive copy of the current history snapshot. */
+    public List<GrowlNotification> getAll() {
+        synchronized (this) {
+            return new ArrayList<GrowlNotification>(history);
+        }
+    }
+
+    /** Tell whether the notification is not consumed (so popup may show). */
     public boolean shouldPopup(GrowlNotification n) {
-        String sig = signature(n);
-        Long ts = consumed.get(sig);
-        if (ts == null) return true;
-        if ((System.currentTimeMillis() - ts) > CONSUME_TTL_MS) {
-            consumed.remove(sig);
-            return true;
+        return !consumed.contains(keyOf(n));
+    }
+
+    /**
+     * Wait for first matching notification and consume it to suppress UI.
+     * severity may be null, title/message are regex or null.
+     */
+    public GrowlNotification await(String severity,
+                                   String titleRegex,
+                                   String messageRegex,
+                                   long timeoutMs)
+            throws InterruptedException, TimeoutException, ExecutionException {
+
+        final Waiter w = new Waiter(
+                normalize(severity),
+                compileOrNull(titleRegex),
+                compileOrNull(messageRegex),
+                true /* consume on match */);
+        waiters.add(w);
+        try {
+            boolean ok = w.latch.await(timeoutMs, TimeUnit.MILLISECONDS);
+            if (!ok) throw new TimeoutException("No growl matched within " + timeoutMs + " ms");
+            return w.matched;
+        } finally {
+            waiters.remove(w);
         }
-        return false;
     }
 
-    private void markConsumed(GrowlNotification n) {
-        consumed.put(signature(n), System.currentTimeMillis());
-    }
-    private void cleanupConsumed() {
-        long now = System.currentTimeMillis();
-        for (Map.Entry<String, Long> e : consumed.entrySet()) {
-            if (now - e.getValue() > CONSUME_TTL_MS) consumed.remove(e.getKey());
-        }
-    }
-    private static String signature(GrowlNotification n) {
-        return (n.contextId + "|" + n.type + "|" + n.title + "|" + n.message);
-    }
+    // ---------- Pipeline ----------
 
-    // ===== Matcher & Mapping =====
-    private static Predicate<GrowlNotification> buildMatcher(String type, String titleRegex, String messageRegex) {
-        final String typeNorm = type == null ? null : type.trim().toUpperCase();
-        final PatternWrapper titleP = PatternWrapper.of(titleRegex);
-        final PatternWrapper msgP = PatternWrapper.of(messageRegex);
-
-        return n -> {
-            if (typeNorm != null && !typeNorm.equalsIgnoreCase(n.type)) return false;
-            if (titleP != null && !titleP.matches(n.title)) return false;
-            if (msgP != null && !msgP.matches(n.message)) return false;
-            return true;
-        };
-    }
-
-    // Mini-Wrapper, um Optional<Pattern> zu sparen
-    private static final class PatternWrapper {
-        private final java.util.regex.Pattern p;
-        private PatternWrapper(java.util.regex.Pattern p) { this.p = p; }
-        static PatternWrapper of(String regex) {
-            if (regex == null || regex.trim().isEmpty()) return null;
-            return new PatternWrapper(java.util.regex.Pattern.compile(regex));
-        }
-        boolean matches(String s) { return s != null && p.matcher(s).find(); }
-    }
-
-    // ----- Mapping: WDRemoteValue → GrowlNotification -----
-    public static GrowlNotification parse(WDScriptEvent.MessageWD msg) {
-        return mapGrowlMessage(msg);
-    }
-
-    private static GrowlNotification mapGrowlMessage(WDScriptEvent.MessageWD msg) {
-        WDRemoteValue payload = msg.getParams().getData();
-        if (!(payload instanceof WDRemoteValue.ObjectRemoteValue)) return null;
-
-        WDRemoteValue.ObjectRemoteValue root = (WDRemoteValue.ObjectRemoteValue) payload;
-        String envelopeType = asString(getProp(root, "type"));
-        if (!"growl-event".equals(envelopeType)) return null;
-
-        WDRemoteValue dataVal = getProp(root, "data");
-        if (!(dataVal instanceof WDRemoteValue.ObjectRemoteValue)) return null;
-        WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) dataVal;
-
-        String type = asString(getProp(data, "type"));       // INFO|WARN|ERROR|FATAL
-        String title = asString(getProp(data, "title"));
-        String text  = asString(getProp(data, "message"));
-        Long   ts    = asLong  (getProp(data, "timestamp"));
-
-        if (type == null) type = "INFO";
-        if (title == null) title = "";
-        if (text == null)  text  = "";
-        if (ts == null)    ts    = System.currentTimeMillis();
-
-        String contextId = msg.getParams().getSource().getContext().value();
-        return new GrowlNotification(contextId, type, title, text, ts);
-    }
-
-    private static WDRemoteValue getProp(WDRemoteValue.ObjectRemoteValue obj, String key) {
-        for (Map.Entry<WDRemoteValue, WDRemoteValue> e : obj.getValue().entrySet()) {
-            if (e.getKey() instanceof WDPrimitiveProtocolValue.StringValue) {
-                if (key.equals(((WDPrimitiveProtocolValue.StringValue) e.getKey()).getValue()))
-                    return e.getValue();
+    private void onIncoming(GrowlNotification n) {
+        // 0) Update history first (so snapshot includes this event)
+        synchronized (this) {
+            history.add(n);
+            // Trim if beyond cap
+            if (history.size() > MAX_HISTORY) {
+                int excess = history.size() - MAX_HISTORY;
+                for (int i = 0; i < excess; i++) {
+                    history.remove(0);
+                }
             }
         }
-        return null;
-    }
-    private static String asString(WDRemoteValue v) {
-        if (v instanceof WDPrimitiveProtocolValue.StringValue) return ((WDPrimitiveProtocolValue.StringValue) v).getValue();
-        if (v instanceof WDPrimitiveProtocolValue.NumberValue) return ((WDPrimitiveProtocolValue.NumberValue) v).getValue();
-        if (v instanceof WDPrimitiveProtocolValue.BooleanValue) return String.valueOf(((WDPrimitiveProtocolValue.BooleanValue) v).getValue());
-        return null;
-    }
-    private static Long asLong(WDRemoteValue v) {
-        if (v instanceof WDPrimitiveProtocolValue.NumberValue) {
-            try { return Long.parseLong(((WDPrimitiveProtocolValue.NumberValue) v).getValue().split("\\.")[0]); }
-            catch (Exception ignore) {}
+
+        // 1) Wake waiters and consume on match
+        for (Waiter w : waiters) {
+            if (!w.done.get() && w.matches(n)) {
+                w.matched = n;
+                w.done.set(true);
+                if (w.consume) consumed.add(keyOf(n));
+                w.latch.countDown();
+            }
         }
-        return null;
+
+        // 2) Fan-out to single-item sinks
+        for (Consumer<GrowlNotification> sink : sinks) {
+            try { sink.accept(n); } catch (Throwable ignore) { }
+        }
+
+        // 3) Notify snapshot listeners with a fresh copy
+        List<GrowlNotification> snap = getAll();
+        for (Consumer<List<GrowlNotification>> l : listeners) {
+            try { l.accept(snap); } catch (Throwable ignore) { }
+        }
+    }
+
+    // ---------- Mapping (RecorderService-Stil) ----------
+
+    /**
+     * Expect params.data:
+     * {
+     *   "type": "growl-event",
+     *   "data": { "type": "INFO|WARN|ERROR|FATAL", "title": "...", "message": "...", "timestamp": <string|number> },
+     *   "contextId": "..."? // optional
+     * }
+     */
+    public static GrowlNotification parseFromMessage(WDScriptEvent.MessageWD message) {
+        if (message == null || message.getParams() == null) return null;
+
+        WDRemoteValue dataVal = message.getParams().getData();
+        if (!(dataVal instanceof WDRemoteValue.ObjectRemoteValue)) return null;
+        WDRemoteValue.ObjectRemoteValue env = (WDRemoteValue.ObjectRemoteValue) dataVal;
+
+        String envelopeType = null;
+        WDRemoteValue.ObjectRemoteValue dataObj = null;
+        String contextId = null;
+
+        // Iterate envelope like RecorderService
+        for (Map.Entry<WDRemoteValue, WDRemoteValue> e : env.getValue().entrySet()) {
+            if (!(e.getKey() instanceof WDPrimitiveProtocolValue.StringValue)) continue;
+            String key = ((WDPrimitiveProtocolValue.StringValue) e.getKey()).getValue();
+            WDRemoteValue val = e.getValue();
+
+            if ("type".equals(key) && val instanceof WDPrimitiveProtocolValue.StringValue) {
+                envelopeType = ((WDPrimitiveProtocolValue.StringValue) val).getValue();
+                continue;
+            }
+            if ("data".equals(key) && val instanceof WDRemoteValue.ObjectRemoteValue) {
+                dataObj = (WDRemoteValue.ObjectRemoteValue) val;
+                continue;
+            }
+            if ("contextId".equals(key) && val instanceof WDPrimitiveProtocolValue.StringValue) {
+                contextId = ((WDPrimitiveProtocolValue.StringValue) val).getValue();
+            }
+        }
+
+        if (!"growl-event".equals(envelopeType) || dataObj == null) return null;
+
+        GrowlNotification dto = new GrowlNotification();
+        String ts = null;
+
+        // Iterate nested data object
+        for (Map.Entry<WDRemoteValue, WDRemoteValue> e : dataObj.getValue().entrySet()) {
+            if (!(e.getKey() instanceof WDPrimitiveProtocolValue.StringValue)) continue;
+            String key = ((WDPrimitiveProtocolValue.StringValue) e.getKey()).getValue();
+            WDRemoteValue val = e.getValue();
+
+            if ("type".equals(key) && val instanceof WDPrimitiveProtocolValue.StringValue) {
+                dto.type = normalize(((WDPrimitiveProtocolValue.StringValue) val).getValue());
+                continue;
+            }
+            if ("title".equals(key) && val instanceof WDPrimitiveProtocolValue.StringValue) {
+                dto.title = safe(((WDPrimitiveProtocolValue.StringValue) val).getValue());
+                continue;
+            }
+            if ("message".equals(key) && val instanceof WDPrimitiveProtocolValue.StringValue) {
+                dto.message = safe(((WDPrimitiveProtocolValue.StringValue) val).getValue());
+                continue;
+            }
+            if ("timestamp".equals(key)) {
+                if (val instanceof WDPrimitiveProtocolValue.StringValue) {
+                    ts = ((WDPrimitiveProtocolValue.StringValue) val).getValue();
+                } else if (val instanceof WDPrimitiveProtocolValue.NumberValue) {
+                    ts = String.valueOf(((WDPrimitiveProtocolValue.NumberValue) val).getValue());
+                }
+                continue;
+            }
+            if ("contextId".equals(key) && val instanceof WDPrimitiveProtocolValue.StringValue) {
+                contextId = ((WDPrimitiveProtocolValue.StringValue) val).getValue();
+            }
+        }
+
+        dto.timestamp = parseLong(ts);
+        dto.contextId = contextId;
+
+        // At least one of title/message required
+        if ((dto.title == null || dto.title.length() == 0) &&
+                (dto.message == null || dto.message.length() == 0)) {
+            return null;
+        }
+        return dto;
+    }
+
+    // ---------- Helpers ----------
+
+    private static String keyOf(GrowlNotification n) {
+        StringBuilder b = new StringBuilder();
+        b.append(n.contextId == null ? "" : n.contextId).append('|');
+        b.append(n.type == null ? "" : n.type).append('|');
+        b.append(n.title == null ? "" : n.title).append('|');
+        b.append(n.message == null ? "" : n.message);
+        return b.toString();
+    }
+
+    private static String normalize(String s) { return s == null ? null : s.trim().toUpperCase(); }
+    private static String safe(String s)      { return s == null ? "" : s; }
+
+    private static long parseLong(String s) {
+        if (s == null) return 0L;
+        try { return Long.parseLong(s.trim()); } catch (Exception ignore) { return 0L; }
+    }
+
+    private static Pattern compileOrNull(String regex) throws ExecutionException {
+        if (regex == null || regex.trim().isEmpty()) return null;
+        try { return Pattern.compile(regex); }
+        catch (Exception ex) { throw new ExecutionException("Invalid regex: " + regex, ex); }
+    }
+
+    // --- await waiter ---
+    private static final class Waiter {
+        final String severity;
+        final Pattern titleRegex;
+        final Pattern messageRegex;
+        final boolean consume;
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicBoolean done = new AtomicBoolean(false);
+        volatile GrowlNotification matched;
+
+        Waiter(String severity, Pattern titleRegex, Pattern messageRegex, boolean consume) {
+            this.severity = severity;
+            this.titleRegex = titleRegex;
+            this.messageRegex = messageRegex;
+            this.consume = consume;
+        }
+
+        boolean matches(GrowlNotification n) {
+            if (severity != null) {
+                String t = n.type == null ? "" : n.type.toUpperCase();
+                if (!severity.equals(t)) return false;
+            }
+            if (titleRegex != null) {
+                String t = n.title == null ? "" : n.title;
+                if (!titleRegex.matcher(t).find()) return false;
+            }
+            if (messageRegex != null) {
+                String m = n.message == null ? "" : n.message;
+                if (!messageRegex.matcher(m).find()) return false;
+            }
+            return true;
+        }
+    }
+
+    /** Checked timeout to avoid ambiguity with java.util.concurrent. */
+    public static final class TimeoutException extends Exception {
+        public TimeoutException(String msg) { super(msg); }
     }
 }
