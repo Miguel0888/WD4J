@@ -1424,7 +1424,16 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
     private void waitTwoAnimationFrames() {
         webDriver.script().callFunction(
-                "() => new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)))",
+                "() => new Promise(resolve => {" +
+                        "  const vis = document.visibilityState;" +
+                        "  const raf = typeof requestAnimationFrame === 'function';" +
+                        "  if (vis === 'visible' && raf) {" +
+                        "    requestAnimationFrame(() => requestAnimationFrame(resolve));" +
+                        "  } else {" +
+                        "    // Tab nicht aktiv → rAF feuert nicht: Timer als Fallback" +
+                        "    setTimeout(resolve, 50);" +
+                        "  }" +
+                        "})",
                 true,
                 target,
                 null,

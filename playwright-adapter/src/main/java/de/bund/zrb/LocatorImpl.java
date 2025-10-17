@@ -1067,11 +1067,17 @@ public class LocatorImpl implements Locator {
 
             if (success) {
                 // 🆕 Stability-Wait (nur bei VISIBLE sinnvoll)
-                if (state == WaitForSelectorState.VISIBLE) {
+                try {
                     elementHandle.evaluate(
-                            "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+                            "() => new Promise(resolve => {" +
+                                    "  if (document.visibilityState === 'visible') {" +
+                                    "    requestAnimationFrame(() => requestAnimationFrame(resolve));" +
+                                    "  } else {" +
+                                    "    setTimeout(resolve, 50);" + // Fallback im Hintergrund-Tab
+                                    "  }" +
+                                    "})"
                     );
-                }
+                } catch (RuntimeException ignore) { /* best effort */ }
                 return;
             }
 
