@@ -10,6 +10,7 @@ import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.TestPlayerUi;
 import de.bund.zrb.ui.components.log.*;
+import de.bund.zrb.util.GrowlNotificationPopupUtil;
 
 import javax.swing.*;
 import java.nio.file.Files;
@@ -65,6 +66,7 @@ public class TestPlayerService {
     ////////////////////////////////////////////////////////////////////////////////
 
     public void runSuites() {
+        GrowlNotificationPopupUtil.hook(browserService.getBrowser()); // <<< einmalig für notifications registrieren
         resetRunFlags();
         if (!isReady()) return;
 

@@ -25,6 +25,7 @@ public class BrowserImpl implements Browser {
     public static final String CHANNEL_FOCUS_EVENTS = "focus-events-channel";
     public static final String CHANNEL_RECORDING_EVENTS = "recording-events-channel";
     public static final String DEFAULT_USER_CONTEXT = "default";
+    private static final String CHANNEL_NOTIFICATION_EVENTS = "notification-events-channel";
 
     private final RecordingEventRouter router;
 
@@ -83,6 +84,12 @@ public class BrowserImpl implements Browser {
         globalScripts.add(webDriver.script().addPreloadScript(
                 ScriptHelper.loadScript("scripts/recorder.js"),
                 Collections.singletonList(new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(CHANNEL_RECORDING_EVENTS))))
+        ));
+
+        // PrimeFaces Growl Notifications analog zum Fokus-Tracker:
+        globalScripts.add(webDriver.script().addPreloadScript(
+                ScriptHelper.loadScript("scripts/primeFacesGrowl.js"),
+                Collections.singletonList(new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(CHANNEL_NOTIFICATION_EVENTS))))
         ));
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -348,6 +355,16 @@ public class BrowserImpl implements Browser {
                 }
             });
         }
+    }
+
+    // In BrowserImpl
+    public void onNotificationEvent(Consumer<WDScriptEvent.MessageWD> handler) {
+        if (handler == null) return;
+        onMessage(message -> {
+            if (CHANNEL_NOTIFICATION_EVENTS.equals(message.getParams().getChannel().value())) {
+                handler.accept(message); // keine weitere Auswertung hier!
+            }
+        });
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
