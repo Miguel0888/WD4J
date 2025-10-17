@@ -254,7 +254,7 @@ public final class NotificationService {
 
         String envelopeType = null;
         WDRemoteValue.ObjectRemoteValue dataObj = null;
-        String contextId = null;
+        String contextId = message.getParams().getSource().getContext().value();
 
         for (Map.Entry<WDRemoteValue, WDRemoteValue> e : env.getValue().entrySet()) {
             if (!(e.getKey() instanceof WDPrimitiveProtocolValue.StringValue)) continue;
