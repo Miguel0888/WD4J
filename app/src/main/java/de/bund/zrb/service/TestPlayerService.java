@@ -2,6 +2,7 @@ package de.bund.zrb.service;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import de.bund.zrb.PageImpl;
 import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
@@ -10,6 +11,7 @@ import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.TestPlayerUi;
 import de.bund.zrb.ui.components.log.*;
 
+import javax.swing.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -257,7 +259,7 @@ public class TestPlayerService {
     // Aktion ausführen (bestehende Logik, nur lesbarer gemacht)
     ////////////////////////////////////////////////////////////////////////////////
 
-    public boolean playSingleAction(TestAction action) {
+    public synchronized boolean playSingleAction(TestAction action) {
         try {
             lastUsernameUsed = action.getUser();
             if (lastUsernameUsed == null || lastUsernameUsed.isEmpty()) {
@@ -265,7 +267,14 @@ public class TestPlayerService {
                 return false;
             }
 
-            Page page = browserService.getActivePage(lastUsernameUsed);
+            PageImpl page = (PageImpl) browserService.getActivePage(lastUsernameUsed);
+            if (page != null) {
+                String contextId = page.getBrowsingContext().value();
+                browserService.switchSelectedPage(contextId);
+            } else {
+                JOptionPane.showMessageDialog(null, "Kein Tab für den im Testfall eingestellten User verfügbar.");
+                return false;
+            }
             String act = action.getAction();
 
             switch (act) {

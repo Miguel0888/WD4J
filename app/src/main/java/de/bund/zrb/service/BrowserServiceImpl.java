@@ -234,7 +234,8 @@ public class BrowserServiceImpl implements BrowserService {
 
     public void switchSelectedPage(String newContextId) {
         if (!Objects.equals(newContextId, browser.getActivePageId())) {
-            browser.setActivePageId(newContextId, true);
+            browser.getWebDriver().browsingContext().activate(newContextId);
+            browser.setActivePageId(newContextId);
             notifyActivePageChanged(newContextId);
         }
     }
