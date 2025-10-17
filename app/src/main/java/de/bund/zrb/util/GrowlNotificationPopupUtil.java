@@ -1,12 +1,11 @@
 package de.bund.zrb.util;
 
 import de.bund.zrb.BrowserImpl;
+import de.bund.zrb.dto.GrowlNotification;
 import de.bund.zrb.event.WDScriptEvent;
-import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
-import de.bund.zrb.type.script.WDRemoteValue;
+import de.bund.zrb.service.NotificationService;
 
 import javax.swing.*;
-import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
@@ -14,11 +13,10 @@ public final class GrowlNotificationPopupUtil {
 
     private GrowlNotificationPopupUtil() {}
 
-    // pro Browser nur einmal hooken (WeakHashMap verhindert Memory Leaks)
     private static final Set<BrowserImpl> HOOKED =
             java.util.Collections.newSetFromMap(new WeakHashMap<BrowserImpl, Boolean>());
 
-    /** Einmalig registrieren – zeigt Swing-Dialoge für jede PrimeFaces-Growl-Notification an. */
+    /** Einmalig registrieren – zeigt Swing-Dialoge für jede (nicht „verbrauchte“) Growl-Notification an. */
     public static synchronized void hook(BrowserImpl browser) {
         if (browser == null) return;
         if (HOOKED.contains(browser)) return;
@@ -26,31 +24,18 @@ public final class GrowlNotificationPopupUtil {
 
         browser.onNotificationEvent((WDScriptEvent.MessageWD msg) -> {
             try {
-                WDRemoteValue payload = msg.getParams().getData();
-                if (!(payload instanceof WDRemoteValue.ObjectRemoteValue)) return;
+                GrowlNotification n = NotificationService.parse(msg);
+                if (n == null) return;
 
-                WDRemoteValue.ObjectRemoteValue root = (WDRemoteValue.ObjectRemoteValue) payload;
-                String envelopeType = asString(getProp(root, "type"));
-                if (!"growl-event".equals(envelopeType)) return; // nur unsere Growl-Events
+                // Service-Instanz je nach Schlüssel (hier: Browser als Key – reicht aus)
+                NotificationService svc = NotificationService.getInstance(browser);
 
-                WDRemoteValue dataVal = getProp(root, "data");
-                if (!(dataVal instanceof WDRemoteValue.ObjectRemoteValue)) return;
+                // Nur anzeigen, wenn NICHT durch ein await(...) „verbraucht“
+                if (!svc.shouldPopup(n)) return;
 
-                WDRemoteValue.ObjectRemoteValue data = (WDRemoteValue.ObjectRemoteValue) dataVal;
-
-                String severity = asString(getProp(data, "type"));    // INFO|WARN|ERROR|FATAL
-                String title    = asString(getProp(data, "title"));
-                String message  = asString(getProp(data, "message"));
-
-                String ctxId    = msg.getParams().getSource().getContext().value();
-
-                if (severity == null) severity = "INFO";
-                if (title == null)    title = "";
-                if (message == null)  message = "";
-
-                final String caption = "PrimeFaces: " + (title.isEmpty() ? severity : title);
-                final String body    = message + "\n\n(Context: " + ctxId + ")";
-                final int swingType  = mapSeverityToSwing(severity);
+                final String caption = "PrimeFaces: " + (n.title == null || n.title.isEmpty() ? n.type : n.title);
+                final String body    = (n.message == null ? "" : n.message) + "\n\n(Context: " + n.contextId + ")";
+                final int swingType  = mapSeverityToSwing(n.type);
 
                 SwingUtilities.invokeLater(() ->
                         JOptionPane.showMessageDialog(null, body, caption, swingType)
@@ -67,26 +52,5 @@ public final class GrowlNotificationPopupUtil {
         if (s.startsWith("ERROR") || s.startsWith("FATAL"))
             return JOptionPane.ERROR_MESSAGE;
         return JOptionPane.INFORMATION_MESSAGE;
-    }
-
-    // ---- kleine Helfer zum Auslesen der WDRemoteValue-Objekte ----
-    private static WDRemoteValue getProp(WDRemoteValue.ObjectRemoteValue obj, String key) {
-        for (Map.Entry<WDRemoteValue, WDRemoteValue> e : obj.getValue().entrySet()) {
-            if (e.getKey() instanceof WDPrimitiveProtocolValue.StringValue) {
-                if (key.equals(((WDPrimitiveProtocolValue.StringValue) e.getKey()).getValue()))
-                    return e.getValue();
-            }
-        }
-        return null;
-    }
-
-    private static String asString(WDRemoteValue v) {
-        if (v instanceof WDPrimitiveProtocolValue.StringValue)
-            return ((WDPrimitiveProtocolValue.StringValue) v).getValue();
-        if (v instanceof WDPrimitiveProtocolValue.NumberValue)
-            return ((WDPrimitiveProtocolValue.NumberValue) v).getValue();
-        if (v instanceof WDPrimitiveProtocolValue.BooleanValue)
-            return String.valueOf(((WDPrimitiveProtocolValue.BooleanValue) v).getValue());
-        return null;
     }
 }
