@@ -1,77 +1,27 @@
 package de.bund.zrb.service;
 
-import de.bund.zrb.BrowserImpl;
-import de.bund.zrb.PageImpl;
 import de.bund.zrb.dto.GrowlNotification;
 import de.bund.zrb.event.WDScriptEvent;
-import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
 import de.bund.zrb.type.script.WDRemoteValue;
 
-import javax.swing.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-/**
- * Zentraler Service für PrimeFaces-Growl-Notifications.
- * - Registriert sich direkt am BrowserImpl.onNotificationEvent(..)  ← WICHTIG
- * - Bietet await(..) mit Regex & Timeout.
- * - Konsumierte Meldungen werden für Popups unterdrückt (shouldPopup(..)).
- * - GlobalListener für UI (Swing-Popup o.ä.) laufen über diesen Service.
- */
 public class NotificationService {
 
-    // ===== Singleton pro Key (Page oder BrowsingContext/PageImpl) =====
+    // ===== Singleton pro Key (Page oder BrowsingContext) =====
     private static final Map<Object, NotificationService> INSTANCES = new ConcurrentHashMap<>();
-
     public static synchronized NotificationService getInstance(Object key) {
         if (key == null) throw new IllegalArgumentException("Key must not be null! Use Page or Context.");
         return INSTANCES.computeIfAbsent(key, NotificationService::new);
     }
     public static synchronized void remove(Object key) { INSTANCES.remove(key); }
 
-    // ===== Global Wiring (Browser ↔ Service) =====
-    private static final Set<BrowserImpl> HOOKED_BROWSERS =
-            Collections.newSetFromMap(new WeakHashMap<>());
-
-    private static final List<Consumer<GrowlNotification>> GLOBAL_LISTENERS = new CopyOnWriteArrayList<>();
-
-    /**
-     * Muss EINMAL pro BrowserImpl aufgerufen werden.
-     * Leitet alle Events vom Browser in die passenden Service-Instanzen weiter.
-     */
-    public static synchronized void attachBrowser(BrowserImpl browser) {
-        if (browser == null || HOOKED_BROWSERS.contains(browser)) return;
-        HOOKED_BROWSERS.add(browser);
-
-        browser.onNotificationEvent((WDScriptEvent.MessageWD msg) -> {
-            GrowlNotification n = mapGrowlMessage(msg);
-            if (n == null) return;
-
-            // Key ermitteln: PageImpl zu Context-ID
-            PageImpl page = browser.getPage(new WDBrowsingContext(n.contextId));
-            Object key = (page != null) ? page : n.contextId; // Fallback: contextId
-
-            NotificationService svc = NotificationService.getInstance(key);
-            svc.accept(n);                      // interne Verarbeitung (await, Buffer, consume, listeners)
-            // Danach globale Listener informieren (für UI etc.)
-            for (Consumer<GrowlNotification> gl : GLOBAL_LISTENERS) {
-                try { gl.accept(n); } catch (Throwable ignore) {}
-            }
-        });
-    }
-
-    /** Für dein Popup-Util o. ä.: hängt globale Anzeige an den Service. */
-    public static void addGlobalListener(Consumer<GrowlNotification> l) {
-        if (l != null) GLOBAL_LISTENERS.add(l);
-    }
-    public static void removeGlobalListener(Consumer<GrowlNotification> l) {
-        GLOBAL_LISTENERS.remove(l);
-    }
-
-    // ===== Instanz-State =====
+    // ===== State =====
     private final Object key;
     private final List<GrowlNotification> buffer = new ArrayList<>();
     private final List<Consumer<List<GrowlNotification>>> listeners = new ArrayList<>();
@@ -96,7 +46,7 @@ public class NotificationService {
 
     private NotificationService(Object key) { this.key = key; }
 
-    // ===== Öffentliche Listener API für Panels/Logs =====
+    // ===== Listener API =====
     public synchronized void addListener(Consumer<List<GrowlNotification>> l) {
         if (l != null && !listeners.contains(l)) listeners.add(l);
     }
@@ -105,16 +55,17 @@ public class NotificationService {
     public synchronized void clear() { buffer.clear(); notifyListeners(); }
     private void notifyListeners() {
         List<GrowlNotification> snapshot = new ArrayList<>(buffer);
-        for (Consumer<List<GrowlNotification>> l : listeners) {
-            try { l.accept(snapshot); } catch (Throwable ignore) {}
-        }
+        for (Consumer<List<GrowlNotification>> l : listeners) l.accept(snapshot);
     }
 
-    // ===== Interne Annahme eines fertigen GrowlNotification-Objekts =====
-    private void accept(GrowlNotification n) {
+    // ===== Entry point aus BrowserImpl.onNotificationEvent(...) =====
+    public void onNotificationMessage(WDScriptEvent.MessageWD msg) {
+        GrowlNotification n = mapGrowlMessage(msg);
+        if (n == null) return;
+
+        // 1) evtl. auf einen Waiter matchen und erfüllen
         Pending matched = null;
         synchronized (this) {
-            // 1) offene Waiter bedienen
             for (Pending p : waiters) {
                 if (!p.future.isDone() && p.match.test(n)) {
                     matched = p;
@@ -135,22 +86,17 @@ public class NotificationService {
     }
 
     // ===== Blocking await mit Timeout =====
-    /**
-     * type: "INFO" | "WARN" | "ERROR" | "FATAL" | "ANY" | null
-     * titleRegex / messageRegex: optional, null/leer = nicht filtern. Regex „find()“, nicht „matches()“.
-     * consumeForPopup=true → Popup wird für diesen Treffer unterdrückt.
-     */
     public GrowlNotification await(String type, String titleRegex, String messageRegex, long timeoutMs)
             throws TimeoutException, InterruptedException, ExecutionException {
         final Predicate<GrowlNotification> matcher = buildMatcher(type, titleRegex, messageRegex);
-        return await(matcher, timeoutMs, true);
+        return await(matcher, timeoutMs, true); // standard: verbraucht → kein Popup
     }
 
     public GrowlNotification await(Predicate<GrowlNotification> matcher, long timeoutMs, boolean consumeForPopup)
             throws TimeoutException, InterruptedException, ExecutionException {
         Pending p = new Pending(matcher, consumeForPopup);
 
-        // Schneller Treffer auf bereits gepufferte Meldungen
+        // Schneller Treffer auf bereits gepufferte Meldungen (z. B. wenn sie „knapp vorher“ kam)
         synchronized (this) {
             for (GrowlNotification n : buffer) {
                 if (matcher.test(n)) {
@@ -173,7 +119,7 @@ public class NotificationService {
     }
 
     // ===== Popup-Kontrolle =====
-    /** true = darf angezeigt werden; false = wurde von await(..) konsumiert. */
+    /** Wird vom Popup-Util verwendet: true = darf angezeigt werden; false = wurde für await „verbraucht“. */
     public boolean shouldPopup(GrowlNotification n) {
         String sig = signature(n);
         Long ts = consumed.get(sig);
@@ -200,10 +146,9 @@ public class NotificationService {
 
     // ===== Matcher & Mapping =====
     private static Predicate<GrowlNotification> buildMatcher(String type, String titleRegex, String messageRegex) {
-        final String typeNorm =
-                (type == null || type.trim().isEmpty() || "ANY".equalsIgnoreCase(type)) ? null : type.trim().toUpperCase();
+        final String typeNorm = type == null ? null : type.trim().toUpperCase();
         final PatternWrapper titleP = PatternWrapper.of(titleRegex);
-        final PatternWrapper msgP   = PatternWrapper.of(messageRegex);
+        final PatternWrapper msgP = PatternWrapper.of(messageRegex);
 
         return n -> {
             if (typeNorm != null && !typeNorm.equalsIgnoreCase(n.type)) return false;
@@ -225,7 +170,6 @@ public class NotificationService {
     }
 
     // ----- Mapping: WDRemoteValue → GrowlNotification -----
-    /** Optional nutzbar, falls du irgendwo noch das rohe WebSocket-Event bekommst. */
     public static GrowlNotification parse(WDScriptEvent.MessageWD msg) {
         return mapGrowlMessage(msg);
     }
