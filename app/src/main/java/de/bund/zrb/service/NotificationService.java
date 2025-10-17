@@ -325,13 +325,13 @@ public final class NotificationService {
     }
 
     // ---------- Helpers ----------
-
     private static String keyOf(GrowlNotification n) {
         StringBuilder b = new StringBuilder();
         b.append(n.contextId == null ? "" : n.contextId).append('|');
         b.append(n.type == null ? "" : n.type).append('|');
         b.append(n.title == null ? "" : n.title).append('|');
-        b.append(n.message == null ? "" : n.message);
+        b.append(n.message == null ? "" : n.message).append('|');
+        b.append(n.timestamp); // << include timestamp to identify a single emission
         return b.toString();
     }
 
