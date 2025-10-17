@@ -1,11 +1,29 @@
 function (sendMessage) {
-    // ---------- Guard ----------
     if (typeof sendMessage !== "function") {
         console.error("[growl] invalid sendMessage");
         return;
     }
     if (window.__zrbGrowlInstalled) return;
     window.__zrbGrowlInstalled = true;
+
+    // --- global flags/state ---
+    let PF_HOOKED = false;
+    let mo = null; // MutationObserver-Handle, um ihn später abzuschalten
+
+    // kleine Dedupe: gleiche (type|title|message) nur einmal pro 2s
+    const recent = [];
+    function shouldEmitOnce(dto) {
+        const ttlMs = 2000;
+        const key = [dto.type || "", dto.title || "", dto.message || ""].join("|");
+        const t = Date.now();
+        for (let i = recent.length - 1; i >= 0; i--) {
+            if (t - recent[i].ts > ttlMs) recent.splice(i, 1);
+        }
+        if (recent.some(r => r.key === key)) return false;
+        recent.push({ key: key, ts: t });
+        if (recent.length > 64) recent.shift();
+        return true;
+    }
 
     // ---------- utils ----------
     const now = () => Date.now();
@@ -31,6 +49,7 @@ function (sendMessage) {
     };
     const emit = (dto) => {
         try {
+            if (!shouldEmitOnce(dto)) return; // << DEDUPE
             sendMessage({ type: "growl-event", data: compact(dto) });
         } catch (e) {
             console.error("[growl] emit failed:", e);
@@ -91,7 +110,11 @@ function (sendMessage) {
             };
 
             proto.__zrbPatched = true;
-            // console.debug("[growl] PrimeFaces Growl hooked");
+            PF_HOOKED = true;
+            window.__zrbGrowlPfHooked = true;
+
+            // wenn der PF-Hook aktiv ist, DOM-Fallback sofort abschalten
+            if (mo) { try { mo.disconnect(); } catch (_) {} mo = null; }
         } catch (e) {
             console.warn("[growl] PF hook failed:", e);
         }
@@ -101,6 +124,9 @@ function (sendMessage) {
     const seen = new WeakSet();
     const scanDomOnce = () => {
         try {
+            // wenn PF Hook aktiv → DOM-Fallback unterbinden
+            if (PF_HOOKED || window.__zrbGrowlPfHooked) return;
+
             const nodes = document.querySelectorAll(".ui-growl-item-container");
             nodes.forEach((n) => {
                 if (seen.has(n)) return;
@@ -114,7 +140,16 @@ function (sendMessage) {
 
     const startObserver = () => {
         try {
-            const mo = new MutationObserver((muts) => {
+            // wenn PF Hook bereits aktiv → keinen Observer starten
+            if (PF_HOOKED || window.__zrbGrowlPfHooked) return;
+
+            mo = new MutationObserver((muts) => {
+                if (PF_HOOKED || window.__zrbGrowlPfHooked) {
+                    // Falls Hook nachträglich greift, Observer aus
+                    try { mo.disconnect(); } catch (_) {}
+                    mo = null;
+                    return;
+                }
                 let found = false;
                 for (const m of muts) {
                     if (m.addedNodes && m.addedNodes.length) { found = true; break; }
@@ -135,6 +170,7 @@ function (sendMessage) {
         setTimeout(hookPrimeFaces, 50);
         setTimeout(hookPrimeFaces, 250);
 
+        // DOM-Fallback nur aktiv, solange kein PF-Hook existiert
         scanDomOnce();
         startObserver();
         // console.log("[growl] ready");
