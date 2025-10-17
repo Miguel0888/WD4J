@@ -7,6 +7,7 @@ import de.bund.zrb.type.script.WDRemoteValue;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -19,15 +20,6 @@ public class NotificationService {
         return INSTANCES.computeIfAbsent(key, NotificationService::new);
     }
     public static synchronized void remove(Object key) { INSTANCES.remove(key); }
-
-    // ===== Globale Listener (z. B. Swing-Popup-Util) – werden NUR über den Service bedient =====
-    private static final CopyOnWriteArrayList<Consumer<GrowlNotification>> GLOBAL_LISTENERS = new CopyOnWriteArrayList<>();
-    public static void addGlobalListener(Consumer<GrowlNotification> l) {
-        if (l != null) GLOBAL_LISTENERS.addIfAbsent(l);
-    }
-    public static void removeGlobalListener(Consumer<GrowlNotification> l) {
-        GLOBAL_LISTENERS.remove(l);
-    }
 
     // ===== State =====
     private final Object key;
@@ -90,12 +82,6 @@ public class NotificationService {
             buffer.add(n);
             notifyListeners();
         }
-
-        // 3) Globale Listener NACH dem evtl. Consume informieren (Popup-Util etc.)
-        for (Consumer<GrowlNotification> l : GLOBAL_LISTENERS) {
-            try { l.accept(n); } catch (Throwable ignore) {}
-        }
-
         cleanupConsumed();
     }
 
@@ -160,11 +146,7 @@ public class NotificationService {
 
     // ===== Matcher & Mapping =====
     private static Predicate<GrowlNotification> buildMatcher(String type, String titleRegex, String messageRegex) {
-        // "ANY" (oder leer) bedeutet: kein Type-Filter
-        String t = (type == null) ? null : type.trim();
-        final String typeNorm =
-                (t == null || t.isEmpty() || "ANY".equalsIgnoreCase(t)) ? null : t.toUpperCase();
-
+        final String typeNorm = type == null ? null : type.trim().toUpperCase();
         final PatternWrapper titleP = PatternWrapper.of(titleRegex);
         final PatternWrapper msgP = PatternWrapper.of(messageRegex);
 
