@@ -6,6 +6,8 @@ import de.bund.zrb.service.BrowserService;
 import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.service.NotificationService;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
@@ -44,37 +46,58 @@ public class NotificationTool extends AbstractUserTool {
         return callAwaitWrappingTimeout(svc, null, null, messageRegex, timeoutMs);
     }
 
-    /** Await auf Message-Regex und 1. Capture-Group zurückgeben (oder null). */
-    public String awaitAndExtractGroup(String messageRegex, int groupIndex, long timeoutMs)
+    /**
+     * Await auf Message-Regex und ALLE Capture-Gruppen zurückgeben (1..n).
+     * Gibt eine leere Liste zurück, wenn kein Capture existiert, aber Match stattfand.
+     */
+    public List<String> awaitAndExtractAllGroups(String messageRegex, long timeoutMs)
             throws TimeoutException, InterruptedException, ExecutionException {
 
         NotificationService svc = serviceForActivePage();
         GrowlNotification n = callAwaitWrappingTimeout(svc, null, null, messageRegex, timeoutMs);
 
-        if (n == null || n.message == null) return null;
-        Matcher m = Pattern.compile(messageRegex).matcher(n.message);
-        return m.find() ? safeGroup(m, groupIndex) : null;
+        String msg = (n == null ? null : n.message);
+        if (msg == null) return new ArrayList<String>(0);
+
+        Pattern p;
+        try {
+            p = Pattern.compile(messageRegex);
+        } catch (Exception ex) {
+            throw new ExecutionException("Invalid regex: " + messageRegex, ex);
+        }
+
+        Matcher m = p.matcher(msg);
+        if (!m.find()) {
+            // Should not happen because service awaited the same regex; treat defensively.
+            return new ArrayList<String>(0);
+        }
+
+        int count = m.groupCount();
+        List<String> groups = new ArrayList<String>(count);
+        for (int i = 1; i <= count; i++) {
+            try {
+                groups.add(m.group(i));
+            } catch (Exception ignore) {
+                groups.add(null);
+            }
+        }
+        return groups;
     }
 
-    /** Bequeme Helfer für gängige Severities */
-    public GrowlNotification awaitInfo(String titleRegex, String messageRegex, long timeoutMs)
+    /**
+     * (Kompatibilität) Await auf Message-Regex und die i-te Capture-Group zurückgeben.
+     * Intern auf awaitAndExtractAllGroups(...) aufgebaut.
+     */
+    public String awaitAndExtractGroup(String messageRegex, int groupIndex, long timeoutMs)
             throws TimeoutException, InterruptedException, ExecutionException {
-        return await("INFO", titleRegex, messageRegex, timeoutMs);
-    }
 
-    public GrowlNotification awaitWarn(String titleRegex, String messageRegex, long timeoutMs)
-            throws TimeoutException, InterruptedException, ExecutionException {
-        return await("WARN", titleRegex, messageRegex, timeoutMs);
-    }
+        List<String> groups = awaitAndExtractAllGroups(messageRegex, timeoutMs);
+        if (groups == null || groups.isEmpty()) return null;
 
-    public GrowlNotification awaitError(String titleRegex, String messageRegex, long timeoutMs)
-            throws TimeoutException, InterruptedException, ExecutionException {
-        return await("ERROR", titleRegex, messageRegex, timeoutMs);
-    }
-
-    public GrowlNotification awaitFatal(String titleRegex, String messageRegex, long timeoutMs)
-            throws TimeoutException, InterruptedException, ExecutionException {
-        return await("FATAL", titleRegex, messageRegex, timeoutMs);
+        // groupIndex ist 1-basiert (wie üblich in Regex-Denke).
+        int idx = groupIndex - 1;
+        if (idx < 0 || idx >= groups.size()) return null;
+        return groups.get(idx);
     }
 
     // --- intern ---
@@ -98,18 +121,9 @@ public class NotificationTool extends AbstractUserTool {
         try {
             return svc.await(severity, titleRegex, messageRegex, timeoutMs);
         } catch (NotificationService.TimeoutException e) {
-            // Preserve message; keep your public API stable
             TimeoutException te = new TimeoutException(e.getMessage());
             te.initCause(e);
             throw te;
-        }
-    }
-
-    private static String safeGroup(Matcher m, int idx) {
-        try {
-            return m.group(idx);
-        } catch (Exception ignore) {
-            return null;
         }
     }
 }

@@ -10,6 +10,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.plaf.basic.BasicComboBoxEditor;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.text.SimpleDateFormat;
@@ -20,19 +21,19 @@ import java.util.function.Consumer;
 
 /**
  * Visualize growl notifications, await patterns, and manage history.
- * - Show live stream in a table (auto-refresh via service listener).
- * - Await notifications with regex filters; optionally extract capture groups.
+ * - Title- and Message-Regex on separate rows, each as editable presets (combo).
+ * - Timeout in seconds (double) with 10.0s step; converts to ms internally.
+ * - "Await + groups" returns and displays all capture groups from the message-regex.
  * - Clear history directly from the dialog.
  */
 public class NotificationTestDialog extends JDialog {
 
     private final JComboBox<String> cbSeverity;
-    private final JTextField tfTitleRegex;
-    private final JTextField tfMessageRegex;
-    private final JSpinner spTimeoutMs;
-    private final JSpinner spGroupIdx;
+    private final JComboBox<String> cbTitleRegex;
+    private final JComboBox<String> cbMessageRegex;
+    private final JSpinner spTimeoutSeconds;
     private final JButton btnAwait;
-    private final JButton btnAwaitAndExtract;
+    private final JButton btnAwaitAndGroups;
     private final JButton btnClear;
 
     private final JTable table;
@@ -45,20 +46,42 @@ public class NotificationTestDialog extends JDialog {
     private static final String[] COLS = {"Zeit", "Type", "Title", "Message", "Context"};
     private static final SimpleDateFormat TS_FMT = new SimpleDateFormat("HH:mm:ss.SSS");
 
+    // Presets for regex dropdowns (editable)
+    private static final String[] TITLE_PRESETS = new String[] {
+            ".*",
+            "(?i).*success.*",
+            "(?i).*warning.*",
+            "(?i).*error.*",
+            "(?i).*fatal.*"
+    };
+    private static final String[] MESSAGE_PRESETS = new String[] {
+            ".*",
+            "(?s).*",                  // DOTALL
+            "(?i).*erfolg.*",          // deutsch "Erfolg"
+            "(?i).*fehler.*",          // deutsch "Fehler"
+            ".*\\d+.*",                // enthält Zahl
+            "(?i).*gespeichert.*",
+            "(?i).*nicht gefunden.*",
+            "(?i).*berechtigt.*"
+    };
+
     public NotificationTestDialog(Window parent) {
         super(parent, "Growl/Notification-Tester", ModalityType.MODELESS);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setMinimumSize(new Dimension(1120, 560));
+        setMinimumSize(new Dimension(1180, 600));
         setLocationRelativeTo(parent);
 
         // --- Controls ---
         cbSeverity = new JComboBox<String>(new String[]{"ANY","INFO","WARN","ERROR","FATAL"});
-        tfTitleRegex = new JTextField(28);
-        tfMessageRegex = new JTextField(56);
-        spTimeoutMs = new JSpinner(new SpinnerNumberModel(30_000, 100, 600_000, 500));
-        spGroupIdx  = new JSpinner(new SpinnerNumberModel(1, 0, 99, 1));
+
+        cbTitleRegex = createEditableRegexCombo(TITLE_PRESETS, 48);
+        cbMessageRegex = createEditableRegexCombo(MESSAGE_PRESETS, 64);
+
+        spTimeoutSeconds = new JSpinner(new SpinnerNumberModel(30.0d, 0.1d, 3600.0d, 10.0d)); // step 10s
+        ((JSpinner.DefaultEditor) spTimeoutSeconds.getEditor()).getTextField().setColumns(6);
+
         btnAwait = new JButton("Await");
-        btnAwaitAndExtract = new JButton("Await + extract group");
+        btnAwaitAndGroups = new JButton("Await + groups");
         btnClear = new JButton("Clear history");
 
         // --- Layout root ---
@@ -85,7 +108,7 @@ public class NotificationTestDialog extends JDialog {
 
         // Wire actions
         btnAwait.addActionListener(e -> doAwait(false));
-        btnAwaitAndExtract.addActionListener(e -> doAwait(true));
+        btnAwaitAndGroups.addActionListener(e -> doAwait(true));
         btnClear.addActionListener(e -> {
             if (service != null) {
                 service.clearHistory();
@@ -113,37 +136,38 @@ public class NotificationTestDialog extends JDialog {
         gc.insets = new Insets(4, 6, 4, 6);
         gc.anchor = GridBagConstraints.WEST;
         gc.fill = GridBagConstraints.HORIZONTAL;
+        gc.weightx = 1.0;
 
-        int col = 0; int row = 0;
+        int row = 0;
+        int col;
 
-        // Row 0
+        // Row 0: Severity + Timeout(s)
+        col = 0;
         gc.gridy = row; gc.gridx = col++; gc.weightx = 0;
         filters.add(new JLabel("Severity:"), gc);
         gc.gridx = col++; gc.weightx = 0.2;
         filters.add(cbSeverity, gc);
 
         gc.gridx = col++; gc.weightx = 0;
-        filters.add(new JLabel("Title-Regex:"), gc);
-        gc.gridx = col++; gc.weightx = 0.4;
-        filters.add(tfTitleRegex, gc);
-
-        gc.gridx = col++; gc.weightx = 0;
-        filters.add(new JLabel("Timeout (ms):"), gc);
+        filters.add(new JLabel("Timeout (s):"), gc);
         gc.gridx = col++; gc.weightx = 0.2;
-        filters.add(spTimeoutMs, gc);
+        filters.add(spTimeoutSeconds, gc);
 
-        // Row 1
-        col = 0; row++;
+        // Row 1: Title-Regex (own line)
+        row++; col = 0;
+        gc.gridy = row; gc.gridx = col++; gc.weightx = 0;
+        filters.add(new JLabel("Title-Regex:"), gc);
+        gc.gridx = col++; gc.gridwidth = 3; gc.weightx = 0.8;
+        filters.add(cbTitleRegex, gc);
+        gc.gridwidth = 1;
+
+        // Row 2: Message-Regex (own line)
+        row++; col = 0;
         gc.gridy = row; gc.gridx = col++; gc.weightx = 0;
         filters.add(new JLabel("Message-Regex:"), gc);
         gc.gridx = col++; gc.gridwidth = 3; gc.weightx = 0.8;
-        filters.add(tfMessageRegex, gc);
+        filters.add(cbMessageRegex, gc);
         gc.gridwidth = 1;
-
-        gc.gridx = col + 3; gc.weightx = 0;
-        filters.add(new JLabel("Group #"), gc);
-        gc.gridx = col + 4; gc.weightx = 0.2;
-        filters.add(spGroupIdx, gc);
 
         // Actions panel (right)
         JPanel actions = new JPanel(new GridBagLayout());
@@ -158,7 +182,7 @@ public class NotificationTestDialog extends JDialog {
         ac.gridx = 0; ac.gridy = arow++;
         actions.add(btnAwait, ac);
         ac.gridx = 0; ac.gridy = arow++;
-        actions.add(btnAwaitAndExtract, ac);
+        actions.add(btnAwaitAndGroups, ac);
 
         ac.gridx = 0; ac.gridy = arow++; ac.insets = new Insets(16, 6, 6, 6);
         actions.add(btnClear, ac);
@@ -169,30 +193,26 @@ public class NotificationTestDialog extends JDialog {
     }
 
     private static void configureTable(JTable t) {
-        // Use nicer row height and turn on grid subtly
         t.setRowHeight(22);
         t.setFillsViewportHeight(true);
         t.setAutoCreateRowSorter(true);
         t.setAutoResizeMode(JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS);
 
-        // Prefer readable widths
         if (t.getColumnModel().getColumnCount() >= 5) {
             t.getColumnModel().getColumn(0).setPreferredWidth(110);  // Zeit
             t.getColumnModel().getColumn(1).setPreferredWidth(70);   // Type
-            t.getColumnModel().getColumn(2).setPreferredWidth(220);  // Title
-            t.getColumnModel().getColumn(3).setPreferredWidth(520);  // Message
-            t.getColumnModel().getColumn(4).setPreferredWidth(140);  // Context
+            t.getColumnModel().getColumn(2).setPreferredWidth(240);  // Title
+            t.getColumnModel().getColumn(3).setPreferredWidth(560);  // Message
+            t.getColumnModel().getColumn(4).setPreferredWidth(160);  // Context
         }
     }
 
     private void installEscToClose() {
-        // Map ESC to dispose
         getRootPane().registerKeyboardAction(
                 e -> dispose(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
-        // Make default button helpful
         getRootPane().setDefaultButton(btnAwait);
     }
 
@@ -241,7 +261,6 @@ public class NotificationTestDialog extends JDialog {
             });
         }
         lbStatus.setText("Meldungen: " + list.size());
-        // Auto-select last row for convenience
         if (model.getRowCount() > 0) {
             int last = model.getRowCount() - 1;
             table.getSelectionModel().setSelectionInterval(last, last);
@@ -251,52 +270,62 @@ public class NotificationTestDialog extends JDialog {
 
     // ---------- Await flow (runs in background) ----------
 
-    private void doAwait(final boolean extractGroup) {
-        // ANY → null; empty fields → null
+    private void doAwait(final boolean extractGroups) {
         String sev = (String) cbSeverity.getSelectedItem();
         if ("ANY".equals(sev)) sev = null;
 
-        final String titleRx = normalizeRegex(tfTitleRegex.getText());
-        final String msgRx   = normalizeRegex(tfMessageRegex.getText());
-        final long timeout   = ((Number) spTimeoutMs.getValue()).longValue();
-        final int groupIdx   = ((Number) spGroupIdx.getValue()).intValue();
+        final String titleRx = normalizeRegex(getRegexFrom(cbTitleRegex));
+        final String msgRx   = normalizeRegex(getRegexFrom(cbMessageRegex));
+
+        final double seconds = ((Number) spTimeoutSeconds.getValue()).doubleValue();
+        final long timeoutMs = Math.max(0L, (long) Math.floor(seconds * 1000.0d));
 
         btnAwait.setEnabled(false);
-        btnAwaitAndExtract.setEnabled(false);
+        btnAwaitAndGroups.setEnabled(false);
 
-        // Update status
         String status = "Warte auf Notification – "
                 + "severity=" + (sev == null ? "ANY" : sev)
                 + ", titleRx=" + (titleRx == null ? "∅" : "/" + titleRx + "/")
                 + ", msgRx="   + (msgRx   == null ? "∅" : "/" + msgRx   + "/")
-                + ", timeout=" + timeout + "ms";
+                + ", timeout=" + seconds + "s";
         lbStatus.setText(status);
 
         final String finalSev = sev;
         new SwingWorker<Object, Void>() {
             @Override protected Object doInBackground() throws Exception {
-                if (extractGroup) {
+                if (extractGroups) {
                     String rx = (msgRx != null ? msgRx : "(.+)");
+                    // Expect a List<String> with all capture groups from message
                     return ToolsRegistry.getInstance()
                             .notificationTool()
-                            .awaitAndExtractGroup(rx, groupIdx, timeout);
+                            .awaitAndExtractAllGroups(rx, timeoutMs);
                 } else {
                     return ToolsRegistry.getInstance()
                             .notificationTool()
-                            .await(finalSev, titleRx, msgRx, timeout);
+                            .await(finalSev, titleRx, msgRx, timeoutMs);
                 }
             }
             @Override protected void done() {
                 btnAwait.setEnabled(true);
-                btnAwaitAndExtract.setEnabled(true);
+                btnAwaitAndGroups.setEnabled(true);
                 try {
                     Object res = get();
-                    if (extractGroup) {
-                        String grp = (String) res;
+                    if (extractGroups) {
+                        @SuppressWarnings("unchecked")
+                        List<String> groups = (List<String>) res;
+                        StringBuilder sb = new StringBuilder();
+                        if (groups == null || groups.isEmpty()) {
+                            sb.append("Keine Capture-Gruppen gefunden.");
+                        } else {
+                            for (int i = 0; i < groups.size(); i++) {
+                                sb.append("#").append(i + 1).append(": ").append(groups.get(i) == null ? "null" : groups.get(i)).append("\n");
+                            }
+                        }
                         JOptionPane.showMessageDialog(NotificationTestDialog.this,
-                                (grp == null ? "Keine Capture-Group gefunden." : "Group #" + groupIdx + " = " + grp),
-                                "Await + Extract", JOptionPane.INFORMATION_MESSAGE);
-                        lbStatus.setText("Await + Extract beendet.");
+                                sb.toString().trim(),
+                                "Await + groups",
+                                JOptionPane.INFORMATION_MESSAGE);
+                        lbStatus.setText("Await + groups beendet.");
                     } else {
                         GrowlNotification n = (GrowlNotification) res;
                         JOptionPane.showMessageDialog(NotificationTestDialog.this,
@@ -325,6 +354,31 @@ public class NotificationTestDialog extends JDialog {
     }
 
     // ---------- Utilities ----------
+
+    /** Create an editable regex combo with sensible presets. */
+    private static JComboBox<String> createEditableRegexCombo(String[] presets, int columns) {
+        JComboBox<String> cb = new JComboBox<String>(presets);
+        cb.setEditable(true);
+        // Widen editor
+        Component editorComp = cb.getEditor().getEditorComponent();
+        if (editorComp instanceof JTextField) {
+            ((JTextField) editorComp).setColumns(columns);
+        }
+        // Ensure we do not auto-replace user input on focus changes
+        cb.setEditor(new BasicComboBoxEditor());
+        return cb;
+    }
+
+    /** Read the current text from an editable combo (or selected item). */
+    private static String getRegexFrom(JComboBox<String> cb) {
+        Object sel = cb.getEditor().getItem();
+        if (sel == null) {
+            Object s = cb.getSelectedItem();
+            return s == null ? null : String.valueOf(s);
+        }
+        String s = String.valueOf(sel);
+        return (s != null && s.trim().length() > 0) ? s : null;
+    }
 
     private static int mapSwingType(String sev) {
         String s = sev == null ? "" : sev.toUpperCase();
