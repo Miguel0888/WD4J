@@ -8,12 +8,15 @@ import de.bund.zrb.service.PreconditionRegistry;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.ui.PropertiesDialog;
 import de.bund.zrb.ui.TestNode;
+import de.bund.zrb.ui.dialogs.ActionPickerDialog;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
+import java.awt.*;
 import java.util.*;
+import java.util.List;
 
 /**
  * Encapsulate all behavior for the "Tests" tree to keep LeftDrawer slim.
@@ -352,17 +355,19 @@ public class TestTreeController {
 
     /**
      * Create a new step (When) directly after the given TestAction node.
-     * Prompts for action name. Updates model + UI + persistence.
+     * Prompts for action via dropdown. Updates model + UI + persistence.
      */
     public void createNewStep(TestNode stepNode) {
         if (stepNode == null || !(stepNode.getModelRef() instanceof TestAction)) return;
 
-        String actionName = JOptionPane.showInputDialog(testTree,
-                "Aktion für neuen Step (z. B. click, navigate):",
-                "Neuer Step",
-                JOptionPane.PLAIN_MESSAGE);
+        // Use action picker instead of free text
+        Window owner = SwingUtilities.getWindowAncestor(testTree);
+        ActionPickerDialog dlg = new ActionPickerDialog(owner, "Neuer Step", "click");
+        dlg.setVisible(true);
+        if (!dlg.isConfirmed()) return;
 
-        if (actionName == null || actionName.trim().isEmpty()) return;
+        String actionName = dlg.getChosenAction();
+        if (actionName.length() == 0) return;
 
         TestAction oldAction = (TestAction) stepNode.getModelRef();
         TestNode caseNode = (TestNode) stepNode.getParent();
@@ -370,7 +375,7 @@ public class TestTreeController {
 
         TestCase testCase = (TestCase) caseNode.getModelRef();
 
-        TestAction newAction = new TestAction(actionName.trim());
+        TestAction newAction = new TestAction(actionName);
         List<TestAction> actions = testCase.getWhen();
 
         int idx = actions.indexOf(oldAction);
@@ -442,24 +447,52 @@ public class TestTreeController {
         TestNode selected = getSelectedNode();
         if (selected == null || selected.getParent() == null) return; // Root nicht umbenennen
 
-        String current = selected.toString();
-        String name = JOptionPane.showInputDialog(testTree, "Neuer Name:", current);
-        if (name == null || name.trim().isEmpty()) return;
-
         Object ref = selected.getModelRef();
-        String trimmed = name.trim();
+        String trimmed;
 
         if (ref instanceof TestSuite) {
+            String current = selected.toString();
+            String name = JOptionPane.showInputDialog(testTree, "Neuer Name:", current);
+            if (name == null || name.trim().isEmpty()) return;
+            trimmed = name.trim();
             ((TestSuite) ref).setName(trimmed);
-        } else if (ref instanceof TestCase) {
-            ((TestCase) ref).setName(trimmed);
-        } else {
-            // Für Steps ggf. über Properties-Dialog
+            selected.setUserObject(trimmed);
+            ((DefaultTreeModel) testTree.getModel()).nodeChanged(selected);
+            TestRegistry.getInstance().save();
+            return;
         }
 
-        selected.setUserObject(trimmed);
-        ((DefaultTreeModel) testTree.getModel()).nodeChanged(selected);
-        TestRegistry.getInstance().save();
+        if (ref instanceof TestCase) {
+            String current = selected.toString();
+            String name = JOptionPane.showInputDialog(testTree, "Neuer Name:", current);
+            if (name == null || name.trim().isEmpty()) return;
+            trimmed = name.trim();
+            ((TestCase) ref).setName(trimmed);
+            selected.setUserObject(trimmed);
+            ((DefaultTreeModel) testTree.getModel()).nodeChanged(selected);
+            TestRegistry.getInstance().save();
+            return;
+        }
+
+        if (ref instanceof TestAction) {
+            // Use action picker like in Preconditions
+            TestAction a = (TestAction) ref;
+            Window owner = SwingUtilities.getWindowAncestor(testTree);
+            ActionPickerDialog dlg = new ActionPickerDialog(owner, "Step umbenennen (Action)", a.getAction());
+            dlg.setVisible(true);
+            if (!dlg.isConfirmed()) return;
+
+            String newAction = dlg.getChosenAction();
+            if (newAction.length() == 0) return;
+
+            a.setAction(newAction);
+            selected.setUserObject(renderActionLabel(a));
+            ((DefaultTreeModel) testTree.getModel()).nodeChanged(selected);
+            TestRegistry.getInstance().save();
+            return;
+        }
+
+        // Fallback: do nothing
     }
 
     public void deleteNode() {

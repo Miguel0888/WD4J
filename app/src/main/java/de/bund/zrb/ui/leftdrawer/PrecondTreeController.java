@@ -339,14 +339,24 @@ public class PrecondTreeController {
 
         } else if (ref instanceof TestAction) {
             TestAction a = (TestAction) ref;
-            String current = a.getAction();
-            String value = JOptionPane.showInputDialog(precondTree, "Neue Aktion (z. B. click, navigate):", current);
-            if (value == null || value.trim().isEmpty()) return;
 
-            a.setAction(value.trim());
+            Window owner = SwingUtilities.getWindowAncestor(precondTree);
+            ActionPickerDialog dlg = new ActionPickerDialog(owner, "Schritt umbenennen (Action)", a.getAction());
+            dlg.setVisible(true);
+            if (!dlg.isConfirmed()) return;
+
+            String newAction = dlg.getChosenAction();
+            if (newAction.length() == 0) return;
+
+            a.setAction(newAction);
             selected.setUserObject(renderActionLabel(a));
             ((DefaultTreeModel) precondTree.getModel()).nodeChanged(selected);
+
+            PreconditionRegistry.getInstance().save();
+            ApplicationEventBus.getInstance().publish(new PreconditionSavedEvent());
+            return;
         }
+
 
         PreconditionRegistry.getInstance().save();
         ApplicationEventBus.getInstance().publish(new PreconditionSavedEvent());
