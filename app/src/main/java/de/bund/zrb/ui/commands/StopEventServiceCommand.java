@@ -15,7 +15,7 @@ public class StopEventServiceCommand extends ShortcutMenuCommand {
 
     @Override
     public String getId() {
-        return "events.stop";
+        return "debug.stop";
     }
 
     @Override

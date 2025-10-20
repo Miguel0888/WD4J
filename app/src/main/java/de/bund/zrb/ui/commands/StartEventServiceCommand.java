@@ -15,7 +15,7 @@ public class StartEventServiceCommand extends ShortcutMenuCommand {
 
     @Override
     public String getId() {
-        return "events.start";
+        return "debug.start";
     }
 
     @Override
