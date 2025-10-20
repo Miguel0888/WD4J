@@ -33,6 +33,7 @@ public class ActionPickerDialog extends JDialog {
         form.add(new JLabel("Action:"));
         form.add(actionBox);
 
+        // --- Buttons ---
         JButton ok = new JButton("OK");
         ok.addActionListener(new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
@@ -49,9 +50,22 @@ public class ActionPickerDialog extends JDialog {
             }
         });
 
+        // Default-Button für Enter
+        getRootPane().setDefaultButton(ok);
+
+        // ESC zum Abbrechen
+        getRootPane().registerKeyboardAction(new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                confirmed = false;
+                dispose();
+            }
+        }, KeyStroke.getKeyStroke("ESCAPE"), JComponent.WHEN_IN_FOCUSED_WINDOW);
+
+        // Panel rechtsbündig, aber OK links von Abbrechen -> Reihenfolge: OK dann Cancel
         JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        south.add(cancel);
-        south.add(ok);
+        south.add(ok);      // OK links
+        south.add(cancel);  // Abbrechen rechts
+
 
         getContentPane().setLayout(new BorderLayout());
         getContentPane().add(form, BorderLayout.CENTER);
