@@ -37,7 +37,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     private final JPanel metaPanel = new JPanel(new BorderLayout(6, 6));
 
     /** Schaltet die Sichtbarkeit des Meta-Drawers (Splitter unten). */
-    private final JToggleButton metaToggle = new JToggleButton("Meta-Events");
+    private final JToggleButton metaToggle = new JToggleButton("Debug Log");
     private int lastDividerLocation = -1;
 
     /** Der alte EventService wurde ersetzt – dieser Feldname bleibt zur Kompatibilität.

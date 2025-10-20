@@ -3,6 +3,7 @@ package de.bund.zrb.ui;
 import de.bund.zrb.event.ApplicationEventBus;
 import de.bund.zrb.event.TestSuiteSavedEvent;
 import de.bund.zrb.model.*;
+import de.bund.zrb.service.PreconditionRegistry;
 import de.bund.zrb.service.TestPlayerService;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.ui.commandframework.CommandRegistryImpl;
@@ -25,25 +26,30 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Left drawer: tree view + green play button + drag & drop.
+ * Left drawer: tabbed tree view (Tests & Preconditions) + green play button + drag & drop (tests).
  */
 public class LeftDrawer extends JPanel implements TestPlayerUi {
 
     private final CommandRegistryImpl commandRegistry = CommandRegistryImpl.getInstance();
+
     private final JTree testTree;
+    private final JTree precondTree;
+    private final JTabbedPane leftTabs;
 
     public LeftDrawer() {
         super(new BorderLayout());
 
-        testTree = getTreeData();
+        // --- Build test tree and populate ---
+        testTree = buildTestTree();
         refreshTestSuites(null);
 
-        // 📌 Drag & Drop aktivieren:
+        // Enable DnD and custom renderer for tests (keep existing behavior)
         testTree.setDragEnabled(true);
         testTree.setDropMode(DropMode.ON_OR_INSERT);
         testTree.setTransferHandler(new TestSuiteTreeTransferHandler());
         testTree.setCellRenderer(new TestTreeCellRenderer());
 
+        // Open editors on double click (tests)
         testTree.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
@@ -56,29 +62,79 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
             }
         });
 
-        JScrollPane treeScroll = new JScrollPane(testTree);
+        // --- Build precondition tree and populate ---
+        precondTree = buildPrecondTree();
+        refreshPreconditions();
 
-        JButton playButton = new JButton("▶");
-        playButton.setBackground(Color.GREEN);
-        playButton.setFocusPainted(false);
+        // Use same renderer for a consistent look
+        precondTree.setCellRenderer(new TestTreeCellRenderer());
 
-        playButton.addActionListener(e -> {
-            MenuCommand playCommand = commandRegistry.getById("testsuite.play").get();
-            playCommand.perform();
-        });
-
-        setupContextMenu();
-
-        add(playButton, BorderLayout.NORTH);
-        add(treeScroll, BorderLayout.CENTER);
-
-        ApplicationEventBus.getInstance().subscribe(event -> {
-            if (event instanceof TestSuiteSavedEvent) {
-                refreshTestSuites((String) event.getPayload()); // die Methode, um die Liste neu zu laden
+        // Double click in preconditions: open ActionEditorTab for steps; ignore on precondition node for now
+        precondTree.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    TreePath path = precondTree.getPathForLocation(e.getX(), e.getY());
+                    if (path != null) {
+                        TestNode node = (TestNode) path.getLastPathComponent();
+                        Object ref = node.getModelRef();
+                        if (ref instanceof TestAction) {
+                            JComponent tab = new ActionEditorTab((TestAction) ref);
+                            Component parent = SwingUtilities.getWindowAncestor(LeftDrawer.this);
+                            if (parent instanceof JFrame) {
+                                JTabbedPane tabbedPane = UIHelper.findTabbedPane((JFrame) parent);
+                                if (tabbedPane != null) {
+                                    tabbedPane.addTab(node.toString(), tab);
+                                    tabbedPane.setSelectedComponent(tab);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         });
 
+        // --- Wrap trees in scroll panes and add to a JTabbedPane ---
+        JScrollPane testScroll = new JScrollPane(testTree);
+        JScrollPane precondScroll = new JScrollPane(precondTree);
+
+        leftTabs = new JTabbedPane();
+        leftTabs.addTab("Tests", testScroll);
+        leftTabs.addTab("Preconditions", precondScroll);
+
+        // --- Play button (north) ---
+//        JButton playButton = new JButton("▶");
+//        playButton.setBackground(Color.GREEN);
+//        playButton.setFocusPainted(false);
+//        playButton.addActionListener(e -> {
+//            MenuCommand playCommand = commandRegistry.getById("testsuite.play").get();
+//            playCommand.perform();
+//        });
+//        add(playButton, BorderLayout.NORTH);
+
+        // Context menu only for test tree (unchanged for now)
+        setupContextMenu();
+
+
+        add(leftTabs, BorderLayout.CENTER);
+
+        // Refresh tests on save event (existing behavior)
+        ApplicationEventBus.getInstance().subscribe(event -> {
+            if (event instanceof TestSuiteSavedEvent) {
+                refreshTestSuites((String) event.getPayload());
+            }
+            // Note: if you later emit a PreconditionSavedEvent, hook refreshPreconditions() here similarly.
+        });
+
         TestPlayerService.getInstance().registerDrawer(this);
+    }
+
+    // ========================= Tests tab =========================
+
+    private JTree buildTestTree() {
+        TestNode root = new TestNode("Testsuites");
+        JTree tree = new JTree(root);
+        tree.setCellRenderer(new TestTreeCellRenderer());
+        return tree;
     }
 
     private void refreshTestSuites(String name) {
@@ -113,12 +169,43 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
         return label;
     }
 
-    private JTree getTreeData() {
-        TestNode root = new TestNode("Testsuites");
-        JTree tree = new JTree(root);
-        tree.setCellRenderer(new TestTreeCellRenderer());
-        return tree;
+    // ========================= Preconditions tab =========================
+
+    private JTree buildPrecondTree() {
+        TestNode root = new TestNode("Preconditions");
+        return new JTree(root);
     }
+
+    private void refreshPreconditions() {
+        TestNode root = new TestNode("Preconditions");
+
+        for (Precondition p : PreconditionRegistry.getInstance().getAll()) {
+            // Show name; optionally include (id) to help debugging
+            String display = (p.getName() != null && !p.getName().trim().isEmpty())
+                    ? p.getName().trim()
+                    : "(unnamed)";
+            TestNode preNode = new TestNode(display, p);
+
+            // List actions (When) as children
+            if (p.getActions() != null) {
+                for (TestAction action : p.getActions()) {
+                    String label = renderActionLabel(action);
+                    TestNode stepNode = new TestNode(label, action);
+                    preNode.add(stepNode);
+                }
+            }
+
+            root.add(preNode);
+    }
+
+        DefaultTreeModel model = (DefaultTreeModel) precondTree.getModel();
+        model.setRoot(root);
+        model.reload();
+        // Expand root for better visibility
+        precondTree.expandPath(new TreePath(root.getPath()));
+    }
+
+    // ========================= Context menu (tests) =========================
 
     /**
      * Set up a dynamic context menu for the test tree. Depending on the clicked node,
