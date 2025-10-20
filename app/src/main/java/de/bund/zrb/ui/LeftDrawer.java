@@ -68,6 +68,7 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
 
         // Use same renderer for a consistent look
         precondTree.setCellRenderer(new TestTreeCellRenderer());
+        precondCtrl.setupContextMenu();
 
         // Double click in preconditions: open ActionEditorTab for steps; ignore on precondition node for now
         precondTree.addMouseListener(new MouseAdapter() {
