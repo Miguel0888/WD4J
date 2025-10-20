@@ -6,11 +6,13 @@ import de.bund.zrb.model.Precondition;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.service.PreconditionRegistry;
 import de.bund.zrb.ui.TestNode;
+import de.bund.zrb.ui.dialogs.ActionPickerDialog;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -237,14 +239,17 @@ public class PrecondTreeController {
     public void createNewStepUnderPrecondition(TestNode preNode) {
         if (preNode == null || !(preNode.getModelRef() instanceof Precondition)) return;
 
-        String actionName = JOptionPane.showInputDialog(precondTree,
-                "Aktion für neuen Step (z. B. click, navigate):",
-                "Neuer Schritt",
-                JOptionPane.PLAIN_MESSAGE);
-        if (actionName == null || actionName.trim().isEmpty()) return;
+        // Use action picker instead of free text
+        Window owner = SwingUtilities.getWindowAncestor(precondTree);
+        ActionPickerDialog dlg = new ActionPickerDialog(owner, "Neuer Schritt", "click");
+        dlg.setVisible(true);
+        if (!dlg.isConfirmed()) return;
+
+        String actionName = dlg.getChosenAction();
+        if (actionName.length() == 0) return;
 
         Precondition pre = (Precondition) preNode.getModelRef();
-        TestAction newAction = new TestAction(actionName.trim());
+        TestAction newAction = new TestAction(actionName);
         pre.getActions().add(newAction);
 
         DefaultTreeModel model = (DefaultTreeModel) precondTree.getModel();
@@ -256,22 +261,25 @@ public class PrecondTreeController {
         ApplicationEventBus.getInstance().publish(new PreconditionSavedEvent(pre.getName()));
     }
 
+
     /** Create a new step directly after the given step. */
     public void createNewStepAfter(TestNode clickedStep) {
         if (clickedStep == null || !(clickedStep.getModelRef() instanceof TestAction)) return;
 
-        String actionName = JOptionPane.showInputDialog(precondTree,
-                "Aktion für neuen Step (z. B. click, navigate):",
-                "Neuer Schritt",
-                JOptionPane.PLAIN_MESSAGE);
-        if (actionName == null || actionName.trim().isEmpty()) return;
+        Window owner = SwingUtilities.getWindowAncestor(precondTree);
+        ActionPickerDialog dlg = new ActionPickerDialog(owner, "Neuer Schritt", "click");
+        dlg.setVisible(true);
+        if (!dlg.isConfirmed()) return;
+
+        String actionName = dlg.getChosenAction();
+        if (actionName.length() == 0) return;
 
         TestAction oldAction = (TestAction) clickedStep.getModelRef();
         TestNode preNode = (TestNode) clickedStep.getParent();
         if (preNode == null || !(preNode.getModelRef() instanceof Precondition)) return;
 
         Precondition pre = (Precondition) preNode.getModelRef();
-        TestAction newAction = new TestAction(actionName.trim());
+        TestAction newAction = new TestAction(actionName);
         List<TestAction> actions = pre.getActions();
 
         int idx = actions.indexOf(oldAction);
@@ -286,6 +294,7 @@ public class PrecondTreeController {
         PreconditionRegistry.getInstance().save();
         ApplicationEventBus.getInstance().publish(new PreconditionSavedEvent(pre.getName()));
     }
+
 
     /** Duplicate a step (shallow copy) and insert directly after it. */
     public void duplicateStepAfter(TestNode clickedStep) {
