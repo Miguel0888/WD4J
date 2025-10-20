@@ -227,7 +227,7 @@ public class TestPlayerService {
 
         try {
             String username = resolveUserForTestCase(caseNode);
-            Page page = browserService.getActivePage(username);
+            PageImpl page = (PageImpl) browserService.getActivePage(username);
 
             byte[] png = screenshotAfterWait(3000, page);
 
@@ -372,9 +372,9 @@ public class TestPlayerService {
         }
     }
 
-    private byte[] screenshotAfterWait(int timeout, Page page) {
+    private byte[] screenshotAfterWait(int timeout, PageImpl page) {
 //        sleep(3000);
-        waitForStableBeforeScreenshot(page, timeout);
+//        waitForStableBeforeScreenshot(page, timeout);
         // Element- oder Page-Screenshot könnte hier später unterschieden werden.
         return page.screenshot(new Page.ScreenshotOptions().setTimeout(timeout));
     }

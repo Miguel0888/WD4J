@@ -1501,6 +1501,11 @@ public class PageImpl implements Page, WDPageExtension {
      */
     @Override
     public byte[] screenshot(ScreenshotOptions options) {
+        if(options != null) {
+            waitForActionabilityBeforeScreenshot(options.timeout != null ? options.timeout : 3000);
+        } else  {
+            waitForActionabilityBeforeScreenshot(3000);
+        }
         // ---------------------------------------------------------------
         // Playwright-like Preprocessing (optional)
         // ---------------------------------------------------------------
@@ -2386,6 +2391,46 @@ public class PageImpl implements Page, WDPageExtension {
             } catch (Throwable ignore) { /* not our type */ }
         }
         return null;
+    }
+
+    /** Wartet rAF*2 + Fonts.ready (falls vorhanden). Kein JSHandle, kein Polling. */
+    private void waitForActionabilityBeforeScreenshot(double timeoutMs) {
+        long cap = Math.max(1000L, (long) timeoutMs); // defensiv
+        List<WDLocalValue> args = Collections.singletonList(WDLocalValue.fromObject(cap));
+
+        // Einmalige Promise, die nach Fonts.ready (wenn vorhanden) und 2 rAF auflöst.
+        webDriver.script().callFunction(
+                "function(maxMs){"
+                        + "  const deadline = Date.now() + (typeof maxMs==='number' ? maxMs : 5000);"
+                        + "  return new Promise((resolve)=>{"
+                        + "    const finish = ()=>resolve();"
+                        + "    const twoRaf = ()=>{"
+                        + "      try{"
+                        + "        if (document.visibilityState==='visible' && typeof requestAnimationFrame==='function'){"
+                        + "          requestAnimationFrame(()=>requestAnimationFrame(finish));"
+                        + "        } else { setTimeout(finish,50); }"
+                        + "      } catch(_) { setTimeout(finish,50); }"
+                        + "    };"
+                        + "    const afterFonts = ()=>{"
+                        + "      try {"
+                        + "        if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then==='function'){"
+                        + "          // Fonts stabilisieren das Layout; nicht unendlich warten:"
+                        + "          let timed = false;"
+                        + "          const t = setTimeout(()=>{ if(!timed){ timed=true; twoRaf(); } }, Math.max(0, deadline - Date.now()));"
+                        + "          document.fonts.ready.then(()=>{ if(!timed){ timed=true; clearTimeout(t); twoRaf(); } }, ()=>{ if(!timed){ timed=true; clearTimeout(t); twoRaf(); } });"
+                        + "        } else { twoRaf(); }"
+                        + "      } catch(_) { twoRaf(); }"
+                        + "    };"
+                        + "    afterFonts();"
+                        + "  });"
+                        + "}",
+                /* awaitPromise */ true,
+                new WDTarget.ContextTarget(browsingContext),
+                args,
+                null,
+                WDResultOwnership.NONE,
+                null
+        );
     }
 
 
