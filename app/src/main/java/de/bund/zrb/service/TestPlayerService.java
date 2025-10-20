@@ -21,6 +21,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
+import static de.bund.zrb.service.ActivityService.doWithSettling;
+
 public class TestPlayerService {
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -67,6 +69,7 @@ public class TestPlayerService {
 
     public void runSuites() {
         GrowlNotificationPopupUtil.hook(browserService.getBrowser()); // <<< einmalig für notifications registrieren
+        ActivityService.getInstance(browserService.getBrowser());
         resetRunFlags();
         if (!isReady()) return;
 
@@ -281,9 +284,11 @@ public class TestPlayerService {
 
             switch (act) {
                 case "navigate":
-                    page.navigate(action.getValue(),
-                            new Page.NavigateOptions().setTimeout(action.getTimeout()));
-                    return true;
+                    // Navigation selbst ist die Aktion → wie jede andere: markieren + navigieren + settle
+                    return doWithSettling(page, action.getTimeout(), () ->
+                            page.navigate(action.getValue(),
+                                    new Page.NavigateOptions().setTimeout(action.getTimeout()))
+                    );
 
                 case "wait":
                     Thread.sleep(Long.parseLong(action.getValue()));
@@ -292,8 +297,11 @@ public class TestPlayerService {
                 case "click": {
                     Locator loc = LocatorResolver.resolve(page, action);
                     withRecordingSuppressed(page, () ->
-                            waitThen(loc, action.getTimeout(), () ->
-                                    loc.click(new Locator.ClickOptions().setTimeout(action.getTimeout()))));
+                            waitThen(loc, action.getTimeout(), () -> {
+                                doWithSettling(page, action.getTimeout(),
+                                        () -> loc.click(new Locator.ClickOptions().setTimeout(action.getTimeout())));
+                            })
+                    );
                     return true;
                 }
 

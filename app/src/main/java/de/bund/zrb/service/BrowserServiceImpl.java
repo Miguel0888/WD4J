@@ -82,6 +82,7 @@ public class BrowserServiceImpl implements BrowserService {
 
     private void configureServices() {
         NotificationService.getInstance(browser); // init
+//        ActivityService.getInstance(browser); // init
     }
 
     @Override
