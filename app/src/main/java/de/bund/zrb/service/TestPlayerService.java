@@ -16,12 +16,12 @@ import javax.swing.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 import static de.bund.zrb.service.ActivityService.doWithSettling;
+import static java.lang.Thread.sleep;
 
 public class TestPlayerService {
 
@@ -37,6 +37,8 @@ public class TestPlayerService {
     private Path reportHtmlPath;       // C:/Reports/<base>.html
     private Path reportImagesDir;      // C:/Reports/<base>/
     private int screenshotCounter;     // läuft pro Report hoch
+
+    private static final int QUIET_MS = 500; // 400–600ms hat sich bewährt
 
     ////////////////////////////////////////////////////////////////////////////////
     // Singleton & Dependencies
@@ -109,12 +111,15 @@ public class TestPlayerService {
     ////////////////////////////////////////////////////////////////////////////////
 
     private LogComponent executeActionNode(TestNode node, TestAction action) {
+        // Build a log entry for this step. Do not set status here; we set it below.
+        StepLog stepLog = new StepLog(action.getType().name(), buildStepText(action));
+
         // Execute the action and capture success/failure. Any exception should
         // mark the step as failed and propagate the error message.
         boolean ok;
         String err = null;
         try {
-            ok = playSingleAction(action);
+            ok = playSingleAction(action, stepLog);
             if (!ok) {
                 err = "Action returned false";
             }
@@ -123,8 +128,6 @@ public class TestPlayerService {
             err = (ex.getMessage() != null) ? ex.getMessage() : ex.toString();
         }
 
-        // Build a log entry for this step. Do not set status here; we set it below.
-        StepLog stepLog = new StepLog(action.getType().name(), buildStepText(action));
         stepLog.setStatus(ok);
         if (!ok && err != null && !err.isEmpty()) {
             stepLog.setError(err);
@@ -226,7 +229,7 @@ public class TestPlayerService {
             String username = resolveUserForTestCase(caseNode);
             Page page = browserService.getActivePage(username);
 
-            byte[] png = page.screenshot(new Page.ScreenshotOptions());
+            byte[] png = screenshotAfterWait(3000, page);
 
             String baseName = (testCase.getName() == null) ? "case" : testCase.getName();
             Path file = saveScreenshotBytes(png, baseName);
@@ -264,7 +267,7 @@ public class TestPlayerService {
     // Aktion ausführen (bestehende Logik, nur lesbarer gemacht)
     ////////////////////////////////////////////////////////////////////////////////
 
-    public synchronized boolean playSingleAction(TestAction action) {
+    public synchronized boolean playSingleAction(TestAction action, StepLog stepLog) {
         try {
             lastUsernameUsed = action.getUser();
             if (lastUsernameUsed == null || lastUsernameUsed.isEmpty()) {
@@ -291,7 +294,7 @@ public class TestPlayerService {
                     );
 
                 case "wait":
-                    Thread.sleep(Long.parseLong(action.getValue()));
+                    sleep(Long.parseLong(action.getValue()));
                     return true;
 
                 case "click": {
@@ -331,8 +334,16 @@ public class TestPlayerService {
                 }
 
                 case "screenshot":
-                    // Element- oder Page-Screenshot könnte hier später unterschieden werden.
-                    page.screenshot(new Page.ScreenshotOptions().setTimeout(action.getTimeout()));
+                    byte[] png = screenshotAfterWait(action.getTimeout(), page);
+
+                    String baseName = (stepLog.getName() == null) ? "case" : stepLog.getName();
+                    Path file = saveScreenshotBytes(png, baseName);
+                    String rel = relToHtml(file);
+
+                    stepLog.setStatus(true);
+                    stepLog.setHtmlAppend(
+                            "<img src='" + rel + "' alt='Screenshot' style='max-width:100%;border:1px solid #ccc;margin-top:.5rem'/>"
+                    );
                     return true;
 
                 //optional:
@@ -359,6 +370,13 @@ public class TestPlayerService {
             e.printStackTrace();
             return false;
         }
+    }
+
+    private byte[] screenshotAfterWait(int timeout, Page page) {
+//        sleep(3000);
+        waitForStableBeforeScreenshot(page, timeout);
+        // Element- oder Page-Screenshot könnte hier später unterschieden werden.
+        return page.screenshot(new Page.ScreenshotOptions().setTimeout(timeout));
     }
 
     private void waitThen(Locator locator, double timeout, Runnable action) {
@@ -487,4 +505,25 @@ public class TestPlayerService {
         // reportBaseName=null; reportHtmlPath=null; reportImagesDir=null; screenshotCounter=0;
     }
 
+    private void waitForStableBeforeScreenshot(Page page, double timeoutMs) {
+        page.waitForFunction(
+                "quietMs => new Promise((resolve, reject) => {" +
+                        "  const start = Date.now();" +
+                        "  const tick = () => {" +
+                        "    if (Date.now() - start > " + (long) (Integer.MAX_VALUE) + ") { resolve(); }" + // no-op guard
+                        "    const getA = window.__zrbGetActivity || (() => null);" +
+                        "    const a = getA();" +
+                        "    const now = Date.now();" +
+                        "    const quiet = a && (a.inflightXHR|0)===0 && (a.inflightFetch|0)===0 && (a.pfQueueDepth|0)===0 && (now - (a.lastChangeTs||0)) >= quietMs;" +
+                        "    if (quiet) {" +
+                        "      requestAnimationFrame(() => requestAnimationFrame(resolve));" + // 2 Frames fürs Rendern
+                        "    } else {" +
+                        "      setTimeout(tick, 50);" +
+                        "    }" +
+                        "  }; tick();" +
+                        "})",
+                QUIET_MS,
+                new Page.WaitForFunctionOptions().setTimeout((int) Math.max(1000, timeoutMs))
+        );
+    }
 }
