@@ -1424,16 +1424,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
     private void waitTwoAnimationFrames() {
         webDriver.script().callFunction(
-                "() => new Promise(resolve => {" +
-                        "  const vis = document.visibilityState;" +
-                        "  const raf = typeof requestAnimationFrame === 'function';" +
-                        "  if (vis === 'visible' && raf) {" +
-                        "    requestAnimationFrame(() => requestAnimationFrame(resolve));" +
-                        "  } else {" +
-                        "    // Tab nicht aktiv → rAF feuert nicht: Timer als Fallback" +
-                        "    setTimeout(resolve, 50);" +
-                        "  }" +
-                        "})",
+                "function(){return new Promise(function(resolve){var vis=document.visibilityState;var raf=(typeof requestAnimationFrame==='function');if(vis==='visible'&&raf){requestAnimationFrame(function(){requestAnimationFrame(resolve);});}else{setTimeout(resolve,50);}});}",
                 true,
                 target,
                 null,
