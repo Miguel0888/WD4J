@@ -1,9 +1,10 @@
-package de.bund.zrb.ui;
+package de.bund.zrb.ui.leftdrawer;
 
 import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
+import de.bund.zrb.ui.TestNode;
 // Optional: falls vorhanden
 // import de.bund.zrb.model.ThenExpectation;
 
