@@ -39,6 +39,8 @@ public class TestPlayerService {
     private int screenshotCounter;     // läuft pro Report hoch
 
     private static final int QUIET_MS = 500; // 400–600ms hat sich bewährt
+    private static final String TYPE_PRECONDITION_REF = "preconditionRef";
+
 
     ////////////////////////////////////////////////////////////////////////////////
     // Singleton & Dependencies
@@ -203,7 +205,20 @@ public class TestPlayerService {
         if (givens == null || givens.isEmpty()) return out;
 
         for (GivenCondition given : givens) {
-            StepLog givenLog = new StepLog(label, "Given: " + given.getType());
+
+            // --- Log-Text bestimmen ---
+            String logText;
+            if (TYPE_PRECONDITION_REF.equals(given.getType())) {
+                String id = parseIdFromValue(given.getValue());
+                String name = resolvePreconditionName(id);
+                // -> genau das wolltest du: Name der Precondition statt "preconditionRef"
+                logText = "Precondition: " + name;
+            } else {
+                logText = "Given: " + given.getType();
+            }
+
+            StepLog givenLog = new StepLog(label, logText);
+
             try {
                 String user = inferUsername(given);
                 givenExecutor.apply(user, given);
@@ -212,12 +227,14 @@ public class TestPlayerService {
                 givenLog.setStatus(false);
                 givenLog.setError(ex.getMessage());
             }
+
             givenLog.setParent(parentLog);
-            logger.append(givenLog);          // <— SOFORT anzeigen
+            logger.append(givenLog);          // sofort streamen
             out.add(givenLog);
         }
         return out;
     }
+
 
     private List<LogComponent> executeThenPhase(TestNode caseNode, TestCase testCase, SuiteLog parentLog) {
         List<LogComponent> out = new ArrayList<>();
@@ -540,4 +557,31 @@ public class TestPlayerService {
                 new Page.WaitForFunctionOptions().setTimeout((int) Math.max(1000, timeoutMs))
         );
     }
+
+    /** Erwartet "id=<uuid>&..." im value. */
+    private String parseIdFromValue(String value) {
+        if (value == null) return "";
+        String[] pairs = value.split("&");
+        for (String pair : pairs) {
+            String[] kv = pair.split("=", 2);
+            if (kv.length == 2 && "id".equals(kv[0])) return kv[1];
+        }
+        return "";
+    }
+
+    /** Liefert Anzeigenamen der Precondition (Fallback: UUID). */
+    private String resolvePreconditionName(String id) {
+        if (id == null || id.trim().isEmpty()) return "(keine)";
+        java.util.List<de.bund.zrb.model.Precondition> list =
+                de.bund.zrb.service.PreconditionRegistry.getInstance().getAll();
+        for (de.bund.zrb.model.Precondition p : list) {
+            if (id.equals(p.getId())) {
+                String n = p.getName();
+                return (n != null && n.trim().length() > 0) ? n.trim() : "(unnamed)";
+            }
+        }
+        // nicht gefunden -> zeig die id
+        return id;
+    }
+
 }
