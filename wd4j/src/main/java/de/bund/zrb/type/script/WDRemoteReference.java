@@ -11,7 +11,7 @@ import java.lang.reflect.Type;
  * reference to a node.
  */
 @JsonAdapter(WDRemoteReference.RemoteReferenceAdapter.class) // 🔥 Automatische JSON-Konvertierung
-public interface WDRemoteReference<T> {
+public interface WDRemoteReference<T> extends WDLocalValue {
     String getType();
 
     // 🔥 **INNERE KLASSE für JSON-Deserialisierung**
