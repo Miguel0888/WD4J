@@ -19,11 +19,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Editor für einzelne GivenCondition.
+ * Editor für eine GivenCondition.
  * - Typ-Auswahl aus GivenRegistry
- * - Dynamische Felder
- * - Zusätzliche "User:"-Combo für JEDES Given (speichert "username" im Param-String)
- * - Spezialfall "preconditionRef": UUID als Dropdown statt Freitext
+ * - Oben immer: "User:"-Dropdown -> speichert "username" im Param-String
+ * - Dynamische Felder je Typ
+ * - Spezialfall preconditionRef: Feld "id" als Precondition-Dropdown (Name {UUID}) statt Freitext
  */
 public class GivenConditionEditorTab extends JPanel {
 
@@ -33,6 +33,7 @@ public class GivenConditionEditorTab extends JPanel {
     private final JComboBox<String> typeBox;
     private final JPanel dynamicFieldsPanel = new JPanel(new GridBagLayout());
     private final Map<String, JComponent> inputs = new LinkedHashMap<String, JComponent>();
+
     private JComboBox<String> userBox;
 
     public GivenConditionEditorTab(GivenCondition condition) {
@@ -40,7 +41,7 @@ public class GivenConditionEditorTab extends JPanel {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Typ-Combo aus Registry
+        // Typen aus Registry
         String[] types = GivenRegistry.getInstance().getAll()
                 .stream().map(GivenTypeDefinition::getType).toArray(String[]::new);
         typeBox = new JComboBox<String>(types);
@@ -72,10 +73,9 @@ public class GivenConditionEditorTab extends JPanel {
 
         Map<String, Object> paramMap = parseValueMap(condition.getValue());
         GridBagConstraints gbc = baseGbc();
-
         int row = 0;
 
-        // ---------- User-Reihe (immer vorhanden) ----------
+        // ---------- (1) Immer oben: User ----------
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
         gbc.weightx = 0; gbc.weighty = 0; gbc.fill = GridBagConstraints.NONE;
         dynamicFieldsPanel.add(new JLabel("User:"), gbc);
@@ -91,38 +91,26 @@ public class GivenConditionEditorTab extends JPanel {
         dynamicFieldsPanel.add(userBox, gbc);
         row++;
 
-        // ---------- Dynamische Felder je Typ ----------
+        // ---------- (2) Dynamische Felder nach Typ ----------
         GivenTypeDefinition def = GivenRegistry.getInstance().get(type);
-        if (def == null) {
-            revalidate(); repaint();
-            return;
-        }
+        if (def == null) { revalidate(); repaint(); return; }
 
         for (GivenField field : def.getFields().values()) {
             Object value = paramMap.get(field.name);
             if (value == null && field.defaultValue != null) value = field.defaultValue;
 
-            // Label
-            gbc.gridx = 0; gbc.gridy = row;
-            gbc.gridwidth = 1; gbc.weightx = 0; gbc.weighty = 0; gbc.fill = GridBagConstraints.NONE;
-            dynamicFieldsPanel.add(new JLabel(field.label + ":"), gbc);
-
-            // Input
-            gbc.gridx = 1; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
-
-            // Spezialfall Code
+            // Code-Feld: Label in voller Breite + Editor in voller Breite
             if (field.type == Code.class) {
+                gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+                gbc.weightx = 1.0; gbc.weighty = 0; gbc.fill = GridBagConstraints.HORIZONTAL;
+                dynamicFieldsPanel.add(new JLabel(field.label), gbc);
+
                 RSyntaxTextArea editor = new RSyntaxTextArea(10, 40);
                 editor.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVASCRIPT);
                 editor.setCodeFoldingEnabled(true);
                 editor.setText(value != null ? value.toString() : "");
                 RTextScrollPane scrollPane = new RTextScrollPane(editor);
 
-                // Label vollbreit oberhalb
-                gbc.gridx = 0; gbc.gridwidth = 2;
-                dynamicFieldsPanel.add(new JLabel(field.label), gbc);
-
-                // Editor vollbreit, nächste Zeile
                 gbc.gridy = ++row; gbc.fill = GridBagConstraints.BOTH; gbc.weighty = 1.0;
                 dynamicFieldsPanel.add(scrollPane, gbc);
 
@@ -131,9 +119,16 @@ public class GivenConditionEditorTab extends JPanel {
                 continue;
             }
 
-            // Spezialfall preconditionRef.id -> Dropdown mit Precondition-Namen
+            // Spezialfall: preconditionRef.id -> Dropdown statt Textfeld
             if (TYPE_PRECONDITION_REF.equals(def.getType()) && "id".equals(field.name)) {
-                JComboBox<PreItem> combo = new JComboBox<PreItem>();
+                // Label
+                gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
+                gbc.weightx = 0; gbc.weighty = 0; gbc.fill = GridBagConstraints.NONE;
+                dynamicFieldsPanel.add(new JLabel(field.label + ":"), gbc);
+
+                // Combo
+                gbc.gridx = 1; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
+                JComboBox<PreItem> preBox = new JComboBox<PreItem>();
                 List<Precondition> pres = PreconditionRegistry.getInstance().getAll();
                 PreItem selected = null;
                 for (int i = 0; i < pres.size(); i++) {
@@ -142,17 +137,23 @@ public class GivenConditionEditorTab extends JPanel {
                     String name = (p.getName() != null && p.getName().trim().length() > 0)
                             ? p.getName().trim() : "(unnamed)";
                     PreItem item = new PreItem(id, name);
-                    combo.addItem(item);
+                    preBox.addItem(item);
                     if (value != null && value.equals(id)) selected = item;
                 }
-                if (selected != null) combo.setSelectedItem(selected);
-                dynamicFieldsPanel.add(combo, gbc);
-                inputs.put(field.name, combo);
+                if (selected != null) preBox.setSelectedItem(selected);
+
+                dynamicFieldsPanel.add(preBox, gbc);
+                inputs.put(field.name, preBox);
                 row++;
                 continue;
             }
 
-            // Default: Textfeld
+            // Standard: Textfeld
+            gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
+            gbc.weightx = 0; gbc.weighty = 0; gbc.fill = GridBagConstraints.NONE;
+            dynamicFieldsPanel.add(new JLabel(field.label + ":"), gbc);
+
+            gbc.gridx = 1; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
             JTextField tf = new JTextField(value != null ? value.toString() : "");
             dynamicFieldsPanel.add(tf, gbc);
             inputs.put(field.name, tf);
@@ -169,7 +170,7 @@ public class GivenConditionEditorTab extends JPanel {
 
         Map<String, String> result = new LinkedHashMap<String, String>();
 
-        // username aus Combo sichern
+        // username sichern
         Object uSel = (userBox != null) ? userBox.getSelectedItem() : null;
         if (uSel != null && uSel.toString().trim().length() > 0) {
             result.put("username", uSel.toString().trim());
@@ -187,7 +188,7 @@ public class GivenConditionEditorTab extends JPanel {
             } else if (input instanceof JComboBox) {
                 Object sel = ((JComboBox<?>) input).getSelectedItem();
                 if (sel instanceof PreItem) {
-                    result.put(name, ((PreItem) sel).id);
+                    result.put(name, ((PreItem) sel).id); // nur UUID speichern
                 } else if (sel != null) {
                     result.put(name, sel.toString());
                 }
@@ -199,7 +200,7 @@ public class GivenConditionEditorTab extends JPanel {
         JOptionPane.showMessageDialog(this, "Änderungen gespeichert.");
     }
 
-    // ---------- Helpers ----------
+    // ----- Helpers -----
 
     private GridBagConstraints baseGbc() {
         GridBagConstraints gbc = new GridBagConstraints();
@@ -228,7 +229,7 @@ public class GivenConditionEditorTab extends JPanel {
         return sb.toString();
     }
 
-    /** Item für Precondition-Dropdown (zeigt "Name {UUID}", speichert aber nur die UUID). */
+    /** Anzeige: "Name {UUID}" – gespeichert wird aber NUR die UUID. */
     private static final class PreItem {
         final String id;
         final String name;
