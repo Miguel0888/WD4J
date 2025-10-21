@@ -1,1596 +1,211 @@
 package de.bund.zrb;
 
+import com.google.gson.JsonObject;
 import com.microsoft.playwright.ElementHandle;
 import com.microsoft.playwright.Frame;
-import com.microsoft.playwright.options.BoundingBox;
-import com.microsoft.playwright.options.ElementState;
-import com.microsoft.playwright.options.FilePayload;
-import com.microsoft.playwright.options.SelectOption;
-import de.bund.zrb.command.request.parameters.input.sourceActions.PauseAction;
-import de.bund.zrb.support.ActionabilityCheck;
-import de.bund.zrb.support.ActionabilityRequirement;
-import de.bund.zrb.support.WDKeys;
-import de.bund.zrb.type.input.WDElementOrigin;
+import com.microsoft.playwright.JSHandle;
+import com.microsoft.playwright.options.*;
+import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.script.*;
-import de.bund.zrb.util.WebDriverUtil;
+import de.bund.zrb.util.ScriptUtils;
 
 import java.nio.file.Path;
-import java.util.*;
-
-import static com.microsoft.playwright.ElementHandle.*;
-import static de.bund.zrb.support.WDRemoteValueUtil.getBoundingBoxFromEvaluateResult;
-
-import de.bund.zrb.manager.WDInputManager;
-import de.bund.zrb.command.request.parameters.input.sourceActions.PointerSourceAction;
-import de.bund.zrb.command.request.parameters.input.sourceActions.SourceActions;
-import de.bund.zrb.command.request.parameters.input.sourceActions.KeySourceAction;
-import de.bund.zrb.util.BrowsingContextResolver;
-import com.microsoft.playwright.options.MouseButton;
-import com.microsoft.playwright.options.KeyboardModifier;
+import java.util.Collections;
+import java.util.List;
 
 /**
- * Implementation of ElementHandle using WebDriver BiDi.
+ * ElementHandleImpl represents a DOM element handle based on a WDRemoteValue with type "node".
  */
 public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
-    private final PageImpl page;               // optional
-    private volatile String cachedContextId;   // lazy cache für performActions
-
-    public ElementHandleImpl(WebDriver webDriver,
-                             WDRemoteReference.SharedReference sharedReference,
-                             WDTarget target,
-                             PageImpl page) {
-        super(webDriver, sharedReference, target);
-        this.page = page; // darf null sein
-    }
-
-    public ElementHandleImpl(WebDriver webDriver,
-                             WDRemoteReference.SharedReference sharedReference,
-                             WDTarget target) {
-        this(webDriver, sharedReference, target, null);
-    }
-
-    public WDSharedId getSharedId() {
-        return ((WDRemoteReference.SharedReference) remoteReference).getSharedId();
-    }
-
-    @Override
-    public WDHandle getHandle() {
-        return ((WDRemoteReference.SharedReference) remoteReference).getHandle();
-    }
-
-    @Override
-    public BoundingBox boundingBox() {
-        String script = "el => el.getBoundingClientRect()";
-        WDEvaluateResult result = webDriver.script().evaluate(script, target, true);
-
-        return getBoundingBoxFromEvaluateResult(result);
-    }
-
-    /**
-     * This method checks the element by performing the following steps:
-     * <ol>
-     * <li> Ensure that element is a checkbox or a radio input. If not, this method throws. If the element is already checked, this
-     * method returns immediately.</li>
-     * <li> Wait for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks on the element, unless {@code
-     * force} option is set.</li>
-     * <li> Scroll the element into view if needed.</li>
-     * <li> Use {@link PageImpl#mouse Page.mouse()} to click in the center of the element.</li>
-     * <li> Ensure that the element is now checked. If not, this method throws.</li>
-     * </ol>
-     *
-     * <p> If the element is detached from the DOM at any moment during the action, this method throws.
-     *
-     * <p> When all steps combined have not finished during the specified {@code timeout}, this method throws a {@code
-     * TimeoutError}. Passing zero timeout disables this.
-     *
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public void check(CheckOptions options) {
-        if (!isCheckboxOrRadio()) {
-            throw new IllegalStateException("Element is not a checkbox or radio input.");
-        }
-
-        if (isChecked()) {
-            return; // Element is already checked, nothing to do
-        }
-
-        waitForActionability(options);
-        scrollIntoViewIfNeeded(null);
-
-        click(new ClickOptions()); // Perform a click to check the element
-
-        if (!isChecked()) {
-            throw new IllegalStateException("Element did not become checked.");
+    public ElementHandleImpl(WebDriver webDriver, WDRemoteValue remoteValue, WDTarget target) {
+        super(webDriver, remoteValue, target);
+        if (!"node".equals(remoteValue.getType())) {
+            throw new IllegalArgumentException("Expected a remote value of type 'node', but got: " + remoteValue.getType());
         }
     }
 
-    private boolean isCheckboxOrRadio() {
-        String script = "el => el.tagName.toLowerCase() === 'input' && (el.type === 'checkbox' || el.type === 'radio')";
-        return evaluateBoolean(script);
+    @Override
+    public ElementHandle asElement() {
+        return this;
     }
 
-    private void waitForActionability(CheckOptions options) {
-        // Placeholder for actionability checks (e.g., visibility, enabled state)
+    @Override
+    public void click() {
+        evaluate("element.click()", null);
     }
 
-    /**
-     * This method clicks the element by performing the following steps:
-     * <ol>
-     * <li> Wait for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks on the element, unless {@code
-     * force} option is set.</li>
-     * <li> Scroll the element into view if needed.</li>
-     * <li> Use {@link PageImpl#mouse Page.mouse()} to click in the center of the element, or the specified
-     * {@code position}.</li>
-     * <li> Wait for initiated navigations to either succeed or fail, unless {@code noWaitAfter} option is set.</li>
-     * </ol>
-     *
-     * <p> If the element is detached from the DOM at any moment during the action, this method throws.
-     *
-     * <p> When all steps combined have not finished during the specified {@code timeout}, this method throws a {@code
-     * TimeoutError}. Passing zero timeout disables this.
-     *
-     * @param options
-     * @since v1.8
-     */
     @Override
     public void click(ClickOptions options) {
-        // 1) Actionability (skip bei force)
-        waitForActionability(options);
-
-        // 2) Sichtbar machen
-        scrollIntoViewIfNeeded(null);
-        waitTwoAnimationFrames();
-
-        // 3) Koordinaten relativ zur in-view Mitte
-        double dx = 0.0, dy = 0.0; // Standard: (0,0) → Mitte
-        if (options != null && options.position != null) {
-            dx = options.position.x;
-            dy = options.position.y;
-        }
-        int button = mapMouseButton(options != null ? options.button : null);
-        int clicks = (options != null && options.clickCount != null) ? options.clickCount : 1;
-
-        WDElementOrigin origin = elementOrigin();
-
-        // 4) Pointer-Sequenz
-        List<PointerSourceAction> pointer = new ArrayList<>();
-        // x/y sind Pflicht → wir geben die Offsets an, origin = element
-        pointer.add(new PointerSourceAction.PointerMoveAction(dx, dy, origin));
-        for (int i = 0; i < clicks; i++) {
-            pointer.add(new PointerSourceAction.PointerDownAction(button));
-            pointer.add(new PointerSourceAction.PointerUpAction(button));
-        }
-
-        SourceActions.PointerSourceActions pointerSeq =
-                new SourceActions.PointerSourceActions(
-                        "mouse-pointer",
-                        new SourceActions.PointerSourceActions.PointerParameters(), // pointerType: mouse (default)
-                        pointer
-                );
-
-        // 5) Modifiers (down → click → up) in EINER performActions-Nachricht
-        List<SourceActions> actions = new ArrayList<>();
-        if (options != null && options.modifiers != null && !options.modifiers.isEmpty()) {
-            actions.addAll(buildModifierActions(options.modifiers, true));  // keyDown
-        }
-        actions.add(pointerSeq);
-        if (options != null && options.modifiers != null && !options.modifiers.isEmpty()) {
-            actions.addAll(buildModifierActions(options.modifiers, false)); // keyUp
-        }
-
-        // 6) Context auflösen & senden
-        String contextId = requireContextId();
-        input().performActions(contextId, actions);
+        click();
     }
 
-
-
-    /**
-     * Returns the content frame for element handles referencing iframe nodes, or {@code null} otherwise
-     *
-     * @since v1.8
-     */
     @Override
-    public Frame contentFrame() {
-        return null;
+    public void hover() {
+        evaluate("element.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))", null);
     }
 
-    /**
-     * This method double clicks the element by performing the following steps:
-     * <ol>
-     * <li> Wait for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks on the element, unless {@code
-     * force} option is set.</li>
-     * <li> Scroll the element into view if needed.</li>
-     * <li> Use {@link PageImpl#mouse Page.mouse()} to double click in the center of the element, or the
-     * specified {@code position}.</li>
-     * </ol>
-     *
-     * <p> If the element is detached from the DOM at any moment during the action, this method throws.
-     *
-     * <p> When all steps combined have not finished during the specified {@code timeout}, this method throws a {@code
-     * TimeoutError}. Passing zero timeout disables this.
-     *
-     * <p> <strong>NOTE:</strong> {@code elementHandle.dblclick()} dispatches two {@code click} events and a single {@code dblclick} event.
-     *
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public void dblclick(DblclickOptions options) {
-        ClickOptions c = new ClickOptions();
-        if (options != null) {
-            c.button    = options.button;
-            c.position  = options.position;
-            c.timeout   = options.timeout;
-            c.force     = options.force;
-            c.modifiers = options.modifiers;
-        }
-        c.clickCount = 2;
-        click(c);
-    }
-
-    private void waitForActionability(DblclickOptions options) {
-        // Placeholder for actionability checks (e.g., visibility, enabled state)
-    }
-
-    /**
-     * The snippet below dispatches the {@code click} event on the element. Regardless of the visibility state of the element,
-     * {@code click} is dispatched. This is equivalent to calling <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/click">element.click()</a>.
-     *
-     * <p> <strong>Usage</strong>
-     * <pre>{@code
-     * elementHandle.dispatchEvent("click");
-     * }</pre>
-     *
-     * <p> Under the hood, it creates an instance of an event based on the given {@code type}, initializes it with {@code
-     * eventInit} properties and dispatches it on the element. Events are {@code composed}, {@code cancelable} and bubble by
-     * default.
-     *
-     * <p> Since {@code eventInit} is event-specific, please refer to the events documentation for the lists of initial properties:
-     * <ul>
-     * <li> <a href="https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent/DeviceMotionEvent">DeviceMotionEvent</a></li>
-     * <li> <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent/DeviceOrientationEvent">DeviceOrientationEvent</a></li>
-     * <li> <a href="https://developer.mozilla.org/en-US/docs/Web/API/DragEvent/DragEvent">DragEvent</a></li>
-     * <li> <a href="https://developer.mozilla.org/en-US/docs/Web/API/Event/Event">Event</a></li>
-     * <li> <a href="https://developer.mozilla.org/en-US/docs/Web/API/FocusEvent/FocusEvent">FocusEvent</a></li>
-     * <li> <a href="https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/KeyboardEvent">KeyboardEvent</a></li>
-     * <li> <a href="https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/MouseEvent">MouseEvent</a></li>
-     * <li> <a href="https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/PointerEvent">PointerEvent</a></li>
-     * <li> <a href="https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent/TouchEvent">TouchEvent</a></li>
-     * <li> <a href="https://developer.mozilla.org/en-US/docs/Web/API/WheelEvent/WheelEvent">WheelEvent</a></li>
-     * </ul>
-     *
-     * <p> You can also specify {@code JSHandle} as the property value if you want live objects to be passed into the event:
-     * <pre>{@code
-     * // Note you can only create DataTransfer in Chromium and Firefox
-     * JSHandle dataTransfer = page.evaluateHandle("() => new DataTransfer()");
-     * Map<String, Object> arg = new HashMap<>();
-     * arg.put("dataTransfer", dataTransfer);
-     * elementHandle.dispatchEvent("dragstart", arg);
-     * }</pre>
-     *
-     * @param type      DOM event type: {@code "click"}, {@code "dragstart"}, etc.
-     * @param eventInit Optional event-specific initialization properties.
-     * @since v1.8
-     */
-    @Override
-    public void dispatchEvent(String type, Object eventInit) {
-        String script = "el => el.dispatchEvent(new Event(arguments[0]))";
-
-        List<WDLocalValue> args = Collections.singletonList(new WDPrimitiveProtocolValue.StringValue(type));
-
-        if (eventInit != null) {
-            // Falls eventInit eine Map ist, konvertieren wir sie in eine WDLocalValue.ObjectLocalValue
-            if (eventInit instanceof Map) {
-                WDLocalValue.ObjectLocalValue eventInitValue = new WDLocalValue.ObjectLocalValue((Map<?, ?>) eventInit);
-                args = Arrays.asList(new WDPrimitiveProtocolValue.StringValue(type), eventInitValue);
-            } else {
-                throw new IllegalArgumentException("eventInit muss eine Map sein.");
-            }
-        }
-
-        WDEvaluateResult result = webDriver.script().callFunction(script, true, target, args);
-
-        if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
-            throw new RuntimeException("Dispatch event failed: " + ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
-        }
-    }
-
-
-
-
-    /**
-     * Returns the return value of {@code expression}.
-     *
-     * <p> The method finds an element matching the specified selector in the {@code ElementHandle}s subtree and passes it as a
-     * first argument to {@code expression}. If no elements match the selector, the method throws an error.
-     *
-     * <p> If {@code expression} returns a <a
-     * href='https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise'>Promise</a>, then {@link
-     * ElementHandle#evalOnSelector ElementHandle.evalOnSelector()} would wait for the promise to
-     * resolve and return its value.
-     *
-     * <p> <strong>Usage</strong>
-     * <pre>{@code
-     * ElementHandle tweetHandle = page.querySelector(".tweet");
-     * assertEquals("100", tweetHandle.evalOnSelector(".like", "node => node.innerText"));
-     * assertEquals("10", tweetHandle.evalOnSelector(".retweets", "node => node.innerText"));
-     * }</pre>
-     *
-     * @param selector   A selector to query for.
-     * @param expression JavaScript expression to be evaluated in the browser context. If the expression evaluates to a function, the function is
-     *                   automatically invoked.
-     * @param arg        Optional argument to pass to {@code expression}.
-     * @since v1.9
-     */
-    @Override
-    public Object evalOnSelector(String selector, String expression, Object arg) {
-        List<WDLocalValue> args = Arrays.asList(
-                WDLocalValue.fromObject(selector),
-                WDLocalValue.fromObject(expression),
-                WDLocalValue.fromObject(arg)
-        );
-        WDEvaluateResult r = webDriver.script().callFunction(
-                "function(sel, exprSrc, a){ " +
-                        "  const el = this.querySelector(sel); " +
-                        "  if(!el) throw new Error('evalOnSelector: no element for selector: '+sel); " +
-                        "  const fn = new Function('node','arg', 'return ('+exprSrc+')(node,arg);'); " +
-                        "  return fn(el, a); " +
-                        "}",
-                /* await */ true,
-                target, args, getRemoteReference(),
-                WDResultOwnership.ROOT, null
-        );
-        return WebDriverUtil.unwrap(r); // <- nutzt deine existierende Helper-Logik (falls vorhanden). Sonst analog wie in anderen Methoden decodieren.
-    }
-
-    /**
-     * Returns the return value of {@code expression}.
-     *
-     * <p> The method finds all elements matching the specified selector in the {@code ElementHandle}'s subtree and passes an array
-     * of matched elements as a first argument to {@code expression}.
-     *
-     * <p> If {@code expression} returns a <a
-     * href='https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise'>Promise</a>, then {@link
-     * ElementHandle#evalOnSelectorAll ElementHandle.evalOnSelectorAll()} would wait for the promise
-     * to resolve and return its value.
-     *
-     * <p> <strong>Usage</strong>
-     * <pre>{@code
-     * ElementHandle feedHandle = page.querySelector(".feed");
-     * assertEquals(Arrays.asList("Hello!", "Hi!"), feedHandle.evalOnSelectorAll(".tweet", "nodes => nodes.map(n => n.innerText)"));
-     * }</pre>
-     *
-     * @param selector   A selector to query for.
-     * @param expression JavaScript expression to be evaluated in the browser context. If the expression evaluates to a function, the function is
-     *                   automatically invoked.
-     * @param arg        Optional argument to pass to {@code expression}.
-     * @since v1.9
-     */
-    @Override
-    public Object evalOnSelectorAll(String selector, String expression, Object arg) {
-        List<WDLocalValue> args = Arrays.asList(
-                WDLocalValue.fromObject(selector),
-                WDLocalValue.fromObject(expression),
-                WDLocalValue.fromObject(arg)
-        );
-        WDEvaluateResult r = webDriver.script().callFunction(
-                "function(sel, exprSrc, a){ " +
-                        "  const list = Array.from(this.querySelectorAll(sel)); " +
-                        "  const fn = new Function('nodes','arg', 'return ('+exprSrc+')(nodes,arg);'); " +
-                        "  return fn(list, a); " +
-                        "}",
-                /* await */ true,
-                target, args, getRemoteReference(),
-                WDResultOwnership.ROOT, null
-        );
-        return WebDriverUtil.unwrap(r);
-    }
-
-    /**
-     * This method waits for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks, focuses the
-     * element, fills it and triggers an {@code input} event after filling. Note that you can pass an empty string to clear the
-     * input field.
-     *
-     * <p> If the target element is not an {@code <input>}, {@code <textarea>} or {@code [contenteditable]} element, this method
-     * throws an error. However, if the element is inside the {@code <label>} element that has an associated <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, the control will be filled
-     * instead.
-     *
-     * <p> To send fine-grained keyboard events, use {@link LocatorImpl#pressSequentially
-     * Locator.pressSequentially()}.
-     *
-     * @param value   Value to set for the {@code <input>}, {@code <textarea>} or {@code [contenteditable]} element.
-     * @param options
-     * @since v1.8
-     */
-    /** Vereinheitlichtes Füllen, PF-sicher, mit Commit + Hidden-Wait. */
-    @Override
-    public void fill(String value, FillOptions options) {
-        waitForActionability(options);
-        scrollIntoViewIfNeeded(null);
-        focus();
-
-        // macOS-Modifikator ermitteln
-        WDEvaluateResult macRes = webDriver.script().callFunction(
-                "function(){ try { return /Mac|iPhone|iPad|iPod/.test(navigator.platform); } catch(e){ return false; } }",
-                /* await */ true,
-                target, null, getRemoteReference(),
-                WDResultOwnership.ROOT, null
-        );
-        boolean isMac = WebDriverUtil.asBoolean(macRes);
-        String modKey = isMac ? WDKeys.META : WDKeys.CONTROL;
-
-        List<KeySourceAction> seq = new ArrayList<>();
-
-        // Select-All (Cmd/Ctrl + A)
-        seq.add(new KeySourceAction.KeyDownAction(modKey));
-        seq.add(new KeySourceAction.KeyDownAction("a"));
-        seq.add(new KeySourceAction.KeyUpAction("a"));
-        seq.add(new KeySourceAction.KeyUpAction(modKey));
-
-        if (value == null || value.isEmpty()) {
-            // Inhalt löschen (richtige Delete-Taste, nicht "Delete" als Text!)
-            seq.add(new KeySourceAction.KeyDownAction(WDKeys.DELETE));
-            seq.add(new KeySourceAction.KeyUpAction(WDKeys.DELETE));
-        } else {
-            // Gewünschten Text eingeben (printable chars direkt)
-            for (int i = 0; i < value.length(); i++) {
-                String ch = String.valueOf(value.charAt(i));
-                seq.add(new KeySourceAction.KeyDownAction(ch));
-                seq.add(new KeySourceAction.KeyUpAction(ch));
-            }
-        }
-
-        SourceActions.KeySourceActions keyboard =
-                new SourceActions.KeySourceActions("keyboard", seq);
-
-        input().performActions(requireContextId(), Collections.singletonList(keyboard));
-    }
-
-
-    /**
-     * Calls <a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus">focus</a> on the element.
-     *
-     * @since v1.8
-     */
-    @Override
-    public void focus() {
-        webDriver.script().callFunction(
-                "function(){ this.focus(); }",
-                /* await */ false,
-                target, null, getRemoteReference(),
-                WDResultOwnership.NONE, null
-        );
-        waitTwoAnimationFrames();
-    }
-
-
-    /**
-     * Returns element attribute value.
-     *
-     * @param name Attribute name to get the value for.
-     * @since v1.8
-     */
-    @Override
-    public String getAttribute(String name) {
-        List<WDLocalValue> args = Collections.singletonList(new WDPrimitiveProtocolValue.StringValue(name));
-        WDEvaluateResult r = webDriver.script().callFunction(
-                "function(n){ return this.getAttribute(n); }",
-                /* await */ true,
-                target, args, getRemoteReference(),
-                WDResultOwnership.ROOT, null
-        );
-        if (r instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue v = ((WDEvaluateResult.WDEvaluateResultSuccess) r).getResult();
-            if (v instanceof WDPrimitiveProtocolValue.StringValue) {
-                return ((WDPrimitiveProtocolValue.StringValue) v).getValue();
-            }
-        }
-        return null; // Playwright-typisches Verhalten bei fehlendem Attribut
-    }
-
-    /**
-     * This method hovers over the element by performing the following steps:
-     * <ol>
-     * <li> Wait for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks on the element, unless {@code
-     * force} option is set.</li>
-     * <li> Scroll the element into view if needed.</li>
-     * <li> Use {@link PageImpl#mouse Page.mouse()} to hover over the center of the element, or the specified
-     * {@code position}.</li>
-     * </ol>
-     *
-     * <p> If the element is detached from the DOM at any moment during the action, this method throws.
-     *
-     * <p> When all steps combined have not finished during the specified {@code timeout}, this method throws a {@code
-     * TimeoutError}. Passing zero timeout disables this.
-     *
-     * @param options
-     * @since v1.8
-     */
     @Override
     public void hover(HoverOptions options) {
-        // Optional: Actionability-Check fürs Hover
-        waitForActionability(ActionabilityCheck.HOVER, /*timeout*/ 30_000);
-        scrollIntoViewIfNeeded(null);
-        waitTwoAnimationFrames();
-
-        double dx = 0.0, dy = 0.0;
-        if (options != null && options.position != null) {
-            dx = options.position.x;
-            dy = options.position.y;
-        }
-
-        WDElementOrigin origin = elementOrigin();
-        List<PointerSourceAction> pointer = new ArrayList<>();
-        pointer.add(new PointerSourceAction.PointerMoveAction(dx, dy, origin));
-
-        SourceActions.PointerSourceActions pointerSeq =
-                new SourceActions.PointerSourceActions(
-                        "mouse-pointer",
-                        new SourceActions.PointerSourceActions.PointerParameters(),
-                        pointer
-                );
-
-        List<SourceActions> actions = new ArrayList<>();
-        actions.add(pointerSeq);
-
-        String contextId = requireContextId();
-        input().performActions(contextId, actions);
+        hover();
     }
 
-    /**
-     * Returns the {@code element.innerHTML}.
-     *
-     * @since v1.8
-     */
-    @Override public String innerHTML() { return evaluateString("el => el.innerHTML"); }
+    @Override
+    public void dblclick() {
+        evaluate("element.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))", null);
+    }
 
-    /**
-     * Returns the {@code element.innerText}.
-     *
-     * @since v1.8
-     */
-    @Override public String innerText() { return evaluateString("el => el.innerText"); }
+    @Override
+    public void dblclick(DblclickOptions options) {
+        dblclick();
+    }
 
-    /**
-     * Returns {@code input.value} for the selected {@code <input>} or {@code <textarea>} or {@code <select>} element.
-     *
-     * <p> Throws for non-input elements. However, if the element is inside the {@code <label>} element that has an associated <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, returns the value of the
-     * control.
-     *
-     * @param options
-     * @since v1.13
-     */
+    @Override
+    public String innerHTML() {
+        return (String) evaluate("element.innerHTML", null);
+    }
+
+    @Override
+    public String innerText() {
+        return (String) evaluate("element.innerText", null);
+    }
+
     @Override
     public String inputValue(InputValueOptions options) {
-        WDEvaluateResult r = webDriver.script().callFunction(
-                "function(){"
-                        + "  const el = this;"
-                        + "  const t = el.tagName && el.tagName.toUpperCase();"
-                        + "  if (t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT') return el.value;"
-                        + "  const lab = el.closest && el.closest('label');"
-                        + "  if (lab && lab.control) return lab.control.value;"
-                        + "  throw new Error('Element is not an input/textarea/select or label/control');"
-                        + "}",
-                /* await */ true,
-                target, null, getRemoteReference(),
-                WDResultOwnership.ROOT, null
-        );
-        if (r instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue v = ((WDEvaluateResult.WDEvaluateResultSuccess) r).getResult();
-            if (v instanceof WDPrimitiveProtocolValue.StringValue) {
-                return ((WDPrimitiveProtocolValue.StringValue) v).getValue();
-            }
-        }
-        return null;
+        return (String) evaluate("element.value", null);
     }
 
     @Override
     public boolean isChecked() {
-        String script = "el => el.checked";
-        return evaluateBoolean(script);
-    }
-
-    @Override
-    public boolean isVisible() {
-        String script = "el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)";
-        return evaluateBoolean(script);
-    }
-
-    /**
-     * Returns the frame containing the given element.
-     *
-     * @since v1.8
-     */
-    @Override
-    public Frame ownerFrame() {
-        return null;
-    }
-
-    /**
-     * Focuses the element, and then uses {@link Keyboard#down Keyboard.down()} and {@link
-     * Keyboard#up Keyboard.up()}.
-     *
-     * <p> {@code key} can specify the intended <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key">keyboardEvent.key</a> value or a single
-     * character to generate the text for. A superset of the {@code key} values can be found <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values">here</a>. Examples of the keys are:
-     *
-     * <p> {@code F1} - {@code F12}, {@code Digit0}- {@code Digit9}, {@code KeyA}- {@code KeyZ}, {@code Backquote}, {@code Minus},
-     * {@code Equal}, {@code Backslash}, {@code Backspace}, {@code Tab}, {@code Delete}, {@code Escape}, {@code ArrowDown},
-     * {@code End}, {@code Enter}, {@code Home}, {@code Insert}, {@code PageDown}, {@code PageUp}, {@code ArrowRight}, {@code
-     * ArrowUp}, etc.
-     *
-     * <p> Following modification shortcuts are also supported: {@code Shift}, {@code Control}, {@code Alt}, {@code Meta}, {@code
-     * ShiftLeft}, {@code ControlOrMeta}.
-     *
-     * <p> Holding down {@code Shift} will type the text that corresponds to the {@code key} in the upper case.
-     *
-     * <p> If {@code key} is a single character, it is case-sensitive, so the values {@code a} and {@code A} will generate
-     * different respective texts.
-     *
-     * <p> Shortcuts such as {@code key: "Control+o"}, {@code key: "Control++} or {@code key: "Control+Shift+T"} are supported as
-     * well. When specified with the modifier, modifier is pressed and being held while the subsequent key is being pressed.
-     *
-     * @param key     Name of the key to press or a character to generate, such as {@code ArrowLeft} or {@code a}.
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public void press(String key, PressOptions options) {
-        // Sichtbar + Fokus sicherstellen
-        scrollIntoViewIfNeeded(null);
-        focus();
-
-        long delay = (options != null && options.delay != null) ? options.delay.longValue() : 0L;
-
-        // z.B. "Control+Shift+T" → Mods + Haupttaste
-        String[] parts = key.split("\\+");
-        List<String> tokens = new ArrayList<>();
-        for (String p : parts) if (!p.isEmpty()) tokens.add(p);
-
-        if (tokens.isEmpty()) return;
-
-        String main = tokens.get(tokens.size() - 1);
-        List<String> mods = tokens.subList(0, tokens.size() - 1);
-
-        List<KeySourceAction> seq = new ArrayList<>();
-
-        // Modifiers down in definierter Reihenfolge
-        List<String> order = Arrays.asList("Control", "Alt", "Shift", "Meta");
-        for (String o : order) {
-            if (mods.stream().anyMatch(m -> m.equalsIgnoreCase(o))) {
-                seq.add(new KeySourceAction.KeyDownAction(o));
-            }
-        }
-
-        // Haupttaste
-        seq.add(new KeySourceAction.KeyDownAction(main));
-        if (delay > 0) seq.add(new PauseAction((int) delay)); // ToDo: Check this cast!
-        seq.add(new KeySourceAction.KeyUpAction(main));
-
-        // Modifiers up in umgekehrter Reihenfolge
-        ListIterator<String> it = order.listIterator(order.size());
-        while (it.hasPrevious()) {
-            String o = it.previous();
-            if (mods.stream().anyMatch(m -> m.equalsIgnoreCase(o))) {
-                seq.add(new KeySourceAction.KeyUpAction(o));
-            }
-        }
-
-        SourceActions.KeySourceActions keyboard = new SourceActions.KeySourceActions("keyboard", seq);
-        input().performActions(requireContextId(), Collections.singletonList(keyboard));
+        return (Boolean) evaluate("element.checked", null);
     }
 
     @Override
     public boolean isDisabled() {
-        String script = "el => el.disabled";
-        return evaluateBoolean(script);
+        return (Boolean) evaluate("element.disabled", null);
     }
 
     @Override
     public boolean isEditable() {
-        String script = "el => !el.readOnly && !el.disabled";
-        return evaluateBoolean(script);
+        return !(Boolean) evaluate("element.readOnly || element.disabled", null);
     }
 
     @Override
     public boolean isEnabled() {
-        return !isDisabled();
-    }
-
-    /**
-     * Returns whether the element is hidden, the opposite of <a
-     * href="https://playwright.dev/java/docs/actionability#visible">visible</a>.
-     *
-     * @since v1.8
-     */
-    @Override public boolean isHidden()  { return !isVisible(); }
-
-    @Override
-    public void waitForElementState(ElementState state, WaitForElementStateOptions options) {
-        for (int i = 0; i < 10; i++) {
-            if (matchesElementState(state)) return;
-            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
-        }
-    }
-
-    /**
-     * Returns element specified by selector when it satisfies {@code state} option. Returns {@code null} if waiting for {@code
-     * hidden} or {@code detached}.
-     *
-     * <p> Wait for the {@code selector} relative to the element handle to satisfy {@code state} option (either appear/disappear
-     * from dom, or become visible/hidden). If at the moment of calling the method {@code selector} already satisfies the
-     * condition, the method will return immediately. If the selector doesn't satisfy the condition for the {@code timeout}
-     * milliseconds, the function will throw.
-     *
-     * <p> <strong>Usage</strong>
-     * <pre>{@code
-     * page.setContent("<div><span></span></div>");
-     * ElementHandle div = page.querySelector("div");
-     * // Waiting for the "span" selector relative to the div.
-     * ElementHandle span = div.waitForSelector("span", new ElementHandle.WaitForSelectorOptions()
-     *   .setState(WaitForSelectorState.ATTACHED));
-     * }</pre>
-     *
-     * <p> <strong>NOTE:</strong> This method does not work across navigations, use {@link PageImpl#waitForSelector
-     * Page.waitForSelector()} instead.
-     *
-     * @param selector A selector to query for.
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public ElementHandle waitForSelector(String selector, WaitForSelectorOptions options) {
-        long timeout = options != null && options.timeout != null ? options.timeout.longValue() : 30_000L;
-        String state = options != null && options.state != null ? options.state.name() : "ATTACHED"; // falls dein Enum so heißt
-
-        long start = System.currentTimeMillis();
-        while (System.currentTimeMillis() - start <= timeout) {
-            ElementHandle eh = querySelector(selector);
-            if ("HIDDEN".equalsIgnoreCase(state)) {
-                if (eh == null || !eh.isVisible()) return null; // Playwright: bei hidden/detached -> null
-            } else if ("VISIBLE".equalsIgnoreCase(state)) {
-                if (eh != null && eh.isVisible()) return eh;
-            } else { // ATTACHED
-                if (eh != null) return eh;
-            }
-            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
-        }
-        throw new RuntimeException("waitForSelector timeout: " + selector + " (state=" + state + ")");
-    }
-
-    private boolean matchesElementState(ElementState state) {
-        switch (state) {
-            case VISIBLE: return isVisible();
-            case HIDDEN: return !isVisible();
-            case ENABLED: return isEnabled();
-            case DISABLED: return isDisabled();
-            case EDITABLE: return isEditable();
-            default: return false;
-        }
+        return !(Boolean) evaluate("element.disabled", null);
     }
 
     @Override
-    public ElementHandle querySelector(String selector) {
-        List<WDLocalValue> args = Collections.singletonList(WDLocalValue.fromObject(selector));
-        WDEvaluateResult r = webDriver.script().callFunction(
-                "function(sel){ return this.querySelector(sel); }",
-                /* await */ false,
-                target, args, getRemoteReference(),
-                WDResultOwnership.ROOT, null
-        );
-        if (r instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue v = ((WDEvaluateResult.WDEvaluateResultSuccess) r).getResult();
-            if (v instanceof WDRemoteValue.NodeRemoteValue) {
-                WDHandle h = ((WDRemoteValue.NodeRemoteValue) v).getHandle();
-                WDSharedId sid = ((WDRemoteValue.NodeRemoteValue) v).getSharedId();
-                WDRemoteReference.SharedReference ref = new WDRemoteReference.SharedReference(sid, h);
-                return new ElementHandleImpl(webDriver, ref, target);
-            }
-        }
-        return null;
+    public boolean isHidden() {
+        return !(Boolean) evaluate("!!( element.offsetWidth || element.offsetHeight || element.getClientRects().length )", null);
     }
 
     @Override
-    public List<ElementHandle> querySelectorAll(String selector) {
-        List<WDLocalValue> args = Collections.singletonList(WDLocalValue.fromObject(selector));
-        WDEvaluateResult r = webDriver.script().callFunction(
-                "function(sel){ return Array.from(this.querySelectorAll(sel)); }",
-                /* await */ false,
-                target, args, getRemoteReference(),
-                WDResultOwnership.ROOT, null
-        );
-        if (r instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue v = ((WDEvaluateResult.WDEvaluateResultSuccess) r).getResult();
-            if (v instanceof WDRemoteValue.ArrayRemoteValue) {
-                List<ElementHandle> out = new ArrayList<>();
-                for (WDRemoteValue it : ((WDRemoteValue.ArrayRemoteValue) v).getValue()) {
-                    if (it instanceof WDRemoteValue.NodeRemoteValue) {
-                        WDHandle h = ((WDRemoteValue.NodeRemoteValue) it).getHandle();
-                        WDSharedId sid = ((WDRemoteValue.NodeRemoteValue) it).getSharedId();
-                        WDRemoteReference.SharedReference ref = new WDRemoteReference.SharedReference(sid, h);
-                        out.add(new ElementHandleImpl(webDriver, ref, target));
-                    }
-                }
-                return out;
-            }
-        }
-        return Collections.emptyList();
-    }
-
-    /**
-     * This method captures a screenshot of the page, clipped to the size and position of this particular element. If the
-     * element is covered by other elements, it will not be actually visible on the screenshot. If the element is a scrollable
-     * container, only the currently scrolled content will be visible on the screenshot.
-     *
-     * <p> This method waits for the <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks, then
-     * scrolls element into view before taking a screenshot. If the element is detached from DOM, the method throws an error.
-     *
-     * <p> Returns the buffer with the captured screenshot.
-     *
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public byte[] screenshot(ScreenshotOptions options) {
-        return new byte[0];
-    }
-
-    /**
-     * This method waits for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks, then tries to
-     * scroll element into view, unless it is completely visible as defined by <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API">IntersectionObserver</a>'s {@code
-     * ratio}.
-     *
-     * <p> Throws when {@code elementHandle} does not point to an element <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/Node/isConnected">connected</a> to a Document or a ShadowRoot.
-     *
-     * <p> See <a href="https://playwright.dev/java/docs/input#scrolling">scrolling</a> for alternative ways to scroll.
-     *
-     * @param options
-     * @since v1.8
-     */
-    /** Scrollt nur, falls nötig, anschließend 2 rAF-Ticks warten. */
-    // ElementHandleImpl.java
-
-    // ElementHandleImpl.java
-
-    @Override
-    public void scrollIntoViewIfNeeded(ScrollIntoViewIfNeededOptions options) {
-        double timeout = (options != null && options.timeout != null) ? options.timeout : 30_000;
-        long start = System.currentTimeMillis();
-
-        while (true) {
-            WDEvaluateResult visRes = webDriver.script().callFunction(
-                    "function(){"
-                            + "  const r=this.getBoundingClientRect();"
-                            + "  const vw = (window.innerWidth||document.documentElement.clientWidth);"
-                            + "  const vh = (window.innerHeight||document.documentElement.clientHeight);"
-                            + "  return r.width>0 && r.height>0 && r.top>=0 && r.left>=0 && r.bottom<=vh && r.right<=vw;"
-                            + "}",
-                    false,
-                    target,
-                    null,
-                    getRemoteReference(),
-                    WDResultOwnership.NONE,
-                    null
-            );
-
-            boolean inView = de.bund.zrb.util.WebDriverUtil.asBoolean(visRes);
-            if (inView) {
-                waitTwoAnimationFrames();
-                return;
-            }
-
-            webDriver.script().callFunction(
-                    "function(){ this.scrollIntoView({block:'center', inline:'nearest'}); }",
-                    false,
-                    target,
-                    null,
-                    getRemoteReference(),
-                    WDResultOwnership.NONE,
-                    null
-            );
-
-            waitTwoAnimationFrames();
-
-            if ((System.currentTimeMillis() - start) > timeout) {
-                throw new RuntimeException("Timeout in scrollIntoViewIfNeeded()");
-            }
-        }
-    }
-
-    /**
-     * This method waits for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks, waits until all
-     * specified options are present in the {@code <select>} element and selects these options.
-     *
-     * <p> If the target element is not a {@code <select>} element, this method throws an error. However, if the element is inside
-     * the {@code <label>} element that has an associated <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, the control will be used
-     * instead.
-     *
-     * <p> Returns the array of option values that have been successfully selected.
-     *
-     * <p> Triggers a {@code change} and {@code input} event once all the provided options have been selected.
-     *
-     * <p> <strong>Usage</strong>
-     * <pre>{@code
-     * // Single selection matching the value or label
-     * handle.selectOption("blue");
-     * // single selection matching the label
-     * handle.selectOption(new SelectOption().setLabel("Blue"));
-     * // multiple selection
-     * handle.selectOption(new String[] {"red", "green", "blue"});
-     * }</pre>
-     *
-     * @param value  Options to select. If the {@code <select>} has the {@code multiple} attribute, all matching options are selected,
-     *                otherwise only the first option matching one of the passed options is selected. String values are matching both values
-     *                and labels. Option is considered matching if all specified properties match.
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public List<String> selectOption(String value, SelectOptionOptions options) {
-        if (value == null) return Collections.emptyList();
-        return selectOption(new String[]{ value }, options);
-    }
-
-    /**
-     * This method waits for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks, waits until all
-     * specified options are present in the {@code <select>} element and selects these options.
-     *
-     * <p> If the target element is not a {@code <select>} element, this method throws an error. However, if the element is inside
-     * the {@code <label>} element that has an associated <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, the control will be used
-     * instead.
-     *
-     * <p> Returns the array of option values that have been successfully selected.
-     *
-     * <p> Triggers a {@code change} and {@code input} event once all the provided options have been selected.
-     *
-     * <p> <strong>Usage</strong>
-     * <pre>{@code
-     * // Single selection matching the value or label
-     * handle.selectOption("blue");
-     * // single selection matching the label
-     * handle.selectOption(new SelectOption().setLabel("Blue"));
-     * // multiple selection
-     * handle.selectOption(new String[] {"red", "green", "blue"});
-     * }</pre>
-     *
-     * @param values  Options to select. If the {@code <select>} has the {@code multiple} attribute, all matching options are selected,
-     *                otherwise only the first option matching one of the passed options is selected. String values are matching both values
-     *                and labels. Option is considered matching if all specified properties match.
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public List<String> selectOption(ElementHandle values, SelectOptionOptions options) {
-        return Collections.emptyList();
-    }
-
-    /**
-     * This method waits for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks, waits until all
-     * specified options are present in the {@code <select>} element and selects these options.
-     *
-     * <p> If the target element is not a {@code <select>} element, this method throws an error. However, if the element is inside
-     * the {@code <label>} element that has an associated <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, the control will be used
-     * instead.
-     *
-     * <p> Returns the array of option values that have been successfully selected.
-     *
-     * <p> Triggers a {@code change} and {@code input} event once all the provided options have been selected.
-     *
-     * <p> <strong>Usage</strong>
-     * <pre>{@code
-     * // Single selection matching the value or label
-     * handle.selectOption("blue");
-     * // single selection matching the label
-     * handle.selectOption(new SelectOption().setLabel("Blue"));
-     * // multiple selection
-     * handle.selectOption(new String[] {"red", "green", "blue"});
-     * }</pre>
-     *
-     * @param values  Options to select. If the {@code <select>} has the {@code multiple} attribute, all matching options are selected,
-     *                otherwise only the first option matching one of the passed options is selected. String values are matching both values
-     *                and labels. Option is considered matching if all specified properties match.
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public List<String> selectOption(String[] values, SelectOptionOptions options) {
-        List<WDLocalValue> args = Collections.singletonList(WDLocalValue.fromObject(values));
-        WDEvaluateResult r = webDriver.script().callFunction(
-                "function(vals){ " +
-                        "  const resolveControl = (el)=>{ " +
-                        "    if (el instanceof HTMLSelectElement) return el; " +
-                        "    const lab = el.closest && el.closest('label'); " +
-                        "    if (lab && lab.control instanceof HTMLSelectElement) return lab.control; " +
-                        "    if (el.tagName && el.tagName.toUpperCase()==='SELECT') return el; " +
-                        "    throw new Error('selectOption: not a <select> or associated control'); " +
-                        "  }; " +
-                        "  const sel = resolveControl(this); " +
-                        "  const wanted = Array.isArray(vals) ? vals : [vals]; " +
-                        "  const chosen = []; " +
-                        "  if (!sel.multiple) { for (const o of sel.options) o.selected = false; } " +
-                        "  const pick = (s)=>{ " +
-                        "    for (const o of sel.options) { " +
-                        "      if (o.value === s || o.label === s) { o.selected = true; if (!chosen.includes(o.value)) chosen.push(o.value); return true; } " +
-                        "    } return false; " +
-                        "  }; " +
-                        "  for (const s of wanted) { pick(String(s)); if (!sel.multiple) break; } " +
-                        "  sel.dispatchEvent(new Event('input',{bubbles:true})); " +
-                        "  sel.dispatchEvent(new Event('change',{bubbles:true})); " +
-                        "  return chosen; " +
-                        "}",
-                /* await */ true,
-                target, args, getRemoteReference(),
-                WDResultOwnership.ROOT, null
-        );
-        // decode result → List<String>
-        if (r instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue v = ((WDEvaluateResult.WDEvaluateResultSuccess) r).getResult();
-            if (v instanceof WDRemoteValue.ArrayRemoteValue) {
-                List<String> out = new ArrayList<>();
-                for (WDRemoteValue it : ((WDRemoteValue.ArrayRemoteValue) v).getValue()) {
-                    if (it instanceof WDPrimitiveProtocolValue.StringValue) {
-                        out.add(((WDPrimitiveProtocolValue.StringValue) it).getValue());
-                    }
-                }
-                return out;
-            }
-        }
-        return Collections.emptyList();
-    }
-
-    /**
-     * This method waits for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks, waits until all
-     * specified options are present in the {@code <select>} element and selects these options.
-     *
-     * <p> If the target element is not a {@code <select>} element, this method throws an error. However, if the element is inside
-     * the {@code <label>} element that has an associated <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, the control will be used
-     * instead.
-     *
-     * <p> Returns the array of option values that have been successfully selected.
-     *
-     * <p> Triggers a {@code change} and {@code input} event once all the provided options have been selected.
-     *
-     * <p> <strong>Usage</strong>
-     * <pre>{@code
-     * // Single selection matching the value or label
-     * handle.selectOption("blue");
-     * // single selection matching the label
-     * handle.selectOption(new SelectOption().setLabel("Blue"));
-     * // multiple selection
-     * handle.selectOption(new String[] {"red", "green", "blue"});
-     * }</pre>
-     *
-     * @param values  Options to select. If the {@code <select>} has the {@code multiple} attribute, all matching options are selected,
-     *                otherwise only the first option matching one of the passed options is selected. String values are matching both values
-     *                and labels. Option is considered matching if all specified properties match.
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public List<String> selectOption(SelectOption values, SelectOptionOptions options) {
-        return Collections.emptyList();
-    }
-
-    /**
-     * This method waits for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks, waits until all
-     * specified options are present in the {@code <select>} element and selects these options.
-     *
-     * <p> If the target element is not a {@code <select>} element, this method throws an error. However, if the element is inside
-     * the {@code <label>} element that has an associated <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, the control will be used
-     * instead.
-     *
-     * <p> Returns the array of option values that have been successfully selected.
-     *
-     * <p> Triggers a {@code change} and {@code input} event once all the provided options have been selected.
-     *
-     * <p> <strong>Usage</strong>
-     * <pre>{@code
-     * // Single selection matching the value or label
-     * handle.selectOption("blue");
-     * // single selection matching the label
-     * handle.selectOption(new SelectOption().setLabel("Blue"));
-     * // multiple selection
-     * handle.selectOption(new String[] {"red", "green", "blue"});
-     * }</pre>
-     *
-     * @param values  Options to select. If the {@code <select>} has the {@code multiple} attribute, all matching options are selected,
-     *                otherwise only the first option matching one of the passed options is selected. String values are matching both values
-     *                and labels. Option is considered matching if all specified properties match.
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public List<String> selectOption(ElementHandle[] values, SelectOptionOptions options) {
-        return Collections.emptyList();
-    }
-
-    /**
-     * This method waits for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks, waits until all
-     * specified options are present in the {@code <select>} element and selects these options.
-     *
-     * <p> If the target element is not a {@code <select>} element, this method throws an error. However, if the element is inside
-     * the {@code <label>} element that has an associated <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, the control will be used
-     * instead.
-     *
-     * <p> Returns the array of option values that have been successfully selected.
-     *
-     * <p> Triggers a {@code change} and {@code input} event once all the provided options have been selected.
-     *
-     * <p> <strong>Usage</strong>
-     * <pre>{@code
-     * // Single selection matching the value or label
-     * handle.selectOption("blue");
-     * // single selection matching the label
-     * handle.selectOption(new SelectOption().setLabel("Blue"));
-     * // multiple selection
-     * handle.selectOption(new String[] {"red", "green", "blue"});
-     * }</pre>
-     *
-     * @param values  Options to select. If the {@code <select>} has the {@code multiple} attribute, all matching options are selected,
-     *                otherwise only the first option matching one of the passed options is selected. String values are matching both values
-     *                and labels. Option is considered matching if all specified properties match.
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public List<String> selectOption(SelectOption[] values, SelectOptionOptions options) {
-        return Collections.emptyList();
-    }
-
-    /**
-     * This method waits for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks, then focuses
-     * the element and selects all its text content.
-     *
-     * <p> If the element is inside the {@code <label>} element that has an associated <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, focuses and selects text
-     * in the control instead.
-     *
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public void selectText(SelectTextOptions options) {
-
-    }
-
-    /**
-     * This method checks or unchecks an element by performing the following steps:
-     * <ol>
-     * <li> Ensure that element is a checkbox or a radio input. If not, this method throws.</li>
-     * <li> If the element already has the right checked state, this method returns immediately.</li>
-     * <li> Wait for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks on the matched element,
-     * unless {@code force} option is set. If the element is detached during the checks, the whole action is retried.</li>
-     * <li> Scroll the element into view if needed.</li>
-     * <li> Use {@link PageImpl#mouse Page.mouse()} to click in the center of the element.</li>
-     * <li> Ensure that the element is now checked or unchecked. If not, this method throws.</li>
-     * </ol>
-     *
-     * <p> When all steps combined have not finished during the specified {@code timeout}, this method throws a {@code
-     * TimeoutError}. Passing zero timeout disables this.
-     *
-     * @param checked Whether to check or uncheck the checkbox.
-     * @param options
-     * @since v1.15
-     */
-    @Override
-    public void setChecked(boolean checked, SetCheckedOptions options) {
-        if (!isCheckboxOrRadio())
-            throw new IllegalStateException("setChecked: element is not <input type=checkbox|radio>");
-
-        if (isChecked() == checked) return;
-
-        waitForActionability(ActionabilityCheck.CLICK, options != null && options.timeout != null ? options.timeout : 30_000);
-        scrollIntoViewIfNeeded(null);
-        waitTwoAnimationFrames();
-        click(new ClickOptions()); // nutzt bereits Modifiers etc.
-
-        if (isChecked() != checked)
-            throw new RuntimeException("setChecked failed: state did not change.");
-    }
-
-
-    /**
-     * Sets the value of the file input to these file paths or files. If some of the {@code filePaths} are relative paths, then
-     * they are resolved relative to the current working directory. For empty array, clears the selected files. For inputs with
-     * a {@code [webkitdirectory]} attribute, only a single directory path is supported.
-     *
-     * <p> This method expects {@code ElementHandle} to point to an <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input">input element</a>. However, if the element is
-     * inside the {@code <label>} element that has an associated <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, targets the control
-     * instead.
-     *
-     * @param files
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public void setInputFiles(Path files, SetInputFilesOptions options) {
-
-    }
-
-    /**
-     * Sets the value of the file input to these file paths or files. If some of the {@code filePaths} are relative paths, then
-     * they are resolved relative to the current working directory. For empty array, clears the selected files. For inputs with
-     * a {@code [webkitdirectory]} attribute, only a single directory path is supported.
-     *
-     * <p> This method expects {@code ElementHandle} to point to an <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input">input element</a>. However, if the element is
-     * inside the {@code <label>} element that has an associated <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, targets the control
-     * instead.
-     *
-     * @param files
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public void setInputFiles(Path[] files, SetInputFilesOptions options) {
-
-    }
-
-    /**
-     * Sets the value of the file input to these file paths or files. If some of the {@code filePaths} are relative paths, then
-     * they are resolved relative to the current working directory. For empty array, clears the selected files. For inputs with
-     * a {@code [webkitdirectory]} attribute, only a single directory path is supported.
-     *
-     * <p> This method expects {@code ElementHandle} to point to an <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input">input element</a>. However, if the element is
-     * inside the {@code <label>} element that has an associated <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, targets the control
-     * instead.
-     *
-     * @param files
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public void setInputFiles(FilePayload files, SetInputFilesOptions options) {
-
-    }
-
-    /**
-     * Sets the value of the file input to these file paths or files. If some of the {@code filePaths} are relative paths, then
-     * they are resolved relative to the current working directory. For empty array, clears the selected files. For inputs with
-     * a {@code [webkitdirectory]} attribute, only a single directory path is supported.
-     *
-     * <p> This method expects {@code ElementHandle} to point to an <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input">input element</a>. However, if the element is
-     * inside the {@code <label>} element that has an associated <a
-     * href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control">control</a>, targets the control
-     * instead.
-     *
-     * @param files
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public void setInputFiles(FilePayload[] files, SetInputFilesOptions options) {
-
-    }
-
-    /**
-     * This method taps the element by performing the following steps:
-     * <ol>
-     * <li> Wait for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks on the element, unless {@code
-     * force} option is set.</li>
-     * <li> Scroll the element into view if needed.</li>
-     * <li> Use {@link PageImpl#touchscreen Page.touchscreen()} to tap the center of the element, or the
-     * specified {@code position}.</li>
-     * </ol>
-     *
-     * <p> If the element is detached from the DOM at any moment during the action, this method throws.
-     *
-     * <p> When all steps combined have not finished during the specified {@code timeout}, this method throws a {@code
-     * TimeoutError}. Passing zero timeout disables this.
-     *
-     * <p> <strong>NOTE:</strong> {@code elementHandle.tap()} requires that the {@code hasTouch} option of the browser context be set to true.
-     *
-     * @param options
-     * @since v1.8
-     */
-    @Override
-    public void tap(TapOptions options) {
-        waitForActionability(ActionabilityCheck.TAP, 30_000);
-        scrollIntoViewIfNeeded(null);
-        waitTwoAnimationFrames();
-
-        double dx = 0, dy = 0;
-        if (options != null && options.position != null) { dx = options.position.x; dy = options.position.y; }
-
-        WDElementOrigin origin = elementOrigin();
-        List<PointerSourceAction> pointer = new ArrayList<>();
-        pointer.add(new PointerSourceAction.PointerMoveAction(dx, dy, origin));
-        pointer.add(new PointerSourceAction.PointerDownAction(0)); // touch: button=0
-        pointer.add(new PointerSourceAction.PointerUpAction(0));
-
-        SourceActions.PointerSourceActions pointerSeq =
-                new SourceActions.PointerSourceActions(
-                        "touch-pointer",
-                        new SourceActions.PointerSourceActions.PointerParameters(
-                                SourceActions.PointerSourceActions.PointerParameters.PointerType.TOUCH),
-                        pointer
-                );
-
-        input().performActions(requireContextId(), Collections.singletonList(pointerSeq));
+    public boolean isVisible() {
+        return (Boolean) evaluate("!!( element.offsetWidth || element.offsetHeight || element.getClientRects().length )", null);
     }
 
     @Override
-    public String textContent() {
-        String script = "el => el.textContent";
-        return evaluateString(script);
+    public BoundingBox boundingBox() {
+        JsonObject box = (JsonObject) evaluate("(() => { const rect = element.getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }; })()", null);
+        return new BoundingBox(box.get("x").getAsDouble(), box.get("y").getAsDouble(), box.get("width").getAsDouble(), box.get("height").getAsDouble());
+    }
+
+    @Override
+    public void focus() {
+        evaluate("element.focus()", null);
     }
 
     @Override
     public void type(String text, TypeOptions options) {
-        for (char c : text.toCharArray()) {
-            press(String.valueOf(c), null);
-        }
+        evaluate("element.value = arguments[0]", text);
     }
 
-    /**
-     * This method checks the element by performing the following steps:
-     * <ol>
-     * <li> Ensure that element is a checkbox or a radio input. If not, this method throws. If the element is already unchecked,
-     * this method returns immediately.</li>
-     * <li> Wait for <a href="https://playwright.dev/java/docs/actionability">actionability</a> checks on the element, unless {@code
-     * force} option is set.</li>
-     * <li> Scroll the element into view if needed.</li>
-     * <li> Use {@link PageImpl#mouse Page.mouse()} to click in the center of the element.</li>
-     * <li> Ensure that the element is now unchecked. If not, this method throws.</li>
-     * </ol>
-     *
-     * <p> If the element is detached from the DOM at any moment during the action, this method throws.
-     *
-     * <p> When all steps combined have not finished during the specified {@code timeout}, this method throws a {@code
-     * TimeoutError}. Passing zero timeout disables this.
-     *
-     * @param options
-     * @since v1.8
-     */
     @Override
-    public void uncheck(UncheckOptions options) {
-        if (!isCheckboxOrRadio())
-            throw new IllegalStateException("uncheck: element is not <input type=checkbox|radio>");
-
-        if (!isChecked()) return;
-
-        waitForActionability(ActionabilityCheck.CLICK, options != null && options.timeout != null ? options.timeout : 30_000);
-        scrollIntoViewIfNeeded(null);
-        waitTwoAnimationFrames();
-        click(new ClickOptions());
-
-        if (isChecked())
-            throw new RuntimeException("uncheck failed: still checked.");
+    public void press(String key, PressOptions options) {
+        evaluate("element.dispatchEvent(new KeyboardEvent('keydown', { key: arguments[0] }))", key);
     }
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Helper methods
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    private boolean evaluateBoolean(String script) {
-        WDEvaluateResult result = webDriver.script().evaluate(script, target, true);
-        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue value = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
-            return value instanceof WDPrimitiveProtocolValue.BooleanValue &&
-                    ((WDPrimitiveProtocolValue.BooleanValue) value).getValue();
-        }
-        return false;
+    @Override
+    public void scrollIntoViewIfNeeded() {
+        evaluate("element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' })", null);
     }
 
-    private String evaluateString(String script) {
-        WDEvaluateResult result = webDriver.script().evaluate(script, target, true);
-        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue value = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
-            if (value instanceof WDPrimitiveProtocolValue.StringValue) {
-                return ((WDPrimitiveProtocolValue.StringValue) value).getValue();
-            }
-        }
-        return "";
+    @Override
+    public void scrollIntoViewIfNeeded(ScrollIntoViewIfNeededOptions options) {
+        scrollIntoViewIfNeeded();
     }
 
-    // ElementHandleImpl.java (oder entsprechende Klasse)
+    @Override
+    public String getAttribute(String name) {
+        return (String) evaluate("element.getAttribute(arguments[0])", name);
+    }
 
-    private double[] getBoundingBoxNow() {
-        WDEvaluateResult res = webDriver.script().callFunction(
-                "function(){ const r=this.getBoundingClientRect(); return [r.x,r.y,r.width,r.height]; }",
-                false,
+    @Override
+    public String textContent() {
+        return (String) evaluate("element.textContent", null);
+    }
+
+    @Override
+    public void dispatchEvent(String type, Object eventInit) {
+        evaluate("element.dispatchEvent(new Event(arguments[0], arguments[1]))", new Object[]{type, eventInit});
+    }
+
+    @Override
+    public JSHandle evaluateHandle(String expression, Object arg) {
+        return super.evaluateHandle(expression, arg);
+    }
+
+    @Override
+    public Object evaluate(String expression, Object arg) {
+        List<WDLocalValue> args = arg != null
+                ? Collections.singletonList(WDLocalValue.fromObject(arg))
+                : Collections.emptyList();
+
+        WDEvaluateResult result = ScriptUtils.evaluateDomFunction(
+                webDriver.script(),
+                ScriptUtils.wrapExpressionAsFunction(expression),
                 target,
-                null,
-                getRemoteReference(),
-                WDResultOwnership.NONE,
-                null
+                ScriptUtils.sharedRef(remoteValue),
+                args
         );
-        // Hilfsmethode zum Parsen
-        return WebDriverUtil.asDoubleArray(res);
-    }
 
-    private void waitTwoAnimationFrames() {
-        webDriver.script().callFunction(
-                "function(){return new Promise(function(resolve){var vis=document.visibilityState;var raf=(typeof requestAnimationFrame==='function');if(vis==='visible'&&raf){requestAnimationFrame(function(){requestAnimationFrame(resolve);});}else{setTimeout(resolve,50);}});}",
-                true,
-                target,
-                null,
-                getRemoteReference(),
-                WDResultOwnership.NONE,
-                null
-        );
-    }
-
-    /** Gemeinsamer Actionability-Check wie in LocatorImpl, aber auf Handle-Ebene. */
-    public void waitForActionability(ActionabilityCheck check, double timeout) {
-        EnumSet<ActionabilityRequirement> req = check.getRequirements();
-
-        long start = System.currentTimeMillis();
-
-        while (true) {
-            boolean ok = true;
-
-            // VISIBLE
-            if (req.contains(ActionabilityRequirement.VISIBLE)) {
-                boolean visible = WebDriverUtil.asBoolean(evaluate(
-                        "function(){ const r=this.getBoundingClientRect();"
-                                + " return r.width>0 && r.height>0 && window.getComputedStyle(this).visibility!=='hidden'; }"
-                ));
-                ok = ok && visible;
-            }
-
-            // ENABLED
-            if (ok && req.contains(ActionabilityRequirement.ENABLED)) {
-                boolean enabled = WebDriverUtil.asBoolean(evaluate(
-                        "function(){ return !this.disabled; }"
-                ));
-                ok = ok && enabled;
-            }
-
-            // EDITABLE
-            if (ok && req.contains(ActionabilityRequirement.EDITABLE)) {
-                boolean editable = WebDriverUtil.asBoolean(evaluate(
-                        "function(){ return (this instanceof HTMLInputElement || this instanceof HTMLTextAreaElement || this.isContentEditable) && !this.readOnly; }"
-                ));
-                ok = ok && editable;
-            }
-
-            // RECEIVES_EVENTS (ungefähre Hitbox-Annahme)
-            if (ok && req.contains(ActionabilityRequirement.RECEIVES_EVENTS)) {
-                boolean receives = WebDriverUtil.asBoolean(evaluate(
-                        "function(){ const r=this.getBoundingClientRect(); return r.width>0 && r.height>0; }"
-                ));
-                ok = ok && receives;
-            }
-
-            if (ok) {
-                // STABLE (optional): 2 rAF oder BoundingBox-Konstanz
-                if (req.contains(ActionabilityRequirement.STABLE)) {
-                    double[] last = getBoundingBoxNow();
-                    try { Thread.sleep(100); } catch (InterruptedException ignored) {}
-                    double[] now = getBoundingBoxNow();
-                    if (!java.util.Arrays.equals(last, now)) {
-                        ok = false;
-                    }
-                }
-            }
-
-            if (ok) {
-                if (req.contains(ActionabilityRequirement.VISIBLE)) {
-                    waitTwoAnimationFrames();
-                }
-                return;
-            }
-
-            if ((System.currentTimeMillis() - start) > timeout) {
-                throw new RuntimeException("Timeout waiting for actionability: " + check);
-            }
-
-            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
-        }
-    }
-
-    /** Convenience: aus FillOptions die Checks ableiten (force = skip). */
-    private void waitForActionability(FillOptions options) {
-        boolean force = options != null && Boolean.TRUE.equals(options.force);
-        double timeout = options != null && options.timeout != null ? options.timeout : 30_000;
-        if (!force) {
-            waitForActionability(ActionabilityCheck.FILL, timeout);
-        }
-    }
-
-    private void waitForActionability(ClickOptions options) {
-        boolean force = options != null && Boolean.TRUE.equals(options.force);
-        double timeout = options != null && options.timeout != null ? options.timeout : 30_000;
-        if (!force) {
-            waitForActionability(ActionabilityCheck.CLICK, timeout);
-        }
-    }
-
-    private String requireContextId() {
-        String cid = cachedContextId;
-        if (cid != null) return cid;
-        synchronized (this) {
-            if (cachedContextId == null) {
-                cachedContextId = de.bund.zrb.util.BrowsingContextResolver
-                        .resolveContextId(webDriver, target);
-            }
-            return cachedContextId;
-        }
-    }
-
-    @Deprecated // Since we use ElementOrigin with SharedID instead of manually calculated coordinates
-    private com.microsoft.playwright.Mouse resolveMouse() {
-        if (page != null && page.mouse() != null) return page.mouse();
-
-        // Fallback: direkte BiDi-Maus für diesen Context
-        // Stelle sicher, dass dein WebDriver Zugriff auf den WDInputManager bietet.
-        de.bund.zrb.manager.WDInputManager im = webDriver.input(); // <- ggf. Getter ergänzen
-        return new de.bund.zrb.event.MouseImpl(im, requireContextId());
-    }
-
-    // in ElementHandleImpl (privat)
-    private WDInputManager input() {
-        return webDriver.input(); // stelle sicher, dass WebDriver#input() den WDInputManager liefert
-    }
-
-    private WDElementOrigin elementOrigin() {
-        return new WDElementOrigin((WDRemoteReference.SharedReference) getRemoteReference());
-    }
-
-    /** Mappt Playwright-Buttons auf BiDi (0:left,1:middle,2:right). */
-    private static int mapMouseButton(MouseButton b) {
-        if (b == null) return 0;
-        switch (b) {
-            case LEFT:   return 0;
-            case MIDDLE: return 1;
-            case RIGHT:  return 2;
-            default:     return 0;
-        }
-    }
-
-    /** Baut (optional) Key-Down/Key-Up Sequenzen für Modifiers. */
-    private static List<SourceActions> buildModifierActions(List<KeyboardModifier> mods, boolean keyDown) {
-        if (mods == null || mods.isEmpty()) return java.util.Collections.emptyList();
-
-        // Reihenfolge für Down: Ctrl, Alt, Shift, Meta | für Up: reverse
-        List<String> order = Arrays.asList("Control", "Alt", "Shift", "Meta");
-        if (!keyDown) Collections.reverse(order);
-
-        Set<String> want = new java.util.HashSet<>();
-        for (KeyboardModifier m : mods) {
-            switch (m) {
-                case CONTROL: want.add("Control"); break;
-                case ALT:     want.add("Alt");     break;
-                case SHIFT:   want.add("Shift");   break;
-                case META:    want.add("Meta");    break;
-            }
+        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            WDRemoteValue returnValue = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
+            return super.convertRemoteValue(returnValue);
+        } else if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
+            String message = ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails().getText();
+            throw new RuntimeException("Evaluation failed: " + message);
         }
 
-        List<KeySourceAction> keyActions = new ArrayList<>();
-        for (String k : order) {
-            if (!want.contains(k)) continue;
-            if (keyDown) keyActions.add(new KeySourceAction.KeyDownAction(k));
-            else         keyActions.add(new KeySourceAction.KeyUpAction(k));
-        }
-        if (keyActions.isEmpty()) return java.util.Collections.emptyList();
-
-        SourceActions.KeySourceActions seq = new SourceActions.KeySourceActions("keyboard", keyActions);
-        return java.util.Collections.singletonList(seq);
+        return null;
     }
 
 
+    // ---- Nicht verwendete Features ----
+    @Override public void check(CheckOptions options) {}
+    @Override public void uncheck(UncheckOptions options) {}
+    @Override public void waitForElementState(ElementState state, WaitForElementStateOptions options) {}
+    @Override public ElementHandle waitForSelector(String selector, WaitForSelectorOptions options) { return null; }
+    @Override public ElementHandle querySelector(String selector) { return null; }
+    @Override public List<ElementHandle> querySelectorAll(String selector) { return Collections.emptyList(); }
+    @Override public byte[] screenshot(ScreenshotOptions options) { return new byte[0]; }
+    @Override public void fill(String value, FillOptions options) {}
+    @Override public List<String> selectOption(String values, SelectOptionOptions options) { return Collections.emptyList(); }
+    @Override public List<String> selectOption(ElementHandle values, SelectOptionOptions options) { return Collections.emptyList(); }
+    @Override public List<String> selectOption(String[] values, SelectOptionOptions options) { return Collections.emptyList(); }
+    @Override public List<String> selectOption(SelectOption values, SelectOptionOptions options) { return Collections.emptyList(); }
+    @Override public List<String> selectOption(ElementHandle[] values, SelectOptionOptions options) { return Collections.emptyList(); }
+    @Override public List<String> selectOption(SelectOption[] values, SelectOptionOptions options) { return Collections.emptyList(); }
+    @Override public void selectText(SelectTextOptions options) {}
+    @Override public void setChecked(boolean checked, SetCheckedOptions options) {}
+    @Override public void setInputFiles(Path files, SetInputFilesOptions options) {}
+    @Override public void setInputFiles(Path[] files, SetInputFilesOptions options) {}
+    @Override public void setInputFiles(FilePayload files, SetInputFilesOptions options) {}
+    @Override public void setInputFiles(FilePayload[] files, SetInputFilesOptions options) {}
+    @Override public void tap(TapOptions options) {}
+    @Override public Frame ownerFrame() { return null; }
+    @Override public Frame contentFrame() { return null; }
+    @Override public Object evalOnSelector(String selector, String expression, Object arg) { return null; }
+    @Override public Object evalOnSelectorAll(String selector, String expression, Object arg) { return null; }
 }
