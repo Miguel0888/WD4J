@@ -18,6 +18,7 @@ import de.bund.zrb.type.browsingContext.WDLocator;
 import de.bund.zrb.type.script.*;
 import de.bund.zrb.util.AdapterLocatorFactory;
 import de.bund.zrb.util.LocatorType;
+import de.bund.zrb.util.ScriptUtils;
 import de.bund.zrb.util.WebDriverUtil;
 
 import java.nio.file.Path;
@@ -93,18 +94,8 @@ public class LocatorImpl implements Locator {
         if (node.getHandle() != null) {
             handle = new WDHandle(node.getHandle().value());
         }
-        WDSharedId sharedId = node.getSharedId();
 
-        if (sharedId != null) {
-            WDRemoteReference.SharedReference reference = new WDRemoteReference.SharedReference(sharedId, handle);
-            elementHandle = new ElementHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
-        } else if (handle != null) {
-            WDRemoteReference.RemoteObjectReference reference = new WDRemoteReference.RemoteObjectReference(handle, sharedId);
-            new JSHandleImpl(page.getWebDriver(), reference, new WDTarget.ContextTarget(page.getBrowsingContext())); // ToDo
-            throw new RuntimeException("No sharedId found for selector: " + selector + " handle: " + handle);
-        } else {
-            throw new RuntimeException("No handle found for selector: " + selector);
-        }
+        elementHandle = new ElementHandleImpl(page.getWebDriver(), node, new WDTarget.ContextTarget(page.getBrowsingContext()));
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -119,8 +110,7 @@ public class LocatorImpl implements Locator {
 
         java.util.List<Locator> locators = new java.util.ArrayList<Locator>();
         for (WDRemoteValue.NodeRemoteValue n : nodes.getNodes()) {
-            WDRemoteReference.SharedReference ref = new WDRemoteReference.SharedReference(n.getSharedId(), new WDHandle(n.getHandle().value()));
-            ElementHandleImpl eh = new ElementHandleImpl(webDriver, ref, new WDTarget.ContextTarget(page.getBrowsingContext()));
+            ElementHandleImpl eh = new ElementHandleImpl(webDriver, n, new WDTarget.ContextTarget(page.getBrowsingContext()));
 
             // Build a child Locator that already points to this handle
             LocatorImpl li = new LocatorImpl(webDriver, page, explicitType, selector);
@@ -191,10 +181,7 @@ public class LocatorImpl implements Locator {
             throw new RuntimeException("No nodes matched both conditions.");
         }
 
-        WDHandle h = new WDHandle(both.get(0).getHandle().value());
-        WDSharedId sid = both.get(0).getSharedId();
-        WDRemoteReference.SharedReference ref = new WDRemoteReference.SharedReference(sid, h);
-        ElementHandleImpl newHandle = new ElementHandleImpl(webDriver, ref, new WDTarget.ContextTarget(page.getBrowsingContext()));
+        ElementHandleImpl newHandle = new ElementHandleImpl(webDriver, both.get(0), new WDTarget.ContextTarget(page.getBrowsingContext()));
 
         LocatorImpl result = new LocatorImpl(webDriver, page, this.explicitType, this.selector + " + " + ((LocatorImpl) locator).selector);
         result.elementHandle = newHandle;
@@ -212,7 +199,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         page.getBrowser().getScriptManager().executeDomAction(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomAction.BLUR
         );
     }
@@ -266,7 +253,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         page.getBrowser().getScriptManager().executeDomAction(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomAction.CLEAR_INPUT
         );
     }
@@ -373,7 +360,7 @@ public class LocatorImpl implements Locator {
 
         page.getBrowser().getScriptManager().executeDomAction(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomAction.DRAG_AND_DROP,
                 args
         );
@@ -385,7 +372,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
 
         return new ElementHandleImpl(page.getWebDriver(),
-                ((WDRemoteReference.SharedReference) elementHandle.getRemoteReference()),
+                elementHandle.getRemoteValue(),
                 new WDTarget.ContextTarget(page.getBrowsingContext()));
     }
 
@@ -440,7 +427,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         page.getBrowser().getScriptManager().executeDomAction(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomAction.FOCUS
         );
     }
@@ -458,7 +445,7 @@ public class LocatorImpl implements Locator {
         args.add(new WDPrimitiveProtocolValue.StringValue(name));
         WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomQuery.GET_ATTRIBUTES,
                 args
         );
@@ -560,7 +547,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         page.getBrowser().getScriptManager().executeDomAction(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomAction.HIGHLIGHT
         );
     }
@@ -590,7 +577,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomQuery.GET_INNER_TEXT
         );
         return getStringFromEvaluateResult(result);
@@ -607,7 +594,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomQuery.IS_CHECKED
         );
         return Boolean.TRUE.equals(getBooleanFromEvaluateResult(result)); // ToDo: Check this!
@@ -619,7 +606,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomQuery.GET_ATTRIBUTES,
                 Collections.singletonList(new WDPrimitiveProtocolValue.StringValue("disabled"))
         );
@@ -633,7 +620,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomQuery.IS_EDITABLE
         );
         return Boolean.TRUE.equals(getBooleanFromEvaluateResult(result)); // ToDo: Check this!
@@ -645,7 +632,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomQuery.IS_ENABLED
         );
         return Boolean.TRUE.equals(getBooleanFromEvaluateResult(result)); // ToDo: Check this!
@@ -657,7 +644,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomQuery.IS_HIDDEN
         );
         return Boolean.TRUE.equals(getBooleanFromEvaluateResult(result)); // ToDo: Check this!
@@ -669,7 +656,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomQuery.GET_BOUNDING_BOX
         );
         BoundingBox box = getBoundingBoxFromEvaluateResult(result);
@@ -707,10 +694,8 @@ public class LocatorImpl implements Locator {
             throw new IndexOutOfBoundsException("nth index " + index + " out of " + list.size());
         }
         WDRemoteValue.NodeRemoteValue n = list.get(index);
-        WDRemoteReference.SharedReference ref =
-                new WDRemoteReference.SharedReference(n.getSharedId(), new WDHandle(n.getHandle().value()));
         LocatorImpl li = new LocatorImpl(webDriver, page, explicitType, selector);
-        li.elementHandle = new ElementHandleImpl(webDriver, ref, new WDTarget.ContextTarget(page.getBrowsingContext()));
+        li.elementHandle = new ElementHandleImpl(webDriver, n, new WDTarget.ContextTarget(page.getBrowsingContext()));
         return li;
     }
 
@@ -744,10 +729,7 @@ public class LocatorImpl implements Locator {
             throw new RuntimeException("No nodes matched either condition.");
         }
 
-        WDHandle handle = new WDHandle(union.get(0).getHandle().value());
-        WDSharedId sharedId = union.get(0).getSharedId();
-        WDRemoteReference.SharedReference reference = new WDRemoteReference.SharedReference(sharedId, handle);
-        ElementHandleImpl newHandle = new ElementHandleImpl(webDriver, reference, new WDTarget.ContextTarget(page.getBrowsingContext()));
+        ElementHandleImpl newHandle = new ElementHandleImpl(webDriver, union.get(0), new WDTarget.ContextTarget(page.getBrowsingContext()));
 
         LocatorImpl result = new LocatorImpl(webDriver, page, this.explicitType, this.selector + " | " + other.selector);
         result.elementHandle = newHandle;
@@ -781,7 +763,7 @@ public class LocatorImpl implements Locator {
             List<WDLocalValue> args = Collections.singletonList(new WDPrimitiveProtocolValue.StringValue(String.valueOf(c)));
             page.getBrowser().getScriptManager().executeDomAction(
                     new WDTarget.ContextTarget(page.getBrowsingContext()),
-                    elementHandle.getRemoteReference(),
+                    ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                     WDScriptManager.DomAction.PRESS_KEY,
                     args
             );
@@ -802,7 +784,7 @@ public class LocatorImpl implements Locator {
         scrollIntoViewIfNeeded(null);
 
         // Only capture the element:
-        WDRemoteReference.SharedReference sharedReference = (WDRemoteReference.SharedReference) this.elementHandle.getRemoteReference();
+        WDRemoteReference.SharedReference sharedReference = (WDRemoteReference.SharedReference) ScriptUtils.sharedRef(elementHandle.getRemoteValue());
         CaptureScreenshotParameters.ClipRectangle clip = new CaptureScreenshotParameters.ClipRectangle.ElementClipRectangle(sharedReference);
 
         WDBrowsingContextResult.CaptureScreenshotResult captureScreenshotResult =
@@ -866,7 +848,7 @@ public class LocatorImpl implements Locator {
         List<WDLocalValue> args = Collections.singletonList(new WDPrimitiveProtocolValue.StringValue(values));
         page.getBrowser().getScriptManager().executeDomAction(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomAction.SELECT,
                 args
         );
@@ -889,7 +871,7 @@ public class LocatorImpl implements Locator {
 
         page.getBrowser().getScriptManager().executeDomAction(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomAction.SELECT, // ToDo: Will it work with multiple values?
                 args
         );
@@ -918,7 +900,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         page.getBrowser().getScriptManager().executeDomAction(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomAction.SELECT_TEXT
         );
     }
@@ -930,7 +912,7 @@ public class LocatorImpl implements Locator {
         WDScriptManager.DomAction action = checked ? WDScriptManager.DomAction.CHECK : WDScriptManager.DomAction.UNCHECK;
         page.getBrowser().getScriptManager().executeDomAction(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 action
         );
     }
@@ -961,7 +943,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         page.getBrowser().getScriptManager().executeDomAction(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomAction.TAP
         );
     }
@@ -972,7 +954,7 @@ public class LocatorImpl implements Locator {
         resolveElementHandle();
         WDEvaluateResult result = page.getBrowser().getScriptManager().queryDomProperty(
                 new WDTarget.ContextTarget(page.getBrowsingContext()),
-                elementHandle.getRemoteReference(),
+                ScriptUtils.sharedRef(elementHandle.getRemoteValue()),
                 WDScriptManager.DomQuery.GET_TEXT_CONTENT
         );
         return getStringFromEvaluateResult(result);
