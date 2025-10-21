@@ -191,42 +191,96 @@ public class SuiteEditorTab extends AbstractEditorTab<TestSuite> {
         return b;
     }
 
-    /** Build a tiny editor to show and re-pick a referenced precondition (by UUID). */
+    /** Build a tiny editor to show/re-pick a referenced precondition (by UUID) AND pick a User for this Given. */
     private JComponent buildPreconditionRefEditor(final GivenCondition gc) {
         JPanel p = new JPanel(new BorderLayout(8, 8));
         p.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        final String id = parseIdFromValue(gc.getValue());
+        // --- params lesen (id, username) ---
+        java.util.Map<String, String> params = new java.util.LinkedHashMap<String, String>();
+        if (gc.getValue() != null && gc.getValue().contains("=")) {
+            String[] pairs = gc.getValue().split("&");
+            for (String pair : pairs) {
+                String[] kv = pair.split("=", 2);
+                if (kv.length == 2) params.put(kv[0], kv[1]);
+            }
+        }
+        final String id = params.getOrDefault("id", "");
         final String name = resolvePreconditionName(id);
+        final String initialUser = params.getOrDefault("username", "");
 
+        // --- oben: Info ---
         JPanel top = new JPanel(new GridLayout(0, 1, 4, 4));
         top.add(new JLabel("Precondition: " + name));
         top.add(new JLabel("ID: " + id));
         p.add(top, BorderLayout.NORTH);
 
-        JButton change = new JButton("Precondition auswählen…");
-        change.addActionListener(new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
+        // --- mitte: User-Dropdown ---
+        JPanel center = new JPanel(new GridLayout(0, 2, 8, 8));
+        center.add(new JLabel("User:"));
+        String[] users = de.bund.zrb.service.UserRegistry.getInstance().getAll().stream()
+                .map(de.bund.zrb.service.UserRegistry.User::getUsername)
+                .toArray(String[]::new);
+        JComboBox<String> userBox = new JComboBox<String>(users);
+        if (initialUser != null && !initialUser.trim().isEmpty()) {
+            userBox.setSelectedItem(initialUser.trim());
+        }
+        center.add(userBox);
+        p.add(center, BorderLayout.CENTER);
+
+        // --- unten: Buttons ---
+        JButton pickPre = new JButton("Precondition auswählen…");
+        pickPre.addActionListener(new javax.swing.AbstractAction() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
                 java.awt.Window owner = SwingUtilities.getWindowAncestor(SuiteEditorTab.this);
-                GivenChoiceDialog dlg = new GivenChoiceDialog(owner, "Precondition wählen", id);
+                de.bund.zrb.ui.dialogs.GivenChoiceDialog dlg =
+                        new de.bund.zrb.ui.dialogs.GivenChoiceDialog(owner, "Precondition wählen", id);
                 dlg.setVisible(true);
                 if (!dlg.isConfirmed()) return;
-                if (dlg.getSelectedKind() != GivenChoiceDialog.KIND_PRECONDITION) return;
+                if (dlg.getSelectedKind() != de.bund.zrb.ui.dialogs.GivenChoiceDialog.KIND_PRECONDITION) return;
 
                 String newId = dlg.getIdOrType();
-                if (newId != null && newId.length() > 0 && !newId.equals(id)) {
-                    gc.setValue("id=" + newId);
-                    TestRegistry.getInstance().save();
+                if (newId != null && !newId.equals(params.get("id"))) {
+                    params.put("id", newId);
+                    // username behalten
+                    gc.setValue(serializeParams(params));
+                    de.bund.zrb.service.TestRegistry.getInstance().save();
                     updateDetailPanel(gc);
                     list.repaint();
                 }
             }
         });
 
+        JButton save = new JButton("Speichern");
+        save.addActionListener(new javax.swing.AbstractAction() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                Object u = userBox.getSelectedItem();
+                if (u != null && u.toString().trim().length() > 0) {
+                    params.put("username", u.toString().trim());
+                } else {
+                    params.remove("username");
+                }
+                gc.setValue(serializeParams(params));
+                de.bund.zrb.service.TestRegistry.getInstance().save();
+                javax.swing.JOptionPane.showMessageDialog(p, "Änderungen gespeichert.");
+            }
+        });
+
         JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        south.add(change);
+        south.add(pickPre);
+        south.add(save);
         p.add(south, BorderLayout.SOUTH);
+
         return p;
+    }
+
+    private static String serializeParams(java.util.Map<String, String> map) {
+        StringBuilder sb = new StringBuilder();
+        for (java.util.Map.Entry<String, String> e : map.entrySet()) {
+            if (sb.length() > 0) sb.append("&");
+            sb.append(e.getKey()).append("=").append(e.getValue());
+        }
+        return sb.toString();
     }
 
     private String parseIdFromValue(String value) {
