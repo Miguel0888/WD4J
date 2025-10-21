@@ -941,30 +941,7 @@ public class PageImpl implements Page, WDPageExtension {
         if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
             WDRemoteValue rv = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
 
-            // 1) Element/Objekt-Referenzen -> echtes Handle
-            if (rv instanceof WDRemoteReference.SharedReference) {
-                return new JSHandleImpl(webDriver, (WDRemoteReference.SharedReference) rv, target);
-            }
-            if (rv instanceof WDRemoteReference.RemoteObjectReference) {
-                return new JSHandleImpl(webDriver, (WDRemoteReference.RemoteObjectReference) rv, target);
-            }
-            if (rv instanceof WDRemoteValue.NodeRemoteValue) {
-                WDRemoteValue.NodeRemoteValue node = (WDRemoteValue.NodeRemoteValue) rv;
-                WDRemoteReference.SharedReference ref =
-                        new WDRemoteReference.SharedReference(node.getSharedId(), node.getHandle());
-                return new ElementHandleImpl(webDriver, ref, target);
-            }
-
-            // 2) Primitives: für "undefined" gibt es kein Handle -> liefere null
-            if (rv instanceof WDPrimitiveProtocolValue.UndefinedValue) {
-                return null; // <-- exakt dein gewünschtes Verhalten
-            }
-
-            // Optional: Für andere primitive Werte könnte man hier ebenfalls null werfen lassen
-            // oder – robuster – einen kleinen "JSPrimitiveHandle" verwenden.
-            // Für die Minimaländerung gilt: alles andere ist unerwartet.
-            throw new PlaywrightException("evaluateHandle failed: primitive value has no handle ("
-                    + rv.getClass().getSimpleName() + ")");
+            return new JSHandleImpl(webDriver, rv, target);
         }
 
         // Handle JS-Exception vom Zielkontext
@@ -1381,10 +1358,8 @@ public class PageImpl implements Page, WDPageExtension {
         if (nodes.getNodes().isEmpty()) return null;
 
         WDRemoteValue.NodeRemoteValue node = nodes.getNodes().get(0);
-        WDRemoteReference.SharedReference ref =
-                new WDRemoteReference.SharedReference(node.getSharedId(), node.getHandle());
         WDTarget.ContextTarget target = new WDTarget.ContextTarget(new WDBrowsingContext(getBrowsingContextId()));
-        return new ElementHandleImpl(webDriver, ref, target);
+        return new ElementHandleImpl(webDriver, node, target);
     }
 
     @Override
@@ -1403,11 +1378,9 @@ public class PageImpl implements Page, WDPageExtension {
 
         List<ElementHandle> out = new ArrayList<>();
         for (WDRemoteValue.NodeRemoteValue n : nodes.getNodes()) {
-            WDRemoteReference.SharedReference ref =
-                    new WDRemoteReference.SharedReference(n.getSharedId(), n.getHandle());
             out.add(new ElementHandleImpl(
                     webDriver,
-                    ref,
+                    n,
                     new WDTarget.ContextTarget(getBrowsingContext())
             ));
         }
