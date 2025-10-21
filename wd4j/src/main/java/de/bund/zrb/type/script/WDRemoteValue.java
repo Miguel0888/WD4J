@@ -14,7 +14,7 @@ import java.util.Map;
  * WDRemoteValue is an interface to represent various types of remote values in WebDriver BiDi.
  */
 @JsonAdapter(WDRemoteValue.WDRemoteValueAdapter.class)
-public interface WDRemoteValue {
+public interface WDRemoteValue extends WDLocalValue {
 
     String getType();
 
