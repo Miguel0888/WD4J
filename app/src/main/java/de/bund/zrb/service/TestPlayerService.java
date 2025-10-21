@@ -9,7 +9,10 @@ import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.TestPlayerUi;
-import de.bund.zrb.ui.components.log.*;
+import de.bund.zrb.ui.components.log.LogComponent;
+import de.bund.zrb.ui.components.log.StepLog;
+import de.bund.zrb.ui.components.log.SuiteLog;
+import de.bund.zrb.ui.components.log.TestExecutionLogger;
 import de.bund.zrb.util.GrowlNotificationPopupUtil;
 
 import javax.swing.*;
@@ -150,8 +153,9 @@ public class TestPlayerService {
         SuiteLog caseLog = new SuiteLog(testCase.getName());
         logger.append(caseLog);                           // <— Überschrift sofort anzeigen
 
-        // GIVEN (Case) – einzeln streamen
-        executeGivenList(testCase.getGiven(), caseLog, "Given");
+        // GIVEN (Case) – Benutzerauflösung: per-Given > Case > lastUsernameUsed
+        String caseUser = resolveUserForTestCase(node);
+        executeGivenList(testCase.getGiven(), caseLog, "Given", caseUser);
 
         // WHEN (Kinder) – rekursiv streamen
         executeChildren(node, caseLog);
@@ -167,7 +171,8 @@ public class TestPlayerService {
         SuiteLog suiteLog = new SuiteLog(node.toString());
         logger.append(suiteLog);                           // <— Header sofort
 
-        executeGivenList(suite.getGiven(), suiteLog, "Suite-Given");
+        // Suite-Givens (hier kein Case-User bekannt → null übergeben)
+        executeGivenList(suite.getGiven(), suiteLog, "Suite-Given", null);
         executeChildren(node, suiteLog);
 
         drawerRef.updateSuiteStatus(node);
@@ -199,13 +204,17 @@ public class TestPlayerService {
     }
 
     private List<LogComponent> executeGivenList(List<GivenCondition> givens, SuiteLog parentLog, String label) {
+        return executeGivenList(givens, parentLog, label, null);
+    }
+
+    private List<LogComponent> executeGivenList(List<GivenCondition> givens, SuiteLog parentLog, String label, String caseUser) {
         List<LogComponent> out = new ArrayList<>();
         if (givens == null || givens.isEmpty()) return out;
 
         for (GivenCondition given : givens) {
             StepLog givenLog = new StepLog(label, "Given: " + given.getType());
             try {
-                String user = inferUsername(given);
+                String user = selectUserForGiven(given, caseUser);
                 givenExecutor.apply(user, given);
                 givenLog.setStatus(true);
             } catch (Exception ex) {
@@ -249,6 +258,20 @@ public class TestPlayerService {
         return out;
     }
 
+    /** Auswahl-Regeln für Givens: per-Given → Case-User → lastUsernameUsed → Fehler. */
+    private String selectUserForGiven(GivenCondition given, String caseUser) {
+        String fromGiven = inferUsername(given);
+        if (fromGiven != null && !fromGiven.isEmpty()) {
+            return fromGiven;
+        }
+        if (caseUser != null && !caseUser.isEmpty()) {
+            return caseUser;
+        }
+        if (lastUsernameUsed != null && !lastUsernameUsed.isEmpty()) {
+            return lastUsernameUsed;
+        }
+        throw new IllegalStateException("Kein Benutzer für Given ermittelbar (weder im Given noch im TestCase).");
+    }
 
     /** Erster Action-User im Case-Node, sonst Fallback. */
     private String resolveUserForTestCase(TestNode caseNode) {
@@ -259,8 +282,8 @@ public class TestPlayerService {
                 if (u != null && !u.isEmpty()) return u;
             }
         }
-        // Fallback:
-        return (lastUsernameUsed != null && !lastUsernameUsed.isEmpty()) ? lastUsernameUsed : "default";
+        // Fallback: verwende zuletzt genutzten User; KEIN "default" mehr.
+        return (lastUsernameUsed != null && !lastUsernameUsed.isEmpty()) ? lastUsernameUsed : null;
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -373,8 +396,6 @@ public class TestPlayerService {
     }
 
     private byte[] screenshotAfterWait(int timeout, PageImpl page) {
-//        sleep(3000);
-//        waitForStableBeforeScreenshot(page, timeout);
         // Element- oder Page-Screenshot könnte hier später unterschieden werden.
         return page.screenshot(new Page.ScreenshotOptions().setTimeout(timeout));
     }
@@ -409,7 +430,11 @@ public class TestPlayerService {
 
     private String inferUsername(GivenCondition given) {
         Object u = (given.getParameterMap() != null) ? given.getParameterMap().get("username") : null;
-        return (u instanceof String && !((String) u).isEmpty()) ? (String) u : "default";
+        if (u instanceof String) {
+            String s = ((String) u).trim();
+            return s.isEmpty() ? null : s;
+        }
+        return null; // KEIN "default"!
     }
 
     private void resetRunFlags() { stopped = false; }
