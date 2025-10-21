@@ -408,8 +408,22 @@ public class TestPlayerService {
     }
 
     private String inferUsername(GivenCondition given) {
+        // 1) Explizit im Given gesetzt?
         Object u = (given.getParameterMap() != null) ? given.getParameterMap().get("username") : null;
-        return (u instanceof String && !((String) u).isEmpty()) ? (String) u : "default";
+        if (u instanceof String && !((String) u).isEmpty()) {
+            return (String) u;
+        }
+        // 2) Zuletzt in einer Action benutzt?
+        if (lastUsernameUsed != null && !lastUsernameUsed.isEmpty()) {
+            return lastUsernameUsed;
+        }
+        // 3) Erster registrierter User (falls vorhanden)
+        java.util.List<UserRegistry.User> all = UserRegistry.getInstance().getAll();
+        if (!all.isEmpty()) {
+            return all.get(0).getUsername();
+        }
+        // 4) Fallback – nur wenn Registry wirklich leer wäre
+        return "default";
     }
 
     private void resetRunFlags() { stopped = false; }

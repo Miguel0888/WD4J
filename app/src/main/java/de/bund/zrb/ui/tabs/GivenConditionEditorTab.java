@@ -1,15 +1,12 @@
 package de.bund.zrb.ui.tabs;
 
-import de.bund.zrb.model.GivenCondition;
-import de.bund.zrb.model.GivenRegistry;
-import de.bund.zrb.model.GivenTypeDefinition;
+import de.bund.zrb.model.*;
 import de.bund.zrb.model.GivenTypeDefinition.GivenField;
-import de.bund.zrb.model.Precondition;
 import de.bund.zrb.service.PreconditionRegistry;
 import de.bund.zrb.service.TestRegistry;
+import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.service.UserRegistry.User;
 import de.bund.zrb.ui.parts.Code;
-import de.bund.zrb.ui.parts.PreconditionRef;  // <— neu
-
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.fife.ui.rtextarea.RTextScrollPane;
@@ -21,22 +18,32 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Editor für einzelne GivenCondition.
+ * - Typ-Auswahl aus GivenRegistry
+ * - Dynamische Felder
+ * - Zusätzliche "User:"-Combo für JEDES Given (speichert "username" im Param-String)
+ * - Spezialfall "preconditionRef": UUID als Dropdown statt Freitext
+ */
 public class GivenConditionEditorTab extends JPanel {
 
-    private static final String KEY_ID = "id";
+    private static final String TYPE_PRECONDITION_REF = "preconditionRef";
 
     private final GivenCondition condition;
     private final JComboBox<String> typeBox;
     private final JPanel dynamicFieldsPanel = new JPanel(new GridBagLayout());
     private final Map<String, JComponent> inputs = new LinkedHashMap<String, JComponent>();
+    private JComboBox<String> userBox;
 
     public GivenConditionEditorTab(GivenCondition condition) {
         this.condition = condition;
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        typeBox = new JComboBox<String>(GivenRegistry.getInstance().getAll()
-                .stream().map(GivenTypeDefinition::getType).toArray(String[]::new));
+        // Typ-Combo aus Registry
+        String[] types = GivenRegistry.getInstance().getAll()
+                .stream().map(GivenTypeDefinition::getType).toArray(String[]::new);
+        typeBox = new JComboBox<String>(types);
         typeBox.setSelectedItem(condition.getType());
         typeBox.addActionListener(e -> rebuildDynamicForm((String) typeBox.getSelectedItem()));
 
@@ -63,110 +70,92 @@ public class GivenConditionEditorTab extends JPanel {
         dynamicFieldsPanel.removeAll();
         inputs.clear();
 
-        GivenTypeDefinition def = GivenRegistry.getInstance().get(type);
-        if (def == null) { revalidate(); repaint(); return; }
-
         Map<String, Object> paramMap = parseValueMap(condition.getValue());
+        GridBagConstraints gbc = baseGbc();
 
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
         int row = 0;
 
+        // ---------- User-Reihe (immer vorhanden) ----------
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
+        gbc.weightx = 0; gbc.weighty = 0; gbc.fill = GridBagConstraints.NONE;
+        dynamicFieldsPanel.add(new JLabel("User:"), gbc);
+
+        gbc.gridx = 1; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
+        String[] users = UserRegistry.getInstance().getAll().stream()
+                .map(User::getUsername).toArray(String[]::new);
+        userBox = new JComboBox<String>(users);
+        String preUser = (String) paramMap.get("username");
+        if (preUser != null && preUser.trim().length() > 0) {
+            userBox.setSelectedItem(preUser.trim());
+        }
+        dynamicFieldsPanel.add(userBox, gbc);
+        row++;
+
+        // ---------- Dynamische Felder je Typ ----------
+        GivenTypeDefinition def = GivenRegistry.getInstance().get(type);
+        if (def == null) {
+            revalidate(); repaint();
+            return;
+        }
+
         for (GivenField field : def.getFields().values()) {
-            Object value = paramMap.containsKey(field.name) ? paramMap.get(field.name) : field.defaultValue;
+            Object value = paramMap.get(field.name);
+            if (value == null && field.defaultValue != null) value = field.defaultValue;
 
             // Label
             gbc.gridx = 0; gbc.gridy = row;
-            gbc.gridwidth = 1; gbc.weightx = 0; gbc.weighty = 0;
-            gbc.fill = GridBagConstraints.NONE;
+            gbc.gridwidth = 1; gbc.weightx = 0; gbc.weighty = 0; gbc.fill = GridBagConstraints.NONE;
             dynamicFieldsPanel.add(new JLabel(field.label + ":"), gbc);
 
             // Input
             gbc.gridx = 1; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
 
-            JComponent input;
-
-            // --- Spezieller Editor für PreconditionRef-Felder ---
-            if (field.type == PreconditionRef.class && KEY_ID.equals(field.name)) {
-                JPanel idRow = new JPanel(new BorderLayout(6, 0));
-
-                // Namen (→ UUID) anbieten
-                JComboBox<Item> nameBox = new JComboBox<Item>(buildPreconditionItems());
-                String currentId = stringOrEmpty(paramMap.get(KEY_ID));
-                preselectById(nameBox, currentId);
-
-                // UUID-Feld geschützt, per Stift editierbar
-                JTextField idField = new JTextField(currentId);
-                idField.setEditable(false);
-                idField.setEnabled(true);
-                idField.setBackground(UIManager.getColor("TextField.inactiveBackground"));
-
-                JButton pencil = new JButton("✎");
-                pencil.setToolTipText("ID ändern");
-                Dimension d = new Dimension(28, idField.getPreferredSize().height);
-                pencil.setPreferredSize(d);
-                pencil.setFocusable(false);
-                pencil.addActionListener(new AbstractAction() {
-                    public void actionPerformed(ActionEvent e) {
-                        boolean makeEditable = !idField.isEditable();
-                        idField.setEditable(makeEditable);
-                        idField.setBackground(makeEditable
-                                ? UIManager.getColor("TextField.background")
-                                : UIManager.getColor("TextField.inactiveBackground"));
-                        if (makeEditable) {
-                            idField.requestFocusInWindow();
-                            idField.selectAll();
-                        }
-                    }
-                });
-
-                nameBox.addActionListener(new AbstractAction() {
-                    public void actionPerformed(ActionEvent e) {
-                        Item it = (Item) nameBox.getSelectedItem();
-                        if (it != null && it.uuid != null && it.uuid.length() > 0) {
-                            idField.setText(it.uuid);
-                        }
-                    }
-                });
-
-                idRow.add(nameBox, BorderLayout.WEST);
-                idRow.add(idField, BorderLayout.CENTER);
-                idRow.add(pencil, BorderLayout.EAST);
-
-                input = idRow;
-                inputs.put("__precond_nameBox__", nameBox);
-                inputs.put(field.name, idField);
-            }
-            // Code-Editor
-            else if (field.type == Code.class) {
+            // Spezialfall Code
+            if (field.type == Code.class) {
                 RSyntaxTextArea editor = new RSyntaxTextArea(10, 40);
                 editor.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVASCRIPT);
                 editor.setCodeFoldingEnabled(true);
-                editor.setText(value != null ? String.valueOf(value) : "");
-
+                editor.setText(value != null ? value.toString() : "");
                 RTextScrollPane scrollPane = new RTextScrollPane(editor);
 
-                gbc.gridx = 0; gbc.gridy = row++;
-                gbc.gridwidth = 2; gbc.weightx = 1.0; gbc.weighty = 0;
-                gbc.fill = GridBagConstraints.HORIZONTAL;
+                // Label vollbreit oberhalb
+                gbc.gridx = 0; gbc.gridwidth = 2;
                 dynamicFieldsPanel.add(new JLabel(field.label), gbc);
 
-                gbc.gridx = 0; gbc.gridy = row++;
-                gbc.gridwidth = 2; gbc.weightx = 1.0; gbc.weighty = 1.0;
-                gbc.fill = GridBagConstraints.BOTH;
+                // Editor vollbreit, nächste Zeile
+                gbc.gridy = ++row; gbc.fill = GridBagConstraints.BOTH; gbc.weighty = 1.0;
                 dynamicFieldsPanel.add(scrollPane, gbc);
 
                 inputs.put(field.name, editor);
+                row++;
                 continue;
             }
-            // Standard Textfeld
-            else {
-                JTextField tf = new JTextField(value != null ? String.valueOf(value) : "");
-                input = tf;
-                inputs.put(field.name, tf);
+
+            // Spezialfall preconditionRef.id -> Dropdown mit Precondition-Namen
+            if (TYPE_PRECONDITION_REF.equals(def.getType()) && "id".equals(field.name)) {
+                JComboBox<PreItem> combo = new JComboBox<PreItem>();
+                List<Precondition> pres = PreconditionRegistry.getInstance().getAll();
+                PreItem selected = null;
+                for (int i = 0; i < pres.size(); i++) {
+                    Precondition p = pres.get(i);
+                    String id = p.getId();
+                    String name = (p.getName() != null && p.getName().trim().length() > 0)
+                            ? p.getName().trim() : "(unnamed)";
+                    PreItem item = new PreItem(id, name);
+                    combo.addItem(item);
+                    if (value != null && value.equals(id)) selected = item;
+                }
+                if (selected != null) combo.setSelectedItem(selected);
+                dynamicFieldsPanel.add(combo, gbc);
+                inputs.put(field.name, combo);
+                row++;
+                continue;
             }
 
-            dynamicFieldsPanel.add(input, gbc);
+            // Default: Textfeld
+            JTextField tf = new JTextField(value != null ? value.toString() : "");
+            dynamicFieldsPanel.add(tf, gbc);
+            inputs.put(field.name, tf);
             row++;
         }
 
@@ -179,18 +168,29 @@ public class GivenConditionEditorTab extends JPanel {
         condition.setType(selectedType);
 
         Map<String, String> result = new LinkedHashMap<String, String>();
+
+        // username aus Combo sichern
+        Object uSel = (userBox != null) ? userBox.getSelectedItem() : null;
+        if (uSel != null && uSel.toString().trim().length() > 0) {
+            result.put("username", uSel.toString().trim());
+        }
+
+        // dynamische Felder sichern
         for (Map.Entry<String, JComponent> entry : inputs.entrySet()) {
             String name = entry.getKey();
-            if ("__precond_nameBox__".equals(name)) continue; // nur Helper
+            JComponent input = entry.getValue();
 
-            JComponent comp = entry.getValue();
-            if (comp instanceof JTextField) {
-                result.put(name, ((JTextField) comp).getText());
-            } else if (comp instanceof RSyntaxTextArea) {
-                result.put(name, ((RSyntaxTextArea) comp).getText());
-            } else if (comp instanceof JComboBox) {
-                Object sel = ((JComboBox<?>) comp).getSelectedItem();
-                result.put(name, sel != null ? String.valueOf(sel) : "");
+            if (input instanceof JTextField) {
+                result.put(name, ((JTextField) input).getText());
+            } else if (input instanceof RSyntaxTextArea) {
+                result.put(name, ((RSyntaxTextArea) input).getText());
+            } else if (input instanceof JComboBox) {
+                Object sel = ((JComboBox<?>) input).getSelectedItem();
+                if (sel instanceof PreItem) {
+                    result.put(name, ((PreItem) sel).id);
+                } else if (sel != null) {
+                    result.put(name, sel.toString());
+                }
             }
         }
 
@@ -199,34 +199,12 @@ public class GivenConditionEditorTab extends JPanel {
         JOptionPane.showMessageDialog(this, "Änderungen gespeichert.");
     }
 
-    // -------- Helpers --------
+    // ---------- Helpers ----------
 
-    private static final class Item {
-        final String name;
-        final String uuid;
-        Item(String name, String uuid) { this.name = name; this.uuid = uuid; }
-        public String toString() {
-            return (name != null && name.trim().length() > 0) ? name.trim() : "(unnamed)";
-        }
-    }
-
-    private Item[] buildPreconditionItems() {
-        List<Precondition> all = PreconditionRegistry.getInstance().getAll();
-        Item[] arr = new Item[all.size()];
-        for (int i = 0; i < all.size(); i++) {
-            Precondition p = all.get(i);
-            String nm = (p.getName() != null && p.getName().trim().length() > 0) ? p.getName().trim() : "(unnamed)";
-            arr[i] = new Item(nm, p.getId());
-        }
-        return arr;
-    }
-
-    private void preselectById(JComboBox<Item> box, String id) {
-        if (id == null || id.trim().length() == 0) return;
-        for (int i = 0; i < box.getItemCount(); i++) {
-            Item it = box.getItemAt(i);
-            if (id.equals(it.uuid)) { box.setSelectedIndex(i); return; }
-        }
+    private GridBagConstraints baseGbc() {
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        return gbc;
     }
 
     private Map<String, Object> parseValueMap(String value) {
@@ -250,5 +228,11 @@ public class GivenConditionEditorTab extends JPanel {
         return sb.toString();
     }
 
-    private String stringOrEmpty(Object v) { return v == null ? "" : String.valueOf(v); }
+    /** Item für Precondition-Dropdown (zeigt "Name {UUID}", speichert aber nur die UUID). */
+    private static final class PreItem {
+        final String id;
+        final String name;
+        PreItem(String id, String name) { this.id = id; this.name = name; }
+        public String toString() { return name + " {" + id + "}"; }
+    }
 }
