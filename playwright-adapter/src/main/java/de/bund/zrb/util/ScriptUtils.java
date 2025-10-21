@@ -37,8 +37,8 @@ public final class ScriptUtils {
 
         WDRemoteValue.NodeRemoteValue node = (WDRemoteValue.NodeRemoteValue) remoteValue;
         WDHandle handle = node.getHandle();
-        if (node.getSharedId() == null || handle == null) {
-            throw new IllegalStateException("NodeRemoteValue is missing sharedId or handle");
+        if (node.getSharedId() == null && handle == null) {
+            throw new IllegalStateException("NodeRemoteValue is missing sharedId and handle");
         }
 
         return new WDRemoteReference.SharedReference(node.getSharedId(), handle);
