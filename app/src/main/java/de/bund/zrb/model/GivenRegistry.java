@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 public class GivenRegistry {
 
     private static final GivenRegistry INSTANCE = new GivenRegistry();
-    private final Map<String, GivenTypeDefinition> definitions = new LinkedHashMap<>();
+    private final Map<String, GivenTypeDefinition> definitions = new LinkedHashMap<String, GivenTypeDefinition>();
 
     public static GivenRegistry getInstance() {
         return INSTANCE;
@@ -45,9 +45,14 @@ public class GivenRegistry {
 
         GivenTypeDefinition loggedIn = new GivenTypeDefinition("logged-in", "Benutzer ist eingeloggt");
         List<String> usernames = UserRegistry.getInstance().getAll()
-                .stream().map(User::getUsername).collect(Collectors.toList());
+                .stream().map(User::getUsername).collect(Collectors.<String>toList());
         loggedIn.addField("username", "Benutzername", "", String.class, usernames);
         register(loggedIn);
+
+        // --- Wichtig: preconditionRef bekannt machen (Editor fällt nicht ins Leere) ---
+        GivenTypeDefinition preRef = new GivenTypeDefinition("preconditionRef", "Referenz auf Precondition");
+        preRef.addField("id", "Precondition-UUID", "", String.class);
+        register(preRef);
     }
 
     public void register(GivenTypeDefinition def) {
