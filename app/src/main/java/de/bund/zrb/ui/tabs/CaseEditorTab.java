@@ -2,18 +2,31 @@ package de.bund.zrb.ui.tabs;
 
 import de.bund.zrb.event.ApplicationEventBus;
 import de.bund.zrb.event.TestSuiteSavedEvent;
-import de.bund.zrb.model.*;
+import de.bund.zrb.model.GivenCondition;
+import de.bund.zrb.model.Precondition;
+import de.bund.zrb.model.TestAction;
+import de.bund.zrb.model.TestCase;
+import de.bund.zrb.model.TestSuite;
+import de.bund.zrb.model.ThenExpectation;
+import de.bund.zrb.service.PreconditionRegistry;
 import de.bund.zrb.service.TestRegistry;
+import de.bund.zrb.ui.dialogs.GivenChoiceDialog;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.List;
 
+/**
+ * Edit a single TestCase with a simple list for Given/When/Then.
+ * Extend Given handling to allow both normal Given types and Precondition references.
+ */
 public class CaseEditorTab extends AbstractEditorTab<TestCase> {
 
-    private final DefaultListModel<Object> stepListModel = new DefaultListModel<>();
-    private final JList<Object> stepList = new JList<>(stepListModel);
+    private static final String TYPE_PRECONDITION_REF = "preconditionRef";
+
+    private final DefaultListModel<Object> stepListModel = new DefaultListModel<Object>();
+    private final JList<Object> stepList = new JList<Object>(stepListModel);
     private final JPanel detailPanel = new JPanel(new BorderLayout());
     private final TestSuite suite;
 
@@ -33,7 +46,7 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
 
         toolbar.add(createToolbarButton("+ Given", new AbstractAction() {
             @Override public void actionPerformed(ActionEvent e) {
-                addStep(new GivenCondition());
+                addGivenViaDialog();
             }
         }));
         toolbar.add(createToolbarButton("+ When", new AbstractAction() {
@@ -91,7 +104,11 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
         }
         reloadList();
         TestRegistry.getInstance().save();
-        ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suite.getName()));
+        if (suite != null) {
+            ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suite.getName()));
+        } else {
+            ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(null));
+        }
     }
 
     private void deleteStep() {
@@ -105,7 +122,7 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
             detailPanel.removeAll();
             detailPanel.revalidate();
             detailPanel.repaint();
-            ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suite.getName()));
+            ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suite != null ? suite.getName() : null));
         }
     }
 
@@ -140,7 +157,12 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
         if (selected instanceof TestAction) {
             detailPanel.add(new ActionEditorTab((TestAction) selected), BorderLayout.CENTER);
         } else if (selected instanceof GivenCondition) {
-            detailPanel.add(new GivenConditionEditorTab((GivenCondition) selected), BorderLayout.CENTER);
+            GivenCondition gc = (GivenCondition) selected;
+            if (TYPE_PRECONDITION_REF.equals(gc.getType())) {
+                detailPanel.add(buildPreconditionRefEditor(gc), BorderLayout.CENTER);
+            } else {
+                detailPanel.add(new GivenConditionEditorTab(gc), BorderLayout.CENTER);
+            }
         } else if (selected instanceof ThenExpectation) {
             detailPanel.add(new ThenExpectationEditorTab((ThenExpectation) selected), BorderLayout.CENTER);
         }
@@ -154,13 +176,112 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
         return button;
     }
 
-    private static class StepListRenderer extends DefaultListCellRenderer {
+    /** Open a unified picker (Given types + Preconditions) and add the selected one as Given. */
+    private void addGivenViaDialog() {
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        GivenChoiceDialog dlg = new GivenChoiceDialog(owner, "Given hinzufügen", null);
+        dlg.setVisible(true);
+        if (!dlg.isConfirmed()) return;
+
+        int kind = dlg.getSelectedKind();
+        String idOrType = dlg.getIdOrType();
+
+        if (kind == GivenChoiceDialog.KIND_GIVEN_TYPE) {
+            GivenCondition gc = new GivenCondition();
+            gc.setType(idOrType);
+            addStep(gc);
+            stepList.setSelectedValue(gc, true);
+        } else if (kind == GivenChoiceDialog.KIND_PRECONDITION) {
+            GivenCondition gc = new GivenCondition();
+            gc.setType(TYPE_PRECONDITION_REF);
+            gc.setValue("id=" + idOrType);
+            addStep(gc);
+            stepList.setSelectedValue(gc, true);
+        }
+    }
+
+    /** Build a tiny editor to show and re-pick a referenced precondition (by UUID). */
+    private JComponent buildPreconditionRefEditor(final GivenCondition gc) {
+        JPanel p = new JPanel(new BorderLayout(8, 8));
+        p.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        final String id = parseIdFromValue(gc.getValue());
+        final String name = resolvePreconditionName(id);
+
+        JPanel top = new JPanel(new GridLayout(0, 1, 4, 4));
+        top.add(new JLabel("Precondition: " + name));
+        top.add(new JLabel("ID: " + id));
+        p.add(top, BorderLayout.NORTH);
+
+        JButton change = new JButton("Precondition auswählen…");
+        change.addActionListener(new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                Window owner = SwingUtilities.getWindowAncestor(CaseEditorTab.this);
+                GivenChoiceDialog dlg = new GivenChoiceDialog(owner, "Precondition wählen", id);
+                dlg.setVisible(true);
+                if (!dlg.isConfirmed()) return;
+                if (dlg.getSelectedKind() != GivenChoiceDialog.KIND_PRECONDITION) return;
+
+                String newId = dlg.getIdOrType();
+                if (newId != null && newId.length() > 0 && !newId.equals(id)) {
+                    gc.setValue("id=" + newId);
+                    TestRegistry.getInstance().save();
+                    updateDetailPanel(gc);
+                    stepList.repaint();
+                }
+            }
+        });
+
+        JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        south.add(change);
+        p.add(south, BorderLayout.SOUTH);
+        return p;
+    }
+
+    /** Return precondition UUID parsed from GivenCondition.value ("id=<uuid>&..."). */
+    private String parseIdFromValue(String value) {
+        if (value == null) return "";
+        String[] pairs = value.split("&");
+        for (int i = 0; i < pairs.length; i++) {
+            String[] kv = pairs[i].split("=", 2);
+            if (kv.length == 2 && "id".equals(kv[0])) return kv[1];
+        }
+        return "";
+    }
+
+    /** Resolve precondition display name by id (fallback to id). */
+    private String resolvePreconditionName(String id) {
+        if (id == null || id.trim().length() == 0) return "(keine)";
+        List<Precondition> list = PreconditionRegistry.getInstance().getAll();
+        for (int i = 0; i < list.size(); i++) {
+            Precondition p = list.get(i);
+            if (id.equals(p.getId())) {
+                String n = p.getName();
+                return (n != null && n.trim().length() > 0) ? n.trim() : "(unnamed)";
+            }
+        }
+        return id;
+    }
+
+    /** Custom renderer to show Given/When/Then, including precondition references with name and id. */
+    private class StepListRenderer extends DefaultListCellRenderer {
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
             JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-            if (value instanceof GivenCondition) label.setText("Given: " + ((GivenCondition) value).getType());
-            else if (value instanceof TestAction) label.setText("When: " + ((TestAction) value).getAction());
-            else if (value instanceof ThenExpectation) label.setText("Then: " + ((ThenExpectation) value).getType());
+            if (value instanceof GivenCondition) {
+                GivenCondition gc = (GivenCondition) value;
+                if (TYPE_PRECONDITION_REF.equals(gc.getType())) {
+                    String id = parseIdFromValue(gc.getValue());
+                    String name = resolvePreconditionName(id);
+                    label.setText("Given: Precondition → " + name + " {" + id + "}");
+                } else {
+                    label.setText("Given: " + gc.getType());
+                }
+            } else if (value instanceof TestAction) {
+                label.setText("When: " + ((TestAction) value).getAction());
+            } else if (value instanceof ThenExpectation) {
+                label.setText("Then: " + ((ThenExpectation) value).getType());
+            }
             return label;
         }
     }
