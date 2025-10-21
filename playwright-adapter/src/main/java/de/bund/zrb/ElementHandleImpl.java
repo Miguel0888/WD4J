@@ -35,7 +35,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
     @Override
     public void click() {
-        evaluate("element.click()", null);
+        evaluate("this.click()", null);
     }
 
     @Override
@@ -45,7 +45,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
     @Override
     public void hover() {
-        evaluate("element.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))", null);
+        evaluate("this.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))", null);
     }
 
     @Override
@@ -55,7 +55,7 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
     @Override
     public void dblclick() {
-        evaluate("element.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))", null);
+        evaluate("this.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))", null);
     }
 
     @Override
@@ -65,73 +65,73 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
     @Override
     public String innerHTML() {
-        return (String) evaluate("element.innerHTML", null);
+        return (String) evaluate("this.innerHTML", null);
     }
 
     @Override
     public String innerText() {
-        return (String) evaluate("element.innerText", null);
+        return (String) evaluate("this.innerText", null);
     }
 
     @Override
     public String inputValue(InputValueOptions options) {
-        return (String) evaluate("element.value", null);
+        return (String) evaluate("this.value", null);
     }
 
     @Override
     public boolean isChecked() {
-        return (Boolean) evaluate("element.checked", null);
+        return (Boolean) evaluate("this.checked", null);
     }
 
     @Override
     public boolean isDisabled() {
-        return (Boolean) evaluate("element.disabled", null);
+        return (Boolean) evaluate("this.disabled", null);
     }
 
     @Override
     public boolean isEditable() {
-        return !(Boolean) evaluate("element.readOnly || element.disabled", null);
+        return !(Boolean) evaluate("this.readOnly || this.disabled", null);
     }
 
     @Override
     public boolean isEnabled() {
-        return !(Boolean) evaluate("element.disabled", null);
+        return !(Boolean) evaluate("this.disabled", null);
     }
 
     @Override
     public boolean isHidden() {
-        return !(Boolean) evaluate("!!( element.offsetWidth || element.offsetHeight || element.getClientRects().length )", null);
+        return !(Boolean) evaluate("!!( this.offsetWidth || this.offsetHeight || this.getClientRects().length )", null);
     }
 
     @Override
     public boolean isVisible() {
-        return (Boolean) evaluate("!!( element.offsetWidth || element.offsetHeight || element.getClientRects().length )", null);
+        return (Boolean) evaluate("!!( this.offsetWidth || this.offsetHeight || this.getClientRects().length )", null);
     }
 
     @Override
     public BoundingBox boundingBox() {
-        JsonObject box = (JsonObject) evaluate("(() => { const rect = element.getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }; })()", null);
+        JsonObject box = (JsonObject) evaluate("(() => { const rect = this.getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }; })()", null);
         return new BoundingBox(box.get("x").getAsDouble(), box.get("y").getAsDouble(), box.get("width").getAsDouble(), box.get("height").getAsDouble());
     }
 
     @Override
     public void focus() {
-        evaluate("element.focus()", null);
+        evaluate("this.focus()", null);
     }
 
     @Override
     public void type(String text, TypeOptions options) {
-        evaluate("element.value = arguments[0]", text);
+        evaluate("this.value = arguments[0]", text);
     }
 
     @Override
     public void press(String key, PressOptions options) {
-        evaluate("element.dispatchEvent(new KeyboardEvent('keydown', { key: arguments[0] }))", key);
+        evaluate("this.dispatchEvent(new KeyboardEvent('keydown', { key: arguments[0] }))", key);
     }
 
     @Override
     public void scrollIntoViewIfNeeded() {
-        evaluate("element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' })", null);
+        evaluate("this.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' })", null);
     }
 
     @Override
@@ -141,27 +141,42 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
     @Override
     public String getAttribute(String name) {
-        return (String) evaluate("element.getAttribute(arguments[0])", name);
+        return (String) evaluate("this.getAttribute(arguments[0])", name);
     }
 
     @Override
     public String textContent() {
-        return (String) evaluate("element.textContent", null);
+        return (String) evaluate("this.textContent", null);
     }
 
     @Override
     public void dispatchEvent(String type, Object eventInit) {
-        evaluate("element.dispatchEvent(new Event(arguments[0], arguments[1]))", new Object[]{type, eventInit});
+        evaluate("this.dispatchEvent(new Event(arguments[0], arguments[1]))", new Object[]{type, eventInit});
     }
 
+    //ToDo: Da PlayWright hier CallFunction mit der Syntax von Evaluate meint, kommt man hier an einem Parsing des
+    // Ausdrucks und einer Fallunterscheidung nicht vorbei. Daher sollte hier zukünftig RegEx verwendet werden!
     @Override
     public Object evaluate(String expression, Object arg) {
-        List<WDLocalValue> arguments = arg != null ?
-                Collections.singletonList(WDLocalValue.fromObject(arg)) :
-                Collections.emptyList();
+        List<WDLocalValue> arguments = arg != null
+                ? Collections.singletonList(WDLocalValue.fromObject(arg))
+                : Collections.emptyList();
+
+        String trimmed = expression.trim();
+        String functionDeclaration;
+
+        if (trimmed.startsWith("function")) {
+            functionDeclaration = trimmed;
+        } else if (trimmed.startsWith("this.") || trimmed.contains(";") || trimmed.contains("()")) {
+            // Bereits vollständiger Ausdruck, oder Mehrfachausdruck
+            functionDeclaration = "function() { return " + trimmed + "; }";
+        } else {
+            // Einfache Property wie "value" → wird zu "this.value"
+            functionDeclaration = "function() { return this." + trimmed + "; }";
+        }
 
         WDEvaluateResult result = webDriver.script().callFunction(
-                "function(element) { return " + expression + "; }",
+                functionDeclaration,
                 true,
                 target,
                 arguments,
@@ -170,8 +185,17 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
                 null
         );
 
-        return ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
+        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
+            return ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
+        } else if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
+            throw new RuntimeException("Script evaluation failed: " + ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails());
+        }
+
+        throw new IllegalStateException("Unknown result type from script evaluation");
     }
+
+
+
 
     @Override
     public JSHandle evaluateHandle(String expression, Object arg) {
