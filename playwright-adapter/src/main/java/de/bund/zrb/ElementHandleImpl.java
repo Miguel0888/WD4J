@@ -18,11 +18,14 @@ import java.util.List;
  */
 public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
+    private final WDRemoteValue remoteValue;
+
     public ElementHandleImpl(WebDriver webDriver, WDRemoteValue remoteValue, WDTarget target) {
         super(webDriver, remoteValue, target);
         if (!"node".equals(remoteValue.getType())) {
             throw new IllegalArgumentException("Expected a remote value of type 'node', but got: " + remoteValue.getType());
         }
+        this.remoteValue = remoteValue;
     }
 
     @Override
@@ -152,35 +155,29 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
     }
 
     @Override
-    public JSHandle evaluateHandle(String expression, Object arg) {
-        return super.evaluateHandle(expression, arg);
+    public Object evaluate(String expression, Object arg) {
+        List<WDLocalValue> arguments = arg != null ?
+                Collections.singletonList(WDLocalValue.fromObject(arg)) :
+                Collections.emptyList();
+
+        WDEvaluateResult result = webDriver.script().callFunction(
+                "function(element) { return " + expression + "; }",
+                true,
+                target,
+                arguments,
+                ScriptUtils.sharedRef(remoteValue),
+                WDResultOwnership.NONE,
+                null
+        );
+
+        return ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
     }
 
     @Override
-    public Object evaluate(String expression, Object arg) {
-        List<WDLocalValue> args = arg != null
-                ? Collections.singletonList(WDLocalValue.fromObject(arg))
-                : Collections.emptyList();
-
-        WDEvaluateResult result = ScriptUtils.evaluateDomFunction(
-                webDriver.script(),
-                ScriptUtils.wrapExpressionAsFunction(expression),
-                target,
-                ScriptUtils.sharedRef(remoteValue),
-                args
-        );
-
-        if (result instanceof WDEvaluateResult.WDEvaluateResultSuccess) {
-            WDRemoteValue returnValue = ((WDEvaluateResult.WDEvaluateResultSuccess) result).getResult();
-            return super.convertRemoteValue(returnValue);
-        } else if (result instanceof WDEvaluateResult.WDEvaluateResultError) {
-            String message = ((WDEvaluateResult.WDEvaluateResultError) result).getExceptionDetails().getText();
-            throw new RuntimeException("Evaluation failed: " + message);
-        }
-
-        return null;
+    public JSHandle evaluateHandle(String expression, Object arg) {
+        Object result = evaluate(expression, arg);
+        return new JSHandleImpl(webDriver, (WDRemoteValue) result, target);
     }
-
 
     // ---- Nicht verwendete Features ----
     @Override public void check(CheckOptions options) {}
