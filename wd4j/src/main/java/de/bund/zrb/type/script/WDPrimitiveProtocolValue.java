@@ -4,6 +4,8 @@ import com.google.gson.*;
 import com.google.gson.annotations.JsonAdapter;
 import de.bund.zrb.support.mapping.EnumWrapper;
 
+import java.lang.reflect.Type;
+
 @JsonAdapter(WDPrimitiveProtocolValue.PrimitiveProtocolValueAdapter.class) // 🔥 Automatische JSON-Konvertierung
 public interface WDPrimitiveProtocolValue extends WDLocalValue, WDRemoteValue {
     String getType();
@@ -131,9 +133,10 @@ public interface WDPrimitiveProtocolValue extends WDLocalValue, WDRemoteValue {
         }
     }
 
+    @JsonAdapter(NumberValue.Adapter.class)
     class NumberValue implements WDPrimitiveProtocolValue {
         private final String type = Type.NUMBER.value();
-        private final String value;
+        private final String value; // intern als String gespeichert (z.B. "3000", "NaN", "-0", …)
 
         public NumberValue(String value) {
             if (!isValidNumber(value)) {
@@ -143,41 +146,66 @@ public interface WDPrimitiveProtocolValue extends WDLocalValue, WDRemoteValue {
         }
 
         @Override
-        public String getType() {
-            return type;
+        public String getType() { return type; }
+
+        public String getValue() { return value; }
+
+        private static boolean isValidNumber(String v) {
+            return EnumWrapper.contains(SpecialNumber.class, v) || isNumeric(v);
         }
 
-        public String getValue() {
-            return value;
-        }
-
-        /**
-         * 🔥 Konvertiert den Wert in `Double`, falls es sich um eine echte Zahl handelt
-         */
-//        @Override
-        public Object asObject() {
-            if (EnumWrapper.contains(SpecialNumber.class, value)) {
-                return value; // SpecialNumber bleibt als String
-            }
-            return Double.valueOf(value);
-        }
-
-        /**
-         * 🔥 Prüft, ob der Wert eine gültige Zahl oder ein `SpecialNumber` ist.
-         */
-        private static boolean isValidNumber(String value) {
-            return EnumWrapper.contains(SpecialNumber.class, value) || isNumeric(value);
-        }
-
-        /**
-         * 🔥 Hilfsmethode zur Prüfung, ob ein String eine echte Zahl ist.
-         */
-        private static boolean isNumeric(String str) {
+        private static boolean isNumeric(String s) {
             try {
-                Double.parseDouble(str);
+                Double.parseDouble(s);
                 return true;
             } catch (NumberFormatException e) {
                 return false;
+            }
+        }
+
+        /** Gson-Adapter: schreibt value als JSON-Number (ohne Quotes) oder als String bei SpecialNumber */
+        static final class Adapter implements JsonSerializer<NumberValue>, JsonDeserializer<NumberValue> {
+
+            @Override
+            public JsonElement serialize(NumberValue numberValue,
+                                         java.lang.reflect.Type type,
+                                         JsonSerializationContext jsonSerializationContext) {
+                JsonObject o = new JsonObject();
+                o.addProperty("type", "number");
+
+                String v = numberValue.value;
+                if (EnumWrapper.contains(SpecialNumber.class, v)) {
+                    // Sonderwerte bleiben String (Spec)
+                    o.add("value", new JsonPrimitive(v));
+                } else {
+                    // echte Zahl als JSON-Zahl (ohne Anführungszeichen)
+                    double d = Double.parseDouble(v);
+                    o.add("value", new JsonPrimitive(d));
+                }
+                return o;
+            }
+
+            @Override
+            public NumberValue deserialize(JsonElement jsonElement,
+                                           java.lang.reflect.Type type,
+                                           JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+                JsonObject o = jsonElement.getAsJsonObject();
+                JsonElement val = o.get("value");
+                if (val == null || val.isJsonNull()) {
+                    throw new JsonParseException("number.value missing");
+                }
+
+                if (val.isJsonPrimitive()) {
+                    JsonPrimitive p = val.getAsJsonPrimitive();
+                    if (p.isString()) {
+                        // "NaN", "-0", "Infinity", "-Infinity"
+                        return new NumberValue(p.getAsString());
+                    } else if (p.isNumber()) {
+                        // z.B. 3000 -> "3000"
+                        return new NumberValue(p.getAsNumber().toString());
+                    }
+                }
+                throw new JsonParseException("Invalid number.value: " + val);
             }
         }
     }

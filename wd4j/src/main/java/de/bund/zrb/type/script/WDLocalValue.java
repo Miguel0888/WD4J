@@ -33,7 +33,16 @@ public interface WDLocalValue {
             return new WDPrimitiveProtocolValue.BooleanValue((Boolean) arg);
 
         } else if (arg instanceof Integer || arg instanceof Long || arg instanceof Float || arg instanceof Double) {
-            return new WDPrimitiveProtocolValue.NumberValue(arg.toString());
+            double d = ((Number) arg).doubleValue();
+
+            if (Double.isNaN(d))                  return new WDPrimitiveProtocolValue.NumberValue("NaN");
+            if (d == Double.POSITIVE_INFINITY)    return new WDPrimitiveProtocolValue.NumberValue("Infinity");
+            if (d == Double.NEGATIVE_INFINITY)    return new WDPrimitiveProtocolValue.NumberValue("-Infinity");
+            if (Double.doubleToRawLongBits(d) == Double.doubleToRawLongBits(-0.0d))
+                return new WDPrimitiveProtocolValue.NumberValue("-0");
+
+            // normale Zahl
+            return new WDPrimitiveProtocolValue.NumberValue(Double.toString(d));
 
         } else if (arg instanceof BigInteger) {
             return new WDPrimitiveProtocolValue.BigIntValue(arg.toString());
