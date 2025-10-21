@@ -1,5 +1,7 @@
 package de.bund.zrb.model;
 
+import de.bund.zrb.ui.parts.Code;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;

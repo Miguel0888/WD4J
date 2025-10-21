@@ -1,4 +1,4 @@
-package de.bund.zrb.model;
+package de.bund.zrb.ui.parts;
 
 public final class Code {
     private Code() {

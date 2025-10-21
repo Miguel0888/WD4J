@@ -1,6 +1,6 @@
 package de.bund.zrb.ui.tabs;
 
-import de.bund.zrb.model.Code;
+import de.bund.zrb.ui.parts.Code;
 import de.bund.zrb.model.ThenExpectation;
 import de.bund.zrb.model.ExpectationRegistry;
 import de.bund.zrb.model.ExpectationTypeDefinition;

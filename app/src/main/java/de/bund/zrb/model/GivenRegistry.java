@@ -2,6 +2,8 @@ package de.bund.zrb.model;
 
 import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.service.UserRegistry.User;
+import de.bund.zrb.ui.parts.Code;
+import de.bund.zrb.ui.parts.PreconditionRef;
 
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -51,7 +53,7 @@ public class GivenRegistry {
 
         // --- Wichtig: preconditionRef bekannt machen (Editor fällt nicht ins Leere) ---
         GivenTypeDefinition preRef = new GivenTypeDefinition("preconditionRef", "Referenz auf Precondition");
-        preRef.addField("id", "Precondition-UUID", "", String.class);
+        preRef.addField("id", "Precondition-UUID", "", PreconditionRef.class);
         register(preRef);
     }
 
