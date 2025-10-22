@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -72,6 +73,56 @@ public class SettingsService {
         if (vEnabled != null) VideoConfig.setEnabled(vEnabled);
         if (vFps != null)     VideoConfig.setFps(vFps);
         if (vDir != null && !vDir.trim().isEmpty()) VideoConfig.setReportsDir(vDir); // <- NEU
+
+        // Advanced Video Settings:
+        // in SettingsService.initAdapter() — NACH den drei bestehenden Video-Basics:
+        String vContainer = getInstance().get("video.container", String.class);
+        String vCodec     = getInstance().get("video.codec", String.class);
+        String vPixFmt    = getInstance().get("video.pixfmt", String.class);
+        Boolean vInter    = getInstance().get("video.interleaved", Boolean.class);
+        String vQuality   = getInstance().get("video.quality", String.class);
+        Integer vQscale   = getInstance().get("video.qscale", Integer.class);
+        Integer vCrf      = getInstance().get("video.crf", Integer.class);
+        Integer vBr       = getInstance().get("video.bitrateKbps", Integer.class);
+        String cRange     = getInstance().get("video.color.range", String.class);
+        String cSpace     = getInstance().get("video.color.space", String.class);
+        String cTrc       = getInstance().get("video.color.trc", String.class);
+        String cPrim      = getInstance().get("video.color.primaries", String.class);
+        String vVf        = getInstance().get("video.vf", String.class);
+        Integer vThreads  = getInstance().get("video.threads", Integer.class);
+        Boolean vEven     = getInstance().get("video.enforceEvenDims", Boolean.class);
+        List<String> vFBs = getInstance().get("video.container.fallbacks", List.class);
+        String vPreset    = getInstance().get("video.preset", String.class);
+        String vTune      = getInstance().get("video.tune", String.class);
+        String vProfile   = getInstance().get("video.profile", String.class);
+        String vLevel     = getInstance().get("video.level", String.class);
+        Map<String,String> vExtra = getInstance().get("video.ffopts", Map.class);
+
+        if (vContainer != null) VideoConfig.setContainer(vContainer);
+        if (vCodec     != null) VideoConfig.setCodec(vCodec);
+        if (vPixFmt    != null) VideoConfig.setPixelFmt(vPixFmt);
+        if (vInter     != null) VideoConfig.setInterleaved(vInter);
+        if (vQuality   != null) VideoConfig.setQualityMode(vQuality);
+        if (vQscale    != null) VideoConfig.setQscale(vQscale);
+        if (vCrf       != null) VideoConfig.setCrf(vCrf);
+        if (vBr        != null) VideoConfig.setBitrateKbps(vBr);
+        if (cRange     != null) VideoConfig.setColorRange(cRange);
+        if (cSpace     != null) VideoConfig.setColorspace(cSpace);
+        if (cTrc       != null) VideoConfig.setColorTrc(cTrc);
+        if (cPrim      != null) VideoConfig.setColorPrimaries(cPrim);
+        if (vVf        != null) VideoConfig.setVf(vVf);
+        if (vThreads   != null) VideoConfig.setThreads(vThreads);
+        if (vEven      != null) VideoConfig.setEnforceEvenDims(vEven);
+        if (vFBs       != null) VideoConfig.setContainerFallbacks(vFBs);
+        if (vPreset    != null) VideoConfig.setPreset(vPreset);
+        if (vTune      != null) VideoConfig.setTune(vTune);
+        if (vProfile   != null) VideoConfig.setProfile(vProfile);
+        if (vLevel     != null) VideoConfig.setLevel(vLevel);
+        if (vExtra     != null) {
+            VideoConfig.getExtraVideoOptions().clear();
+            VideoConfig.getExtraVideoOptions().putAll(vExtra);
+        }
+
     }
 
     /** Load the global settings.json into memory. */

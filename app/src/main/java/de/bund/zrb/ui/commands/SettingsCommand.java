@@ -133,6 +133,26 @@ public class SettingsCommand extends ShortcutMenuCommand {
         g1.gridx = 1; g1.gridy = row++; g1.anchor = GridBagConstraints.EAST; g1.weightx = 1;
         pnlRecording.add(spVideoFps, g1);
 
+        // 💡 Mini-Button für "Video-Details..."
+        JButton btVideoDetails = new JButton(new String(Character.toChars(0x1F3AC))); // 🎬
+        btVideoDetails.setToolTipText("Video-Details …");
+        btVideoDetails.setFocusable(false);
+        btVideoDetails.setMargin(new Insets(0, 0, 0, 0));
+        Dimension sq = new Dimension(26, 26);
+        btVideoDetails.setPreferredSize(sq);
+        btVideoDetails.setMinimumSize(sq);
+        btVideoDetails.setMaximumSize(sq);
+
+        // Klick öffnet den Dialog
+        btVideoDetails.addActionListener(e -> {
+            Window owner = SwingUtilities.getWindowAncestor(dialog);
+            new de.bund.zrb.ui.video.VideoSettingsDialog(owner).setVisible(true);
+        });
+
+        // Button neben FPS platzieren (gleiches Grid-Row wie FPS):
+        g1.gridx = 2; g1.gridy = row-1; g1.anchor = GridBagConstraints.CENTER; g1.weightx = 0;
+        pnlRecording.add(btVideoDetails, g1);
+
         // NEU: Video-Ordner
         JLabel lbVideoDir = new JLabel("Video-Ordner:");
         tfVideoDir = new JTextField(videoDir, 28);
