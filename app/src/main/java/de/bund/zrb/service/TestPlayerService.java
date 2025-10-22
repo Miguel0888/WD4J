@@ -533,7 +533,7 @@ public class TestPlayerService {
             logger.exportAsHtml(reportHtmlPath);
         }
         // Optional: Reset für nächsten Lauf
-        // reportBaseName=null; reportHtmlPath=null; reportImagesDir=null; screenshotCounter=0;
+        // reportBaseName=null; reportHtmlPath=null; reportImagesDir=null; screenF"shotCounter=0;
     }
 
     private void waitForStableBeforeScreenshot(Page page, double timeoutMs) {

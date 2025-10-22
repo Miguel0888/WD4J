@@ -28,6 +28,9 @@ import static de.bund.zrb.support.WDRemoteValueUtil.getBoundingBoxFromEvaluateRe
  */
 public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
+    private static final int KEY_DOWN_DELAY_MS = 10; // 10–30ms bewährt sich für Masken/Formatter
+    private static final int KEY_UP_DELAY_MS = 30; // 10–30ms bewährt sich für Masken/Formatter
+
     private final PageImpl page; // optional
     private final WDRemoteValue remoteValue;   // supertype (must be a 'node' at runtime)
     private volatile String cachedContextId;   // lazy cache for performActions
@@ -237,28 +240,42 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
 
         WDEvaluateResult macRes = webDriver.script().callFunction(
                 "function(){ try { return /Mac|iPhone|iPad|iPod/.test(navigator.platform); } catch(e){ return false; } }",
-                /* await */ true,
-                target, null, getRemoteReference(),
-                WDResultOwnership.ROOT, null
+                true, target, null, getRemoteReference(), WDResultOwnership.ROOT, null
         );
         boolean isMac = WebDriverUtil.asBoolean(macRes);
         String modKey = isMac ? WDKeys.META : WDKeys.CONTROL;
 
-        List<KeySourceAction> seq = new ArrayList<KeySourceAction>();
+        List<KeySourceAction> seq = new ArrayList<>();
 
+        // Select all
         seq.add(new KeySourceAction.KeyDownAction(modKey));
         seq.add(new KeySourceAction.KeyDownAction("a"));
+        seq.add(new PauseAction(KEY_UP_DELAY_MS));
         seq.add(new KeySourceAction.KeyUpAction("a"));
+        seq.add(new PauseAction(KEY_UP_DELAY_MS));
         seq.add(new KeySourceAction.KeyUpAction(modKey));
+        seq.add(new PauseAction(KEY_UP_DELAY_MS));
 
+        // Clear or type
         if (value == null || value.isEmpty()) {
             seq.add(new KeySourceAction.KeyDownAction(WDKeys.DELETE));
+            seq.add(new PauseAction(KEY_DOWN_DELAY_MS));
             seq.add(new KeySourceAction.KeyUpAction(WDKeys.DELETE));
+            seq.add(new PauseAction(KEY_UP_DELAY_MS));
         } else {
+            // erst leeren
+            seq.add(new KeySourceAction.KeyDownAction(WDKeys.DELETE));
+            seq.add(new PauseAction(KEY_DOWN_DELAY_MS));
+            seq.add(new KeySourceAction.KeyUpAction(WDKeys.DELETE));
+            seq.add(new PauseAction(KEY_UP_DELAY_MS));
+
+            // dann Zeichen mit Delay senden
             for (int i = 0; i < value.length(); i++) {
                 String ch = String.valueOf(value.charAt(i));
                 seq.add(new KeySourceAction.KeyDownAction(ch));
+                seq.add(new PauseAction(KEY_DOWN_DELAY_MS));
                 seq.add(new KeySourceAction.KeyUpAction(ch));
+                seq.add(new PauseAction(KEY_UP_DELAY_MS));
             }
         }
 

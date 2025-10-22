@@ -10,7 +10,7 @@ public class ShowGrowlTesterCommand extends ShortcutMenuCommand {
 
     @Override
     public String getId() {
-        return "tools.growlTester";
+        return "debug.growlTester";
     }
 
     @Override
