@@ -391,7 +391,7 @@ public class TestPlayerService {
 
     private byte[] screenshotAfterWait(int timeout, PageImpl page) {
 //        sleep(3000);
-        waitForStableBeforeScreenshot(page, timeout);
+//        waitForStableBeforeScreenshot(page, timeout);
         // Element- oder Page-Screenshot könnte hier später unterschieden werden.
         return page.screenshot(new Page.ScreenshotOptions().setTimeout(timeout));
     }
