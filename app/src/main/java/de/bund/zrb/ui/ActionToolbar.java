@@ -392,27 +392,47 @@ public class ActionToolbar extends JToolBar {
     private void loadToolbarSettings() {
         Path file = Paths.get(System.getProperty("user.home"), SettingsService.getInstance().APP_FOLDER, "toolbar.json");
 
-        // Case 1: No file yet -> initialize with defaults (not empty!)
         if (!Files.exists(file)) {
-            config = createDefaultConfigWithButtons();
+            // Einmalig mit zentralen Defaults initialisieren
+            List<MenuCommand> all = new ArrayList<>(CommandRegistryImpl.getInstance().getAll());
+            config = ToolbarDefaults.createInitialConfig(all);
+            saveToolbarSettings();
             return;
         }
 
-        // Case 2: Load file; if broken or empty, heal to defaults
         try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
             config = gson.fromJson(reader, ToolbarConfig.class);
-            ensureConfig();
+            ensureConfig(); // heilt Felder
+            // Heilung alter/leer gespeicherter Buttons -> zentrale Defaults
             if (config.buttons == null || config.buttons.isEmpty()) {
-                // Heal empty list that could be written by older versions
-                config.buttons = buildDefaultButtonsForAllCommands();
-                saveToolbarSettings(); // persist healing once
+                List<MenuCommand> all = new ArrayList<>(CommandRegistryImpl.getInstance().getAll());
+                config = ToolbarDefaults.createInitialConfig(all);
+                saveToolbarSettings();
             }
             if (config.buttonSizePx <= 0) config.buttonSizePx = 48;
             if (config.fontSizeRatio <= 0f) config.fontSizeRatio = 0.75f;
         } catch (IOException e) {
             System.err.println("⚠️ Fehler beim Laden der Toolbar-Konfiguration: " + e.getMessage());
-            config = createDefaultConfigWithButtons();
+            List<MenuCommand> all = new ArrayList<>(CommandRegistryImpl.getInstance().getAll());
+            config = ToolbarDefaults.createInitialConfig(all);
         }
+    }
+
+    private void ensureConfig() {
+        if (config == null) {
+            List<MenuCommand> all = new ArrayList<>(CommandRegistryImpl.getInstance().getAll());
+            config = ToolbarDefaults.createInitialConfig(all);
+            return;
+        }
+        if (config.buttons == null || config.buttons.isEmpty()) {
+            List<MenuCommand> all = new ArrayList<>(CommandRegistryImpl.getInstance().getAll());
+            config = ToolbarDefaults.createInitialConfig(all);
+        }
+        if (config.buttonSizePx <= 0) config.buttonSizePx = 48;
+        if (config.fontSizeRatio <= 0f) config.fontSizeRatio = 0.75f;
+        if (config.rightSideIds == null) config.rightSideIds = new LinkedHashSet<>();
+        if (config.groupColors == null)  config.groupColors  = new LinkedHashMap<>();
+        if (config.hiddenCommandIds == null) config.hiddenCommandIds = new LinkedHashSet<>();
     }
 
     private void saveToolbarSettings() {
@@ -471,31 +491,6 @@ public class ActionToolbar extends JToolBar {
                 // Buchstaben-/Zahlenrahmen
                 "🅰", "🅱", "🆎", "🅾", "🔠", "🔢", "🔣", "🔤"
         };
-    }
-
-    /** Ensure config object exists and fields are sane. */
-    private void ensureConfig() {
-        if (config == null) {
-            config = createDefaultConfigWithButtons();
-            return;
-        }
-        if (config.buttons == null) {
-            config.buttons = buildDefaultButtonsForAllCommands();
-        }
-        if (config.buttons.isEmpty()) {
-            config.buttons = buildDefaultButtonsForAllCommands();
-        }
-        if (config.buttonSizePx <= 0) config.buttonSizePx = 48;
-        if (config.fontSizeRatio <= 0f) config.fontSizeRatio = 0.75f;
-
-        // NEW: initialize right side set
-        if (config.rightSideIds == null) {
-            config.rightSideIds = new LinkedHashSet<String>(); // keep user order when editing JSON
-        }
-        // NEW: initialize group color map
-        if (config.groupColors == null) {
-            config.groupColors = new LinkedHashMap<String, String>();
-        }
     }
 
     // NEU: Prüfe, ob eine ID rechts ausgerichtet werden soll

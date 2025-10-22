@@ -126,16 +126,7 @@ public class ToolbarConfigDialog extends JDialog {
         // Actions (keine ContentPane-Ersetzung hier, damit OK/Cancel sicher funktionieren)
         btVisibility.addActionListener(e -> openVisibilityDialog());
         btDefaults.addActionListener(e -> {
-            ToolbarConfig tmp = deepCopyOrInit(initialConfig);
-            tmp.buttons = buildImportantDefaultButtons(); // reduzierte, wichtige Defaults
-            // hidden neu ableiten: alles, was nicht sichtbar ist
-            tmp.hiddenCommandIds.clear();
-            Set<String> vis = new LinkedHashSet<>();
-            for (ToolbarButtonConfig b : tmp.buttons) vis.add(b.id);
-            for (String id : allCommandIds()) if (!vis.contains(id)) tmp.hiddenCommandIds.add(id);
-
-            initialConfig = tmp;
-            // Hauptdialog neu aufbauen:
+            initialConfig = ToolbarDefaults.createInitialConfig(allCommands);
             setContentPane(buildUI());
             revalidate(); repaint(); pack();
         });
@@ -415,6 +406,9 @@ public class ToolbarConfigDialog extends JDialog {
     // ---------------- Helpers / Modell ----------------
 
     private ToolbarConfig deepCopyOrInit(ToolbarConfig in) {
+        if (in == null) {
+            return ToolbarDefaults.createInitialConfig(allCommands);
+        }
         ToolbarConfig cfg = new ToolbarConfig();
         if (in == null) {
             cfg.buttonSizePx = 48;
