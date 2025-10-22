@@ -22,12 +22,11 @@ import java.util.function.Supplier;
  * - Gruppenfarbe je Tab (+ Colorpicker)
  * - Button-Farbe mit Farbvorschau im Dropdown (+ Colorpicker)
  * - Positionskollisionen werden automatisch aufgelöst (stabil, global)
- * - Hidden-Set wird automatisch aus allen Commands abgeleitet
- * - "Standard laden" zeigt nur die wichtigsten Buttons (siehe Mapping unten)
+ * - "Sichtbarkeit…" zeigt/verbirgt Commands (wirkt sofort)
  */
 public class ToolbarConfigDialog extends JDialog {
 
-    private final ToolbarConfig initialConfig;
+    private ToolbarConfig initialConfig;
     private final List<MenuCommand> allCommands;
     private final String[] iconSuggestions;
 
@@ -58,7 +57,7 @@ public class ToolbarConfigDialog extends JDialog {
         this.iconSuggestions = iconSuggestions != null ? iconSuggestions : new String[0];
 
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setContentPane(buildUI());
+        setContentPane(buildUI()); // baut mit Filter (hiddenCommandIds)
         pack();
         setLocationRelativeTo(owner);
         setMinimumSize(new Dimension(Math.max(820, getWidth()), Math.max(560, getHeight())));
@@ -72,10 +71,37 @@ public class ToolbarConfigDialog extends JDialog {
     // ---------------- UI ----------------
 
     private JComponent buildUI() {
+        // ⚠️ WICHTIG: alte Controls verwerfen, damit der Zustand konsistent ist
+        cbEnabled.clear();
+        cbIcon.clear();
+        cbColor.clear();
+        cbRight.clear();
+        spOrder.clear();
+
         JPanel root = new JPanel(new BorderLayout(10, 10));
         root.setBorder(new EmptyBorder(10, 12, 10, 12));
 
-        Map<String, List<MenuCommand>> byGroup = groupCommands(allCommands);
+        // TOP-Leiste: links Sichtbarkeit/Defaults, rechts OK/Cancel
+        JPanel top = new JPanel(new BorderLayout());
+        JPanel leftTop = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JButton btVisibility = new JButton("Sichtbarkeit…");
+        JButton btDefaults   = new JButton("Standard laden");
+        leftTop.add(btVisibility);
+        leftTop.add(btDefaults);
+        JPanel rightTop = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        JButton btOk     = new JButton("OK");
+        JButton btCancel = new JButton("Abbrechen");
+        rightTop.add(btOk);
+        rightTop.add(btCancel);
+        top.add(leftTop, BorderLayout.WEST);
+        top.add(rightTop, BorderLayout.EAST);
+
+        // Tabs pro Gruppe (nur nicht-versteckte Commands)
+        tabs.removeAll();
+        groupPanels.clear();
+        groupColorFields.clear();
+
+        Map<String, List<MenuCommand>> byGroup = groupCommands(filteredCommands());
         for (Map.Entry<String, List<MenuCommand>> ge : byGroup.entrySet()) {
             String group = ge.getKey();
             JPanel panel = buildGroupPanel(group, ge.getValue());
@@ -97,24 +123,28 @@ public class ToolbarConfigDialog extends JDialog {
                 (double)Math.max(0.3f, Math.min(1.0f, initialConfig.fontSizeRatio)), 0.3, 1.0, 0.05));
         sizePanel.add(spFontRatio);
 
-        // Buttons
-        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        JButton btDefaults = new JButton("Standard laden");
-        JButton btOk = new JButton("OK");
-        JButton btCancel = new JButton("Abbrechen");
+        // Actions (keine ContentPane-Ersetzung hier, damit OK/Cancel sicher funktionieren)
+        btVisibility.addActionListener(e -> openVisibilityDialog());
+        btDefaults.addActionListener(e -> {
+            ToolbarConfig tmp = deepCopyOrInit(initialConfig);
+            tmp.buttons = buildImportantDefaultButtons(); // reduzierte, wichtige Defaults
+            // hidden neu ableiten: alles, was nicht sichtbar ist
+            tmp.hiddenCommandIds.clear();
+            Set<String> vis = new LinkedHashSet<>();
+            for (ToolbarButtonConfig b : tmp.buttons) vis.add(b.id);
+            for (String id : allCommandIds()) if (!vis.contains(id)) tmp.hiddenCommandIds.add(id);
 
-        btDefaults.addActionListener(e -> resetToDefaults());
+            initialConfig = tmp;
+            // Hauptdialog neu aufbauen:
+            setContentPane(buildUI());
+            revalidate(); repaint(); pack();
+        });
         btOk.addActionListener(e -> onOk());
         btCancel.addActionListener(e -> onCancel());
 
-        footer.add(btDefaults);
-        footer.add(btOk);
-        footer.add(btCancel);
-
+        root.add(top, BorderLayout.NORTH);
         root.add(tabs, BorderLayout.CENTER);
         root.add(sizePanel, BorderLayout.SOUTH);
-        root.add(footer, BorderLayout.NORTH);
-
         return root;
     }
 
@@ -228,15 +258,81 @@ public class ToolbarConfigDialog extends JDialog {
         return groupRoot;
     }
 
-    // ---------------- Aktionen ----------------
+    // ---------------- Sichtbarkeits-Dialog ----------------
 
-    private void resetToDefaults() {
-        // Buttons auf wichtige Defaults setzen, Größen/RightSide/GroupColors beibehalten
-        ToolbarConfig tmp = deepCopyOrInit(initialConfig);
-        tmp.buttons = buildImportantDefaultButtons();
-        // Ergebnis anwenden und UI neu aufbauen
-        applyConfig(tmp);
+    private void openVisibilityDialog() {
+        // Kopie der aktuellen Hidden-Menge
+        LinkedHashSet<String> hidden = new LinkedHashSet<>();
+        if (initialConfig.hiddenCommandIds != null) hidden.addAll(initialConfig.hiddenCommandIds);
+
+        JDialog dlg = new JDialog(this, "Buttons ein-/ausblenden", Dialog.ModalityType.APPLICATION_MODAL);
+        JPanel root = new JPanel(new BorderLayout(8,8));
+        root.setBorder(new EmptyBorder(10,12,10,12));
+
+        // Liste mit Checkboxen für ALLE Commands (alphabetisch nach Label)
+        List<MenuCommand> sorted = new ArrayList<>(allCommands);
+        sorted.sort(Comparator.comparing(mc -> Objects.toString(mc.getLabel(), Objects.toString(mc.getId(), ""))));
+
+        JPanel list = new JPanel(new GridLayout(0,1,0,2));
+        Map<MenuCommand, JCheckBox> checks = new LinkedHashMap<>();
+
+        for (MenuCommand mc : sorted) {
+            String id = Objects.toString(mc.getId(), "");
+            boolean visible = !hidden.contains(id);
+            JCheckBox cb = new JCheckBox(mc.getLabel() + "  (" + id + ")", visible);
+            checks.put(mc, cb);
+            list.add(cb);
+        }
+
+        JScrollPane scroll = new JScrollPane(list);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+
+        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 8,0));
+        JButton btAllOn  = new JButton("Alle anzeigen");
+        JButton btAllOff = new JButton("Alle ausblenden");
+        top.add(btAllOn); top.add(btAllOff);
+        btAllOn.addActionListener(e -> checks.values().forEach(c -> c.setSelected(true)));
+        btAllOff.addActionListener(e -> checks.values().forEach(c -> c.setSelected(false)));
+
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8,0));
+        JButton btOk = new JButton("OK");
+        JButton btCancel = new JButton("Abbrechen");
+        bottom.add(btOk); bottom.add(btCancel);
+
+        btCancel.addActionListener(e -> dlg.dispose());
+        btOk.addActionListener(e -> {
+            LinkedHashSet<String> newHidden = new LinkedHashSet<>();
+            for (Map.Entry<MenuCommand, JCheckBox> en : checks.entrySet()) {
+                String id = Objects.toString(en.getKey().getId(), "");
+                if (!en.getValue().isSelected()) newHidden.add(id);
+            }
+            if (initialConfig.hiddenCommandIds == null) {
+                initialConfig.hiddenCommandIds = new LinkedHashSet<>();
+            }
+            initialConfig.hiddenCommandIds.clear();
+            initialConfig.hiddenCommandIds.addAll(newHidden);
+
+            // Dialog schließen & Hauptdialog neu rendern
+            dlg.dispose();
+
+            // Neu rendern: Maps werden jetzt in buildUI() geleert
+            setContentPane(buildUI());
+            revalidate();
+            repaint();
+            pack();
+        });
+
+        root.add(top, BorderLayout.NORTH);
+        root.add(scroll, BorderLayout.CENTER);
+        root.add(bottom, BorderLayout.SOUTH);
+        dlg.setContentPane(root);
+        dlg.pack();
+        dlg.setMinimumSize(new Dimension(Math.max(560, dlg.getWidth()), Math.max(420, dlg.getHeight())));
+        dlg.setLocationRelativeTo(this);
+        dlg.setVisible(true);
     }
+
+    // ---------------- Aktionen ----------------
 
     private void onOk() {
         ToolbarConfig cfg = deepCopyOrInit(initialConfig);
@@ -303,14 +399,8 @@ public class ToolbarConfigDialog extends JDialog {
         cfg.fontSizeRatio = ((Number) spFontRatio.getValue()).floatValue();
         cfg.rightSideIds = newRight;
 
-        // 5) Hidden aus allen Commands ableiten
-        LinkedHashSet<String> hidden = new LinkedHashSet<>();
-        Set<String> visibleIds = new LinkedHashSet<>();
-        for (ToolbarButtonConfig b : cfg.buttons) if (b != null && b.id != null) visibleIds.add(b.id);
-        for (String id : allCommandIds()) if (!visibleIds.contains(id)) hidden.add(id);
-        if (cfg.hiddenCommandIds == null) cfg.hiddenCommandIds = new LinkedHashSet<>();
-        cfg.hiddenCommandIds.clear();
-        cfg.hiddenCommandIds.addAll(hidden);
+        // 5) Hidden aus Checkbox-Dialog (bereits in initialConfig) übernehmen
+        cfg.hiddenCommandIds = new LinkedHashSet<>(initialConfig.hiddenCommandIds);
 
         // 6) Ergebnis zurückgeben
         this.result = cfg;
@@ -334,7 +424,7 @@ public class ToolbarConfigDialog extends JDialog {
             cfg.groupColors = new LinkedHashMap<>();
             cfg.hiddenCommandIds = new LinkedHashSet<>();
             cfg.buttons.addAll(buildImportantDefaultButtons());
-            // Hidden initial befüllen
+            // Hidden initial: alles übrige
             Set<String> vis = new LinkedHashSet<>();
             for (ToolbarButtonConfig b : cfg.buttons) vis.add(b.id);
             for (String id : allCommandIds()) if (!vis.contains(id)) cfg.hiddenCommandIds.add(id);
@@ -360,32 +450,6 @@ public class ToolbarConfigDialog extends JDialog {
         return cfg;
     }
 
-    private void applyConfig(ToolbarConfig cfg) {
-        // Dialog neu aufbauen mit cfg
-        getContentPane().removeAll();
-        this.result = null; // noch nicht bestätigt
-        ToolbarConfigDialog fresh = new ToolbarConfigDialog(getOwner(), cfg, allCommands, iconSuggestions);
-        // „Ersetze“ den Inhalt
-        setContentPane(fresh.getContentPane());
-        this.spButtonSize = fresh.spButtonSize;
-        this.spFontRatio = fresh.spFontRatio;
-        this.tabs.removeAll();
-        for (int i = 0; i < fresh.tabs.getTabCount(); i++) {
-            this.tabs.addTab(fresh.tabs.getTitleAt(i), fresh.tabs.getComponentAt(i));
-        }
-        this.cbEnabled.clear(); this.cbEnabled.putAll(fresh.cbEnabled);
-        this.cbIcon.clear(); this.cbIcon.putAll(fresh.cbIcon);
-        this.cbColor.clear(); this.cbColor.putAll(fresh.cbColor);
-        this.cbRight.clear(); this.cbRight.putAll(fresh.cbRight);
-        this.spOrder.clear(); this.spOrder.putAll(fresh.spOrder);
-        this.groupPanels.clear(); this.groupPanels.putAll(fresh.groupPanels);
-        this.groupColorFields.clear(); this.groupColorFields.putAll(fresh.groupColorFields);
-
-        revalidate();
-        repaint();
-        pack();
-    }
-
     private Map<String, List<MenuCommand>> groupCommands(List<MenuCommand> cmds) {
         Map<String, List<MenuCommand>> byGroup = new LinkedHashMap<>();
         for (MenuCommand cmd : cmds) {
@@ -396,6 +460,18 @@ public class ToolbarConfigDialog extends JDialog {
             byGroup.computeIfAbsent(grp, k -> new ArrayList<>()).add(cmd);
         }
         return byGroup;
+    }
+
+    private List<MenuCommand> filteredCommands() {
+        // nur nicht-versteckte
+        LinkedHashSet<String> hidden = initialConfig.hiddenCommandIds == null
+                ? new LinkedHashSet<>() : initialConfig.hiddenCommandIds;
+        List<MenuCommand> list = new ArrayList<>();
+        for (MenuCommand mc : allCommands) {
+            String id = Objects.toString(mc.getId(), "");
+            if (!hidden.contains(id)) list.add(mc);
+        }
+        return list;
     }
 
     private int suggestNextOrder() {
@@ -458,7 +534,6 @@ public class ToolbarConfigDialog extends JDialog {
         String s = raw.trim();
         if (s.isEmpty()) return null;
         if (!s.startsWith("#")) s = "#" + s;
-        // #RGB / #RRGGBB / #RRGGBBAA akzeptieren (Swing-JColorChooser zeigt ohnehin ohne Alpha)
         if (!s.matches("^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$")) return null;
         return s.toUpperCase(Locale.ROOT);
     }
@@ -468,7 +543,6 @@ public class ToolbarConfigDialog extends JDialog {
     private List<ToolbarButtonConfig> buildImportantDefaultButtons() {
         List<ToolbarButtonConfig> visible = new ArrayList<>();
 
-        // Fuzzy-Suche nach IDs im Registry-Bestand
         String idPlay        = findIdContaining("testsuite.play", "playtestsuite", "playtest", "play");
         String idStopPlay    = findIdContaining("stopplayback", "stop.playback", "stopplay");
         String idStartRec    = findIdContaining("startrecord", "record.start");
@@ -480,7 +554,6 @@ public class ToolbarConfigDialog extends JDialog {
         String idReload      = findIdContaining("reloadtab", "reload", "refresh");
         String idUserReg     = findIdContaining("userregistry", "user.registry", "credentials", "zugangsdaten");
 
-        // Mapping: Icons + Farben
         class Def { String icon; String hex; Def(String i, String h){icon=i;hex=h;} }
         Map<String, Def> m = new LinkedHashMap<>();
         m.put(idPlay,     new Def("▶", "#00AA00"));
@@ -494,7 +567,6 @@ public class ToolbarConfigDialog extends JDialog {
         m.put(idReload,   new Def("↻", null));
         m.put(idUserReg,  new Def(new String(Character.toChars(0x1F4C7)), null)); // 📇
 
-        // Reihenfolge
         String[] order = new String[]{
                 idPlay, idStopPlay, idStartRec, idStopRec,
                 idLogin, idHome, idOtp, idCloseTab, idReload, idUserReg
@@ -532,25 +604,8 @@ public class ToolbarConfigDialog extends JDialog {
         return ids;
     }
 
-    // --- (Fallback) Defaults für Buttons – ungenutzt, aber belassen -----------
-    // Wird nicht mehr von resetToDefaults verwendet, bleibt als Reserve erhalten.
-    @SuppressWarnings("unused")
-    private List<ToolbarButtonConfig> buildDefaultButtonsForAllCommands() {
-        List<ToolbarButtonConfig> list = new ArrayList<>();
-        List<MenuCommand> cmds = new ArrayList<>(allCommands);
-        cmds.sort(Comparator.comparing(m -> Objects.toString(m.getLabel(), "")));
-        int pos = 1;
-        for (MenuCommand cmd : cmds) {
-            ToolbarButtonConfig tbc = new ToolbarButtonConfig(cmd.getId(), defaultIconFor(cmd.getId()));
-            tbc.order = pos++;
-            String bg = defaultBackgroundHexFor(cmd.getId());
-            if (bg != null) tbc.backgroundHex = bg;
-            list.add(tbc);
-        }
-        return list;
-    }
+    // ---- Defaults/Fallbacks (wie gehabt) ------------------------------------
 
-    // dieselben Regeln wie in ActionToolbar (kompakt)
     private String defaultIconFor(String idRaw) {
         String id = idRaw == null ? "" : idRaw.toLowerCase(Locale.ROOT);
         if (id.contains("record.play"))      return "▶";
@@ -589,7 +644,7 @@ public class ToolbarConfigDialog extends JDialog {
         return initialConfig.buttons.stream().anyMatch(b -> b.id.equals(id));
     }
 
-    // ---------------- Farb-UI Helpers ----------------
+    // ---------------- Farb-UI Helpers (unverändert) --------------------------
 
     /** Renderer für Farblisten: zeigt ein Farbfeld + Hex ("" → (auto)). */
     private static final class ColorCellRenderer extends DefaultListCellRenderer {
@@ -611,7 +666,6 @@ public class ToolbarConfigDialog extends JDialog {
         }
     }
 
-    /** Kleiner quadratischer Button, der JColorChooser öffnet. */
     private JButton makeColorPickerButton(Supplier<String> currentHexSupplier,
                                           Consumer<String> hexConsumer) {
         JButton btn = new JButton("■");
@@ -634,7 +688,6 @@ public class ToolbarConfigDialog extends JDialog {
         return btn;
     }
 
-    /** Farbvorschau-Label für das Gruppenfeld. */
     private JLabel makeColorPreviewLabel(String hex) {
         JLabel l = new JLabel("  ");
         l.setOpaque(true);
@@ -644,7 +697,6 @@ public class ToolbarConfigDialog extends JDialog {
         return l;
     }
 
-    /** Live-Update der Gruppen-Preview. */
     private void wireColorFieldPreview(JTextField tf, JLabel preview) {
         tf.getDocument().addDocumentListener(new DocumentListener() {
             public void insertUpdate(DocumentEvent e) { changed(); }
@@ -654,7 +706,6 @@ public class ToolbarConfigDialog extends JDialog {
         });
     }
 
-    /** Live-Preview für ComboBox-Editor (Hintergrund einfärben + Kontrastschrift). */
     private void setEditorColorPreview(JComboBox<String> combo) {
         Component editor = combo.getEditor().getEditorComponent();
         if (!(editor instanceof JTextField)) return;
@@ -675,7 +726,6 @@ public class ToolbarConfigDialog extends JDialog {
                 tf.setForeground(contrastColor(c));
             }
         });
-        // Initial
         SwingUtilities.invokeLater(() -> {
             String hex = normalizeHex(tf.getText());
             Color c = toColor(hex);
@@ -722,7 +772,7 @@ public class ToolbarConfigDialog extends JDialog {
                 int rgb = Integer.parseInt(h, 16);
                 return new Color(rgb);
             } else if (h.length() == 8) {
-                long v = Long.parseLong(h, 16); // ARGB?
+                long v = Long.parseLong(h, 16);
                 int a = (int)((v >> 24) & 0xFF);
                 int r = (int)((v >> 16) & 0xFF);
                 int g = (int)((v >> 8)  & 0xFF);
@@ -739,12 +789,10 @@ public class ToolbarConfigDialog extends JDialog {
     }
 
     private static Color contrastColor(Color bg) {
-        // einfache Luma-Heuristik
         double luma = 0.2126*bg.getRed() + 0.7152*bg.getGreen() + 0.0722*bg.getBlue();
         return (luma < 140) ? Color.WHITE : Color.BLACK;
     }
 
-    /** Kleines Farbfeld-Icon. */
     private static final class ColorIcon implements Icon {
         private final Color color;
         private final int w, h;
