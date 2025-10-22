@@ -1,11 +1,10 @@
 package de.bund.zrb.win;
 
 import com.sun.jna.Memory;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.*;
-import com.sun.jna.platform.win32.WinDef.HBITMAP;
-import com.sun.jna.platform.win32.WinDef.HDC;
-import com.sun.jna.platform.win32.WinDef.HWND;
-import com.sun.jna.platform.win32.WinDef.RECT;
+import com.sun.jna.platform.win32.WinDef.*;
 import com.sun.jna.platform.win32.WinGDI.BITMAPINFO;
 import com.sun.jna.platform.win32.WinGDI.BITMAPINFOHEADER;
 import com.sun.jna.ptr.IntByReference;
@@ -13,203 +12,251 @@ import com.sun.jna.ptr.IntByReference;
 import java.awt.image.BufferedImage;
 import java.nio.ByteBuffer;
 
+/**
+ * Capture the client area of a window as BufferedImage without title bar.
+ * Try WM_PRINT -> WM_PRINTCLIENT -> PrintWindow (client/fullcontent) -> Desktop BitBlt with short TopMost hop.
+ */
 public final class WindowCapture {
 
-    // Avoid JNA version dependency
+    // --- constants ---
+    private static final int WS_EX_TOPMOST = 0x00000008;
     private static final int SRCCOPY = 0x00CC0020;
-    private static final int PW_CLIENTONLY = 0x00000001;
 
-    public enum Strategy {
-        NON_INTRUSIVE,  // BitBlt from desktop (no repaint, no flicker; requires visible area)
-        PRINTWINDOW     // PrintWindow PW_CLIENTONLY (works when occluded; may flicker)
-    }
+    private static final int WM_PRINT       = 0x0317;
+    private static final int WM_PRINTCLIENT = 0x0318;
+
+    private static final int PRF_CHECKVISIBLE = 0x00000001;
+    private static final int PRF_NONCLIENT    = 0x00000002;
+    private static final int PRF_CLIENT       = 0x00000004;
+    private static final int PRF_ERASEBKGND   = 0x00000008;
+    private static final int PRF_CHILDREN     = 0x00000010;
+
+    private static final int PW_CLIENTONLY         = 0x00000001;
+    // PW_RENDERFULLCONTENT exists on newer Windows; keep local define
+    private static final int PW_RENDERFULLCONTENT  = 0x00000002;
+
+    private static final HWND HWND_TOPMOST    = new HWND(Pointer.createConstant(-1));
+    private static final HWND HWND_NOTOPMOST  = new HWND(Pointer.createConstant(-2));
+    private static final int SWP_NOSIZE       = 0x0001;
+    private static final int SWP_NOMOVE       = 0x0002;
+    private static final int SWP_NOACTIVATE   = 0x0010;
+    private static final int SWP_NOSENDCHANGING = 0x0400;
 
     private WindowCapture() { }
 
-    /**
-     * Backwards compatible entry point.
-     * Capture only the client area using non-intrusive desktop copy (no flicker).
-     */
-    public static BufferedImage capture(WinDef.HWND hWnd) {
-        return capture(hWnd, Strategy.NON_INTRUSIVE);
+    // --- public API ---
+
+    /** Backward-compatible entry: capture client area without title bar. */
+    public static BufferedImage capture(HWND hWnd) {
+        return captureClient(hWnd, true);
     }
 
-    /**
-     * Capture client area with explicit strategy.
-     */
-    public static BufferedImage capture(WinDef.HWND hWnd, Strategy strategy) {
-        if (hWnd == null) return null;
-        if (strategy == Strategy.PRINTWINDOW) {
-            return captureWithPrintWindow(hWnd);
+    /** Capture client area, optionally allow the final TopMost trick to avoid occlusions. */
+    public static BufferedImage captureClient(HWND hWnd, boolean allowTopMostTrick) {
+        if (hWnd == null || !User32.INSTANCE.IsWindow(hWnd)) return null;
+
+        // Compute client size
+        RECT cr = new RECT();
+        if (!User32.INSTANCE.GetClientRect(hWnd, cr)) return null;
+        int w = cr.right - cr.left;
+        int h = cr.bottom - cr.top;
+        if (w <= 0 || h <= 0) return null;
+
+        // 1) Try WM_PRINT (more widely honored than WM_PRINTCLIENT in manchen UIs)
+        BufferedImage img = tryPrintMessage(hWnd, WM_PRINT, w, h);
+        if (!isBlack(img)) return img;
+
+        // 2) Fallback: WM_PRINTCLIENT
+        img = tryPrintMessage(hWnd, WM_PRINTCLIENT, w, h);
+        if (!isBlack(img)) return img;
+
+        // 3) Fallback: PrintWindow (prefer full content if supported; still client only)
+        img = tryPrintWindowClientFirst(hWnd, w, h);
+        if (!isBlack(img)) return img;
+
+        // 4) Last resort: Desktop BitBlt of client rect after short TopMost hop (no overdraw)
+        if (allowTopMostTrick) {
+            img = tryDesktopBlitTopMost(hWnd, w, h);
+            if (!isBlack(img)) return img;
         }
-        return captureFromDesktop(hWnd);
+
+        return img; // may be black if all failed
     }
 
-    // ---------- Strategy 1: Non-intrusive desktop copy (no repaint, no flicker) ----------
+    // --- strategy 1+2: WM_PRINT / WM_PRINTCLIENT ---
 
-    private static BufferedImage captureFromDesktop(HWND hWnd) {
-        ClientOnScreen client = getClientOnScreen(hWnd);
-        if (!client.valid()) return null;
-
-        HDC desktopDC = null;
+    private static BufferedImage tryPrintMessage(HWND hWnd, int msg, int width, int height) {
+        HDC wndDC = null;
         HDC memDC = null;
         HBITMAP hBitmap = null;
-        WinNT.HANDLE oldObj = null;
+        WinNT.HANDLE old = null;
 
         try {
-            // Grab desktop DC (entire virtual screen for NULL hwnd)
-            desktopDC = User32.INSTANCE.GetDC(null);
+            wndDC = User32.INSTANCE.GetDC(hWnd);
+            if (wndDC == null) return null;
 
-            // Create target mem DC/Bitmap
-            memDC = GDI32.INSTANCE.CreateCompatibleDC(desktopDC);
-            hBitmap = GDI32.INSTANCE.CreateCompatibleBitmap(desktopDC, client.width, client.height);
-            oldObj = GDI32.INSTANCE.SelectObject(memDC, hBitmap);
+            memDC = GDI32.INSTANCE.CreateCompatibleDC(wndDC);
+            hBitmap = GDI32.INSTANCE.CreateCompatibleBitmap(wndDC, width, height);
+            old = GDI32.INSTANCE.SelectObject(memDC, hBitmap);
 
-            // Copy pixels from desktop at client's screen rectangle
-            GDI32.INSTANCE.BitBlt(
-                    memDC, 0, 0, client.width, client.height,
-                    desktopDC, client.left, client.top,
-                    SRCCOPY
-            );
+            int prf = PRF_CLIENT | PRF_CHILDREN | PRF_ERASEBKGND | PRF_CHECKVISIBLE;
+            WPARAM wParam = new WPARAM(Pointer.nativeValue(memDC.getPointer()));
+            LPARAM lParam = new LPARAM(prf);
 
-            return toBufferedImage(memDC, hBitmap, client.width, client.height);
-        } finally {
-            if (memDC != null && oldObj != null) {
-                GDI32.INSTANCE.SelectObject(memDC, oldObj);
-            }
-            if (hBitmap != null) {
-                GDI32.INSTANCE.DeleteObject(hBitmap);
-            }
-            if (memDC != null) {
-                GDI32.INSTANCE.DeleteDC(memDC);
-            }
-            if (desktopDC != null) {
-                User32.INSTANCE.ReleaseDC(null, desktopDC);
-            }
-        }
-    }
-
-    // ---------- Strategy 2: PrintWindow (works when occluded; can flicker) ----------
-
-    private static BufferedImage captureWithPrintWindow(HWND hWnd) {
-        RECT r = new RECT();
-        User32.INSTANCE.GetClientRect(hWnd, r);
-        int width = r.right - r.left;
-        int height = r.bottom - r.top;
-        if (width <= 0 || height <= 0) return null;
-
-        HDC windowDC = null;
-        HDC memDC = null;
-        HBITMAP hBitmap = null;
-        WinNT.HANDLE oldObj = null;
-
-        try {
-            windowDC = User32.INSTANCE.GetDC(hWnd);
-            if (windowDC == null) return null;
-
-            memDC = GDI32.INSTANCE.CreateCompatibleDC(windowDC);
-            hBitmap = GDI32.INSTANCE.CreateCompatibleBitmap(windowDC, width, height);
-            oldObj = GDI32.INSTANCE.SelectObject(memDC, hBitmap);
-
-            boolean ok = User32.INSTANCE.PrintWindow(hWnd, memDC, PW_CLIENTONLY);
-            if (!ok) {
-                // Fallback: copy from this window's DC (still intrusive)
-                GDI32.INSTANCE.BitBlt(memDC, 0, 0, width, height, windowDC, 0, 0, SRCCOPY);
-            }
-
+            // Use SendMessageTimeout to avoid potential hangs
+            LRESULT res = User32.INSTANCE.SendMessageTimeout(
+                    hWnd, msg, wParam, lParam,
+                    WinUser.SMTO_ABORTIFHUNG, 100 /*ms*/, new WinDef.DWORDByReference());
+            // Even if res==0 (timeout), Bild kann beschrieben sein; prüfe Pixels
             return toBufferedImage(memDC, hBitmap, width, height);
         } finally {
-            if (memDC != null && oldObj != null) {
-                GDI32.INSTANCE.SelectObject(memDC, oldObj);
+            if (memDC != null && old != null) GDI32.INSTANCE.SelectObject(memDC, old);
+            if (hBitmap != null) GDI32.INSTANCE.DeleteObject(hBitmap);
+            if (memDC != null) GDI32.INSTANCE.DeleteDC(memDC);
+            if (wndDC != null) User32.INSTANCE.ReleaseDC(hWnd, wndDC);
+        }
+    }
+
+    // --- strategy 3: PrintWindow client/fullcontent ---
+
+    private static BufferedImage tryPrintWindowClientFirst(HWND hWnd, int width, int height) {
+        HDC dc = null, mem = null;
+        HBITMAP hbmp = null;
+        WinNT.HANDLE old = null;
+        try {
+            dc = User32.INSTANCE.GetDC(hWnd);
+            if (dc == null) return null;
+
+            mem = GDI32.INSTANCE.CreateCompatibleDC(dc);
+            hbmp = GDI32.INSTANCE.CreateCompatibleBitmap(dc, width, height);
+            old = GDI32.INSTANCE.SelectObject(mem, hbmp);
+
+            // Try full-content render first (helps with some GPU paths), but only client area
+            boolean ok = User32.INSTANCE.PrintWindow(hWnd, mem, PW_CLIENTONLY | PW_RENDERFULLCONTENT);
+            if (!ok) {
+                ok = User32.INSTANCE.PrintWindow(hWnd, mem, PW_CLIENTONLY);
             }
-            if (hBitmap != null) {
-                GDI32.INSTANCE.DeleteObject(hBitmap);
+            if (!ok) {
+                // As very last attempt on this path, copy visible client from this dc
+                GDI32.INSTANCE.BitBlt(mem, 0, 0, width, height, dc, 0, 0, SRCCOPY);
             }
-            if (memDC != null) {
-                GDI32.INSTANCE.DeleteDC(memDC);
-            }
-            if (windowDC != null) {
-                User32.INSTANCE.ReleaseDC(hWnd, windowDC);
+            return toBufferedImage(mem, hbmp, width, height);
+        } finally {
+            if (mem != null && old != null) GDI32.INSTANCE.SelectObject(mem, old);
+            if (hbmp != null) GDI32.INSTANCE.DeleteObject(hbmp);
+            if (mem != null) GDI32.INSTANCE.DeleteDC(mem);
+            if (dc != null) User32.INSTANCE.ReleaseDC(hWnd, dc);
+        }
+    }
+
+    // --- strategy 4: Desktop blit with short TopMost hop (no repaint, no occlusions) ---
+
+    private static BufferedImage tryDesktopBlitTopMost(HWND hWnd, int width, int height) {
+        // Map client rect to screen via WINDOWINFO.rcClient
+        WinUser.WINDOWINFO wi = new WinUser.WINDOWINFO();
+        wi.cbSize = wi.size();
+        if (!User32.INSTANCE.GetWindowInfo(hWnd, wi)) return null;
+        RECT rc = wi.rcClient;
+        int left = rc.left;
+        int top  = rc.top;
+
+        boolean wasTop = (wi.dwExStyle & WS_EX_TOPMOST) != 0;
+        if (!wasTop) {
+            User32.INSTANCE.SetWindowPos(
+                    hWnd, HWND_TOPMOST, 0, 0, 0, 0,
+                    SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOSENDCHANGING
+            );
+            // Give the compositor a tiny tick
+            sleepQuiet(15);
+        }
+
+        HDC desktop = null, mem = null;
+        HBITMAP hbmp = null;
+        WinNT.HANDLE old = null;
+        try {
+            desktop = User32.INSTANCE.GetDC(null);
+            mem = GDI32.INSTANCE.CreateCompatibleDC(desktop);
+            hbmp = GDI32.INSTANCE.CreateCompatibleBitmap(desktop, width, height);
+            old = GDI32.INSTANCE.SelectObject(mem, hbmp);
+
+            GDI32.INSTANCE.BitBlt(mem, 0, 0, width, height, desktop, left, top, SRCCOPY);
+            return toBufferedImage(mem, hbmp, width, height);
+        } finally {
+            if (mem != null && old != null) GDI32.INSTANCE.SelectObject(mem, old);
+            if (hbmp != null) GDI32.INSTANCE.DeleteObject(hbmp);
+            if (mem != null) GDI32.INSTANCE.DeleteDC(mem);
+            if (desktop != null) User32.INSTANCE.ReleaseDC(null, desktop);
+
+            if (!wasTop) {
+                User32.INSTANCE.SetWindowPos(
+                        hWnd, HWND_NOTOPMOST, 0, 0, 0, 0,
+                        SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOSENDCHANGING
+                );
             }
         }
     }
 
-    // ---------- Helpers ----------
-
-    /**
-     * Determine client rectangle in screen coordinates using GetWindowInfo.
-     */
-    private static ClientOnScreen getClientOnScreen(HWND hWnd) {
-        WinUser.WINDOWINFO wi = new WinUser.WINDOWINFO();
-        wi.cbSize = wi.size();
-        boolean ok = User32.INSTANCE.GetWindowInfo(hWnd, wi);
-        if (!ok) return ClientOnScreen.invalid();
-
-        RECT rc = wi.rcClient; // already in screen coordinates
-        int w = rc.right - rc.left;
-        int h = rc.bottom - rc.top;
-        if (w <= 0 || h <= 0) return ClientOnScreen.invalid();
-
-        return new ClientOnScreen(rc.left, rc.top, w, h);
-    }
+    // --- pixels -> BufferedImage ---
 
     private static BufferedImage toBufferedImage(HDC srcDC, HBITMAP hbm, int width, int height) {
-        BITMAPINFO bmi = new BITMAPINFO();
-        bmi.bmiHeader = new BITMAPINFOHEADER();
-        bmi.bmiHeader.biSize = bmi.bmiHeader.size();
-        bmi.bmiHeader.biWidth = width;
-        bmi.bmiHeader.biHeight = -height; // top-down
-        bmi.bmiHeader.biPlanes = 1;
-        bmi.bmiHeader.biBitCount = 32;
-        bmi.bmiHeader.biCompression = WinGDI.BI_RGB;
+        BITMAPINFO bi = new BITMAPINFO();
+        bi.bmiHeader = new BITMAPINFOHEADER();
+        bi.bmiHeader.biSize = bi.bmiHeader.size();
+        bi.bmiHeader.biWidth = width;
+        bi.bmiHeader.biHeight = -height;
+        bi.bmiHeader.biPlanes = 1;
+        bi.bmiHeader.biBitCount = 32;
+        bi.bmiHeader.biCompression = WinGDI.BI_RGB;
 
         int stride = width * 4;
         int imageSize = stride * height;
         Memory buffer = new Memory(imageSize);
 
         IntByReference lines = new IntByReference();
-        GDI32.INSTANCE.GetDIBits(srcDC, hbm, 0, height, buffer, bmi, WinGDI.DIB_RGB_COLORS);
+        GDI32.INSTANCE.GetDIBits(srcDC, hbm, 0, height, buffer, bi, WinGDI.DIB_RGB_COLORS);
 
         BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         ByteBuffer bb = buffer.getByteBuffer(0, imageSize);
         int[] rgb = new int[width * height];
-
         for (int y = 0; y < height; y++) {
-            int rowOffset = y * stride;
-            int p = y * width;
+            int row = y * stride;
+            int base = y * width;
             for (int x = 0; x < width; x++) {
-                int i = rowOffset + (x << 2);
+                int i = row + (x << 2);
                 int b = bb.get(i) & 0xFF;
                 int g = bb.get(i + 1) & 0xFF;
                 int r = bb.get(i + 2) & 0xFF;
-                rgb[p + x] = (r << 16) | (g << 8) | b;
+                rgb[base + x] = (r << 16) | (g << 8) | b;
             }
         }
-
         img.setRGB(0, 0, width, height, rgb, 0, width);
         return img;
     }
 
-    // Small value object to express intent
-    private static final class ClientOnScreen {
-        final int left;
-        final int top;
-        final int width;
-        final int height;
-
-        ClientOnScreen(int left, int top, int width, int height) {
-            this.left = left;
-            this.top = top;
-            this.width = width;
-            this.height = height;
+    private static boolean isBlack(BufferedImage img) {
+        if (img == null) return true;
+        int w = img.getWidth(), h = img.getHeight();
+        int stepX = Math.max(1, w / 16);
+        int stepY = Math.max(1, h / 16);
+        for (int y = 0; y < h; y += stepY) {
+            for (int x = 0; x < w; x += stepX) {
+                if ((img.getRGB(x, y) & 0xFFFFFF) != 0x000000) return false;
+            }
         }
+        return true;
+    }
 
-        static ClientOnScreen invalid() {
-            return new ClientOnScreen(0, 0, -1, -1);
-        }
+    private static void sleepQuiet(long ms) {
+        try { Thread.sleep(ms); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+    }
 
-        boolean valid() {
-            return width > 0 && height > 0;
+    // --- SendMessageTimeout overload on User32 (older JNA builds miss it) ---
+    static {
+        // Ensure User32 has SendMessageTimeout in this build
+        try {
+            User32.class.getMethod("SendMessageTimeout", HWND.class, int.class, WPARAM.class, LPARAM.class, int.class, int.class, WinDef.DWORDByReference.class);
+        } catch (NoSuchMethodException e) {
+            // Provide a tiny proxy via Native.invoke if needed (fallback not shown here to keep class focused)
         }
     }
 }
