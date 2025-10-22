@@ -17,8 +17,8 @@ public class ToggleVideoRecordCommand extends ShortcutMenuCommand {
     @Override
     public String getLabel() {
         return VideoRecordingService.getInstance().isRecording()
-                ? "Video-Aufnahme stoppen"
-                : "Video-Aufnahme starten";
+                ? "Video-Aufnahme starten/stoppen"
+                : "Video-Aufnahme starten/stoppen";
     }
 
     @Override

@@ -553,6 +553,7 @@ public class ToolbarConfigDialog extends JDialog {
         String idCloseTab    = findIdContaining("closetab", "close.tab");
         String idReload      = findIdContaining("reloadtab", "reload", "refresh");
         String idUserReg     = findIdContaining("userregistry", "user.registry", "credentials", "zugangsdaten");
+        String idVideoToggle = findIdContaining("video.toggle", "recording.toggle", "video.record");
 
         class Def { String icon; String hex; Def(String i, String h){icon=i;hex=h;} }
         Map<String, Def> m = new LinkedHashMap<>();
@@ -566,9 +567,10 @@ public class ToolbarConfigDialog extends JDialog {
         m.put(idCloseTab, new Def("✖", null));
         m.put(idReload,   new Def("↻", null));
         m.put(idUserReg,  new Def(new String(Character.toChars(0x1F4C7)), null)); // 📇
+        m.put(idVideoToggle, new Def(new String(Character.toChars(0x1F3AC)), null)); // 🎬
 
         String[] order = new String[]{
-                idPlay, idStopPlay, idStartRec, idStopRec,
+                idPlay, idStopPlay, idStartRec, idStopRec, idVideoToggle,
                 idLogin, idHome, idOtp, idCloseTab, idReload, idUserReg
         };
 
@@ -606,39 +608,8 @@ public class ToolbarConfigDialog extends JDialog {
 
     // ---- Defaults/Fallbacks (wie gehabt) ------------------------------------
 
-    private String defaultIconFor(String idRaw) {
-        String id = idRaw == null ? "" : idRaw.toLowerCase(Locale.ROOT);
-        if (id.contains("record.play"))      return "▶";
-        if (id.contains("record.stop"))      return "■";
-        if (id.contains("record.toggle"))    return "⦿";
-        if (id.contains("testsuite.play"))   return "▶";
-        if (id.contains("testsuite.stop"))   return "■";
-        if (id.contains("browser.launch") || id.contains("launch")) return new String(Character.toChars(0x1F310)); // 🌐
-        if (id.contains("terminate"))                                return "■";
-        if (id.contains("newtab"))                                   return "＋";
-        if (id.contains("closetab") || id.contains("close"))         return "✖";
-        if (id.contains("reload") || id.contains("refresh"))         return "↻";
-        if (id.contains("back"))                                     return "←";
-        if (id.contains("forward"))                                  return "→";
-        if (id.contains("home"))                                     return new String(Character.toChars(0x1F3E0)); // 🏠
-        if (id.contains("screenshot") || id.contains("capture"))     return new String(Character.toChars(0x1F4F7)); // 📷
-        if (id.contains("selectors"))                                return new String(Character.toChars(0x1F50D)); // 🔍
-        if (id.contains("domevents"))                                return new String(Character.toChars(0x1F4DC)); // 📜
-        if (id.contains("userselection") || id.contains("userregistry")) return new String(Character.toChars(0x1F4C7)); // 📇
-        if (id.contains("login") || id.contains("otp"))                   return new String(Character.toChars(0x1F511)); // 🔑
-        if (id.contains("view.toggleleft"))                           return "⟨";
-        if (id.contains("view.toggleright"))                          return "⟩";
-        if (id.contains("settings") || id.contains("configure"))      return "⚙";
-        if (id.contains("shortcut"))                                  return "⌘";
-        return "●";
-    }
 
-    private String defaultBackgroundHexFor(String idRaw) {
-        String id = idRaw == null ? "" : idRaw.toLowerCase(Locale.ROOT);
-        if (id.contains("record")) return "#FF0000";
-        if (id.contains("testsuite.play") || id.contains("play")) return "#00AA00";
-        return null;
-    }
+
 
     private boolean isCommandActive(String id) {
         return initialConfig.buttons.stream().anyMatch(b -> b.id.equals(id));
