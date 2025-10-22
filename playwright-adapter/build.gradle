@@ -23,6 +23,11 @@ dependencies {
     // Für JSON-Mapper: Finden der Wrapper-Implementierer (kann auch mit einer Klassenliste ersetzt werden)
     implementation 'org.reflections:reflections:0.10.2'
 
+    // ⬇️ JNA + Win32 (User32, GDI32, WinDef, WinUser, usw.)
+    implementation 'net.java.dev.jna:jna:5.13.0'
+    implementation 'net.java.dev.jna:jna-platform:5.13.0'
+    implementation "org.bytedeco:javacv-platform:1.5.10"
+
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 

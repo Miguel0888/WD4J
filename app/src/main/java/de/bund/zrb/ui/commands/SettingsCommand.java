@@ -1,6 +1,7 @@
 package de.bund.zrb.ui.commands;
 
 import de.bund.zrb.config.InputDelaysConfig;
+import de.bund.zrb.config.VideoConfig;
 import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 
@@ -19,11 +20,19 @@ public class SettingsCommand extends ShortcutMenuCommand {
     private static final int DEFAULT_KEY_DOWN_MS = 10;
     private static final int DEFAULT_KEY_UP_MS   = 30;
 
+    // Video defaults
+    private static final boolean DEFAULT_VIDEO_ENABLED = false;
+    private static final int DEFAULT_VIDEO_FPS = 15;
+
     private JSpinner spWsTimeout;
     private JTextField tfReportDir;
     private JCheckBox cbContextMode;
     private JSpinner spKeyDown;
     private JSpinner spKeyUp;
+
+    // Video
+    private JCheckBox cbVideoEnabled;
+    private JSpinner spVideoFps;
 
     private JDialog dialog;
 
@@ -35,27 +44,49 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
     @Override
     public void perform() {
-        Double wsTimeout   = SettingsService.getInstance().get("websocketTimeout", Double.class);
-        String reportDir   = SettingsService.getInstance().get("reportBaseDir", String.class);
-        Boolean ctxMode    = SettingsService.getInstance().get("recording.contextMode", Boolean.class);
-        Integer kdDelay    = SettingsService.getInstance().get("input.keyDownDelayMs", Integer.class);
-        Integer kuDelay    = SettingsService.getInstance().get("input.keyUpDelayMs", Integer.class);
+        // bestehend
+        Double  wsTimeout   = SettingsService.getInstance().get("websocketTimeout", Double.class);
+        String  reportDir   = SettingsService.getInstance().get("reportBaseDir", String.class);
+        Boolean ctxMode     = SettingsService.getInstance().get("recording.contextMode", Boolean.class);
+        Integer kdDelay     = SettingsService.getInstance().get("input.keyDownDelayMs", Integer.class);
+        Integer kuDelay     = SettingsService.getInstance().get("input.keyUpDelayMs", Integer.class);
 
-        double initialWsTimeout = wsTimeout != null ? wsTimeout : DEFAULT_WS_TIMEOUT_MS;
-        String initialReportDir = (reportDir != null && !reportDir.trim().isEmpty()) ? reportDir : "C:/Reports";
-        boolean initialCtxMode  = ctxMode != null ? ctxMode : true;
-        int initialKd           = kdDelay != null ? kdDelay : DEFAULT_KEY_DOWN_MS;
-        int initialKu           = kuDelay != null ? kuDelay : DEFAULT_KEY_UP_MS;
+        // neu: Video
+        Boolean videoEnabled = SettingsService.getInstance().get("video.enabled", Boolean.class);
+        Integer videoFps     = SettingsService.getInstance().get("video.fps", Integer.class);
+
+        double  initialWsTimeout = wsTimeout != null ? wsTimeout : DEFAULT_WS_TIMEOUT_MS;
+        String  initialReportDir = (reportDir != null && !reportDir.trim().isEmpty()) ? reportDir : "C:/Reports";
+        boolean initialCtxMode   = ctxMode != null ? ctxMode : true;
+        int     initialKd        = kdDelay != null ? kdDelay : DEFAULT_KEY_DOWN_MS;
+        int     initialKu        = kuDelay != null ? kuDelay : DEFAULT_KEY_UP_MS;
+
+        boolean initialVideoEnabled = videoEnabled != null ? videoEnabled : DEFAULT_VIDEO_ENABLED;
+        int     initialVideoFps     = videoFps != null ? videoFps : DEFAULT_VIDEO_FPS;
 
         dialog = new JDialog((Frame) null, "Einstellungen", true);
         dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-        dialog.setContentPane(buildContentPanel(initialWsTimeout, initialReportDir, initialCtxMode, initialKd, initialKu));
+        dialog.setContentPane(buildContentPanel(
+                initialWsTimeout,
+                initialReportDir,
+                initialCtxMode,
+                initialKd,
+                initialKu,
+                initialVideoEnabled,
+                initialVideoFps
+        ));
         dialog.pack();
         dialog.setLocationRelativeTo(null);
         dialog.setVisible(true);
     }
 
-    private JPanel buildContentPanel(double wsTimeout, String reportDir, boolean contextMode, int kd, int ku) {
+    private JPanel buildContentPanel(double wsTimeout,
+                                     String reportDir,
+                                     boolean contextMode,
+                                     int kd,
+                                     int ku,
+                                     boolean videoEnabled,
+                                     int videoFps) {
         JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(10, 12, 10, 12));
 
@@ -67,11 +98,34 @@ public class SettingsCommand extends ShortcutMenuCommand {
         pnlRecording.setBorder(sectionBorder("Recording"));
         GridBagConstraints g1 = gbc();
 
+        int row = 0;
+
         cbContextMode = new JCheckBox("Recording im Context-Mode (ein BrowserContext pro Benutzer)");
         cbContextMode.setSelected(contextMode);
         cbContextMode.setToolTipText("Aktiviert: Pro Benutzer wird ein eigener BrowserContext verwendet.");
-        g1.gridx = 0; g1.gridy = 0; g1.gridwidth = 2; g1.weightx = 1; g1.anchor = GridBagConstraints.WEST;
+        g1.gridx = 0; g1.gridy = row++; g1.gridwidth = 3; g1.weightx = 1; g1.anchor = GridBagConstraints.WEST;
         pnlRecording.add(cbContextMode, g1);
+        g1.gridwidth = 1;
+
+        // Video-Optionen (Windows)
+        cbVideoEnabled = new JCheckBox("Fenster-Video aufzeichnen (Windows)");
+        cbVideoEnabled.setSelected(videoEnabled);
+        cbVideoEnabled.setToolTipText("Zeichnet das Browserfenster als MP4 auf, auch im Hintergrund.");
+
+        g1.gridx = 0; g1.gridy = row++; g1.gridwidth = 3; g1.anchor = GridBagConstraints.WEST; g1.weightx = 1;
+        pnlRecording.add(cbVideoEnabled, g1);
+        g1.gridwidth = 1;
+
+        JLabel lbFps = new JLabel("FPS:");
+        spVideoFps = new JSpinner(new SpinnerNumberModel(videoFps, 1, 120, 1));
+        Dimension spSz = new Dimension(120, 26);
+        spVideoFps.setPreferredSize(spSz);
+        lbFps.setToolTipText("Bilder pro Sekunde für die Videoaufzeichnung (z. B. 15).");
+
+        g1.gridx = 0; g1.gridy = row; g1.anchor = GridBagConstraints.WEST; g1.weightx = 0;
+        pnlRecording.add(lbFps, g1);
+        g1.gridx = 1; g1.gridy = row++; g1.anchor = GridBagConstraints.EAST; g1.weightx = 1;
+        pnlRecording.add(spVideoFps, g1);
 
         // --- Eingabe ---
         JPanel pnlInput = new JPanel(new GridBagLayout());
@@ -80,7 +134,6 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         spKeyDown = new JSpinner(new SpinnerNumberModel(kd, 0, 2000, 1));
         spKeyUp   = new JSpinner(new SpinnerNumberModel(ku, 0, 2000, 1));
-        Dimension spSz = new Dimension(120, 26);
         spKeyDown.setPreferredSize(spSz);
         spKeyUp.setPreferredSize(spSz);
 
@@ -121,7 +174,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         GridBagConstraints g4 = gbc();
 
         tfReportDir = new JTextField(reportDir, 28);
-        tfReportDir.setToolTipText("Basisverzeichnis für Reports.");
+        tfReportDir.setToolTipText("Basisverzeichnis für Reports (wird auch für Video genutzt).");
 
         JButton btBrowse = new JButton("Durchsuchen…");
         btBrowse.setMargin(new Insets(2, 10, 2, 10));
@@ -195,7 +248,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
     private void openAppFolder() {
         try {
-            Path base = SettingsService.getInstance().getBasePath(); // <- JSON-Settings-Ordner
+            Path base = SettingsService.getInstance().getBasePath(); // JSON-Settings-Ordner (.wd4j)
             if (base == null) {
                 error("Basisordner konnte nicht ermittelt werden.");
                 return;
@@ -224,17 +277,31 @@ public class SettingsCommand extends ShortcutMenuCommand {
         String reportDir = tfReportDir.getText().trim();
         if (reportDir.isEmpty()) { error("Bitte ein Report-Verzeichnis angeben."); return; }
 
+        boolean videoEnabled = cbVideoEnabled.isSelected();
+        int fps = ((Number) spVideoFps.getValue()).intValue();
+        if (fps <= 0) { error("FPS muss > 0 sein."); return; }
+
         Map<String, Object> s = new HashMap<>();
         s.put("websocketTimeout", timeoutValue);
         s.put("reportBaseDir", reportDir);
         s.put("recording.contextMode", cbContextMode.isSelected());
         s.put("input.keyDownDelayMs", kdVal);
         s.put("input.keyUpDelayMs",   kuVal);
+
+        // neu: Video-Settings persistieren
+        s.put("video.enabled", videoEnabled);
+        s.put("video.fps", fps);
+
         s.forEach(SettingsService.getInstance()::set);
 
-        // Live übernehmen
+        // Live übernehmen (Adapter-Sicht): Input
         InputDelaysConfig.setKeyDownDelayMs(kdVal);
         InputDelaysConfig.setKeyUpDelayMs(kuVal);
+
+        // Live übernehmen (Adapter-Sicht): Video
+        VideoConfig.setEnabled(videoEnabled);
+        VideoConfig.setFps(fps);
+        VideoConfig.setReportsDir(reportDir); // Reports-Verzeichnis auch an VideoConfig durchreichen
 
         if (closeAfter) dialog.dispose();
     }

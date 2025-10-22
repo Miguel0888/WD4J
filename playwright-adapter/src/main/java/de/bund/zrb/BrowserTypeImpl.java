@@ -4,16 +4,26 @@ import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
 
+import com.sun.jna.Pointer;
+import com.sun.jna.platform.win32.Kernel32;
+import com.sun.jna.platform.win32.WinDef;
+import com.sun.jna.platform.win32.WinNT;
+import de.bund.zrb.config.VideoConfig;
+import de.bund.zrb.video.WindowRecorder;
+import de.bund.zrb.win.Win32Windows;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /**
- * This class has a lot of methods that are not part of the Playwright API. This is due to the fact that the W3C stamdard
+ * This class has a lot of methods that are not part of the Playwright API. This is due to the fact that the W3C standard
  * is not complete in all aspects. Therefore, some methods are added to this class to make the implementation more
  * flexible and to be able to use the full functionality of the underlying browser.
  *
@@ -25,21 +35,23 @@ public class BrowserTypeImpl implements BrowserType {
     /// Fields
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
     private final String[] cdpUrl = {null};
-    private final String[] wdUrl = {null};
+    private final String[] wdUrl  = {null};
     private final PlaywrightImpl playwright; // Required for the Playwright interface to implement the close method
     private Process process;
 
     private final String name;
 
-    // ToDo: Check this not playwrigth specific parameters:
-    private final int defaultPort = 9222; // ToDo: Externalize to a configuration file
-    private final String defaultUrl = "ws://127.0.0.1"; // ToDo: Externalize to a configuration file
+    // ToDo: Check this not playwright specific parameters:
+    private final int defaultPort   = 9222;                 // ToDo: Externalize to a configuration file
+    private final String defaultUrl = "ws://127.0.0.1";     // ToDo: Externalize to a configuration file
     private final String browserPath;
     private String profilePath;
     private String websocketUrl;
     private final String webSocketEndpoint;
+
+    // Recording
+    private volatile WindowRecorder recorder;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// Constructors
@@ -78,22 +90,13 @@ public class BrowserTypeImpl implements BrowserType {
     /// Methods
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-    /**
-     * Launches a browser instance and connects to it.
-     * @return The browser instance
-     */
+    /** Launches a browser instance and connects to it. */
     @Override
     public Browser launch() {
         return launch(null);
     }
 
-    /**
-     * Launches a browser instance with the given options and connects to it.
-     *
-     * @param options
-     * @return The browser instance
-     */
+    /** Launches a browser instance with the given options and connects to it. */
     @Override
     public Browser launch(LaunchOptions options) {
         if (options == null) {
@@ -114,7 +117,6 @@ public class BrowserTypeImpl implements BrowserType {
             process.destroyForcibly(); // Erzwinge den Stopp
             throw e;
         }
-
     }
 
     @Override
@@ -127,11 +129,7 @@ public class BrowserTypeImpl implements BrowserType {
         return name;
     }
 
-    // ToDo: Obwohl diese Methode "connect" heißt, wird hier eigentlich nur ein Browser-Objekt erstellt und zurückgegeben
-    //  D.h. dass der Browser gestartet wird; die WebSocket-Verbindung muss im Prinzip hier nicht aufgebaut werden
-    //  (sondern erst bei der Verwendung des Browser-Objekts) Allerdings hat die Methode "connect" in der Playwright-API
-    //  die Parameter "wsEndpoint" und "options" die für die WebSocket-Verbindung benötigt werden. Diese Werte könnten
-    //
+    // ToDo: Obwohl diese Methode "connect" heißt, wird hier eigentlich nur ein Browser-Objekt erstellt und zurückgegeben.
     @Override
     public Browser connect(String wsEndpoint, ConnectOptions options) {
         WDWebSocketImpl webSocketImpl = new WDWebSocketImpl(URI.create(wsEndpoint), options.timeout);
@@ -142,8 +140,8 @@ public class BrowserTypeImpl implements BrowserType {
         }
 
         try {
-            BrowserImpl browser = new BrowserImpl(this, process, webSocketImpl); // PlayWright API forces Browser to know BrowserType, process may be optional!
-            playwright.addBrowser(browser); // May be optional!
+            BrowserImpl browser = new BrowserImpl(this, process, webSocketImpl); // Playwright API forces Browser to know BrowserType
+            playwright.addBrowser(browser);
             return browser;
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException(e);
@@ -170,7 +168,6 @@ public class BrowserTypeImpl implements BrowserType {
         ProcessBuilder builder = new ProcessBuilder(commandLineArgs);
 
         builder.redirectErrorStream(true);
-//        builder.inheritIO(); // Vererbt die IO-Streams des Elternprozesses
         process = builder.start();
 
         // Log-Ausgabe asynchron in einem separaten Thread
@@ -184,7 +181,7 @@ public class BrowserTypeImpl implements BrowserType {
                     if (line.contains("DevTools listening on ws://")) {
                         String url = line.substring(line.indexOf("ws://")).trim();
                         synchronized (cdpUrl) {
-                            cdpUrl[0] = url; // Speichere die URL
+                            cdpUrl[0] = url;
                         }
                     }
 
@@ -192,43 +189,94 @@ public class BrowserTypeImpl implements BrowserType {
                     if (line.contains("WebDriver BiDi listening on ws://")) {
                         String url = line.substring(line.indexOf("ws://")).trim();
                         synchronized (wdUrl) {
-                            wdUrl[0] = url; // Speichere die URL
+                            wdUrl[0] = url;
                         }
                     }
                 }
             } catch (Exception e) {
                 System.err.println("Fehler beim Lesen der Prozess-Ausgabe: " + e.getMessage());
             }
-        }).start();
+        }, "browser-log-reader").start();
 
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         if (this.name.equalsIgnoreCase("FIREFOX")) {
-            // Warte auf die WebSocket-URL, falls erforderlich
             for (int i = 0; i < 10; i++) { // Maximal 10 Sekunden warten
                 synchronized (wdUrl) {
-                    if (wdUrl[0] != null) {
-                        break;
-                    }
+                    if (wdUrl[0] != null) break;
                 }
-                Thread.sleep(1000); // Warte 1 Sekunde
+                Thread.sleep(1000);
             }
             System.out.println("Gefundene WebDriver-URL: " + wdUrl[0]);
             websocketUrl = wdUrl[0];
-        }
-        else
-        {
-            for (int i = 0; i < 10; i++) { // Maximal 10 Sekunden warten
+        } else {
+            for (int i = 0; i < 10; i++) {
                 synchronized (cdpUrl) {
-                    if (cdpUrl[0] != null) {
-                        break;
-                    }
+                    if (cdpUrl[0] != null) break;
                 }
-                Thread.sleep(1000); // Warte 1 Sekunde
+                Thread.sleep(1000);
             }
             System.out.println("Gefundene DevTools-URL: " + cdpUrl[0]);
-//            websocketUrl = cdpUrl[0];
+            // websocketUrl = cdpUrl[0];
         }
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        // >>> Recording nach Prozessstart anstoßen
+        startRecordingIfPossible();
+    }
+
+    /** Startet die Fenster-Videoaufzeichnung basierend auf RecordingConfig. */
+    private void startRecordingIfPossible() {
+        try {
+            if (!VideoConfig.isEnabled()) return;
+
+            int fps = VideoConfig.getFps(); // z.B. Default 15 in RecordingConfig
+            if (fps <= 0) fps = 15;
+
+            String baseDir = VideoConfig.getReportsDir(); // z.B. Default "C:/Reports"
+            if (baseDir == null || baseDir.trim().isEmpty()) baseDir = "C:/Reports";
+
+            int pid = getWindowsPid(process);
+            if (pid <= 0) {
+                System.err.println("[Recorder] PID unbekannt – Recording deaktiviert.");
+                return;
+            }
+            WinDef.HWND hwnd = Win32Windows.waitForTopLevelWindowOfPid(pid, Duration.ofSeconds(10));
+            if (hwnd == null) {
+                System.err.println("[Recorder] Konnte kein Top-Level-Fenster für PID " + pid + " finden – Recording deaktiviert.");
+                return;
+            }
+
+            Path out = Paths.get(baseDir, "run-" + System.currentTimeMillis() + ".mp4");
+            WindowRecorder rec = new WindowRecorder(hwnd, out, fps);
+            rec.start();
+            this.recorder = rec;
+
+            Thread watcher = new Thread(() -> {
+                try {
+                    process.waitFor();
+                } catch (InterruptedException ignored) {
+                } finally {
+                    stopRecordingSafe();
+                }
+            }, "browser-process-watcher");
+            watcher.setDaemon(true);
+            watcher.start();
+
+            System.out.println("[Recorder] Recording gestartet: " + out.toAbsolutePath());
+        } catch (Throwable t) {
+            System.err.println("[Recorder] Start fehlgeschlagen: " + t.getMessage());
+        }
+    }
+
+    /** Recorder sicher stoppen (idempotent). */
+    private void stopRecordingSafe() {
+        try {
+            WindowRecorder rec = this.recorder;
+            this.recorder = null;
+            if (rec != null) {
+                rec.stop();
+                System.out.println("[Recorder] Recording gestoppt.");
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     /////////////////////////////////////////////////////////////////////////////
@@ -240,18 +288,10 @@ public class BrowserTypeImpl implements BrowserType {
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-    ///////////////////////////////////////////////////////////////////////////
-
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Launch Features
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Argumente für den Start des Browsers dynamisch zusammenstellen
-    // ToDo: Port is only set via UI, but is still found in BrowserTypeImpl
     protected List<String> getCommandLineArgs(LaunchOptions options) {
         if (options.args == null || options.args.isEmpty()) {
             throw new IllegalArgumentException("Keine Startargumente gesetzt. Stelle sicher, dass die UI-Optionen korrekt übergeben werden.");
@@ -267,6 +307,24 @@ public class BrowserTypeImpl implements BrowserType {
         }
 
         return args;
+    }
+
+    private static int getWindowsPid(Process proc) {
+        try {
+            // In Java 8 ist das eine ProcessImpl mit private long handle
+            java.lang.reflect.Field f = proc.getClass().getDeclaredField("handle");
+            f.setAccessible(true);
+            long handleVal = f.getLong(proc);
+
+            WinNT.HANDLE hProc = new WinNT.HANDLE();
+            hProc.setPointer(Pointer.createConstant(handleVal));
+
+            int pid = Kernel32.INSTANCE.GetProcessId(hProc);
+            return pid; // 0 => Fehler
+        } catch (Throwable t) {
+            System.err.println("[PID] Konnte Windows-PID nicht ermitteln: " + t.getMessage());
+            return 0;
+        }
     }
 
 }
