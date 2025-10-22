@@ -22,6 +22,8 @@ import java.util.function.Supplier;
  * - Gruppenfarbe je Tab (+ Colorpicker)
  * - Button-Farbe mit Farbvorschau im Dropdown (+ Colorpicker)
  * - Positionskollisionen werden automatisch aufgelöst (stabil, global)
+ * - Hidden-Set wird automatisch aus allen Commands abgeleitet
+ * - "Standard laden" zeigt nur die wichtigsten Buttons (siehe Mapping unten)
  */
 public class ToolbarConfigDialog extends JDialog {
 
@@ -229,9 +231,9 @@ public class ToolbarConfigDialog extends JDialog {
     // ---------------- Aktionen ----------------
 
     private void resetToDefaults() {
-        // Buttons auf Default setzen, Größen/RightSide/GroupColors beibehalten
+        // Buttons auf wichtige Defaults setzen, Größen/RightSide/GroupColors beibehalten
         ToolbarConfig tmp = deepCopyOrInit(initialConfig);
-        tmp.buttons = buildDefaultButtonsForAllCommands();
+        tmp.buttons = buildImportantDefaultButtons();
         // Ergebnis anwenden und UI neu aufbauen
         applyConfig(tmp);
     }
@@ -301,7 +303,16 @@ public class ToolbarConfigDialog extends JDialog {
         cfg.fontSizeRatio = ((Number) spFontRatio.getValue()).floatValue();
         cfg.rightSideIds = newRight;
 
-        // 5) Ergebnis zurückgeben
+        // 5) Hidden aus allen Commands ableiten
+        LinkedHashSet<String> hidden = new LinkedHashSet<>();
+        Set<String> visibleIds = new LinkedHashSet<>();
+        for (ToolbarButtonConfig b : cfg.buttons) if (b != null && b.id != null) visibleIds.add(b.id);
+        for (String id : allCommandIds()) if (!visibleIds.contains(id)) hidden.add(id);
+        if (cfg.hiddenCommandIds == null) cfg.hiddenCommandIds = new LinkedHashSet<>();
+        cfg.hiddenCommandIds.clear();
+        cfg.hiddenCommandIds.addAll(hidden);
+
+        // 6) Ergebnis zurückgeben
         this.result = cfg;
         dispose();
     }
@@ -321,7 +332,12 @@ public class ToolbarConfigDialog extends JDialog {
             cfg.buttons = new ArrayList<>();
             cfg.rightSideIds = new LinkedHashSet<>();
             cfg.groupColors = new LinkedHashMap<>();
-            cfg.buttons.addAll(buildDefaultButtonsForAllCommands());
+            cfg.hiddenCommandIds = new LinkedHashSet<>();
+            cfg.buttons.addAll(buildImportantDefaultButtons());
+            // Hidden initial befüllen
+            Set<String> vis = new LinkedHashSet<>();
+            for (ToolbarButtonConfig b : cfg.buttons) vis.add(b.id);
+            for (String id : allCommandIds()) if (!vis.contains(id)) cfg.hiddenCommandIds.add(id);
             return cfg;
         }
         cfg.buttonSizePx = (in.buttonSizePx > 0) ? in.buttonSizePx : 48;
@@ -339,6 +355,8 @@ public class ToolbarConfigDialog extends JDialog {
         if (in.rightSideIds != null) cfg.rightSideIds.addAll(in.rightSideIds);
         cfg.groupColors = new LinkedHashMap<>();
         if (in.groupColors != null) cfg.groupColors.putAll(in.groupColors);
+        cfg.hiddenCommandIds = new LinkedHashSet<>();
+        if (in.hiddenCommandIds != null) cfg.hiddenCommandIds.addAll(in.hiddenCommandIds);
         return cfg;
     }
 
@@ -445,7 +463,78 @@ public class ToolbarConfigDialog extends JDialog {
         return s.toUpperCase(Locale.ROOT);
     }
 
-    // --- Defaults für Buttons (einfach; identisch zur Toolbar-Logik) ---
+    // --- "Wichtige" Defaults (sichtbare Buttons) -----------------------------
+
+    private List<ToolbarButtonConfig> buildImportantDefaultButtons() {
+        List<ToolbarButtonConfig> visible = new ArrayList<>();
+
+        // Fuzzy-Suche nach IDs im Registry-Bestand
+        String idPlay        = findIdContaining("testsuite.play", "playtestsuite", "playtest", "play");
+        String idStopPlay    = findIdContaining("stopplayback", "stop.playback", "stopplay");
+        String idStartRec    = findIdContaining("startrecord", "record.start");
+        String idStopRec     = findIdContaining("stoprecord", "record.stop");
+        String idLogin       = findIdContaining("loginuser", "login");
+        String idHome        = findIdContaining("navigation.home", "home");
+        String idOtp         = findIdContaining("showotpdialog", "otp");
+        String idCloseTab    = findIdContaining("closetab", "close.tab");
+        String idReload      = findIdContaining("reloadtab", "reload", "refresh");
+        String idUserReg     = findIdContaining("userregistry", "user.registry", "credentials", "zugangsdaten");
+
+        // Mapping: Icons + Farben
+        class Def { String icon; String hex; Def(String i, String h){icon=i;hex=h;} }
+        Map<String, Def> m = new LinkedHashMap<>();
+        m.put(idPlay,     new Def("▶", "#00AA00"));
+        m.put(idStopPlay, new Def("■", "#00AA00"));
+        m.put(idStartRec, new Def("⦿", "#FF0000"));
+        m.put(idStopRec,  new Def("■", "#FF0000"));
+        m.put(idLogin,    new Def(new String(Character.toChars(0x1F511)), "#FFD700")); // 🔑
+        m.put(idHome,     new Def(new String(Character.toChars(0x1F3E0)), "#FFD700")); // 🏠
+        m.put(idOtp,      new Def("🔢", "#FFD700"));
+        m.put(idCloseTab, new Def("✖", null));
+        m.put(idReload,   new Def("↻", null));
+        m.put(idUserReg,  new Def(new String(Character.toChars(0x1F4C7)), null)); // 📇
+
+        // Reihenfolge
+        String[] order = new String[]{
+                idPlay, idStopPlay, idStartRec, idStopRec,
+                idLogin, idHome, idOtp, idCloseTab, idReload, idUserReg
+        };
+
+        int pos = 1;
+        for (String id : order) {
+            if (id == null) continue;
+            Def d = m.get(id);
+            ToolbarButtonConfig tbc = new ToolbarButtonConfig(id, d.icon);
+            tbc.order = pos++;
+            tbc.backgroundHex = d.hex;
+            visible.add(tbc);
+        }
+
+        return visible;
+    }
+
+    private String findIdContaining(String... tokens) {
+        for (String t : tokens) {
+            String needle = t.toLowerCase(Locale.ROOT);
+            for (MenuCommand mc : allCommands) {
+                String id = Objects.toString(mc.getId(), "");
+                if (id.toLowerCase(Locale.ROOT).contains(needle)) return id;
+            }
+        }
+        return null;
+    }
+
+    private Set<String> allCommandIds() {
+        LinkedHashSet<String> ids = new LinkedHashSet<>();
+        for (MenuCommand mc : allCommands) {
+            if (mc != null && mc.getId() != null) ids.add(mc.getId());
+        }
+        return ids;
+    }
+
+    // --- (Fallback) Defaults für Buttons – ungenutzt, aber belassen -----------
+    // Wird nicht mehr von resetToDefaults verwendet, bleibt als Reserve erhalten.
+    @SuppressWarnings("unused")
     private List<ToolbarButtonConfig> buildDefaultButtonsForAllCommands() {
         List<ToolbarButtonConfig> list = new ArrayList<>();
         List<MenuCommand> cmds = new ArrayList<>(allCommands);

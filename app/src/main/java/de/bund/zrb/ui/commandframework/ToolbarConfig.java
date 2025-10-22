@@ -10,4 +10,5 @@ public class ToolbarConfig {
     public List<ToolbarButtonConfig> buttons;
     public LinkedHashSet<String> rightSideIds;
     public LinkedHashMap<String, String> groupColors;
+    public LinkedHashSet<String> hiddenCommandIds;
 }

@@ -389,29 +389,6 @@ public class ActionToolbar extends JToolBar {
         }
     }
 
-    // --- Hilfen im selben Typ vorhanden ---
-    private int normalizeOrder(int ord) {
-        return (ord <= 0) ? Integer.MAX_VALUE : ord;
-    }
-
-    // Bereits gespeicherte Hintergrundfarbe für ein Command ermitteln
-    private String getBackgroundHexFor(String id) {
-        for (ToolbarButtonConfig b : config.buttons) {
-            if (b.id.equals(id)) {
-                return b.backgroundHex;
-            }
-        }
-        return null;
-    }
-
-    private String getIconFor(String id) {
-        return config.buttons.stream()
-                .filter(b -> b.id.equals(id))
-                .map(b -> b.icon)
-                .findFirst()
-                .orElse("🔘");
-    }
-
     private void loadToolbarSettings() {
         Path file = Paths.get(System.getProperty("user.home"), SettingsService.getInstance().APP_FOLDER, "toolbar.json");
 
