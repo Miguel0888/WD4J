@@ -391,7 +391,7 @@ public class TestPlayerService {
 
     private byte[] screenshotAfterWait(int timeout, PageImpl page) {
 //        sleep(3000);
-//        waitForStableBeforeScreenshot(page, timeout);
+        waitForStableBeforeScreenshot(page, timeout);
         // Element- oder Page-Screenshot könnte hier später unterschieden werden.
         return page.screenshot(new Page.ScreenshotOptions().setTimeout(timeout));
     }
@@ -537,24 +537,26 @@ public class TestPlayerService {
     }
 
     private void waitForStableBeforeScreenshot(Page page, double timeoutMs) {
+        long to = (long) Math.max(1000, timeoutMs);
         page.waitForFunction(
-                "quietMs => new Promise((resolve, reject) => {" +
-                        "  const start = Date.now();" +
-                        "  const tick = () => {" +
-                        "    if (Date.now() - start > " + (long) (Integer.MAX_VALUE) + ") { resolve(); }" + // no-op guard
-                        "    const getA = window.__zrbGetActivity || (() => null);" +
-                        "    const a = getA();" +
-                        "    const now = Date.now();" +
-                        "    const quiet = a && (a.inflightXHR|0)===0 && (a.inflightFetch|0)===0 && (a.pfQueueDepth|0)===0 && (now - (a.lastChangeTs||0)) >= quietMs;" +
-                        "    if (quiet) {" +
-                        "      requestAnimationFrame(() => requestAnimationFrame(resolve));" + // 2 Frames fürs Rendern
-                        "    } else {" +
-                        "      setTimeout(tick, 50);" +
-                        "    }" +
-                        "  }; tick();" +
-                        "})",
+                // *** WICHTIG: Diese Funktion gibt synchron einen BOOLEAN zurück. ***
+                "quietMs => {"
+                        + "  try {"
+                        + "    const getA = (typeof window.__zrbGetActivity === 'function') ? window.__zrbGetActivity : null;"
+                        + "    const now  = Date.now();"
+                        + "    if (getA) {"
+                        + "      const a = getA() || {};"
+                        + "      const inflight = (a.inflightXHR|0) + (a.inflightFetch|0) + (a.pfQueueDepth|0);"
+                        + "      const last = a.lastChangeTs || 0;"
+                        + "      return inflight === 0 && (now - last) >= quietMs;"
+                        + "    }"
+                        + "    return false;"
+                        + "  } catch(_) {"
+                        + "    return false;"
+                        + "  }"
+                        + "}",
                 QUIET_MS,
-                new Page.WaitForFunctionOptions().setTimeout((int) Math.max(1000, timeoutMs))
+                new Page.WaitForFunctionOptions().setTimeout(to)
         );
     }
 
