@@ -1,6 +1,10 @@
 package de.bund.zrb;
 
 import com.microsoft.playwright.*;
+import com.sun.jna.Pointer;
+import com.sun.jna.platform.win32.Kernel32;
+import com.sun.jna.platform.win32.WinDef;
+import com.sun.jna.platform.win32.WinNT;
 import de.bund.zrb.manager.WDInputManager;
 import de.bund.zrb.manager.WDScriptManager;
 import de.bund.zrb.api.WDWebSocketManager;
@@ -14,8 +18,10 @@ import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.session.WDSubscription;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
 import de.bund.zrb.websocket.WDException;
+import de.bund.zrb.win.Win32Windows;
 
 import java.beans.PropertyChangeSupport;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +46,9 @@ public class BrowserImpl implements Browser {
     private String activePageId;
     private final PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
 
+    // Top-Level Fensterhandle (Windows)
+    private volatile WinDef.HWND topLevelHwnd;
+
     public BrowserImpl(BrowserTypeImpl browserType, Process process, WDWebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
         router = new RecordingEventRouter(this); // ToDo
 
@@ -55,6 +64,43 @@ public class BrowserImpl implements Browser {
         fetchDefaultData();
 
         loadGlobalScripts(); // load JavaScript code relevant for the working Playwright API
+    }
+
+    /** Liefert das HWND des Top-Level Browserfensters (cached). */
+    public WinDef.HWND getTopLevelHwnd() {
+        return resolveTopLevelHwnd();
+    }
+
+    /** Ermittelt (und cached) das HWND des gestarteten Browser-Prozesses. */
+    private WinDef.HWND resolveTopLevelHwnd() {
+        WinDef.HWND cached = this.topLevelHwnd;
+        if (cached != null) return cached;
+        try {
+            int pid = getWindowsPid(this.process);
+            if (pid <= 0) return null;
+            WinDef.HWND hwnd = Win32Windows.waitForTopLevelWindowOfPid(pid, Duration.ofSeconds(10));
+            this.topLevelHwnd = hwnd;
+            return hwnd;
+        } catch (Throwable t) {
+            System.err.println("[Video] HWND-Auflösung fehlgeschlagen: " + t.getMessage());
+            return null;
+        }
+    }
+
+    /** Holt den Windows-PID des Java Process (gleich wie ehemals in BrowserTypeImpl). */
+    private static int getWindowsPid(Process proc) {
+        try {
+            java.lang.reflect.Field f = proc.getClass().getDeclaredField("handle");
+            f.setAccessible(true);
+            long handleVal = f.getLong(proc);
+            WinNT.HANDLE hProc = new WinNT.HANDLE();
+            hProc.setPointer(Pointer.createConstant(handleVal));
+            int pid = Kernel32.INSTANCE.GetProcessId(hProc);
+            return pid; // 0 => Fehler
+        } catch (Throwable t) {
+            System.err.println("[PID] Konnte Windows-PID nicht ermitteln: " + t.getMessage());
+            return 0;
+        }
     }
 
     private void handleRecordingEvent(WDScriptEvent.MessageWD message) {

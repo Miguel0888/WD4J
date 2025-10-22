@@ -580,6 +580,9 @@ public class ActionToolbar extends JToolBar {
         if (id.contains("settings") || id.contains("configure"))      return "⚙";
         if (id.contains("shortcut"))                                  return "⌘";
 
+        // Video / Recording-UI
+        if (id.contains("video.toggle") || id.contains("video.record")) return new String(Character.toChars(0x1F3AC)); // 🎬
+
         // Fallback
         return "●";
     }

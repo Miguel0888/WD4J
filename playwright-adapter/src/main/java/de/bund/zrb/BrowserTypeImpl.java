@@ -217,66 +217,6 @@ public class BrowserTypeImpl implements BrowserType {
             System.out.println("Gefundene DevTools-URL: " + cdpUrl[0]);
             // websocketUrl = cdpUrl[0];
         }
-
-        // >>> Recording nach Prozessstart anstoßen
-        startRecordingIfPossible();
-    }
-
-    /** Startet die Fenster-Videoaufzeichnung basierend auf RecordingConfig. */
-    private void startRecordingIfPossible() {
-        try {
-            if (!VideoConfig.isEnabled()) return;
-
-            int fps = VideoConfig.getFps(); // z.B. Default 15 in RecordingConfig
-            if (fps <= 0) fps = 15;
-
-            String baseDir = VideoConfig.getReportsDir(); // z.B. Default "C:/Reports"
-            if (baseDir == null || baseDir.trim().isEmpty()) baseDir = "C:/Reports";
-
-            int pid = getWindowsPid(process);
-            if (pid <= 0) {
-                System.err.println("[Recorder] PID unbekannt – Recording deaktiviert.");
-                return;
-            }
-            WinDef.HWND hwnd = Win32Windows.waitForTopLevelWindowOfPid(pid, Duration.ofSeconds(10));
-            if (hwnd == null) {
-                System.err.println("[Recorder] Konnte kein Top-Level-Fenster für PID " + pid + " finden – Recording deaktiviert.");
-                return;
-            }
-
-            Path out = Paths.get(baseDir, "run-" + System.currentTimeMillis() + ".mp4");
-            WindowRecorder rec = new WindowRecorder(hwnd, out, fps);
-            rec.start();
-            this.recorder = rec;
-
-            Thread watcher = new Thread(() -> {
-                try {
-                    process.waitFor();
-                } catch (InterruptedException ignored) {
-                } finally {
-                    stopRecordingSafe();
-                }
-            }, "browser-process-watcher");
-            watcher.setDaemon(true);
-            watcher.start();
-
-            System.out.println("[Recorder] Recording gestartet: " + out.toAbsolutePath());
-        } catch (Throwable t) {
-            System.err.println("[Recorder] Start fehlgeschlagen: " + t.getMessage());
-        }
-    }
-
-    /** Recorder sicher stoppen (idempotent). */
-    private void stopRecordingSafe() {
-        try {
-            WindowRecorder rec = this.recorder;
-            this.recorder = null;
-            if (rec != null) {
-                rec.stop();
-                System.out.println("[Recorder] Recording gestoppt.");
-            }
-        } catch (Throwable ignored) {
-        }
     }
 
     /////////////////////////////////////////////////////////////////////////////

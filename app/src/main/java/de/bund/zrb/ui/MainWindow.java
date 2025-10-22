@@ -166,9 +166,12 @@ public class MainWindow {
         commandRegistry.register(new NavigationHomeCommand());
         commandRegistry.register(new LoginUserCommand());
 
-        // Neu: View-Toggles (Shortcut- & Toolbar-fähig)
+        // View-Toggles (Shortcut- & Toolbar-fähig)
         commandRegistry.register(new ToggleLeftDrawerCommand(this));
         commandRegistry.register(new ToggleRightDrawerCommand(this));
+
+        // Video:
+        commandRegistry.register(new ToggleVideoRecordCommand());
     }
 
     // ====== View-Menü („Ansicht“) =================================================
