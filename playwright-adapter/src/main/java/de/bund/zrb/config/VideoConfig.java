@@ -8,7 +8,7 @@ package de.bund.zrb.config;
 public final class VideoConfig {
 
     // Defaults
-    private static final boolean DEFAULT_ENABLED   = true;
+    private static final boolean DEFAULT_ENABLED   = false;
     private static final int     DEFAULT_FPS       = 15;
     private static final String  DEFAULT_REPORTS   = "C:/Recordings";
 

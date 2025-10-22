@@ -74,7 +74,6 @@ public class BrowserServiceImpl implements BrowserService {
             options.setTimeout(websocketTimeout != null ? websocketTimeout : 0);
             BrowserTypeImpl browserType = BrowserTypeImpl.newFirefoxInstance((PlaywrightImpl) playwright);
             browser = (BrowserImpl) browserType.launch(options);
-            SettingsService.initAdapter();
             configureServices();
         } catch (Exception ex) {
             throw new RuntimeException("Fehler beim Starten des Browsers", ex);

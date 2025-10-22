@@ -32,7 +32,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
     // Video
     private JCheckBox cbVideoEnabled;
-    private JSpinner spVideoFps;
+    private JSpinner  spVideoFps;
+    private JTextField tfVideoDir;     // <- NEU: eigener Aufnahmepfad
+    private JButton    btBrowseVideo;  // <- NEU
 
     private JDialog dialog;
 
@@ -54,6 +56,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         // neu: Video
         Boolean videoEnabled = SettingsService.getInstance().get("video.enabled", Boolean.class);
         Integer videoFps     = SettingsService.getInstance().get("video.fps", Integer.class);
+        String  videoDir     = SettingsService.getInstance().get("video.reportsDir", String.class);
 
         double  initialWsTimeout = wsTimeout != null ? wsTimeout : DEFAULT_WS_TIMEOUT_MS;
         String  initialReportDir = (reportDir != null && !reportDir.trim().isEmpty()) ? reportDir : "C:/Reports";
@@ -63,6 +66,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         boolean initialVideoEnabled = videoEnabled != null ? videoEnabled : DEFAULT_VIDEO_ENABLED;
         int     initialVideoFps     = videoFps != null ? videoFps : DEFAULT_VIDEO_FPS;
+        String  initialVideoDir     = (videoDir != null && !videoDir.trim().isEmpty())
+                ? videoDir
+                : initialReportDir; // Default: nimm Report-Ordner
 
         dialog = new JDialog((Frame) null, "Einstellungen", true);
         dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
@@ -73,7 +79,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
                 initialKd,
                 initialKu,
                 initialVideoEnabled,
-                initialVideoFps
+                initialVideoFps,
+                initialVideoDir
         ));
         dialog.pack();
         dialog.setLocationRelativeTo(null);
@@ -86,7 +93,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
                                      int kd,
                                      int ku,
                                      boolean videoEnabled,
-                                     int videoFps) {
+                                     int videoFps,
+                                     String videoDir) {
         JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(10, 12, 10, 12));
 
@@ -110,8 +118,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         // Video-Optionen (Windows)
         cbVideoEnabled = new JCheckBox("Fenster-Video aufzeichnen (Windows)");
         cbVideoEnabled.setSelected(videoEnabled);
-        cbVideoEnabled.setToolTipText("Zeichnet das Browserfenster als MP4 auf, auch im Hintergrund.");
-
+        cbVideoEnabled.setToolTipText("Zeichnet das Browserfenster auf (auch im Hintergrund), falls verfügbar.");
         g1.gridx = 0; g1.gridy = row++; g1.gridwidth = 3; g1.anchor = GridBagConstraints.WEST; g1.weightx = 1;
         pnlRecording.add(cbVideoEnabled, g1);
         g1.gridwidth = 1;
@@ -121,11 +128,26 @@ public class SettingsCommand extends ShortcutMenuCommand {
         Dimension spSz = new Dimension(120, 26);
         spVideoFps.setPreferredSize(spSz);
         lbFps.setToolTipText("Bilder pro Sekunde für die Videoaufzeichnung (z. B. 15).");
-
         g1.gridx = 0; g1.gridy = row; g1.anchor = GridBagConstraints.WEST; g1.weightx = 0;
         pnlRecording.add(lbFps, g1);
         g1.gridx = 1; g1.gridy = row++; g1.anchor = GridBagConstraints.EAST; g1.weightx = 1;
         pnlRecording.add(spVideoFps, g1);
+
+        // NEU: Video-Ordner
+        JLabel lbVideoDir = new JLabel("Video-Ordner:");
+        tfVideoDir = new JTextField(videoDir, 28);
+        tfVideoDir.setToolTipText("Zielordner für Video-Dateien.");
+        btBrowseVideo = new JButton("Durchsuchen…");
+        btBrowseVideo.setMargin(new Insets(2, 10, 2, 10));
+        btBrowseVideo.setFocusable(false);
+        btBrowseVideo.addActionListener(e -> chooseDirInto(tfVideoDir));
+
+        g1.gridx = 0; g1.gridy = row; g1.anchor = GridBagConstraints.WEST; g1.weightx = 0;
+        pnlRecording.add(lbVideoDir, g1);
+        g1.gridx = 1; g1.gridy = row; g1.fill = GridBagConstraints.HORIZONTAL; g1.weightx = 1;
+        pnlRecording.add(tfVideoDir, g1);
+        g1.gridx = 2; g1.gridy = row++; g1.fill = GridBagConstraints.NONE; g1.weightx = 0;
+        pnlRecording.add(btBrowseVideo, g1);
 
         // --- Eingabe ---
         JPanel pnlInput = new JPanel(new GridBagLayout());
@@ -174,12 +196,12 @@ public class SettingsCommand extends ShortcutMenuCommand {
         GridBagConstraints g4 = gbc();
 
         tfReportDir = new JTextField(reportDir, 28);
-        tfReportDir.setToolTipText("Basisverzeichnis für Reports (wird auch für Video genutzt).");
+        tfReportDir.setToolTipText("Basisverzeichnis für Reports (Screenshots, Logs, etc.).");
 
         JButton btBrowse = new JButton("Durchsuchen…");
         btBrowse.setMargin(new Insets(2, 10, 2, 10));
         btBrowse.setFocusable(false);
-        btBrowse.addActionListener(e -> chooseReportDir());
+        btBrowse.addActionListener(e -> chooseDirInto(tfReportDir));
 
         JLabel lbReport = new JLabel("Report-Verzeichnis:");
 
@@ -233,16 +255,16 @@ public class SettingsCommand extends ShortcutMenuCommand {
         return root;
     }
 
-    private void chooseReportDir() {
+    private void chooseDirInto(JTextField target) {
         JFileChooser chooser = new JFileChooser();
         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-        File preset = new File(tfReportDir.getText().trim());
+        File preset = new File(target.getText().trim());
         if (preset.exists()) {
             chooser.setCurrentDirectory(preset.isDirectory() ? preset : preset.getParentFile());
         }
         int res = chooser.showOpenDialog(dialog);
         if (res == JFileChooser.APPROVE_OPTION) {
-            tfReportDir.setText(chooser.getSelectedFile().getAbsolutePath());
+            target.setText(chooser.getSelectedFile().getAbsolutePath());
         }
     }
 
@@ -281,6 +303,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
         int fps = ((Number) spVideoFps.getValue()).intValue();
         if (fps <= 0) { error("FPS muss > 0 sein."); return; }
 
+        String videoDir = tfVideoDir.getText().trim();
+        if (videoDir.isEmpty()) { error("Bitte einen Video-Ordner angeben."); return; }
+
         Map<String, Object> s = new HashMap<>();
         s.put("websocketTimeout", timeoutValue);
         s.put("reportBaseDir", reportDir);
@@ -288,20 +313,19 @@ public class SettingsCommand extends ShortcutMenuCommand {
         s.put("input.keyDownDelayMs", kdVal);
         s.put("input.keyUpDelayMs",   kuVal);
 
-        // neu: Video-Settings persistieren
-        s.put("video.enabled", videoEnabled);
-        s.put("video.fps", fps);
+        // Video-Settings persistieren
+        s.put("video.enabled",   videoEnabled);
+        s.put("video.fps",       fps);
+        s.put("video.reportsDir", videoDir);
 
         s.forEach(SettingsService.getInstance()::set);
 
-        // Live übernehmen (Adapter-Sicht): Input
+        // Live übernehmen (Adapter-Sicht)
         InputDelaysConfig.setKeyDownDelayMs(kdVal);
         InputDelaysConfig.setKeyUpDelayMs(kuVal);
-
-        // Live übernehmen (Adapter-Sicht): Video
         VideoConfig.setEnabled(videoEnabled);
         VideoConfig.setFps(fps);
-        VideoConfig.setReportsDir(reportDir); // Reports-Verzeichnis auch an VideoConfig durchreichen
+        VideoConfig.setReportsDir(videoDir);
 
         if (closeAfter) dialog.dispose();
     }

@@ -3,6 +3,7 @@ package de.bund.zrb.service;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import de.bund.zrb.config.InputDelaysConfig;
+import de.bund.zrb.config.VideoConfig;
 
 import java.io.*;
 import java.lang.reflect.Type;
@@ -61,9 +62,16 @@ public class SettingsService {
     public static synchronized void initAdapter() {
         Integer kd = getInstance().get("input.keyDownDelayMs", Integer.class);
         Integer ku = getInstance().get("input.keyUpDelayMs",   Integer.class);
-
         if (kd != null) InputDelaysConfig.setKeyDownDelayMs(kd);
         if (ku != null) InputDelaysConfig.setKeyUpDelayMs(ku);
+
+        Boolean vEnabled = getInstance().get("video.enabled", Boolean.class);
+        Integer vFps     = getInstance().get("video.fps",     Integer.class);
+        String  vDir     = getInstance().get("video.reportsDir", String.class); // <- NEU
+
+        if (vEnabled != null) VideoConfig.setEnabled(vEnabled);
+        if (vFps != null)     VideoConfig.setFps(vFps);
+        if (vDir != null && !vDir.trim().isEmpty()) VideoConfig.setReportsDir(vDir); // <- NEU
     }
 
     /** Load the global settings.json into memory. */
