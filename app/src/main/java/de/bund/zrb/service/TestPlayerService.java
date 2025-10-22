@@ -11,6 +11,7 @@ import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.TestPlayerUi;
 import de.bund.zrb.ui.components.log.*;
 import de.bund.zrb.util.GrowlNotificationPopupUtil;
+import de.bund.zrb.video.OverlayBridge;
 
 import javax.swing.*;
 import java.nio.file.Files;
@@ -84,6 +85,8 @@ public class TestPlayerService {
 
         if (stopped) logger.append(new SuiteLog("⏹ Playback abgebrochen!"));
 
+        OverlayBridge.clearSubtitle();
+        OverlayBridge.clearCaption();
         endReport();
     }
 
@@ -149,6 +152,10 @@ public class TestPlayerService {
     }
 
     private LogComponent executeTestCaseNode(TestNode node, TestCase testCase) {
+        // Subtitle = TestCase-Name
+        String sub = (testCase.getName() != null) ? testCase.getName().trim() : "";
+        OverlayBridge.setSubtitle(sub);
+
         SuiteLog caseLog = new SuiteLog(testCase.getName());
         logger.append(caseLog);                           // <— Überschrift sofort anzeigen
 
@@ -166,6 +173,13 @@ public class TestPlayerService {
     }
 
     private LogComponent executeSuiteNode(TestNode node, TestSuite suite) {
+        // Caption = Suite-Description (oder Name), Subtitle leer
+        String cap = (suite.getDescription() != null && !suite.getDescription().trim().isEmpty())
+                ? suite.getDescription().trim()
+                : (suite.getName() != null ? suite.getName().trim() : node.toString());
+        OverlayBridge.setCaption(cap);
+        OverlayBridge.clearSubtitle();
+
         SuiteLog suiteLog = new SuiteLog(node.toString());
         logger.append(suiteLog);                           // <— Header sofort
 
