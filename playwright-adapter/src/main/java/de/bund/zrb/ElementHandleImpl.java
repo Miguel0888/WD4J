@@ -7,6 +7,7 @@ import de.bund.zrb.command.request.parameters.input.sourceActions.KeySourceActio
 import de.bund.zrb.command.request.parameters.input.sourceActions.PointerSourceAction;
 import de.bund.zrb.command.request.parameters.input.sourceActions.SourceActions;
 import de.bund.zrb.command.request.parameters.input.sourceActions.PauseAction;
+import de.bund.zrb.config.InputDelaysConfig;
 import de.bund.zrb.manager.WDInputManager;
 import de.bund.zrb.support.ActionabilityCheck;
 import de.bund.zrb.support.ActionabilityRequirement;
@@ -27,9 +28,6 @@ import static de.bund.zrb.support.WDRemoteValueUtil.getBoundingBoxFromEvaluateRe
  * Keep existing input-based interactions. Store WDRemoteValue (supertype) and bind 'this' for scripts via callFunction.
  */
 public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
-
-    private static final int KEY_DOWN_DELAY_MS = 10; // 10–30ms bewährt sich für Masken/Formatter
-    private static final int KEY_UP_DELAY_MS = 30; // 10–30ms bewährt sich für Masken/Formatter
 
     private final PageImpl page; // optional
     private final WDRemoteValue remoteValue;   // supertype (must be a 'node' at runtime)
@@ -250,32 +248,32 @@ public class ElementHandleImpl extends JSHandleImpl implements ElementHandle {
         // Select all
         seq.add(new KeySourceAction.KeyDownAction(modKey));
         seq.add(new KeySourceAction.KeyDownAction("a"));
-        seq.add(new PauseAction(KEY_UP_DELAY_MS));
+        seq.add(new PauseAction(InputDelaysConfig.getKeyDownDelayMs()));
         seq.add(new KeySourceAction.KeyUpAction("a"));
-        seq.add(new PauseAction(KEY_UP_DELAY_MS));
+        seq.add(new PauseAction(InputDelaysConfig.getKeyUpDelayMs()));
         seq.add(new KeySourceAction.KeyUpAction(modKey));
-        seq.add(new PauseAction(KEY_UP_DELAY_MS));
+        seq.add(new PauseAction(InputDelaysConfig.getKeyUpDelayMs()));
 
         // Clear or type
         if (value == null || value.isEmpty()) {
             seq.add(new KeySourceAction.KeyDownAction(WDKeys.DELETE));
-            seq.add(new PauseAction(KEY_DOWN_DELAY_MS));
+            seq.add(new PauseAction(InputDelaysConfig.getKeyDownDelayMs()));
             seq.add(new KeySourceAction.KeyUpAction(WDKeys.DELETE));
-            seq.add(new PauseAction(KEY_UP_DELAY_MS));
+            seq.add(new PauseAction(InputDelaysConfig.getKeyUpDelayMs()));
         } else {
             // erst leeren
             seq.add(new KeySourceAction.KeyDownAction(WDKeys.DELETE));
-            seq.add(new PauseAction(KEY_DOWN_DELAY_MS));
+            seq.add(new PauseAction(InputDelaysConfig.getKeyDownDelayMs()));
             seq.add(new KeySourceAction.KeyUpAction(WDKeys.DELETE));
-            seq.add(new PauseAction(KEY_UP_DELAY_MS));
+            seq.add(new PauseAction(InputDelaysConfig.getKeyUpDelayMs()));
 
             // dann Zeichen mit Delay senden
             for (int i = 0; i < value.length(); i++) {
                 String ch = String.valueOf(value.charAt(i));
                 seq.add(new KeySourceAction.KeyDownAction(ch));
-                seq.add(new PauseAction(KEY_DOWN_DELAY_MS));
+                seq.add(new PauseAction(InputDelaysConfig.getKeyDownDelayMs()));
                 seq.add(new KeySourceAction.KeyUpAction(ch));
-                seq.add(new PauseAction(KEY_UP_DELAY_MS));
+                seq.add(new PauseAction(InputDelaysConfig.getKeyUpDelayMs()));
             }
         }
 

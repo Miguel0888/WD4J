@@ -2,6 +2,7 @@ package de.bund.zrb.ui;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.ui.commandframework.CommandRegistryImpl;
 import de.bund.zrb.ui.commandframework.MenuCommand;
 import de.bund.zrb.ui.commandframework.ToolbarButtonConfig;
@@ -567,7 +568,7 @@ public class ActionToolbar extends JToolBar {
     }
 
     private void loadToolbarSettings() {
-        Path file = Paths.get(System.getProperty("user.home"), ".wd4j", "toolbar.json");
+        Path file = Paths.get(System.getProperty("user.home"), SettingsService.getInstance().APP_FOLDER, "toolbar.json");
 
         // Case 1: No file yet -> initialize with defaults (not empty!)
         if (!Files.exists(file)) {
@@ -593,7 +594,7 @@ public class ActionToolbar extends JToolBar {
     }
 
     private void saveToolbarSettings() {
-        Path file = Paths.get(System.getProperty("user.home"), ".wd4j", "toolbar.json");
+        Path file = Paths.get(System.getProperty("user.home"), SettingsService.getInstance().APP_FOLDER, "toolbar.json");
         try {
             Files.createDirectories(file.getParent());
             try (BufferedWriter writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {

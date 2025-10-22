@@ -2,6 +2,7 @@ package de.bund.zrb.service;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import de.bund.zrb.config.InputDelaysConfig;
 
 import java.io.*;
 import java.lang.reflect.Type;
@@ -17,7 +18,7 @@ import java.util.Map;
  */
 public class SettingsService {
 
-    private static final String APP_FOLDER = ".wd4j";
+    public static final String APP_FOLDER = ".wd4j";
     private static final String SHORTCUT_FILE_NAME = "shortcut.json";
     private static final String TESTS_FILE_NAME = "tests.json";
     private static final String SETTINGS_FILE_NAME = "settings.json";
@@ -26,6 +27,11 @@ public class SettingsService {
     private static SettingsService instance;
 
     private final Gson gson;
+
+    public Path getBasePath() {
+        return basePath;
+    }
+
     private final Path basePath;
 
     private Map<String, Object> settingsCache;
@@ -50,6 +56,14 @@ public class SettingsService {
             instance = new SettingsService();
         }
         return instance;
+    }
+
+    public static synchronized void initAdapter() {
+        Integer kd = getInstance().get("input.keyDownDelayMs", Integer.class);
+        Integer ku = getInstance().get("input.keyUpDelayMs",   Integer.class);
+
+        if (kd != null) InputDelaysConfig.setKeyDownDelayMs(kd);
+        if (ku != null) InputDelaysConfig.setKeyUpDelayMs(ku);
     }
 
     /** Load the global settings.json into memory. */
