@@ -85,6 +85,16 @@ public class MainWindow {
         statusBar = new StatusBar(userCombo);
         frame.add(statusBar, BorderLayout.SOUTH);
 
+//        // Status-Text immer updaten, wenn der aktuelle User wechselt
+//        de.bund.zrb.service.UserContextMappingService.getInstance()
+//                .addPropertyChangeListener(evt -> {
+//                    if (!"currentUser".equals(evt.getPropertyName())) return;
+//                    de.bund.zrb.service.UserRegistry.User u =
+//                            (de.bund.zrb.service.UserRegistry.User) evt.getNewValue();
+//                    String name = (u == null) ? "<Keinen>" : u.getUsername();
+//                    statusBar.setMessage("Aktiver Benutzer: " + name);
+//                });
+
         // Browser starten NACHDEM Statusbar steht → wir können dort Meldungen setzen
         initBrowser();
 
