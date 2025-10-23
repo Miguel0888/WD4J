@@ -10,6 +10,8 @@ import de.bund.zrb.ui.commands.*;
 import de.bund.zrb.ui.commands.debug.ShowDomEventsCommand;
 import de.bund.zrb.ui.commands.debug.ShowSelectorsCommand;
 import de.bund.zrb.ui.commands.tools.*;
+import de.bund.zrb.ui.widgets.StatusBar;
+import de.bund.zrb.ui.widgets.UserSelectionCombo;
 
 import javax.swing.*;
 import java.awt.*;
@@ -36,6 +38,9 @@ public class MainWindow {
     private int savedOuterDividerLocation = 200;  // Default links
     private int savedInnerDividerLocation = 900;  // Default rechts
 
+    private StatusBar statusBar;
+    private UserSelectionCombo userCombo;
+
     public void initUI() {
         frame = new JFrame("Web Test Recorder & Runner");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -43,55 +48,50 @@ public class MainWindow {
         frame.setLocationRelativeTo(null);
         frame.setLayout(new BorderLayout());
 
-        initBrowser();
-
+        // Menüleiste
         registerCommands();
         registerShortcuts();
-
-        // Menübaum aufbauen (nachdem alle Commands da sind!)
         JMenuBar mb = MenuTreeBuilder.buildMenuBar();
-        // ---- "Ansicht" direkt rechts neben "Datei" ergänzen:
-//        mb.add(buildViewMenu(), Math.min(1, mb.getMenuCount())); // Position 1 = rechts neben "Datei"
         frame.setJMenuBar(mb);
 
-        // ✅ Toolbar (Singleton-artig, ohne Param.)
+        // Toolbar
         ActionToolbar toolbar = new ActionToolbar();
         frame.add(toolbar, BorderLayout.NORTH);
 
-        // Outer SplitPane: Links und Rest
+        // Center-Aufbau
         outerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         outerSplit.setOneTouchExpandable(true);
 
         LeftDrawer leftDrawer = new LeftDrawer();
         outerSplit.setLeftComponent(leftDrawer);
 
-        // Inner SplitPane: Center + Rechts
         innerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         innerSplit.setOneTouchExpandable(true);
-
         JPanel mainPanel = createMainPanel();
         innerSplit.setLeftComponent(mainPanel);
 
         RightDrawer rightDrawer = new RightDrawer(browserService);
         innerSplit.setRightComponent(rightDrawer);
-
         outerSplit.setRightComponent(innerSplit);
 
-        // Gespeicherte Divider-Positionen laden
         loadDrawerSettings();
-
-        // Start-Positionen anwenden
         outerSplit.setDividerLocation(savedOuterDividerLocation);
         innerSplit.setDividerLocation(savedInnerDividerLocation);
 
         frame.add(outerSplit, BorderLayout.CENTER);
 
-        // Beim Beenden Positionsspeicherung & Browser beenden
+        // >>> Statusbar (links Meldungen, rechts User-Selector)
+        userCombo = new UserSelectionCombo(UserRegistry.getInstance());
+        statusBar = new StatusBar(userCombo);
+        frame.add(statusBar, BorderLayout.SOUTH);
+
+        // Browser starten NACHDEM Statusbar steht → wir können dort Meldungen setzen
+        initBrowser();
+
         frame.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
+            @Override public void windowClosing(WindowEvent e) {
                 saveDrawerSettings();
-                System.out.println("🛑 Browser wird beendet...");
+                statusBar.setMessage("🛑 Browser wird beendet…");
                 browserService.terminateBrowser();
             }
         });
@@ -110,8 +110,11 @@ public class MainWindow {
         config.setPort(9222);
 
         try {
+            statusBar.setMessage("🚀 Browser wird gestartet…");
             browserService.launchBrowser(config);
+            statusBar.setMessage("✅ Browser gestartet");
         } catch (Exception e) {
+            statusBar.setMessage("❌ Browser-Start fehlgeschlagen");
             JOptionPane.showMessageDialog(
                     frame,
                     "Fehler beim Starten des Browsers:\n" + e.getMessage(),
@@ -162,7 +165,7 @@ public class MainWindow {
         commandRegistry.register(new ShowDomEventsCommand(browserService));
 
         commandRegistry.register(new UserRegistryCommand());
-        commandRegistry.register(new UserSelectionCommand(UserRegistry.getInstance()));
+        commandRegistry.register(new CycleUserCommand());
         commandRegistry.register(new NavigationHomeCommand());
         commandRegistry.register(new LoginUserCommand());
 
@@ -264,6 +267,10 @@ public class MainWindow {
         if (innerSplit != null) {
             SettingsService.getInstance().set("rightDividerLocation", innerSplit.getDividerLocation());
         }
+    }
+
+    public void setStatus(String text) {
+        if (statusBar != null) statusBar.setMessage(text);
     }
 
     // ====== Startpunkt ============================================================

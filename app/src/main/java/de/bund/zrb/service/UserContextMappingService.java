@@ -3,6 +3,7 @@ package de.bund.zrb.service;
 import com.microsoft.playwright.BrowserContext;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class UserContextMappingService {
@@ -58,8 +59,48 @@ public class UserContextMappingService {
         return currentUser;
     }
 
-    public void setCurrentUser(UserRegistry.User user) {
+    /** Setzt den aktuellen Benutzer und persistiert ihn als defaultUser (null entfernt den Eintrag). */
+    public synchronized void setCurrentUser(UserRegistry.User user) {
         this.currentUser = user;
+        if (user == null) {
+            SettingsService.getInstance().set("defaultUser", null);
+        } else {
+            SettingsService.getInstance().set("defaultUser", user.getUsername());
+        }
+    }
+
+    /** Komfort-Helfer: liefert aktuellen Usernamen oder null. */
+    public String getCurrentUsernameOrNull() {
+        return (currentUser == null) ? null : currentUser.getUsername();
+    }
+
+    /**
+     * Zyklisches Weiterschalten in der Reihenfolge der UserRegistry-Liste.
+     * Zyklus: &lt;Keinen&gt; → user0 → user1 → … → &lt;Keinen&gt;.
+     * @return der neue aktuelle Benutzer, oder null für &lt;Keinen&gt;
+     */
+    public synchronized UserRegistry.User cycleNextUser() {
+        List<UserRegistry.User> list = UserRegistry.getInstance().getAll();
+        if (list == null || list.isEmpty()) {
+            setCurrentUser(null);
+            return null;
+        }
+
+        int idx = -1; // -1 == <Keinen>
+        if (currentUser != null) {
+            for (int i = 0; i < list.size(); i++) {
+                if (currentUser.getUsername().equals(list.get(i).getUsername())) {
+                    idx = i;
+                    break;
+                }
+            }
+        }
+
+        // Ring über [<Keinen>, user0..userN-1]
+        int next = (idx + 1) % (list.size() + 1);
+        UserRegistry.User nextUser = (next == 0) ? null : list.get(next - 1);
+
+        setCurrentUser(nextUser);
+        return nextUser;
     }
 }
-
