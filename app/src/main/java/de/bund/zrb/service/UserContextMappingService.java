@@ -2,6 +2,8 @@ package de.bund.zrb.service;
 
 import com.microsoft.playwright.BrowserContext;
 
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +17,9 @@ public class UserContextMappingService {
 
     // Username → User
     private final Map<String, UserRegistry.User> userMap = new HashMap<>();
+
+    // Property-Change für UI/Listener (z.B. StatusBar)
+    private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
     // aktuell ausgewählter Benutzer
     private UserRegistry.User currentUser;
@@ -55,22 +60,27 @@ public class UserContextMappingService {
         userMap.remove(username);
     }
 
-    public UserRegistry.User getCurrentUser() {
+    public synchronized UserRegistry.User getCurrentUser() {
         return currentUser;
     }
 
     /** Setzt den aktuellen Benutzer und persistiert ihn als defaultUser (null entfernt den Eintrag). */
     public synchronized void setCurrentUser(UserRegistry.User user) {
+        UserRegistry.User old = this.currentUser;
         this.currentUser = user;
+
         if (user == null) {
             SettingsService.getInstance().set("defaultUser", null);
         } else {
             SettingsService.getInstance().set("defaultUser", user.getUsername());
         }
+
+        // UI/Listener informieren
+        pcs.firePropertyChange("currentUser", old, user);
     }
 
     /** Komfort-Helfer: liefert aktuellen Usernamen oder null. */
-    public String getCurrentUsernameOrNull() {
+    public synchronized String getCurrentUsernameOrNull() {
         return (currentUser == null) ? null : currentUser.getUsername();
     }
 
@@ -97,10 +107,20 @@ public class UserContextMappingService {
         }
 
         // Ring über [<Keinen>, user0..userN-1]
-        int next = (idx + 1) % (list.size() + 1);
-        UserRegistry.User nextUser = (next == 0) ? null : list.get(next - 1);
+        int next = (idx + 1) % (list.size());
+        UserRegistry.User nextUser =  list.get(next);
 
-        setCurrentUser(nextUser);
+        setCurrentUser(nextUser); // feuert Event & persistiert
         return nextUser;
+    }
+
+    // ---- Listener-API für UI-Schichten (Statusbar etc.) ----
+
+    public void addPropertyChangeListener(PropertyChangeListener l) {
+        if (l != null) pcs.addPropertyChangeListener(l);
+    }
+
+    public void removePropertyChangeListener(PropertyChangeListener l) {
+        if (l != null) pcs.removePropertyChangeListener(l);
     }
 }

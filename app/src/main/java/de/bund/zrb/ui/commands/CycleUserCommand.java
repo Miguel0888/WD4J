@@ -1,9 +1,8 @@
+// File: app/src/main/java/de/bund/zrb/ui/commands/CycleUserCommand.java
 package de.bund.zrb.ui.commands;
 
 import de.bund.zrb.service.UserContextMappingService;
-import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
-import de.bund.zrb.ui.status.StatusBarManager;
 
 public class CycleUserCommand extends ShortcutMenuCommand {
     @Override public String getId()    { return "users.cycle"; }
@@ -11,10 +10,7 @@ public class CycleUserCommand extends ShortcutMenuCommand {
 
     @Override
     public void perform() {
-        UserRegistry.User newUser = UserContextMappingService.getInstance().cycleNextUser();
-        String name = (newUser == null) ? "<Keinen>" : newUser.getUsername();
-
-        StatusBarManager.getInstance().setMessage("Aktiver Benutzer: " + name);
-        StatusBarManager.getInstance().setRightText("User: " + name);
+        // Weiterschalten im Service; UserSelectionCombo hört auf "currentUser" und setzt sich selbst
+        UserContextMappingService.getInstance().cycleNextUser();
     }
 }

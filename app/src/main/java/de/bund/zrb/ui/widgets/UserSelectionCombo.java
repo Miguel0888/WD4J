@@ -1,61 +1,108 @@
+// File: app/src/main/java/de/bund/zrb/ui/widgets/UserSelectionCombo.java
 package de.bund.zrb.ui.widgets;
 
-import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.service.UserContextMappingService;
 import de.bund.zrb.service.UserRegistry;
 
 import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.beans.PropertyChangeListener;
+import java.util.ArrayList;
 import java.util.List;
 
-/** Kleine Kombobox für die User-Auswahl (mit <Keinen>). */
 public final class UserSelectionCombo extends JPanel {
+
     private final JComboBox<String> combo = new JComboBox<>();
-    private final UserRegistry userRegistry;
+    private final UserRegistry registry;
+    private final UserContextMappingService mapping = UserContextMappingService.getInstance();
+
+    // Reentrancy-Flags: vermeiden Ping-Pong zwischen Combo-Action und Service-Event
+    private volatile boolean updatingFromService = false;
+    private volatile boolean updatingFromCombo   = false;
+
+    private PropertyChangeListener mappingListener;
 
     public UserSelectionCombo(UserRegistry registry) {
-        setOpaque(false);
-        this.userRegistry = registry;
+        super(new FlowLayout(FlowLayout.RIGHT, 6, 2));
+        this.registry = registry;
 
+        add(new JLabel("User:"));
+        combo.setPrototypeDisplayValue("ABCDEFGHIJKLMNOPQRSTUVWX"); // stabile Breite
         combo.setFocusable(false);
         add(combo);
 
+        // Initiale Liste + Auswahl
         rebuildModel();
-        selectDefaultFromSettings();
+        selectCurrentFromService();
 
-        combo.addActionListener(e -> {
-            Object sel = combo.getSelectedItem();
-            if (sel == null || "<Keinen>".equals(sel)) {
-                UserContextMappingService.getInstance().setCurrentUser(null);
-                SettingsService.getInstance().set("defaultUser", null);
-            } else {
-                String username = sel.toString();
-                UserRegistry.User u = userRegistry.getAll().stream()
-                        .filter(it -> username.equals(it.getUsername()))
-                        .findFirst().orElse(null);
-                UserContextMappingService.getInstance().setCurrentUser(u);
-                SettingsService.getInstance().set("defaultUser", username);
+        // Combo -> Service
+        combo.addActionListener(this::onComboChanged);
+
+        // Service -> Combo (nutzt dein PropertyChangeSupport in UserContextMappingService)
+        mappingListener = evt -> {
+            if (!"currentUser".equals(evt.getPropertyName())) return;
+            if (updatingFromCombo) return;
+            updatingFromService = true;
+            try {
+                selectCurrentFromService();
+            } finally {
+                updatingFromService = false;
             }
-        });
+        };
+        mapping.addPropertyChangeListener(mappingListener);
     }
 
-    /** Model neu aufbauen (falls Registry geändert wurde). */
-    public void rebuildModel() {
-        String keep = (String) combo.getSelectedItem();
-        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
-        model.addElement("<Keinen>");
-        List<UserRegistry.User> users = userRegistry.getAll();
-        for (UserRegistry.User u : users) if (u != null && u.getUsername() != null) model.addElement(u.getUsername());
+    private void onComboChanged(ActionEvent e) {
+        if (updatingFromService) return;
+        updatingFromCombo = true;
+        try {
+            String sel = (String) combo.getSelectedItem();
+            if (sel == null || "<Keinen>".equals(sel)) {
+                mapping.setCurrentUser(null);
+            } else {
+                mapping.setCurrentUser(findByName(sel));
+            }
+        } finally {
+            updatingFromCombo = false;
+        }
+    }
+
+    /** Baut das Modell stumpf aus der Registry neu auf (inkl. "<Keinen>"). */
+    private void rebuildModel() {
+        List<String> names = new ArrayList<>();
+        names.add("<Keinen>");
+        for (UserRegistry.User u : safe(registry.getAll())) {
+            names.add(u.getUsername());
+        }
+        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(names.toArray(new String[0]));
         combo.setModel(model);
-        if (keep != null) combo.setSelectedItem(keep);
     }
 
-    public String getSelectedUsername() {
-        Object v = combo.getSelectedItem();
-        return (v == null || "<Keinen>".equals(v)) ? null : v.toString();
+    /** Setzt die Auswahl anhand des Service-Zustands. */
+    private void selectCurrentFromService() {
+        String current = mapping.getCurrentUsernameOrNull();
+        String want = (current == null) ? "<Keinen>" : current;
+
+        // Falls der Benutzer neu angelegt wurde, ggf. Liste anreichern
+        DefaultComboBoxModel<String> m = (DefaultComboBoxModel<String>) combo.getModel();
+        boolean found = false;
+        for (int i = 0; i < m.getSize(); i++) if (want.equals(m.getElementAt(i))) { found = true; break; }
+        if (!found) m.addElement(want);
+
+        combo.setSelectedItem(want);
+        combo.revalidate(); combo.repaint();
     }
 
-    private void selectDefaultFromSettings() {
-        String def = SettingsService.getInstance().get("defaultUser", String.class);
-        combo.setSelectedItem((def == null || def.isEmpty()) ? "<Keinen>" : def);
+    private static List<UserRegistry.User> safe(List<UserRegistry.User> in) {
+        return (in == null) ? new ArrayList<>() : new ArrayList<>(in);
+    }
+
+    private UserRegistry.User findByName(String name) {
+        if (name == null) return null;
+        for (UserRegistry.User u : safe(registry.getAll())) {
+            if (name.equals(u.getUsername())) return u;
+        }
+        return null;
     }
 }
