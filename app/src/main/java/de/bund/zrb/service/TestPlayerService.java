@@ -73,7 +73,6 @@ public class TestPlayerService {
     ////////////////////////////////////////////////////////////////////////////////
 
     public void runSuites() {
-        GrowlNotificationPopupUtil.hook(browserService.getBrowser()); // <<< einmalig für notifications registrieren
         ActivityService.getInstance(browserService.getBrowser());
         resetRunFlags();
         if (!isReady()) return;

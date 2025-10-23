@@ -8,6 +8,7 @@ import de.bund.zrb.type.script.WDLocalValue;
 import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
 import de.bund.zrb.type.script.WDRealmInfo;
 import de.bund.zrb.type.script.WDTarget;
+import de.bund.zrb.util.GrowlNotificationPopupUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +83,8 @@ public class BrowserServiceImpl implements BrowserService {
 
     private void configureServices() {
         NotificationService.getInstance(browser); // init
+        GrowlNotificationPopupUtil.hook(browser); // <<< einmalig für notifications registrieren
+
 //        ActivityService.getInstance(browser); // init
         VideoRecordingService.getInstance().init((BrowserImpl) browser);
     }
