@@ -137,6 +137,11 @@ public class SettingsService {
         } else {
             settingsCache = new HashMap<>();
         }
+
+        if (!settingsCache.containsKey("auth.enabled")) settingsCache.put("auth.enabled", true);
+        if (!settingsCache.containsKey("auth.sessionCookie")) settingsCache.put("auth.sessionCookie", "JSESSIONID");
+        if (!settingsCache.containsKey("auth.redirectStatus")) settingsCache.put("auth.redirectStatus", java.util.Arrays.asList(301,302,303,307,308));
+        if (!settingsCache.containsKey("auth.loginUrlPrefixes")) settingsCache.put("auth.loginUrlPrefixes", java.util.Arrays.asList("/login", "/signin"));
     }
 
     /** Persist the global settings.json to disk. */

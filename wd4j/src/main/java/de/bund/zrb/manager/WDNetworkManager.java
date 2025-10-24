@@ -3,11 +3,14 @@ package de.bund.zrb.manager;
 import de.bund.zrb.api.markerInterfaces.WDModule;
 import de.bund.zrb.command.request.WDNetworkRequest;
 import de.bund.zrb.command.request.parameters.network.AddInterceptParameters;
+import de.bund.zrb.command.request.parameters.network.RemoveInterceptParameters;
 import de.bund.zrb.command.request.parameters.network.SetCacheBehaviorParameters;
 import de.bund.zrb.command.response.WDEmptyResult;
 import de.bund.zrb.command.response.WDNetworkResult;
+import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.network.WDAuthCredentials;
 import de.bund.zrb.api.WDWebSocketManager;
+import de.bund.zrb.type.network.WDUrlPattern;
 
 import java.util.List;
 
@@ -37,6 +40,13 @@ public class WDNetworkManager implements WDModule {
     public WDNetworkResult.AddInterceptResult addIntercept(List<AddInterceptParameters.InterceptPhase> phases) {
         return WDWebSocketManager.sendAndWaitForResponse(
                 new WDNetworkRequest.AddIntercept(phases),
+                WDNetworkResult.AddInterceptResult.class
+        );
+    }
+
+    public  WDNetworkResult.AddInterceptResult addIntercept(List<AddInterceptParameters.InterceptPhase> phases, List<WDBrowsingContext> ctxs, List<WDUrlPattern> patterns) {
+        return WDWebSocketManager.sendAndWaitForResponse(
+                new WDNetworkRequest.AddIntercept(phases, ctxs, patterns),
                 WDNetworkResult.AddInterceptResult.class
         );
     }
@@ -164,5 +174,4 @@ public class WDNetworkManager implements WDModule {
                 de.bund.zrb.command.response.WDEmptyResult.class
         );
     }
-
 }

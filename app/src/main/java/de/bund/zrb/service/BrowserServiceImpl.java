@@ -285,4 +285,40 @@ public class BrowserServiceImpl implements BrowserService {
     public interface ActivePageListener {
         void onActivePageChanged(String contextId);
     }
+
+    ///////////////////////////
+
+    // BrowserImpl.java – unter die anderen Methoden hinzufügen
+    public de.bund.zrb.service.UserRegistry.User userForBrowsingContextId(String browsingContextId) {
+        if (browsingContextId == null || browsingContextId.isEmpty()) {
+            return de.bund.zrb.service.UserContextMappingService.getInstance().getCurrentUser();
+        }
+
+        // 1) passenden UserContextImpl (Tab-Container) zu dieser BrowsingContext-ID finden
+        de.bund.zrb.UserContextImpl owningUc = null;
+        for (de.bund.zrb.UserContextImpl uc : browser.getUserContextImpls()) {
+            if (uc.hasPage(browsingContextId)) {
+                owningUc = uc;
+                break;
+            }
+        }
+        if (owningUc == null) {
+            // Fallback: aktiver User (UI-Auswahl) – besser als null
+            return de.bund.zrb.service.UserContextMappingService.getInstance().getCurrentUser();
+        }
+
+        // 2) User zu diesem BrowserContext herleiten, ohne den Service zu erweitern:
+        //    Wir vergleichen die Context-Instanz aus dem Mapping mit unserem owningUc.
+        de.bund.zrb.service.UserContextMappingService ucm = de.bund.zrb.service.UserContextMappingService.getInstance();
+        for (de.bund.zrb.service.UserRegistry.User u : de.bund.zrb.service.UserRegistry.getInstance().getAll()) {
+            com.microsoft.playwright.BrowserContext ctx = ucm.getContextForUser(u.getUsername());
+            if (ctx == owningUc) { // identische Instanz
+                return u;
+            }
+        }
+
+        // Nichts gefunden → Fallback
+        return de.bund.zrb.service.UserContextMappingService.getInstance().getCurrentUser();
+    }
+
 }
