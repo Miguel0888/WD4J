@@ -45,12 +45,6 @@ public class GivenRegistry {
         jsEval.addField("script", "JavaScript Ausdruck", "return document.readyState === 'complete';", Code.class);
         register(jsEval);
 
-        GivenTypeDefinition loggedIn = new GivenTypeDefinition("logged-in", "Benutzer ist eingeloggt");
-        List<String> usernames = UserRegistry.getInstance().getAll()
-                .stream().map(User::getUsername).collect(Collectors.<String>toList());
-        loggedIn.addField("username", "Benutzername", "", String.class, usernames);
-        register(loggedIn);
-
         // --- Wichtig: preconditionRef bekannt machen (Editor fällt nicht ins Leere) ---
         GivenTypeDefinition preRef = new GivenTypeDefinition("preconditionRef", "Referenz auf Precondition");
         preRef.addField("id", "Precondition-UUID", "", PreconditionRef.class);

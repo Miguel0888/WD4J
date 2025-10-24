@@ -1,7 +1,7 @@
 package de.bund.zrb.service;
 
 import com.google.gson.reflect.TypeToken;
-import de.bund.zrb.tools.LoginTool;
+import de.bund.zrb.config.LoginConfig;
 import de.bund.zrb.util.WindowsCryptoUtil;
 
 import java.lang.reflect.Type;
@@ -13,25 +13,15 @@ public class UserRegistry {
     private static final UserRegistry INSTANCE = new UserRegistry();
     private final List<User> users = new ArrayList<>();
 
-    private UserRegistry() {
-        load();
-    }
+    private UserRegistry() { load(); }
 
-    public static UserRegistry getInstance() {
-        return INSTANCE;
-    }
+    public static UserRegistry getInstance() { return INSTANCE; }
 
-    public List<User> getAll() {
-        return users;
-    }
+    public List<User> getAll() { return users; }
 
-    public void addUser(User user) {
-        users.add(user);
-    }
+    public void addUser(User user) { users.add(user); }
 
-    public void removeUser(User user) {
-        users.remove(user);
-    }
+    public void removeUser(User user) { users.remove(user); }
 
     public void save() {
         SettingsService.getInstance().save("users.json", users);
@@ -48,25 +38,22 @@ public class UserRegistry {
 
     public User getUser(String userId) {
         for (User user : users) {
-            if (userId.equals(user.getUsername())) {
-                return user;
-            }
+            if (userId.equals(user.getUsername())) return user;
         }
         return null;
     }
 
     public List<User> getAllUsers() {
-        // Return a defensive copy to avoid external modification of the internal list
-        return new ArrayList<User>(users);
+        return new ArrayList<>(users);
     }
 
     public static class User {
         private String username;
         private String encryptedPassword;
         private String startPage;
-        private String loginPage;
         private String otpSecret;
 
+        /** LoginConfig ist jetzt eine eigenständige Klasse (de.bund.zrb.config) */
         private LoginConfig loginConfig;
 
         public User(String username, String encryptedPassword, String startPage, String otpSecret, LoginConfig loginConfig) {
@@ -74,7 +61,6 @@ public class UserRegistry {
             this.encryptedPassword = encryptedPassword;
             this.startPage = startPage;
             this.otpSecret = otpSecret;
-
             this.loginConfig = loginConfig;
         }
 
@@ -82,76 +68,24 @@ public class UserRegistry {
         public void setUsername(String username) { this.username = username; }
 
         public String getDecryptedPassword() {
-            try {
-                return WindowsCryptoUtil.decrypt(encryptedPassword);
-            } catch (Exception e) {
-                return "";
-            }
+            try { return WindowsCryptoUtil.decrypt(encryptedPassword); }
+            catch (Exception e) { return ""; }
         }
-
         public void setEncryptedPassword(String encrypted) { this.encryptedPassword = encrypted; }
 
         public String getStartPage() { return startPage; }
         public void setStartPage(String startPage) { this.startPage = startPage; }
 
-
-        public String getLoginPage() {
-            return loginPage;
-        }
-
-        public void setLoginPage(String loginPage) {
-            this.loginPage = loginPage;
-        }
-
         public String getOtpSecret() { return otpSecret; }
         public void setOtpSecret(String otpSecret) { this.otpSecret = otpSecret; }
 
         public LoginConfig getLoginConfig() {
-            if (loginConfig == null) {
-                loginConfig = new LoginConfig();
-            }
+            if (loginConfig == null) loginConfig = new LoginConfig();
             return loginConfig;
         }
-
-        public void setLoginConfig(LoginConfig config) {
-            this.loginConfig = config;
-        }
+        public void setLoginConfig(LoginConfig config) { this.loginConfig = config; }
 
         @Override
-        public String toString() {
-            return username;
-        }
-
-
-        public static class LoginConfig {
-            private String usernameSelector;
-            private String passwordSelector;
-            private String submitSelector;
-
-            public String getUsernameSelector() {
-                return usernameSelector;
-            }
-
-            public void setUsernameSelector(String usernameSelector) {
-                this.usernameSelector = usernameSelector;
-            }
-
-            public String getPasswordSelector() {
-                return passwordSelector;
-            }
-
-            public void setPasswordSelector(String passwordSelector) {
-                this.passwordSelector = passwordSelector;
-            }
-
-            public String getSubmitSelector() {
-                return submitSelector;
-            }
-
-            public void setSubmitSelector(String submitSelector) {
-                this.submitSelector = submitSelector;
-            }
-        }
+        public String toString() { return username; }
     }
-
 }

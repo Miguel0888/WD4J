@@ -52,45 +52,8 @@ public class GivenConditionExecutor {
                 }
                 break;
 
-            case "logged-in":
-                String loginUser = (String) params.get("username");
-                if (loginUser != null) {
-                    loginAs(page, loginUser);
-                }
-                break;
-
             default:
                 System.err.println("⚠️ Unbekannter Given-Typ: " + type);
-        }
-    }
-
-    private void loginAs(Page page, String username) {
-        UserRegistry.User user = UserRegistry.getInstance().getUser(username);
-        if (user == null) {
-            throw new RuntimeException("Unbekannter Benutzer: " + username);
-        }
-
-        // Seite aufrufen
-        page.navigate(user.getLoginPage());
-
-        // Warte auf Eingabefeld und fülle Username
-        Locator usernameInput = page.locator(user.getLoginConfig().getUsernameSelector());
-        usernameInput.waitFor(new Locator.WaitForOptions().setTimeout(30_000));
-        usernameInput.fill(user.getUsername(), new Locator.FillOptions().setTimeout(30_000));
-
-        // Warte auf Passwortfeld und fülle Passwort
-        Locator passwordInput = page.locator(user.getLoginConfig().getPasswordSelector());
-        passwordInput.waitFor(new Locator.WaitForOptions().setTimeout(30_000));
-        passwordInput.fill(user.getDecryptedPassword(), new Locator.FillOptions().setTimeout(30_000));
-
-        // Warte auf Submit-Button und klicke ihn
-        Locator submitButton = page.locator(user.getLoginConfig().getSubmitSelector());
-        submitButton.waitFor(new Locator.WaitForOptions().setTimeout(30_000));
-        submitButton.click(new Locator.ClickOptions().setTimeout(30_000));
-
-        // Optional warten, bis Startseite geladen ist
-        if (user.getStartPage() != null && !user.getStartPage().isEmpty()) {
-            page.waitForURL(user.getStartPage(), new Page.WaitForURLOptions().setTimeout(30_000));
         }
     }
 

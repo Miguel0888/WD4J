@@ -1,6 +1,7 @@
 package de.bund.zrb.tools;
 
 import com.microsoft.playwright.Page;
+import de.bund.zrb.config.LoginConfig;
 import de.bund.zrb.service.BrowserService;
 import de.bund.zrb.service.TotpService;
 import de.bund.zrb.service.UserRegistry;
@@ -22,7 +23,7 @@ public class LoginTool extends AbstractUserTool {
     }
 
     public void login(UserRegistry.User user) {
-        String loginUrl = user.getLoginPage();
+        String loginUrl = user.getLoginConfig().getLoginPage();
         if (loginUrl == null || loginUrl.trim().isEmpty()) {
             throw new IllegalStateException("Login-Seite nicht definiert für Benutzer: " + user.getUsername());
         }
@@ -30,7 +31,7 @@ public class LoginTool extends AbstractUserTool {
         Page page = browserService.getActivePage(user.getUsername());
         page.navigate(loginUrl);
 
-        UserRegistry.User.LoginConfig config = user.getLoginConfig();
+        LoginConfig config = user.getLoginConfig();
 
         if (config.getUsernameSelector() == null ||
                 config.getPasswordSelector() == null ||

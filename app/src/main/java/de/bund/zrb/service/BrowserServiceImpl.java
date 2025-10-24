@@ -2,9 +2,9 @@ package de.bund.zrb.service;
 
 import com.microsoft.playwright.*;
 import de.bund.zrb.*;
+import de.bund.zrb.auth.LoginRedirectSentry;
 import de.bund.zrb.command.response.WDScriptResult;
 import de.bund.zrb.manager.WDScriptManager;
-import de.bund.zrb.tools.LoginTool;
 import de.bund.zrb.type.script.WDLocalValue;
 import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
 import de.bund.zrb.type.script.WDRealmInfo;
@@ -26,6 +26,7 @@ public class BrowserServiceImpl implements BrowserService {
     private BrowserImpl browser;
 
     private final List<ActivePageListener> activePageListeners = new ArrayList<>();
+    private LoginRedirectSentry autoLogin;
 
     private BrowserServiceImpl() {}
 
@@ -90,9 +91,8 @@ public class BrowserServiceImpl implements BrowserService {
         VideoRecordingService.getInstance().init((BrowserImpl) browser);
 
         // Auto-Login global aktivieren
-        de.bund.zrb.manager.WDNetworkManager net = browser.getWebDriver().network();
-        de.bund.zrb.tools.LoginTool loginTool = new de.bund.zrb.tools.LoginTool(this, de.bund.zrb.service.TotpService.getInstance());
-        new de.bund.zrb.auth.AutoAuthOrchestrator(browser, net, loginTool).install();
+        autoLogin = new LoginRedirectSentry(browser, ToolsRegistry.getInstance().loginTool());
+        autoLogin.enable();
     }
 
     @Override

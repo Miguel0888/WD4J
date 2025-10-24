@@ -2,14 +2,13 @@ package de.bund.zrb.auth;
 
 import de.bund.zrb.BrowserImpl;
 import de.bund.zrb.WebDriver;
-import de.bund.zrb.config.AuthDetectionConfig;
+import de.bund.zrb.config.LoginConfig;
 import de.bund.zrb.event.WDBrowsingContextEvent;
 import de.bund.zrb.event.WDNetworkEvent;
 import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.tools.LoginTool;
-import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.network.WDBytesValue;
 import de.bund.zrb.type.network.WDHeader;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
@@ -19,20 +18,20 @@ import javax.swing.*;
 import java.net.URI;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
- * AutoAuthOrchestrator (vereinfachte Version)
+ * LoginRedirectSentry (vereinfachte Auto-Login-Erkennung)
  *
- * - speichert pro Top-Level-Context die "intendedUrl" bei NAVIGATION_STARTED
+ * - speichert pro Top-Level-Context die "intendedUrl" bei NAVIGATION_STARTED (nur für spätere Erweiterungen)
  * - lauscht auf RESPONSE_STARTED (nur document + top-level)
- * - wenn 302 → Login-URL erkannt, dann genau EINMAL Login auslösen (Debounce, pro Navigation)
- * - KEIN Zurücknavigieren (Server erledigt das selbst)
- * - KEIN network-intercept (verhindert pot. Hänger)
+ * - wenn Redirect-Status + Ziel = Login-Seite → genau EINMAL Login auslösen (Debounce, pro Navigation)
+ * - KEIN Zurücknavigieren (Server erledigt die Weiterleitung nach Login)
+ * - KEIN network-intercept
  */
-public final class AutoAuthOrchestrator {
+public final class LoginRedirectSentry {
 
     private static final class ContextState {
         volatile String intendedUrl;
@@ -53,35 +52,62 @@ public final class AutoAuthOrchestrator {
     private final WebDriver wd;
     private final LoginTool loginTool;
 
-    private final AuthDetectionConfig authCfg;
     private final long loginDebounceMs;
 
     private final ConcurrentHashMap<String, Boolean> topLevelContexts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ContextState> states = new ConcurrentHashMap<>();
 
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "AutoAuth-Worker");
+        Thread t = new Thread(r, "LoginRedirectSentry-Worker");
         t.setDaemon(true);
         return t;
     });
 
-    public AutoAuthOrchestrator(BrowserImpl browser, /* WDNetworkManager network (ung.) */ Object unusedNetwork, LoginTool loginTool) {
+    // Steuerung
+    private volatile boolean enabled = false;
+    private volatile boolean listenersRegistered = false;
+
+    public LoginRedirectSentry(BrowserImpl browser, LoginTool loginTool) {
         this.browser = browser;
         this.wd = browser.getWebDriver();
         this.loginTool = loginTool;
 
-        this.authCfg = AuthDetectionConfig.load();
-        SettingsService s = SettingsService.getInstance();
-        Long db = s.get("auth.debounceMs", Long.class);
+        // globaler Debounce (optional via Settings); sonst 1500ms
+        Long db = SettingsService.getInstance().get("auth.debounceMs", Long.class);
         this.loginDebounceMs = (db == null ? 1500L : Math.max(0L, db));
     }
 
-    /** Listener registrieren. */
-    public void install() {
-        if (!authCfg.enabled) return;
-        subscribeContextCreatedDestroyed();
-        subscribeNavigationStarted();
-        subscribeResponseStarted();
+    /** Listener registrieren und aktivieren (idempotent). */
+    public synchronized void enable() {
+        if (!listenersRegistered) {
+            subscribeContextCreatedDestroyed();
+            subscribeNavigationStarted();
+            subscribeResponseStarted();
+            listenersRegistered = true;
+        }
+        enabled = true;
+    }
+
+    /**
+     * Deaktivieren (Soft-Disable).
+     * Listener bleiben registriert, aber reagieren nicht mehr; interne Zustände werden geleert.
+     * (Falls dein WebDriver removeEventListener unterstützt, könntest du hier zusätzlich deregistrieren.)
+     */
+    public synchronized void disable() {
+        enabled = false;
+
+        // Zustände aufräumen
+        states.clear();
+        topLevelContexts.clear();
+    }
+
+    /**
+     * Optional: endgültig schließen. Danach nicht wiederverwendbar.
+     * Nur aufrufen, wenn die Instanz nicht mehr benötigt wird.
+     */
+    public synchronized void dispose() {
+        disable();
+        worker.shutdownNow();
     }
 
     // --------------------------------------------------------------------------------
@@ -92,6 +118,7 @@ public final class AutoAuthOrchestrator {
         wd.addEventListener(
                 new WDSubscriptionRequest(WDEventNames.CONTEXT_CREATED.getName(), null, null),
                 (Consumer<Object>) ev -> {
+                    if (!enabled) return;
                     if (!(ev instanceof WDBrowsingContextEvent.Created)) return;
                     WDBrowsingContextEvent.Created e = (WDBrowsingContextEvent.Created) ev;
                     String ctx = safeVal(e.getParams().getContext());
@@ -104,6 +131,7 @@ public final class AutoAuthOrchestrator {
         wd.addEventListener(
                 new WDSubscriptionRequest(WDEventNames.CONTEXT_DESTROYED.getName(), null, null),
                 (Consumer<Object>) ev -> {
+                    if (!enabled) return;
                     if (!(ev instanceof WDBrowsingContextEvent.Destroyed)) return;
                     WDBrowsingContextEvent.Destroyed e = (WDBrowsingContextEvent.Destroyed) ev;
                     String ctx = safeVal(e.getParams().getContext());
@@ -119,7 +147,9 @@ public final class AutoAuthOrchestrator {
                 (Consumer<Object>) ev -> {
                     if (!(ev instanceof WDBrowsingContextEvent.NavigationStarted)) return;
                     final WDBrowsingContextEvent.NavigationStarted e = (WDBrowsingContextEvent.NavigationStarted) ev;
+                    if (!enabled) return;
                     worker.submit(() -> {
+                        if (!enabled) return;
                         String ctx = safeVal(e.getParams().getContext());
                         if (!isTopLevelCached(ctx)) return;
 
@@ -141,8 +171,10 @@ public final class AutoAuthOrchestrator {
                 new WDSubscriptionRequest(WDEventNames.RESPONSE_STARTED.getName(), null, null),
                 (Consumer<Object>) ev -> {
                     if (!(ev instanceof WDNetworkEvent.ResponseStarted)) return;
+                    if (!enabled) return;
                     final WDNetworkEvent.ResponseStarted e = (WDNetworkEvent.ResponseStarted) ev;
                     worker.submit(() -> {
+                        if (!enabled) return;
                         try { handleResponseStarted(e.getParams()); } catch (Throwable ignored) {}
                     });
                 }
@@ -154,6 +186,7 @@ public final class AutoAuthOrchestrator {
     // --------------------------------------------------------------------------------
 
     private void handleResponseStarted(WDNetworkEvent.ResponseStarted.ResponseStartedParametersWD p) {
+        if (!enabled) return;
         if (p == null || p.getResponse() == null || p.getRequest() == null) return;
 
         final String ctx = safeVal(p.getContext());
@@ -167,8 +200,17 @@ public final class AutoAuthOrchestrator {
         final String navId = (p.getNavigation() == null) ? null : p.getNavigation().value();
         if (navId == null || navId.isEmpty()) return;
 
+        // Benutzer ermitteln & per-User LoginConfig lesen
+        UserRegistry.User user = BrowserServiceImpl.getInstance().userForBrowsingContextId(ctx);
+        if (user == null) return;
+        final LoginConfig cfg = user.getLoginConfig();
+        if (cfg == null || !cfg.isEnabled()) return;
+
         final int status = (int) p.getResponse().getStatus();
-        if (!authCfg.redirectStatusCodes.contains(status) && status != 200) return;
+        // defensive Kopie, um ConcurrentModification zu vermeiden
+        final Set<Integer> redirectStatuses =
+                java.util.Collections.unmodifiableSet(new java.util.HashSet<Integer>(cfg.getRedirectStatusCodes()));
+        if (!redirectStatuses.contains(status)) return; // nur echte Redirects behandeln
 
         final String responseUrl = nullToEmpty(p.getResponse().getUrl());
         final String location    = headerString(p.getResponse().getHeaders(), "location");
@@ -179,18 +221,13 @@ public final class AutoAuthOrchestrator {
         long now = System.currentTimeMillis();
         if (now < st.suppressUntilTs) return;
 
-        // Pro Navigation nur einmal die 302-Login-Erkennung verarbeiten
+        // Pro Navigation nur einmal die Redirect-Login-Erkennung verarbeiten
         if (Objects.equals(navId, st.lastHandledNavigationId)) return;
 
-        // Benutzer ermitteln
-        UserRegistry.User user = BrowserServiceImpl.getInstance().userForBrowsingContextId(ctx);
-        if (user == null) return;
+        // Ziel-URL ist die Location (bei Redirect maßgeblich), Fallback responseUrl
+        final String targetUrl = (location != null && !location.isEmpty()) ? location : responseUrl;
 
-        final String loginUrl = user.getLoginPage();
-        final boolean redirectToLogin = isRedirectToUserLogin(location, responseUrl, loginUrl);
-
-        // 302 → Login-URL erkannt → genau EINMAL Login starten
-        if (authCfg.redirectStatusCodes.contains(status) && redirectToLogin) {
+        if (isLoginTarget(targetUrl, cfg)) {
             // Debounce
             if (st.loginAttempted && (now - st.lastLoginTs) < loginDebounceMs) return;
 
@@ -201,16 +238,8 @@ public final class AutoAuthOrchestrator {
             if (!st.loginInProgress) {
                 st.loginInProgress = true;
                 try {
-                    // Erwartet: boolean-Return von loginTool.login(user)
-                    // Falls dein Login noch ein Dialog-Stub ist, der weggeclickt wird:
-                    // -> er kann false zurückgeben, aber das beeinflusst hier nichts mehr
-                    try {
-//                        loginTool.login(user);
-                        JOptionPane.showMessageDialog(null, "LOGIN"); // TODO
-                    } catch (Throwable t) {
-                        // Vorläufiger Stub (falls Deine Signatur noch void ist o.ä.)
-                        JOptionPane.showMessageDialog(null, "LOGIN FAILED");
-                    }
+                    // loginTool.login(user);
+                    JOptionPane.showMessageDialog(null, "LOGIN"); // TODO: Stub entfernen
                 } catch (RuntimeException ex) {
                     // still fail → nächster Versuch erst nach Debounce
                 } finally {
@@ -224,25 +253,46 @@ public final class AutoAuthOrchestrator {
     }
 
     // --------------------------------------------------------------------------------
-    // Utils
+    // Zielerkennung
     // --------------------------------------------------------------------------------
 
-    private static boolean isRedirectToUserLogin(String locationHeader, String responseUrl, String configuredLoginUrl) {
-        if (configuredLoginUrl == null || configuredLoginUrl.trim().isEmpty()) return false;
+    private static boolean isLoginTarget(String targetUrl, LoginConfig cfg) {
+        if (targetUrl == null || targetUrl.isEmpty()) return false;
 
-        String normLogin = normalizeForCompare(configuredLoginUrl);
-
-        // 1) Location-Header (bei Redirects maßgeblich)
-        if (locationHeader != null && !locationHeader.isEmpty()) {
-            if (normalizeForCompare(locationHeader).equals(normLogin)) return true;
+        // 1) Exakte Login-URL
+        String configuredLogin = cfg.getLoginPage();
+        if (configuredLogin != null && !configuredLogin.trim().isEmpty()) {
+            if (normalizeForCompare(targetUrl).equals(normalizeForCompare(configuredLogin))) {
+                return true;
+            }
         }
 
-        // 2) Fallback: Response-URL (manche Stacks tragen dort bereits die Ziel-Login-URL ein)
-        if (responseUrl != null && !responseUrl.isEmpty()) {
-            if (normalizeForCompare(responseUrl).equals(normLogin)) return true;
+        // 2) Fallback: Prefix-Liste (z. B. /login, /signin)
+        for (String prefix : cfg.getLoginUrlPrefixes()) {
+            if (prefix == null || prefix.isEmpty()) continue;
+            if (pathOf(targetUrl).startsWith(prefix.trim())) return true;
         }
 
         return false;
+    }
+
+    private static String pathOf(String url) {
+        try {
+            URI u = URI.create(url);
+            String p = (u.getPath() == null || u.getPath().isEmpty()) ? "/" : u.getPath();
+            // trailing slash entfernen außer root
+            if (p.length() > 1 && p.endsWith("/")) p = p.substring(0, p.length() - 1);
+            return p;
+        } catch (Exception e) {
+            // sehr simple Fallback-Extraktion
+            String s = url;
+            int scheme = s.indexOf("://");
+            if (scheme >= 0) s = s.substring(scheme + 3);
+            int slash = s.indexOf('/');
+            s = (slash >= 0) ? s.substring(slash) : "/";
+            if (s.length() > 1 && s.endsWith("/")) s = s.substring(0, s.length() - 1);
+            return s;
+        }
     }
 
     /**
