@@ -9,28 +9,28 @@ import de.bund.zrb.api.WDCommand;
 import java.util.List;
 
 public class ProvideResponseParameters implements WDCommand.Params {
-    private final WDRequest WDRequestId;
+    private final WDRequest request;
     private final WDBytesValue body; // Optional
     private final List<WDSetCookieHeader> cookies; // Optional
     private final List<WDHeader> WDHeaders; // Optional
     private final String reasonPhrase; // Optional
     private final Integer statusCode; // Optional
 
-    public ProvideResponseParameters(WDRequest WDRequestId) {
-        this(WDRequestId, null, null, null, null, null);
+    public ProvideResponseParameters(WDRequest request) {
+        this(request, null, null, null, null, null);
     }
 
-    public ProvideResponseParameters(WDRequest WDRequestId, WDBytesValue body, List<WDSetCookieHeader> cookies, List<WDHeader> WDHeaders, String reasonPhrase, Integer statusCode) {
-        this.WDRequestId = WDRequestId;
+    public ProvideResponseParameters(WDRequest request, WDBytesValue body, List<WDSetCookieHeader> cookies, List<WDHeader> headers, String reasonPhrase, Integer statusCode) {
+        this.request = request;
         this.body = body;
         this.cookies = cookies;
-        this.WDHeaders = WDHeaders;
+        this.WDHeaders = headers;
         this.reasonPhrase = reasonPhrase;
         this.statusCode = statusCode;
     }
 
-    public WDRequest getRequestId() {
-        return WDRequestId;
+    public WDRequest getRequest() {
+        return request;
     }
 
     public WDBytesValue getBody() {

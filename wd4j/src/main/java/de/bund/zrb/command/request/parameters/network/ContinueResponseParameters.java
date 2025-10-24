@@ -9,19 +9,19 @@ import de.bund.zrb.api.WDCommand;
 import java.util.List;
 
 public class ContinueResponseParameters implements WDCommand.Params {
-    private final WDRequest WDRequest;
+    private final WDRequest request;
     private final List<WDSetCookieHeader> cookies; // Optional
     private final WDAuthCredentials rawResponse; // Optional
     private final List<WDHeader> responseWDHeaders; // Optional
     private final String text; // Optional
     private final Integer statusCode; // Optional
 
-    public ContinueResponseParameters(WDRequest WDRequest) {
-        this(WDRequest, null, null, null, null, null);
+    public ContinueResponseParameters(WDRequest request) {
+        this(request, null, null, null, null, null);
     }
 
-    public ContinueResponseParameters(WDRequest WDRequest, List<WDSetCookieHeader> cookies, WDAuthCredentials rawResponse, List<WDHeader> responseWDHeaders, String text, Integer statusCode) {
-        this.WDRequest = WDRequest;
+    public ContinueResponseParameters(WDRequest request, List<WDSetCookieHeader> cookies, WDAuthCredentials rawResponse, List<WDHeader> responseWDHeaders, String text, Integer statusCode) {
+        this.request = request;
         this.cookies = cookies;
         this.rawResponse = rawResponse;
         this.responseWDHeaders = responseWDHeaders;
@@ -30,7 +30,7 @@ public class ContinueResponseParameters implements WDCommand.Params {
     }
 
     public WDRequest getRequest() {
-        return WDRequest;
+        return request;
     }
 
     public List<WDSetCookieHeader> getCookies() {

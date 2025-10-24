@@ -4,13 +4,13 @@ import de.bund.zrb.type.network.WDIntercept;
 import de.bund.zrb.api.WDCommand;
 
 public class RemoveInterceptParameters implements WDCommand.Params {
-    private final WDIntercept WDIntercept;
+    private final WDIntercept intercept;
 
-    public RemoveInterceptParameters(WDIntercept WDIntercept) {
-        this.WDIntercept = WDIntercept;
+    public RemoveInterceptParameters(WDIntercept intercept) {
+        this.intercept = intercept;
     }
 
     public WDIntercept getIntercept() {
-        return WDIntercept;
+        return intercept;
     }
 }

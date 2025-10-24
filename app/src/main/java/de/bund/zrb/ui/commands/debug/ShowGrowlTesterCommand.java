@@ -1,9 +1,8 @@
-package de.bund.zrb.ui.commands.tools;
+package de.bund.zrb.ui.commands.debug;
 
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 import de.bund.zrb.ui.components.NotificationTestDialog;
 
-import javax.swing.*;
 import java.awt.*;
 
 public class ShowGrowlTesterCommand extends ShortcutMenuCommand {

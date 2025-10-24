@@ -4,13 +4,13 @@ import de.bund.zrb.type.network.WDRequest;
 import de.bund.zrb.api.WDCommand;
 
 public class FailRequestParameters implements WDCommand.Params {
-    private final WDRequest WDRequest;
+    private final WDRequest request;
 
-    public FailRequestParameters(WDRequest WDRequest) {
-        this.WDRequest = WDRequest;
+    public FailRequestParameters(WDRequest request) {
+        this.request = request;
     }
 
     public WDRequest getRequest() {
-        return WDRequest;
+        return request;
     }
 }

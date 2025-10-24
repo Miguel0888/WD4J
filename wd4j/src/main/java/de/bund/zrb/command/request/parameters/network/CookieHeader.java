@@ -5,13 +5,13 @@ import de.bund.zrb.type.network.WDCookie;
 import java.util.List;
 
 public class CookieHeader {
-    private final List<WDCookie> WDCookies;
+    private final List<WDCookie> cookies;
 
-    public CookieHeader(List<WDCookie> WDCookies) {
-        this.WDCookies = WDCookies;
+    public CookieHeader(List<WDCookie> cookies) {
+        this.cookies = cookies;
     }
 
     public List<WDCookie> getCookies() {
-        return WDCookies;
+        return cookies;
     }
 }

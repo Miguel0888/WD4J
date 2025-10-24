@@ -5,14 +5,14 @@ import de.bund.zrb.type.network.WDRequest;
 import de.bund.zrb.api.WDCommand;
 
 public abstract class ContinueWithAuthParameters implements WDCommand.Params {
-    private final WDRequest WDRequest;
+    private final WDRequest request;
 
-    public ContinueWithAuthParameters(WDRequest WDRequest) {
-        this.WDRequest = WDRequest;
+    public ContinueWithAuthParameters(WDRequest request) {
+        this.request = request;
     }
 
     public WDRequest getRequest() {
-        return WDRequest;
+        return request;
     }
 
     public interface Action extends EnumWrapper {
