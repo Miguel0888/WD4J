@@ -79,6 +79,11 @@ public class UserContextMappingService {
         pcs.firePropertyChange("currentUser", old, user);
     }
 
+    public void setCurrentUserByContextId(String browsingContextId) {
+        UserRegistry.User u = BrowserServiceImpl.getInstance().userForBrowsingContextId(browsingContextId);
+        setCurrentUser(u);
+    }
+
     /** Komfort-Helfer: liefert aktuellen Usernamen oder null. */
     public synchronized String getCurrentUsernameOrNull() {
         return (currentUser == null) ? null : currentUser.getUsername();

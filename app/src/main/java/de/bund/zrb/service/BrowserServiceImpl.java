@@ -13,6 +13,7 @@ import de.bund.zrb.util.GrowlNotificationPopupUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.*;
 import java.util.*;
 
 public class BrowserServiceImpl implements BrowserService {
@@ -93,6 +94,21 @@ public class BrowserServiceImpl implements BrowserService {
         // Auto-Login global aktivieren
         autoLogin = new LoginRedirectSentry(browser, ToolsRegistry.getInstance().loginTool());
         autoLogin.enable();
+
+        // 🔌 Fokus → aktuellen Benutzer umschalten
+        browser.onContextSwitch(ctxId -> {
+            // 1) Zentral setzen: feuert PropertyChange "currentUser"
+            de.bund.zrb.service.UserContextMappingService.getInstance().setCurrentUserByContextId(ctxId);
+
+            // 2) (optional) Statuszeile updaten
+            UserRegistry.User u = userForBrowsingContextId(ctxId); // User zum Kontext bestimmen
+            SwingUtilities.invokeLater(() -> {
+                String name = (u == null) ? "<Keinen>" : u.getUsername();
+                // Falls du eine StatusBar-Instanz hier zur Hand hast:
+                // MainWindow o.ä. kann das auch per PropertyChangeListener machen
+                // statusBar.setMessage("Aktiver Benutzer: " + name);
+            });
+        });
     }
 
     @Override
