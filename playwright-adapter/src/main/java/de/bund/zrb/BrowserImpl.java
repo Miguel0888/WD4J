@@ -20,6 +20,7 @@ import de.bund.zrb.type.session.WDSubscriptionRequest;
 import de.bund.zrb.websocket.WDException;
 import de.bund.zrb.win.Win32Windows;
 
+import javax.swing.*;
 import java.beans.PropertyChangeSupport;
 import java.time.Duration;
 import java.util.*;
@@ -118,23 +119,32 @@ public class BrowserImpl implements Browser {
     }
 
     private void loadGlobalScripts() {
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        ///  Events
-        globalScripts.add(webDriver.script().addPreloadScript(
-                ScriptHelper.loadScript("scripts/focusTracker.js"),
-                Collections.singletonList(new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(CHANNEL_FOCUS_EVENTS))))  // Channel mit übergeben
-        ));
+        try
+        {
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            ///  Events
+            globalScripts.add(webDriver.script().addPreloadScript(
+                    ScriptHelper.loadScript("scripts/focusTracker.js"),
+                    Collections.singletonList(new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(CHANNEL_FOCUS_EVENTS))))  // Channel mit übergeben
+            ));
 
-        // Recorder Callback analog zum Fokus-Tracker:
-        globalScripts.add(webDriver.script().addPreloadScript(
-                ScriptHelper.loadScript("scripts/recorder.js"),
-                Collections.singletonList(new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(CHANNEL_RECORDING_EVENTS))))
-        ));
+            // Recorder Callback analog zum Fokus-Tracker:
+            globalScripts.add(webDriver.script().addPreloadScript(
+                    ScriptHelper.loadScript("scripts/recorder.js"),
+                    Collections.singletonList(new WDChannelValue(new WDChannelValue.ChannelProperties(new WDChannel(CHANNEL_RECORDING_EVENTS))))
+            ));
 
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        ///  Alle weiteren globalen Scripts
-        globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/debug.js"))); // ToDo: Remove
-        globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/dragAndDrop.js")));
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            ///  Alle weiteren globalen Scripts
+            globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/debug.js"))); // ToDo: Remove
+            globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/selector-overlay.js")));
+            globalScripts.add(webDriver.script().addPreloadScript(ScriptHelper.loadScript("scripts/dragAndDrop.js")));
+        } catch (NullPointerException ignore) {
+            JOptionPane.showMessageDialog(null,
+                    "Ein erforderliches JavaScript konnte nicht geladen werden. Es kann zu unerwarteten Verhalten kommen.",
+                    "Fehler beim Laden der Resourcen", JOptionPane.WARNING_MESSAGE);
+        }
+
     }
 
     public void removeGlobalScripts() {
