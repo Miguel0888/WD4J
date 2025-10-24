@@ -90,8 +90,9 @@ public class BrowserServiceImpl implements BrowserService {
         VideoRecordingService.getInstance().init((BrowserImpl) browser);
 
         // Auto-Login global aktivieren
-        LoginTool loginTool = new LoginTool(this, TotpService.getInstance());
-        new de.bund.zrb.auth.AutoAuthOrchestrator(browser, loginTool).install();
+        de.bund.zrb.manager.WDNetworkManager net = browser.getWebDriver().network();
+        de.bund.zrb.tools.LoginTool loginTool = new de.bund.zrb.tools.LoginTool(this, de.bund.zrb.service.TotpService.getInstance());
+        new de.bund.zrb.auth.AutoAuthOrchestrator(browser, net, loginTool).install();
     }
 
     @Override

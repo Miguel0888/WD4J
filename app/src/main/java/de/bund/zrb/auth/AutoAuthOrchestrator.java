@@ -1,43 +1,49 @@
 package de.bund.zrb.auth;
 
 import de.bund.zrb.BrowserImpl;
+import de.bund.zrb.command.request.parameters.network.AddInterceptParameters;
 import de.bund.zrb.command.response.WDBrowsingContextResult;
 import de.bund.zrb.event.WDBrowsingContextEvent;
-import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.event.WDNetworkEvent;
+import de.bund.zrb.manager.WDNetworkManager;
 import de.bund.zrb.tools.LoginTool;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
+import de.bund.zrb.type.network.WDHeader;
+import de.bund.zrb.type.network.WDBytesValue;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
 import de.bund.zrb.websocket.WDEventNames;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-/** Express intent: Auto-login globally based on BrowsingContext events (top-level only). */
+/** Express intent: Auto-login globally based on WD4J Network + BrowsingContext events. */
 public final class AutoAuthOrchestrator {
 
-    /** Per-context state to remember the intended target and prevent loops. */
     private static final class ContextState {
         volatile String intendedUrl;
         volatile boolean loginAttempted;
     }
 
-    private final Map<String, ContextState> states = new ConcurrentHashMap<String, ContextState>();
-
     private final BrowserImpl browser;
+    private final WDNetworkManager network;
     private final LoginTool loginTool;
 
-    public AutoAuthOrchestrator(BrowserImpl browser, LoginTool loginTool) {
+    private final Map<String, ContextState> states = new ConcurrentHashMap<String, ContextState>();
+    private volatile String interceptId;
+
+    public AutoAuthOrchestrator(BrowserImpl browser, WDNetworkManager network, LoginTool loginTool) {
         this.browser = browser;
+        this.network = network;
         this.loginTool = loginTool;
     }
 
-    /** Install once during browser startup. */
     public void install() {
-        subscribeNavigationStarted(); // remember intent
-        subscribeLoad();              // detect login page and act
+        subscribeNavigationStarted();
+        installNetworkIntercept();
+        subscribeResponseStarted();
     }
 
     // =================================================================================
@@ -45,7 +51,6 @@ public final class AutoAuthOrchestrator {
     // =================================================================================
 
     private void subscribeNavigationStarted() {
-        // Listen globally (no specific context): WDSubscriptionRequest(eventName, contextId, realmId)
         WDSubscriptionRequest req = new WDSubscriptionRequest(
                 WDEventNames.NAVIGATION_STARTED.getName(), null, null
         );
@@ -53,8 +58,8 @@ public final class AutoAuthOrchestrator {
         Consumer<Object> handler = new Consumer<Object>() {
             public void accept(Object ev) {
                 if (!(ev instanceof WDBrowsingContextEvent.NavigationStarted)) return;
-
                 WDBrowsingContextEvent.NavigationStarted e = (WDBrowsingContextEvent.NavigationStarted) ev;
+
                 String ctx = e.getParams().getContext().value();
                 if (ctx == null || !isTopLevel(ctx)) return;
 
@@ -71,21 +76,34 @@ public final class AutoAuthOrchestrator {
         browser.getWebDriver().addEventListener(req, handler);
     }
 
-    private void subscribeLoad() {
+    private void installNetworkIntercept() {
+        List<AddInterceptParameters.InterceptPhase> phases =
+                java.util.Collections.singletonList(AddInterceptParameters.InterceptPhase.RESPONSE_STARTED);
+        this.interceptId = network.addIntercept(phases).getIntercept().value();
+    }
+
+    private void subscribeResponseStarted() {
         WDSubscriptionRequest req = new WDSubscriptionRequest(
-                WDEventNames.LOAD.getName(), null, null
+                WDEventNames.RESPONSE_STARTED.getName(), null, null
         );
 
         Consumer<Object> handler = new Consumer<Object>() {
             public void accept(Object ev) {
-                if (!(ev instanceof WDBrowsingContextEvent.Load)) return;
+                if (!(ev instanceof WDNetworkEvent.ResponseStarted)) return;
 
-                WDBrowsingContextEvent.Load e = (WDBrowsingContextEvent.Load) ev;
-                String ctx = e.getParams().getContext().value();
+                WDNetworkEvent.ResponseStarted e = (WDNetworkEvent.ResponseStarted) ev;
+                WDNetworkEvent.ResponseStarted.ResponseStartedParametersWD p = e.getParams();
+                if (p == null || p.getResponse() == null) return;
+
+                // ❗ Context kommt aus getContextId() (WDBaseParameters)
+                String ctx = (p.getContextId() != null) ? p.getContextId().value() : null;
                 if (ctx == null || !isTopLevel(ctx)) return;
 
-                String current = safe(e.getParams().getUrl());
-                UserRegistry.User user = pickUserForAutoLogin();
+                int status = toInt(p.getResponse().getStatus());
+                String respUrl = safe(p.getResponse().getUrl());
+                String location = headerAsString(p.getResponse().getHeaders(), "location");
+
+                de.bund.zrb.service.UserRegistry.User user = pickUser();
                 if (user == null) return;
 
                 ContextState st = states.get(ctx);
@@ -93,23 +111,20 @@ public final class AutoAuthOrchestrator {
                     st = new ContextState();
                     states.put(ctx, st);
                 }
-
-                // Already attempted for this intent?
                 if (st.loginAttempted) return;
 
-                // Detect login page and act once
-                if (looksLikeLogin(current, user.getLoginPage())) {
-                    st.loginAttempted = true;
+                boolean looksLogin =
+                        looksLikeLogin(location, user.getLoginPage()) ||
+                                looksLikeLogin(respUrl, user.getLoginPage());
 
-                    // 1) Do login once
+                if (isRedirect(status) && looksLogin) {
+                    st.loginAttempted = true;
                     try {
                         loginTool.login(user);
                     } catch (RuntimeException ex) {
-                        // Keep non-fatal
-                        return;
+                        return; // keep non-fatal
                     }
 
-                    // 2) Navigate back to the intended target if needed
                     String intent = st.intendedUrl;
                     String now = currentUrl(ctx);
                     if (intent != null && intent.length() > 0 && (now == null || !now.startsWith(intent))) {
@@ -126,7 +141,36 @@ public final class AutoAuthOrchestrator {
     // Helpers
     // =================================================================================
 
-    /** Return the current URL of the given context via getTree(depth=0). */
+    private static boolean isRedirect(int status) {
+        return status == 301 || status == 302 || status == 303 || status == 307 || status == 308;
+    }
+
+    /** Decode header value (WDBytesValue → String). */
+    private static String headerAsString(List<WDHeader> headers, String name) {
+        if (headers == null || name == null) return "";
+        String n = name.toLowerCase(Locale.ROOT);
+        for (WDHeader h : headers) {
+            if (h == null || h.getName() == null) continue;
+            if (n.equals(h.getName().toLowerCase(Locale.ROOT))) {
+                WDBytesValue v = h.getValue();
+                return (v != null) ? safe(v.getValue()) : "";
+            }
+        }
+        return "";
+    }
+
+    private de.bund.zrb.service.UserRegistry.User pickUser() {
+        java.util.List<de.bund.zrb.service.UserRegistry.User> all =
+                de.bund.zrb.service.UserRegistry.getInstance().getAll();
+        return all.isEmpty() ? null : all.get(0);
+    }
+
+    private void navigate(String contextId, String url) {
+        try {
+            browser.getWebDriver().browsingContext().navigate(url, contextId);
+        } catch (Throwable ignore) { /* keep non-fatal */ }
+    }
+
     private String currentUrl(String contextId) {
         try {
             WDBrowsingContextResult.GetTreeResult tree =
@@ -139,14 +183,6 @@ public final class AutoAuthOrchestrator {
         }
     }
 
-    /** Navigate the given top-level context to url. */
-    private void navigate(String contextId, String url) {
-        try {
-            browser.getWebDriver().browsingContext().navigate(url, contextId);
-        } catch (Throwable ignore) { /* keep non-fatal */ }
-    }
-
-    /** Consider only root contexts; ignore iframes. */
     private boolean isTopLevel(String contextId) {
         try {
             WDBrowsingContextResult.GetTreeResult tree =
@@ -155,23 +191,25 @@ public final class AutoAuthOrchestrator {
             if (tree.getContexts().isEmpty()) return true;
             return tree.getContexts().iterator().next().getParent() == null;
         } catch (Throwable t) {
-            return true; // be permissive
+            return true;
         }
     }
 
-    /** Choose a user for auto-login. Use same fallback strategy as elsewhere. */
-    private UserRegistry.User pickUserForAutoLogin() {
-        java.util.List<UserRegistry.User> all = UserRegistry.getInstance().getAll();
-        return all.isEmpty() ? null : all.get(0);
+    private static int toInt(long v) {
+        return (v > Integer.MAX_VALUE) ? Integer.MAX_VALUE : (v < Integer.MIN_VALUE ? Integer.MIN_VALUE : (int) v);
     }
 
-    private static String safe(String s) { return (s == null) ? "" : s; }
+    private static String safe(String s) {
+        return (s == null) ? "" : s;
+    }
 
-    private static boolean looksLikeLogin(String current, String configuredLogin) {
-        if (current == null || current.isEmpty()) return false;
-        if (configuredLogin != null && configuredLogin.length() > 0 && current.startsWith(configuredLogin)) return true;
-
-        String c = current.toLowerCase(Locale.ROOT);
+    /** Explicitly keep this signature to avoid collisions. */
+    private static boolean looksLikeLogin(String currentOrLocation, String configuredLoginUrl) {
+        if (currentOrLocation == null || currentOrLocation.isEmpty()) return false;
+        if (configuredLoginUrl != null && configuredLoginUrl.length() > 0 && currentOrLocation.startsWith(configuredLoginUrl)) {
+            return true;
+        }
+        String c = currentOrLocation.toLowerCase(Locale.ROOT);
         return c.contains("/login") || c.contains("/signin") || c.contains("redirect=");
     }
 }
