@@ -7,10 +7,7 @@ import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.commandframework.*;
 import de.bund.zrb.ui.commands.*;
-import de.bund.zrb.ui.commands.debug.ShowDomEventsCommand;
-import de.bund.zrb.ui.commands.debug.ShowGrowlTesterCommand;
-import de.bund.zrb.ui.commands.debug.ShowNetworkDebuggerCommand;
-import de.bund.zrb.ui.commands.debug.ShowSelectorsCommand;
+import de.bund.zrb.ui.commands.debug.*;
 import de.bund.zrb.ui.commands.tools.*;
 import de.bund.zrb.ui.widgets.StatusBar;
 import de.bund.zrb.ui.widgets.UserSelectionCombo;
@@ -158,8 +155,6 @@ public class MainWindow {
         commandRegistry.register(new StartRecordCommand());
         commandRegistry.register(new StopRecordCommand());
         commandRegistry.register(new ToggleRecordCommand());
-        commandRegistry.register(new StartEventServiceCommand());
-        commandRegistry.register(new StopEventServiceCommand());
 
         commandRegistry.register(new LaunchBrowserCommand(browserService));
         commandRegistry.register(new TerminateBrowserCommand(browserService));
@@ -174,6 +169,7 @@ public class MainWindow {
         commandRegistry.register(new ShowOtpDialogCommand());
         commandRegistry.register(new ShowGrowlTesterCommand());
         commandRegistry.register(new ShowNetworkDebuggerCommand());
+        commandRegistry.register(new ShowEventMonitorCommand());
         commandRegistry.register(new ShowSelectorsCommand(browserService));
         commandRegistry.register(new ShowDomEventsCommand(browserService));
 

@@ -1,5 +1,7 @@
 package de.bund.zrb.ui.debug;
 
+import de.bund.zrb.event.ApplicationEventBus;
+import de.bund.zrb.event.EventServiceControlRequestedEvent;
 import de.bund.zrb.websocket.WDEventNames;
 
 import javax.swing.*;
@@ -32,8 +34,29 @@ public final class EventMonitorWindow extends JFrame {
             list.repaint();
         });
 
+        // Start/Stop-Buttons für Event-Logging (integriert neben "Clear")
+        JButton btnStart = new JButton("Start");
+        btnStart.setFocusable(false);
+        btnStart.setToolTipText("Event-Logging starten");
+        btnStart.addActionListener(e ->
+                ApplicationEventBus.getInstance().publish(
+                        new EventServiceControlRequestedEvent(EventServiceControlRequestedEvent.Operation.START)
+                )
+        );
+
+        JButton btnStop = new JButton("Stop");
+        btnStop.setFocusable(false);
+        btnStop.setToolTipText("Event-Logging stoppen");
+        btnStop.addActionListener(e ->
+                ApplicationEventBus.getInstance().publish(
+                        new EventServiceControlRequestedEvent(EventServiceControlRequestedEvent.Operation.STOP)
+                )
+        );
+
         header.add(new JLabel("Events"));
         header.add(btnClear);
+        header.add(btnStart);
+        header.add(btnStop);
         header.add(Box.createHorizontalStrut(12));
         header.add(checkboxPanel);
 
