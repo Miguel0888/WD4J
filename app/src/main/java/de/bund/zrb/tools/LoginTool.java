@@ -22,14 +22,21 @@ public class LoginTool extends AbstractUserTool {
         login(user);
     }
 
-    public void login(UserRegistry.User user) {
+    public void login(UserRegistry.User user){
+        login(user, null);
+    }
+
+    public void login(UserRegistry.User user, Page page) {
         String loginUrl = user.getLoginConfig().getLoginPage();
         if (loginUrl == null || loginUrl.trim().isEmpty()) {
             throw new IllegalStateException("Login-Seite nicht definiert für Benutzer: " + user.getUsername());
         }
 
-        Page page = browserService.getActivePage(user.getUsername());
-        page.navigate(loginUrl);
+        if( page == null)
+        { // if no page is determined use the current selected one
+            page = browserService.getActivePage(user.getUsername());
+            page.navigate(loginUrl);
+        }
 
         LoginConfig config = user.getLoginConfig();
 

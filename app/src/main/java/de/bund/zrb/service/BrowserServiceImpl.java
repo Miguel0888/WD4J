@@ -282,6 +282,31 @@ public class BrowserServiceImpl implements BrowserService {
         return browser.getRecordingEventRouter();
     }
 
+    @Override
+    public Page pageForBrowsingContextId(String browsingContextId) {
+        if (browser == null) return null;
+        if (browsingContextId == null || browsingContextId.isEmpty()) {
+            return browser.getActivePage(); // Fallback: aktive Seite
+        }
+
+        // Fast-Path: aktive Seite per ID
+        if (Objects.equals(browsingContextId, browser.getActivePageId())) {
+            return browser.getActivePage();
+        }
+
+        // Besitzer-UserContext finden und dort die Page holen
+        for (de.bund.zrb.UserContextImpl uc : browser.getUserContextImpls()) {
+            if (uc.hasPage(browsingContextId)) {
+                // ↓ diese Methode in UserContextImpl ergänzen (siehe unten)
+                Page p = uc.getPage(browsingContextId);
+                if (p != null) return p;
+            }
+        }
+
+        // Nichts gefunden
+        return null;
+    }
+
     public interface ActivePageListener {
         void onActivePageChanged(String contextId);
     }

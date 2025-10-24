@@ -252,10 +252,12 @@ public class UserContextImpl implements BrowserContext, WDContextExtension {
     }
 
     // Finde PageImpl anhand der BrowsingContext-ID (oder null)
-    private PageImpl findPage(String browsingContextId) {
-        if (isClosed || browsingContextId == null || browsingContextId.length() == 0) return null;
+    public Page getPage(String browsingContextId) {
+        if (isClosed || browsingContextId == null || browsingContextId.isEmpty()) return null;
         for (PageImpl p : pages) {
-            if (browsingContextId.equals(p.getBrowsingContextId())) return p;
+            if (browsingContextId.equals(p.getBrowsingContextId())) {
+                return p; // PageImpl ist ein Page
+            }
         }
         return null;
     }

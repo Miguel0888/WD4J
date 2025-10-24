@@ -1,5 +1,6 @@
 package de.bund.zrb.auth;
 
+import com.microsoft.playwright.Page;
 import de.bund.zrb.BrowserImpl;
 import de.bund.zrb.WebDriver;
 import de.bund.zrb.config.LoginConfig;
@@ -146,8 +147,8 @@ public final class LoginRedirectSentry {
                 new WDSubscriptionRequest(WDEventNames.NAVIGATION_STARTED.getName(), null, null),
                 (Consumer<Object>) ev -> {
                     if (!(ev instanceof WDBrowsingContextEvent.NavigationStarted)) return;
-                    final WDBrowsingContextEvent.NavigationStarted e = (WDBrowsingContextEvent.NavigationStarted) ev;
                     if (!enabled) return;
+                    final WDBrowsingContextEvent.NavigationStarted e = (WDBrowsingContextEvent.NavigationStarted) ev;
                     worker.submit(() -> {
                         if (!enabled) return;
                         String ctx = safeVal(e.getParams().getContext());
@@ -238,10 +239,26 @@ public final class LoginRedirectSentry {
             if (!st.loginInProgress) {
                 st.loginInProgress = true;
                 try {
-                    // loginTool.login(user);
-                    JOptionPane.showMessageDialog(null, "LOGIN"); // TODO: Stub entfernen
+                    // >>> Page aus dem Browsing-Context auflösen <<<
+                    // Erwartete Helper-API (analog userForBrowsingContextId):
+                    // BrowserServiceImpl.getInstance().pageForBrowsingContextId(ctx)
+                    Page page = BrowserServiceImpl.getInstance().pageForBrowsingContextId(ctx);
+                    if (page == null) {
+                        // Kein Page-Handle verfügbar → abbrechen, nächster Retry erfolgt nach Debounce
+                        return;
+                    }
+
+                    // intended URL für spätere Erweiterungen (Tool kann sie ignorieren)
+                    final String intended = st.intendedUrl;
+
+                    // Login ausführen
+                    loginTool.login(user, page /*, intended */);
+
+                    // Optionales Feedback (Debug)
+                    // JOptionPane.showMessageDialog(null, user.getUsername() + " logged in!");
                 } catch (RuntimeException ex) {
-                    // still fail → nächster Versuch erst nach Debounce
+                    // nächster Versuch erst nach Debounce
+                    // JOptionPane.showMessageDialog(null, "Login for " + user.getUsername() + " failed!");
                 } finally {
                     st.loginInProgress = false;
                 }

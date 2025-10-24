@@ -45,4 +45,5 @@ public interface BrowserService {
 
     BrowserImpl getBrowser();
 
+    Page pageForBrowsingContextId(String browsingContextId);
 }
