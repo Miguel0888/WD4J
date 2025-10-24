@@ -1,3 +1,4 @@
+// File: app/src/main/java/de/bund/zrb/ui/status/StatusBarManager.java
 package de.bund.zrb.ui.status;
 
 import de.bund.zrb.service.UserRegistry;
@@ -9,10 +10,9 @@ import java.util.List;
 
 /**
  * Event-free StatusBar manager.
- * - Do not register listeners (no ActionListener, no PropertyChangeListener).
- * - Update only UI on explicit method calls.
- * - Keep all Swing mutations on the EDT.
- * - Ensure selected user exists in combo model (auto-insert if missing).
+ * - Keine Listener/Events – reine UI-Updates über Methoden.
+ * - Alle Swing-Änderungen auf dem EDT.
+ * - Stellt (optional) die StatusBarEventQueue als Source ein.
  */
 public final class StatusBarManager {
 
@@ -31,38 +31,39 @@ public final class StatusBarManager {
 
     private StatusBarManager() {
         buildUi();
-        loadUsersFromRegistryOnInit();  // Load once; no listeners.
-        setSelectedUser("<Keinen>");    // Start consistent.
+        loadUsersFromRegistryOnInit();  // einmalig laden
+        setSelectedUser("<Keinen>");
         setRightText("Bereit");
+
+        // >>> Queue hier anbinden (statt in MainWindow):
+        StatusBarEventQueue.getInstance().setSink(this::setMessage);
+        StatusBarEventQueue.getInstance().setMinDisplayMillis(3000);
     }
 
     // ----- Public API -----
 
     /** Liefert die fertige Statusbar-Komponente zur Platzierung im SOUTH. */
-    public JComponent getComponent() {
-        return root;
-    }
+    public JComponent getComponent() { return root; }
 
     /** Setze linken Status-Text (nur UI). */
     public void setMessage(final String msg) {
-        runOnEdt(new Runnable() {
-            @Override public void run() {
-                leftLabel.setText(msg != null ? msg : "");
-            }
-        });
+        runOnEdt(() -> leftLabel.setText(msg != null ? msg : ""));
+    }
+
+    /** Optional: Nachricht über die Queue anzeigen (mind. 3s sichtbar). */
+    public void postStatus(String msg) {
+        if (msg != null) {
+            StatusBarEventQueue.getInstance().post(msg);
+        }
     }
 
     /** Setze rechte AUX-Komponente (nur UI). */
     public void setRightComponent(final JComponent comp) {
-        runOnEdt(new Runnable() {
-            @Override public void run() {
-                auxRightBox.removeAll();
-                if (comp != null) {
-                    auxRightBox.add(comp);
-                }
-                auxRightBox.revalidate();
-                auxRightBox.repaint();
-            }
+        runOnEdt(() -> {
+            auxRightBox.removeAll();
+            if (comp != null) auxRightBox.add(comp);
+            auxRightBox.revalidate();
+            auxRightBox.repaint();
         });
     }
 
@@ -73,38 +74,32 @@ public final class StatusBarManager {
 
     /**
      * Wähle den angezeigten Benutzer (Label + Combo).
-     * If the name is not in the combo model, insert it (except when null/blank -> "<Keinen>").
-     * No events, no services.
+     * Falls Name nicht im Modell vorhanden ist, wird er eingefügt
+     * (außer null/blank -> "<Keinen>").
      */
     public void setSelectedUser(final String usernameOrNull) {
         final String name = normalizeName(usernameOrNull);
-        runOnEdt(new Runnable() {
-            @Override public void run() {
-                ensureNamePresentInModel(name);
-                userCombo.setSelectedItem(name);
-                leftLabel.setText("Aktiver Benutzer: " + name);
-            }
+        runOnEdt(() -> {
+            ensureNamePresentInModel(name);
+            userCombo.setSelectedItem(name);
+            leftLabel.setText("Aktiver Benutzer: " + name);
         });
     }
 
-    /** Setze die Benutzerliste direkt (optional; ereignisfrei). */
+    /** Setze die Benutzerliste direkt (ereignisfrei). */
     public void setUsers(final List<String> usernames) {
-        final List<String> safe = (usernames != null) ? new ArrayList<String>(usernames) : new ArrayList<String>();
+        final List<String> safe = (usernames != null) ? new ArrayList<>(usernames) : new ArrayList<>();
         ensurePlaceholderFirst(safe);
-        runOnEdt(new Runnable() {
-            @Override public void run() {
-                String selected = currentSelectionOrNone();
-                DefaultComboBoxModel<String> model = new DefaultComboBoxModel<String>(safe.toArray(new String[safe.size()]));
-                userCombo.setModel(model);
-                if (!contains(model, selected)) {
-                    selected = "<Keinen>";
-                }
-                userCombo.setSelectedItem(selected);
-            }
+        runOnEdt(() -> {
+            String selected = currentSelectionOrNone();
+            DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(safe.toArray(new String[0]));
+            userCombo.setModel(model);
+            if (!contains(model, selected)) selected = "<Keinen>";
+            userCombo.setSelectedItem(selected);
         });
     }
 
-    /** Aktualisiere Benutzerliste einmalig aus der Registry (manuell; ereignisfrei). */
+    /** Benutzerliste einmalig aus Registry (manuell; ereignisfrei). */
     public void refreshUsersFromRegistry() {
         setUsers(collectUsernamesFromRegistry());
     }
@@ -117,14 +112,12 @@ public final class StatusBarManager {
         auxRightBox.setOpaque(false);
         userBox.setOpaque(false);
 
-        userCombo.setPrototypeDisplayValue("ABCDEFGHIJKLMNOPQRSTUVWXYZ"); // keep width stable
+        userCombo.setPrototypeDisplayValue("ABCDEFGHIJKLMNOPQRSTUVWXYZ"); // stabile Breite
         userCombo.setFocusable(false);
-        userCombo.setEnabled(true); // purely visual, no action hooked
+        userCombo.setEnabled(true); // rein visuell
 
         rightWrap.add(auxRightBox);
-        rightWrap.add(new JSeparator(SwingConstants.VERTICAL) {{
-            setPreferredSize(new Dimension(6, 18));
-        }});
+        rightWrap.add(new JSeparator(SwingConstants.VERTICAL) {{ setPreferredSize(new Dimension(6, 18)); }});
         userBox.add(userPrefix);
         userBox.add(userCombo);
         rightWrap.add(userBox);
@@ -136,76 +129,56 @@ public final class StatusBarManager {
     private void loadUsersFromRegistryOnInit() {
         List<String> names = collectUsernamesFromRegistry();
         ensurePlaceholderFirst(names);
-        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<String>(names.toArray(new String[names.size()]));
+        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(names.toArray(new String[0]));
         userCombo.setModel(model);
         userCombo.setSelectedItem("<Keinen>");
     }
 
     // ----- Helpers -----
 
-    /** Ensure that "name" exists in model; insert if missing. */
+    /** Sicherstellen, dass "name" im Modell existiert; ggf. einfügen. */
     private void ensureNamePresentInModel(String name) {
         ComboBoxModel<String> model = userCombo.getModel();
         if (model == null) {
-            List<String> base = new ArrayList<String>();
+            List<String> base = new ArrayList<>();
             base.add("<Keinen>");
-            if (!"<Keinen>".equals(name)) {
-                base.add(name);
-            }
-            userCombo.setModel(new DefaultComboBoxModel<String>(base.toArray(new String[base.size()])));
+            if (!"<Keinen>".equals(name)) base.add(name);
+            userCombo.setModel(new DefaultComboBoxModel<>(base.toArray(new String[0])));
             return;
         }
         if (!contains(model, name)) {
-            // Insert name preserving "<Keinen>" at index 0.
-            List<String> values = new ArrayList<String>();
+            List<String> values = new ArrayList<>();
             boolean hasNone = false;
             for (int i = 0; i < model.getSize(); i++) {
                 String v = model.getElementAt(i);
-                if ("<Keinen>".equals(v)) {
-                    hasNone = true;
-                }
+                if ("<Keinen>".equals(v)) hasNone = true;
                 values.add(v);
             }
-            if (!hasNone) {
-                values.add(0, "<Keinen>");
-            }
-            if (!"<Keinen>".equals(name)) {
-                values.add(name);
-            }
-            userCombo.setModel(new DefaultComboBoxModel<String>(values.toArray(new String[values.size()])));
+            if (!hasNone) values.add(0, "<Keinen>");
+            if (!"<Keinen>".equals(name)) values.add(name);
+            userCombo.setModel(new DefaultComboBoxModel<>(values.toArray(new String[0])));
         }
     }
 
     private static boolean contains(ComboBoxModel<String> model, String value) {
         if (model == null || value == null) return false;
         for (int i = 0; i < model.getSize(); i++) {
-            String v = model.getElementAt(i);
-            if (value.equals(v)) return true;
+            if (value.equals(model.getElementAt(i))) return true;
         }
         return false;
     }
 
     private static void ensurePlaceholderFirst(List<String> names) {
         if (names == null) return;
-        boolean has = false;
-        for (String n : names) {
-            if ("<Keinen>".equals(n)) { has = true; break; }
-        }
-        if (!has) {
+        boolean hasNone = false;
+        for (String n : names) { if ("<Keinen>".equals(n)) { hasNone = true; break; } }
+        if (!hasNone) {
             names.add(0, "<Keinen>");
-        } else {
-            // Move to front if not already first
-            if (!names.isEmpty() && !"<Keinen>".equals(names.get(0))) {
-                List<String> copy = new ArrayList<String>(names);
-                names.clear();
-                names.add("<Keinen>");
-                for (int i = 0; i < copy.size(); i++) {
-                    String v = copy.get(i);
-                    if (!"<Keinen>".equals(v)) {
-                        names.add(v);
-                    }
-                }
-            }
+        } else if (!names.isEmpty() && !"<Keinen>".equals(names.get(0))) {
+            List<String> copy = new ArrayList<>(names);
+            names.clear();
+            names.add("<Keinen>");
+            for (String v : copy) if (!"<Keinen>".equals(v)) names.add(v);
         }
     }
 
@@ -216,14 +189,12 @@ public final class StatusBarManager {
     }
 
     private static List<String> collectUsernamesFromRegistry() {
-        List<String> names = new ArrayList<String>();
+        List<String> names = new ArrayList<>();
         names.add("<Keinen>");
         List<UserRegistry.User> all = UserRegistry.getInstance().getAll();
         if (all != null) {
             for (UserRegistry.User u : all) {
-                if (u != null && u.getUsername() != null) {
-                    names.add(u.getUsername());
-                }
+                if (u != null && u.getUsername() != null) names.add(u.getUsername());
             }
         }
         return names;
@@ -235,10 +206,7 @@ public final class StatusBarManager {
     }
 
     private static void runOnEdt(Runnable r) {
-        if (SwingUtilities.isEventDispatchThread()) {
-            r.run();
-        } else {
-            SwingUtilities.invokeLater(r);
-        }
+        if (SwingUtilities.isEventDispatchThread()) r.run();
+        else SwingUtilities.invokeLater(r);
     }
 }

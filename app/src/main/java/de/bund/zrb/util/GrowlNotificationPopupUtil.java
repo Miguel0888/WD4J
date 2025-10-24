@@ -3,14 +3,17 @@ package de.bund.zrb.util;
 import de.bund.zrb.BrowserImpl;
 import de.bund.zrb.dto.GrowlNotification;
 import de.bund.zrb.service.NotificationService;
+import de.bund.zrb.ui.status.StatusBarEventQueue;
 
-import javax.swing.*;
+import java.util.Collections;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.Collections;
 import java.util.function.Consumer;
 
-/** Show Swing dialogs only for unhandled notifications (phase B). */
+/**
+ * Leitet NICHT behandelte (Phase-B) Growl-Notifications in die StatusBarEventQueue.
+ * Keine Swing-Dialogs mehr.
+ */
 public final class GrowlNotificationPopupUtil {
 
     private GrowlNotificationPopupUtil() {}
@@ -25,27 +28,32 @@ public final class GrowlNotificationPopupUtil {
 
         final NotificationService svc = NotificationService.getInstance(browser);
 
-        // Register as unhandled sink; service only calls us if nothing consumed it in phase A
+        // Als "unhandled sink" registrieren: Service ruft uns nur auf, wenn in Phase A niemand konsumiert hat.
         svc.addSink(new Consumer<GrowlNotification>() {
             @Override
             public void accept(final GrowlNotification n) {
-                final String caption = "PrimeFaces: " + ((n.title == null || n.title.length() == 0) ? n.type : n.title);
-                final String body    = (n.message == null ? "" : n.message)
-                        + "\n\n(Context: " + (n.contextId == null ? "" : n.contextId) + ")";
-                final int swingType  = mapSeverityToSwing(n.type);
-                SwingUtilities.invokeLater(new Runnable() {
-                    @Override public void run() {
-                        JOptionPane.showMessageDialog(null, body, caption, swingType);
-                    }
-                });
+                // Baue eine kompakte Statuszeilen-Nachricht
+                final String sev = (n.type == null ? "" : n.type).toUpperCase();
+                final String prefix =
+                        sev.startsWith("ERROR") || sev.startsWith("FATAL") ? "❌ " :
+                                sev.startsWith("WARN")                             ? "⚠️ " :
+                                        "ℹ️ ";
+                final String title = (n.title == null || n.title.isEmpty())
+                        ? (n.type == null ? "Hinweis" : n.type)
+                        : n.title;
+                final String msg = (n.message == null ? "" : n.message);
+
+                String text = prefix + title;
+                if (!msg.isEmpty()) text += ": " + msg;
+
+                // Optional Kontext anhängen (kurz)
+                if (n.contextId != null && !n.contextId.isEmpty()) {
+                    text += "  (" + n.contextId + ")";
+                }
+
+                // **WICHTIG**: in die Statusbar-Queue posten (min. Anzeigezeit kommt von der Queue).
+                StatusBarEventQueue.getInstance().post(text);
             }
         });
-    }
-
-    private static int mapSeverityToSwing(String sev) {
-        String s = sev == null ? "" : sev.toUpperCase();
-        if (s.startsWith("WARN")) return JOptionPane.WARNING_MESSAGE;
-        if (s.startsWith("ERROR") || s.startsWith("FATAL")) return JOptionPane.ERROR_MESSAGE;
-        return JOptionPane.INFORMATION_MESSAGE;
     }
 }

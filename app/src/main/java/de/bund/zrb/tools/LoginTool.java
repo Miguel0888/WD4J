@@ -28,7 +28,7 @@ public class LoginTool extends AbstractUserTool {
         }
 
         Page page = browserService.getActivePage(user.getUsername());
-        page.navigate(loginUrl);
+//        page.navigate(loginUrl);
 
         UserRegistry.User.LoginConfig config = user.getLoginConfig();
 
