@@ -1,4 +1,4 @@
-package de.bund.zrb.ui.components;
+package de.bund.zrb.ui.debug;
 
 import de.bund.zrb.PageImpl;
 import de.bund.zrb.dto.GrowlNotification;

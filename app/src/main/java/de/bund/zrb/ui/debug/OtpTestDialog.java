@@ -1,4 +1,4 @@
-package de.bund.zrb.ui.components;
+package de.bund.zrb.ui.debug;
 
 import de.bund.zrb.service.TotpService;
 import de.bund.zrb.service.UserRegistry;

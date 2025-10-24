@@ -3,7 +3,7 @@ package de.bund.zrb.tools;
 import de.bund.zrb.service.BrowserService;
 import de.bund.zrb.service.TotpService;
 import de.bund.zrb.service.UserRegistry;
-import de.bund.zrb.ui.components.OtpTestDialog;
+import de.bund.zrb.ui.debug.OtpTestDialog;
 
 import javax.swing.*;
 import java.awt.*;

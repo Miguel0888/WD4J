@@ -1,4 +1,4 @@
-package de.bund.zrb.ui.components;
+package de.bund.zrb.ui.debug;
 
 import de.bund.zrb.BrowserImpl;
 import de.bund.zrb.WebDriver;

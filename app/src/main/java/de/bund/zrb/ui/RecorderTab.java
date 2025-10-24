@@ -7,13 +7,10 @@ import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.*;
-import de.bund.zrb.websocket.WDEventNames;
-
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumMap;
 import java.util.List;
 
 /** Swing tab for one user; delegate recording to service. */
@@ -23,31 +20,13 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     private final UserRegistry.User selectedUser;
 
     private final ActionTable actionTable = new ActionTable();
-    private final JToggleButton recordToggle = new JToggleButton("\u2B24"); // red dot
+    private final JToggleButton recordToggle = new JToggleButton("⏸"); // default: Pause-Symbol
     private final JComboBox<String> suiteDropdown = new JComboBox<>();
-
-    // --- Bottom drawer (meta monitor) ---
-    private final JSplitPane centerSplit;
-    /**
-     * Container für alle Meta-Event-Komponenten (jede Zeile eigenes Swing-Component).
-     * Jedes Component sollte "eventName" (String) als ClientProperty tragen,
-     * damit die Checkbox-Filter wirken können.
-     */
-    private final JPanel metaContainer = new JPanel();
-    private final JPanel metaPanel = new JPanel(new BorderLayout(6, 6));
-
-    /** Schaltet die Sichtbarkeit des Meta-Drawers (Splitter unten). */
-    private final JToggleButton metaToggle = new JToggleButton("Debug Log");
-    private int lastDividerLocation = -1;
 
     /** Der alte EventService wurde ersetzt – dieser Feldname bleibt zur Kompatibilität.
      *  Es handelt sich um den leichten Shim, der Events aus dem Dispatcher abonniert,
      *  in die Session schreibt und UI-Labels erzeugt. */
     private RecorderEventController recorderEventController;
-
-    // Header für Meta (rechts vom "Clear" kommen die Checkboxen rein)
-    private final JPanel metaHeader = new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 4));
-    private JPanel eventCheckboxPanel;
 
     // UserContext-Filter für diesen Tab (optional, kann null sein)
     private String myUserContextId;
@@ -67,10 +46,12 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
             suiteDropdown.addItem(suite.getName());
         }
 
-        // Record-Button
-        recordToggle.setBackground(Color.RED);
+        // Record-Button (rechtsbündig; invertierte Optik wird in setRecordingUiState gesetzt)
         recordToggle.setFocusPainted(false);
+        recordToggle.setOpaque(true);
+        recordToggle.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
         recordToggle.setToolTipText("Start Recording");
+        recordToggle.setBackground(UIManager.getColor("Panel.background")); // neutral im Ruhezustand
         recordToggle.addActionListener(e ->
                 RecorderCoordinator.getInstance().toggleForUser(selectedUser.getUsername())
         );
@@ -108,55 +89,31 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         exportButton.setToolTipText("In gewählte Suite exportieren");
         exportButton.addActionListener(e -> exportToSuite());
 
-        metaToggle.setSelected(true);
-        metaToggle.setToolTipText("Meta-Drawer ein-/ausblenden");
-        metaToggle.addActionListener(e -> setMetaDrawerVisible(metaToggle.isSelected()));
+        // --- Topbar: links Bedienelemente, rechts der Record-Toggle ---
+        JPanel topBar = new JPanel(new BorderLayout());
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
 
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        topPanel.add(recordToggle);
-        topPanel.add(saveButton);
-        topPanel.add(addButton);
-        topPanel.add(deleteButton);
-        topPanel.add(upButton);
-        topPanel.add(downButton);
+        left.add(saveButton);
+        left.add(addButton);
+        left.add(deleteButton);
+        left.add(upButton);
+        left.add(downButton);
 
-        topPanel.add(Box.createHorizontalStrut(24));
-        topPanel.add(suiteDropdown);
-        topPanel.add(importButton);
-        topPanel.add(exportButton);
+        left.add(Box.createHorizontalStrut(24));
+        left.add(suiteDropdown);
+        left.add(importButton);
+        left.add(exportButton);
 
-        topPanel.add(Box.createHorizontalStrut(24));
-        topPanel.add(metaToggle);
+        right.add(recordToggle);
 
-        add(topPanel, BorderLayout.NORTH);
+        topBar.add(left, BorderLayout.CENTER);
+        topBar.add(right, BorderLayout.EAST);
+        add(topBar, BorderLayout.NORTH);
 
-        // Center: Actions (oben) + Meta-Drawer (unten)
+        // Center: nur noch die Actions-Tabelle (Meta/Events-Drawer entfernt)
         JScrollPane actionsScroll = new JScrollPane(actionTable);
-
-        metaContainer.setLayout(new BoxLayout(metaContainer, BoxLayout.Y_AXIS));
-
-        JLabel metaTitle = new JLabel("Events");
-        JButton clearBtn = new JButton("Clear");
-        clearBtn.setFocusable(false);
-        clearBtn.setToolTipText("Meta-Log leeren");
-        clearBtn.addActionListener(e -> {
-            metaContainer.removeAll();
-            metaContainer.revalidate();
-            metaContainer.repaint();
-        });
-
-        metaHeader.add(metaTitle);
-        metaHeader.add(clearBtn);
-        metaHeader.add(Box.createHorizontalStrut(10));
-
-        metaPanel.add(metaHeader, BorderLayout.NORTH);
-        metaPanel.add(new JScrollPane(metaContainer), BorderLayout.CENTER);
-
-        centerSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, actionsScroll, metaPanel);
-        centerSplit.setResizeWeight(0.8);
-        centerSplit.setOneTouchExpandable(true);
-        centerSplit.setDividerSize(10);
-        add(centerSplit, BorderLayout.CENTER);
+        add(actionsScroll, BorderLayout.CENTER);
 
         // Tab registrieren (liefert die RecordingSession)
         this.session = RecorderCoordinator.getInstance()
@@ -167,17 +124,6 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         if (myUserContextId != null && !myUserContextId.isEmpty()) {
             this.recorderEventController.setUserContextFilter(myUserContextId);
         }
-
-        // Checkboxen nach Registrierung erstellen
-        SwingUtilities.invokeLater(this::buildEventCheckboxes);
-
-        // Drawer initial sichtbar
-        SwingUtilities.invokeLater(() -> {
-            setMetaDrawerVisible(true);
-            if (lastDividerLocation <= 0) {
-                centerSplit.setDividerLocation(0.75);
-            }
-        });
     }
 
     // ---------- RecorderTabUi ----------
@@ -199,56 +145,42 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
     @Override
     public void setRecordingUiState(final boolean recording) {
+        // Optik:
+        //  - recording = true  → Button gedrückt, roter Hintergrund + schwarzer Punkt ●
+        //  - recording = false → normal, Pause-Symbol ⏸, neutraler Hintergrund
         SwingUtilities.invokeLater(() -> {
             if (recording) {
                 recordToggle.setSelected(true);
-                recordToggle.setText("\u23F8");
+                recordToggle.setText("●");         // schwarzer Punkt
                 recordToggle.setToolTipText("Stop Recording");
-                recordToggle.setBackground(Color.GRAY);
+                recordToggle.setBackground(Color.RED);
+                recordToggle.setForeground(Color.BLACK);
             } else {
                 recordToggle.setSelected(false);
-                recordToggle.setText("\u2B24");
+                recordToggle.setText("⏸");        // Pause-Symbol
                 recordToggle.setToolTipText("Start Recording");
-                recordToggle.setBackground(Color.RED);
+                recordToggle.setBackground(UIManager.getColor("Panel.background"));
+                recordToggle.setForeground(UIManager.getColor("Label.foreground"));
             }
         });
     }
 
     @Override
     public void appendMeta(final String line) {
-        if (line == null) return;
-        SwingUtilities.invokeLater(() -> {
-            JLabel label = new JLabel(line);
-            label.putClientProperty("eventName", null);
-            appendMeta(label);
-        });
+        // Meta-Ansicht wurde in ein separates Fenster ausgelagert – hier kein Inline-Log mehr.
+        // no-op
     }
 
     @Override
     public void appendMeta(final JComponent component) {
-        if (component == null) return;
-
-        boolean visible = true;
-        Object nameObj = component.getClientProperty("eventName");
-        if (nameObj instanceof String) {
-            visible = session.isEventEnabled((String) nameObj);
-        }
-        component.setVisible(visible);
-        metaContainer.add(component);
-
-        metaContainer.revalidate();
-        metaContainer.repaint();
-        try {
-            Rectangle bounds = component.getBounds();
-            metaContainer.scrollRectToVisible(bounds);
-        } catch (Throwable ignore) { /* no-op */ }
+        // Meta-Ansicht wurde in ein separates Fenster ausgelagert – hier kein Inline-Log mehr.
+        // no-op
     }
 
     @Override
     public void appendEvent(String bidiEventName, JComponent component) {
-        if (component == null) return;
-        component.putClientProperty("eventName", bidiEventName);
-        appendMeta(component);
+        // Meta-Ansicht wurde in ein separates Fenster ausgelagert – hier kein Inline-Log mehr.
+        // no-op
     }
 
     // ---------- RecorderListener (Actions) ----------
@@ -256,7 +188,6 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     @Override
     public void onRecordingStateChanged(boolean recording) {
         setRecordingUiState(recording);
-        SwingUtilities.invokeLater(this::buildEventCheckboxes);
     }
 
     @Override
@@ -435,104 +366,6 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     }
 
     // ---------- Private Helpers ----------
-
-    /** Meta-Drawer ein-/ausblenden, Divider-Position merken. */
-    private void setMetaDrawerVisible(boolean visible) {
-        Component bottom = centerSplit.getBottomComponent();
-        if (visible) {
-            bottom.setVisible(true);
-            if (lastDividerLocation > 0) {
-                centerSplit.setDividerLocation(lastDividerLocation);
-            } else {
-                centerSplit.setDividerLocation(0.75);
-            }
-        } else {
-            lastDividerLocation = centerSplit.getDividerLocation();
-            bottom.setVisible(false);
-            centerSplit.setDividerLocation(1.0);
-        }
-        centerSplit.revalidate();
-        centerSplit.repaint();
-    }
-
-    /** Erzeugt/erneuert die Event-Checkboxen rechts vom "Clear"-Button und verdrahtet sie. */
-    private void buildEventCheckboxes() {
-        if (session == null) return;
-
-        if (eventCheckboxPanel != null) {
-            metaHeader.remove(eventCheckboxPanel);
-            eventCheckboxPanel = null;
-        }
-
-        EnumMap<WDEventNames, Boolean> flags = session.getEventFlags();
-        if (flags == null || flags.isEmpty()) {
-            flags = WDEventFlagPresets.recorderDefaults();
-        }
-
-        eventCheckboxPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 8, 0));
-
-        for (WDEventNames ev : WDEventNames.values()) {
-            if (!flags.containsKey(ev)) continue;
-            boolean selected = Boolean.TRUE.equals(flags.get(ev));
-            JCheckBox cb = new JCheckBox(prettyLabel(ev), selected);
-            cb.setFocusable(false);
-            String tt = ev.getDescription();
-            cb.setToolTipText((tt == null || tt.trim().isEmpty()) ? ev.getName() : tt);
-            cb.addActionListener(ae -> {
-                session.setEventFlag(ev, cb.isSelected());
-                applyEventFilter();
-                if (recorderEventController != null) {
-                    recorderEventController.updateFlags(session.getEventFlags());
-                }
-            });
-            eventCheckboxPanel.add(cb);
-        }
-
-        metaHeader.add(eventCheckboxPanel);
-        metaHeader.revalidate();
-        metaHeader.repaint();
-        applyEventFilter();
-    }
-
-    /** Schöne Kurzlabels für Checkboxen. */
-    private static String prettyLabel(WDEventNames ev) {
-        switch (ev) {
-            case BEFORE_REQUEST_SENT: return "request";
-            case RESPONSE_STARTED:    return "response";
-            case RESPONSE_COMPLETED:  return "done";
-            case FETCH_ERROR:         return "error";
-            case DOM_CONTENT_LOADED:  return "dom";
-            case LOAD:                return "load";
-            case ENTRY_ADDED:         return "console";
-            case CONTEXT_CREATED:     return "ctx+";
-            case CONTEXT_DESTROYED:   return "ctx-";
-            case FRAGMENT_NAVIGATED:  return "hash";
-            case NAVIGATION_STARTED:  return "nav";
-            default:
-                return ev.name().toLowerCase().replace('_', ' ');
-        }
-    }
-
-    /** Re-appliziert die Sichtbarkeit in der Meta-Liste gemäß Checkbox-Flags. */
-    private void applyEventFilter() {
-        SwingUtilities.invokeLater(() -> {
-            for (Component c : metaContainer.getComponents()) {
-                Object nameObj = null;
-                try {
-                    if (c instanceof JComponent) {
-                        nameObj = ((JComponent) c).getClientProperty("eventName");
-                    }
-                } catch (Throwable ignore) {}
-                boolean visible = true;
-                if (nameObj instanceof String) {
-                    visible = session.isEventEnabled((String) nameObj);
-                }
-                c.setVisible(visible);
-            }
-            metaContainer.revalidate();
-            metaContainer.repaint();
-        });
-    }
 
     /** UserContext-ID für den Username auflösen (falls schon verfügbar). */
     private static String resolveUserContextId(String username) {

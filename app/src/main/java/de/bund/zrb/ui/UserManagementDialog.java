@@ -2,7 +2,7 @@ package de.bund.zrb.ui;
 
 import de.bund.zrb.config.LoginConfig;
 import de.bund.zrb.service.UserRegistry;
-import de.bund.zrb.ui.components.OtpTestDialog;
+import de.bund.zrb.ui.debug.OtpTestDialog;
 import de.bund.zrb.util.WindowsCryptoUtil;
 
 import javax.swing.*;

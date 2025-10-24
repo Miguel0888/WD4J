@@ -1,7 +1,7 @@
 package de.bund.zrb.ui.commands.debug;
 
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
-import de.bund.zrb.ui.components.NetworkDebuggerDialog;
+import de.bund.zrb.ui.debug.NetworkDebuggerDialog;
 
 import java.awt.*;
 
