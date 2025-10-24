@@ -4,6 +4,7 @@ import com.microsoft.playwright.*;
 import de.bund.zrb.*;
 import de.bund.zrb.command.response.WDScriptResult;
 import de.bund.zrb.manager.WDScriptManager;
+import de.bund.zrb.tools.LoginTool;
 import de.bund.zrb.type.script.WDLocalValue;
 import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
 import de.bund.zrb.type.script.WDRealmInfo;
@@ -85,8 +86,12 @@ public class BrowserServiceImpl implements BrowserService {
         NotificationService.getInstance(browser); // init
         GrowlNotificationPopupUtil.hook(browser); // <<< einmalig für notifications registrieren
 
-//        ActivityService.getInstance(browser); // init
+        ActivityService.getInstance(browser); // init
         VideoRecordingService.getInstance().init((BrowserImpl) browser);
+
+        // Auto-Login global aktivieren
+        LoginTool loginTool = new LoginTool(this, TotpService.getInstance());
+        new de.bund.zrb.auth.AutoAuthOrchestrator(browser, loginTool).install();
     }
 
     @Override
