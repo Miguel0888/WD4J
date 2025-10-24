@@ -8,6 +8,8 @@ import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.commandframework.*;
 import de.bund.zrb.ui.commands.*;
 import de.bund.zrb.ui.commands.debug.ShowDomEventsCommand;
+import de.bund.zrb.ui.commands.debug.ShowGrowlTesterCommand;
+import de.bund.zrb.ui.commands.debug.ShowNetworkDebuggerCommand;
 import de.bund.zrb.ui.commands.debug.ShowSelectorsCommand;
 import de.bund.zrb.ui.commands.tools.*;
 import de.bund.zrb.ui.widgets.StatusBar;
@@ -171,6 +173,7 @@ public class MainWindow {
         commandRegistry.register(new CaptureScreenshotCommand());
         commandRegistry.register(new ShowOtpDialogCommand());
         commandRegistry.register(new ShowGrowlTesterCommand());
+        commandRegistry.register(new ShowNetworkDebuggerCommand());
         commandRegistry.register(new ShowSelectorsCommand(browserService));
         commandRegistry.register(new ShowDomEventsCommand(browserService));
 
