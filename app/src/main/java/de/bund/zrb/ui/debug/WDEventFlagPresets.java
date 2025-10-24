@@ -1,4 +1,4 @@
-package de.bund.zrb.service;
+package de.bund.zrb.ui.debug;
 
 import de.bund.zrb.websocket.WDEventNames;
 import java.util.EnumMap;

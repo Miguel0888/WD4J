@@ -4,6 +4,8 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.ui.RecorderListener;
+import de.bund.zrb.ui.debug.WDEventFlagPresets;
+import de.bund.zrb.ui.debug.WDEventWiringConfig;
 import de.bund.zrb.websocket.WDEventNames;
 
 import java.util.ArrayList;
@@ -32,9 +34,6 @@ public final class RecordingSession {
      * analyse timing for subsequent screenshot and action sequencing.
      */
     private final List<EventRecord> recordedEvents = new ArrayList<EventRecord>();
-
-    // Hält die UI-Appender (damit wir beim Stop detach'en können)
-    private final List<WDUiAppender> uiAppenders = new ArrayList<WDUiAppender>();
 
     // Konfiguration für Playwright-Wiring (Attach/Detach-Lambdas)
     private WDEventWiringConfig wiringConfig = WDEventWiringConfig.defaults();
@@ -190,12 +189,6 @@ public final class RecordingSession {
             }
         }
 
-        // UI-Appender sauber abbauen
-        for (WDUiAppender a : uiAppenders) {
-            try { a.detachAll(); } catch (Throwable ignore) {}
-        }
-        uiAppenders.clear();
-
         if (activePage != null) {
             browserService.getBrowser().getRecordingEventRouter().removePageListener(activePage, recorderService);
             RecorderService.remove(activePage);
@@ -260,17 +253,13 @@ public final class RecordingSession {
         this.eventFlags.clear();
         if (newFlags != null) this.eventFlags.putAll(newFlags);
         // Live-Update aller laufenden UI-Appender
-        for (WDUiAppender a : uiAppenders) {
-            a.update(this.eventFlags);
-        }
+        // (bereinigt: keine Appender mehr im Einsatz)
     }
 
     /** Schaltet ein einzelnes Event an/aus (gilt für Page & Context) und aktualisiert laufende Appender. */
     public synchronized void setEventEnabled(WDEventNames event, boolean enabled) {
         this.eventFlags.put(event, Boolean.valueOf(enabled));
-        for (WDUiAppender a : uiAppenders) {
-            a.update(this.eventFlags);
-        }
+        // (bereinigt: keine Appender mehr im Einsatz)
     }
 
     /** Alias für UI: wird von den Checkboxen aufgerufen. */
@@ -296,38 +285,9 @@ public final class RecordingSession {
         if (!recording) return;
 
         // alte UI-Appender abbauen
-        for (WDUiAppender a : uiAppenders) {
-            try { a.detachAll(); } catch (Throwable ignore) {}
-        }
-        uiAppenders.clear();
+        // (bereinigt: keine Appender mehr im Einsatz)
 
         // neu anhängen mit aktueller wiringConfig + eventFlags
-        if (contextMode && activeContext != null) {
-            for (RecorderListener l : listeners) {
-                if (l instanceof RecorderTabUi) {
-                    uiAppenders.add(
-                            WDUiAppender.attachToContext(
-                                    activeContext,
-                                    ((RecorderTabUi) l)::appendEventJson,
-                                    wiringConfig,
-                                    eventFlags
-                            )
-                    );
-                }
-            }
-        } else if (!contextMode && activePage != null) {
-            for (RecorderListener l : listeners) {
-                if (l instanceof RecorderTabUi) {
-                    uiAppenders.add(
-                            WDUiAppender.attachToPage(
-                                    activePage,
-                                    ((RecorderTabUi) l)::appendEventJson,
-                                    wiringConfig,
-                                    eventFlags
-                            )
-                    );
-                }
-            }
-        }
+        // (bereinigt: keine Appender mehr im Einsatz)
     }
 }

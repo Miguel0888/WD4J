@@ -1,7 +1,11 @@
-package de.bund.zrb.service;
+package de.bund.zrb.ui.debug;
 
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
+import de.bund.zrb.service.RecorderTabUi;
+import de.bund.zrb.service.RecordingSession;
+import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.service.WDEventContextExtractor;
 import de.bund.zrb.websocket.WDEventNames;
 
 import javax.swing.*;
@@ -11,7 +15,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 
 /**
- * Dünner Adapter zwischen BiDi-Event-Wiring (WDUiAppender), RecordingSession und Recorder-UI.
+ * Dünner Adapter zwischen BiDi-Event-Wiring (WDUiAppender), RecordingSession und Event-Monitor-UI.
  * Keine eigene Logik außer: anhängen/abklemmen, Flags durchreichen, Events schön darstellen.
  */
 public final class RecorderEventController {
@@ -49,8 +53,15 @@ public final class RecorderEventController {
             // Event-Typ für UI-Filter merken
             label.putClientProperty("eventName", eventName);
 
-            // 3) in den Recorder unten einhängen
-            ui.appendEvent(eventName, label);
+            // 3) ins Event-Monitor-Fenster des aktuellen Users einhängen
+            UserRegistry.User user = resolveUser();
+            if (user != null) {
+                EventMonitorWindow win = EventMonitorManager.getOrCreate(user);
+                if (win != null) {
+                    // Erwartete API: appendEvent(String, JComponent)
+                    win.appendEvent(eventName, label);
+                }
+            }
         }
     };
 
@@ -94,6 +105,12 @@ public final class RecorderEventController {
         for (WDUiAppender a : active) {
             try { a.update(new EnumMap<WDEventNames, Boolean>(flags)); } catch (Throwable ignore) {}
         }
+        // Optional: Flags zusätzlich im Fenster spiegeln, falls gewünscht
+        // UserRegistry.User user = resolveUser();
+        // if (user != null) {
+        //   EventMonitorWindow win = EventMonitorManager.getOrCreate(user);
+        //   if (win != null) win.setFlags(new EnumMap<>(flags), null);
+        // }
     }
 
     /** Trennt alle Event-Wirings. */
@@ -198,5 +215,13 @@ public final class RecorderEventController {
     public RecorderEventController setUserContextFilter(String userContextId) {
         this.userContextFilter = userContextId;
         return this;
+    }
+
+    // -------- intern --------
+
+    private UserRegistry.User resolveUser() {
+        String name = (ui != null) ? ui.getUsername() : null;
+        if (name == null) return null;
+        return UserRegistry.getInstance().getUser(name);
     }
 }

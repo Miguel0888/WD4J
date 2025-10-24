@@ -7,6 +7,8 @@ import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.*;
+import de.bund.zrb.ui.debug.RecorderEventController;
+
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;

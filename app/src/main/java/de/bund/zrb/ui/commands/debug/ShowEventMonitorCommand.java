@@ -2,8 +2,7 @@ package de.bund.zrb.ui.commands.debug;
 
 import de.bund.zrb.service.UserContextMappingService;
 import de.bund.zrb.service.UserRegistry;
-import de.bund.zrb.service.WDEventFlagPresets;
-import de.bund.zrb.ui.commandframework.MenuCommand;
+import de.bund.zrb.ui.debug.WDEventFlagPresets;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 import de.bund.zrb.ui.debug.EventMonitorManager;
 import de.bund.zrb.ui.debug.EventMonitorWindow;

@@ -1,4 +1,4 @@
-package de.bund.zrb.service;
+package de.bund.zrb.ui.debug;
 
 import com.microsoft.playwright.*;
 import de.bund.zrb.websocket.WDEventNames;
