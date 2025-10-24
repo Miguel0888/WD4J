@@ -2,13 +2,11 @@ package de.bund.zrb.ui.components;
 
 import de.bund.zrb.BrowserImpl;
 import de.bund.zrb.WebDriver;
-import de.bund.zrb.auth.AutoAuthOrchestrator; // optional, falls du Marker willst
 import de.bund.zrb.command.request.parameters.network.AddInterceptParameters;
 import de.bund.zrb.event.WDNetworkEvent;
 import de.bund.zrb.manager.WDNetworkManager;
 import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
-import de.bund.zrb.type.network.WDHeader;
 import de.bund.zrb.type.network.WDUrlPattern;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
 import de.bund.zrb.websocket.WDEventNames;
@@ -370,7 +368,7 @@ public class NetworkDebuggerDialog extends JDialog {
         }
 
         static EventRow fromBefore(WDNetworkEvent.BeforeRequestSent.BeforeRequestSentParametersWD p) {
-            String ctx = (p.getContextId()!=null) ? p.getContextId().value() : null;
+            String ctx = (p.getContext()!=null) ? p.getContext().value() : null;
             String reqId = (p.getRequest()!=null && p.getRequest().getRequest()!=null) ? p.getRequest().getRequest().value() : null;
             String method = p.getRequest()!=null ? p.getRequest().getMethod() : null;
             String url = p.getRequest()!=null ? p.getRequest().getUrl() : null;
@@ -378,7 +376,7 @@ public class NetworkDebuggerDialog extends JDialog {
         }
 
         static EventRow fromResponse(WDNetworkEvent.ResponseStarted.ResponseStartedParametersWD p) {
-            String ctx = (p.getContextId()!=null) ? p.getContextId().value() : null;
+            String ctx = (p.getContext()!=null) ? p.getContext().value() : null;
             String reqId = (p.getRequest()!=null && p.getRequest().getRequest()!=null) ? p.getRequest().getRequest().value() : null;
             String method = p.getRequest()!=null ? p.getRequest().getMethod() : null;
             String url = (p.getResponse()!=null) ? p.getResponse().getUrl() : (p.getRequest()!=null ? p.getRequest().getUrl() : null);
@@ -387,7 +385,7 @@ public class NetworkDebuggerDialog extends JDialog {
         }
 
         static EventRow fromAuth(WDNetworkEvent.AuthRequired.AuthRequiredParametersWD p) {
-            String ctx = (p.getContextId()!=null) ? p.getContextId().value() : null;
+            String ctx = (p.getContext()!=null) ? p.getContext().value() : null;
             String reqId = (p.getRequest()!=null && p.getRequest().getRequest()!=null) ? p.getRequest().getRequest().value() : null;
             String method = p.getRequest()!=null ? p.getRequest().getMethod() : null;
             String url = p.getRequest()!=null ? p.getRequest().getUrl() : null;

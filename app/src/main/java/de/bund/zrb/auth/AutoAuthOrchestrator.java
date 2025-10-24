@@ -17,7 +17,6 @@ import de.bund.zrb.type.network.WDBytesValue;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
 import de.bund.zrb.websocket.WDEventNames;
 
-import javax.swing.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -169,7 +168,7 @@ public final class AutoAuthOrchestrator {
         // Sofort freigeben, falls geblockt (non-blocking Design)
         continueIfBlocked(p);
 
-        String ctx = safeVal(p.getContextId());
+        String ctx = safeVal(p.getContext());
         if (!isTopLevelCached(ctx)) return;
 
         int status = (int) p.getResponse().getStatus();

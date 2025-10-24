@@ -6,7 +6,7 @@ import de.bund.zrb.type.browsingContext.WDNavigation;
 import java.util.List;
 
 public class WDBaseParameters {
-    private final WDBrowsingContext contextId;
+    private final WDBrowsingContext context;
     private final boolean isBlocked;
     private final WDNavigation navigation;
     private final long redirectCount;
@@ -14,8 +14,8 @@ public class WDBaseParameters {
     private final long timestamp;
     private final List<WDIntercept> intercepts; // optional
 
-    public WDBaseParameters(WDBrowsingContext contextId, boolean isBlocked, WDNavigation navigation, long redirectCount, WDRequestData request, long timestamp) {
-        this.contextId = contextId;
+    public WDBaseParameters(WDBrowsingContext context, boolean isBlocked, WDNavigation navigation, long redirectCount, WDRequestData request, long timestamp) {
+        this.context = context;
         this.isBlocked = isBlocked;
         this.navigation = navigation;
         this.redirectCount = redirectCount;
@@ -24,8 +24,8 @@ public class WDBaseParameters {
         this.intercepts = null;
     }
 
-    public WDBaseParameters(WDBrowsingContext contextId, boolean isBlocked, WDNavigation navigation, long redirectCount, WDRequestData request, long timestamp, List<WDIntercept> intercepts) {
-        this.contextId = contextId;
+    public WDBaseParameters(WDBrowsingContext context, boolean isBlocked, WDNavigation navigation, long redirectCount, WDRequestData request, long timestamp, List<WDIntercept> intercepts) {
+        this.context = context;
         this.isBlocked = isBlocked;
         this.navigation = navigation;
         this.redirectCount = redirectCount;
@@ -34,8 +34,8 @@ public class WDBaseParameters {
         this.intercepts = intercepts;
     }
 
-    public WDBrowsingContext getContextId() {
-        return contextId;
+    public WDBrowsingContext getContext() {
+        return context;
     }
 
     public boolean isBlocked() {
