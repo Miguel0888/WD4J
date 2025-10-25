@@ -2,7 +2,7 @@
 // Expose: window.toggleTooltip(enabled:boolean)
 // No dependency on recorder.js; keep state per realm.
 /* eslint-disable no-var */
-(function () {
+function () {
     'use strict';
 
     // Keep single instance per realm
@@ -231,4 +231,4 @@
             hideOverlay();
         }
     };
-})();
+}
