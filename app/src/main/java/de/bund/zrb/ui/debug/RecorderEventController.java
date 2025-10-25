@@ -52,16 +52,15 @@ public final class RecorderEventController {
             // 1) immer mitschreiben (für Timing/Analyse)
             session.recordRawEvent(eventName, payload);
 
-            // 2) UI Eintrag bauen (Label + pretty JSON als Client-Property)
-            String line = summarize(eventName, payload);
-            JLabel label = new JLabel(line);
+            // 2) UI-Eintrag bauen (HTML + Timings + kompakter Tooltip)
+            JLabel label = buildEventLabel(eventName, payload);  // nutzt renderHtmlLine(...) inkl. GET/Status/TTFB/Total
+            label.setFont(new Font("Dialog", Font.PLAIN, 12));
             label.putClientProperty("eventName", eventName);
 
-            // pretty JSON für Detail-Panel ablegen
+            // pretty JSON für das rechte Detail-Panel (nicht zu groß)
             try {
                 String pretty = (payload == null) ? "(null)" :
                         new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(payload);
-                // hard cap, damit rechts nicht völlig ausufert
                 if (pretty.length() > 200_000) pretty = pretty.substring(0, 200_000) + "\n… (truncated)";
                 label.putClientProperty("payloadPretty", pretty);
             } catch (Throwable t) {
