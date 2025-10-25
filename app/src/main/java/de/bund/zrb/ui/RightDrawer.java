@@ -1,6 +1,7 @@
 package de.bund.zrb.ui;
 
 import de.bund.zrb.service.BrowserServiceImpl;
+import de.bund.zrb.service.RecorderCoordinator;
 import de.bund.zrb.service.UserContextMappingService;
 import de.bund.zrb.service.UserRegistry;
 
@@ -90,11 +91,12 @@ public class RightDrawer extends JPanel {
         RecorderTab session = new RecorderTab(this, user);
         int insertIndex = Math.max(recorderTabs.getTabCount() - 1, 0);
         recorderTabs.insertTab(null, null, session, null, insertIndex);
-        recorderTabs.setTabComponentAt(insertIndex, createTabTitle("📝 " + user.getUsername(), session));
 
-        tabsByUser.put(user, session); // 🔗 Tracken
+        // TabHeader mit rotem Punkt
+        TabHeader header = createTabTitle(user, session);
+        recorderTabs.setTabComponentAt(insertIndex, header);
 
-        // Neuen Tab aktivieren (aber nicht das Plus-Tab)
+        tabsByUser.put(user, session);
         recorderTabs.setSelectedComponent(session);
         return session;
     }
@@ -142,38 +144,85 @@ public class RightDrawer extends JPanel {
         recorderTabs.setEnabledAt(recorderTabs.getTabCount() - 1, false);
     }
 
-    private Component createTabTitle(String title, Component tabContent) {
-        JPanel tabPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        tabPanel.setOpaque(false);
+    private TabHeader createTabTitle(UserRegistry.User user, RecorderTab tabContent) {
+        String title = "📝 " + user.getUsername();
 
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 4));
-        tabPanel.add(titleLabel);
-
-        JButton closeButton = new JButton("×");
-        closeButton.setMargin(new Insets(0, 5, 0, 5));
-        closeButton.setBorder(BorderFactory.createEmptyBorder());
-        closeButton.setFocusable(false);
-        closeButton.setContentAreaFilled(false);
-        closeButton.setToolTipText("Tab schließen");
-
-        closeButton.addActionListener(e -> {
+        Runnable onClose = () -> {
             int index = recorderTabs.indexOfComponent(tabContent);
             if (index >= 0 && index != recorderTabs.getTabCount() - 1) {
-                RecorderTab session = (RecorderTab) tabContent;
-                session.unregister();
+                tabContent.unregister();
                 recorderTabs.remove(index);
-
-                // 🔧 Map-Eintrag löschen
-                tabsByUser.entrySet().removeIf(en -> en.getValue() == session);
+                tabsByUser.entrySet().removeIf(en -> en.getValue() == tabContent);
             }
-        });
+        };
 
-        tabPanel.add(closeButton);
-        return tabPanel;
+        Runnable onStopRecording = () ->
+                RecorderCoordinator.getInstance().stopForUser(user.getUsername());
+
+        return new TabHeader(title, onClose, onStopRecording);
     }
 
     public BrowserServiceImpl getBrowserService() {
         return browserService;
+    }
+
+    public void setTabRecording(UserRegistry.User user, boolean recording) {
+        if (user == null) return;
+        SwingUtilities.invokeLater(() -> {
+            RecorderTab tab = tabsByUser.get(user);
+            if (tab == null) return;
+            int idx = recorderTabs.indexOfComponent(tab);
+            if (idx < 0) return;
+            Component comp = recorderTabs.getTabComponentAt(idx);
+            if (comp instanceof TabHeader) {
+                ((TabHeader) comp).setRecording(recording);
+            }
+        });
+    }
+
+    // --- Tab-Header mit rotem Aufnahmepunkt ---
+    private static final class TabHeader extends JPanel {
+        private final JLabel recDot = new JLabel("●"); // roter Punkt
+        private final JLabel titleLabel = new JLabel();
+        private final JButton closeButton = new JButton("×");
+        private boolean recording = false;
+
+        TabHeader(String title, Runnable onClose, Runnable onStopRecordingClick) {
+            super(new FlowLayout(FlowLayout.LEFT, 4, 0));
+            setOpaque(false);
+
+            // roter Punkt (anfangs unsichtbar)
+            recDot.setForeground(Color.RED);
+            recDot.setVisible(false);
+            recDot.setToolTipText("Aufnahme läuft – klicken zum Stoppen");
+            recDot.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            recDot.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override public void mouseClicked(java.awt.event.MouseEvent e) {
+                    if (recording && onStopRecordingClick != null) onStopRecordingClick.run();
+                }
+            });
+
+            titleLabel.setText(title);
+            titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 2, 0, 6));
+
+            closeButton.setMargin(new Insets(0, 5, 0, 5));
+            closeButton.setBorder(BorderFactory.createEmptyBorder());
+            closeButton.setFocusable(false);
+            closeButton.setContentAreaFilled(false);
+            closeButton.setToolTipText("Tab schließen");
+            closeButton.addActionListener(e -> { if (onClose != null) onClose.run(); });
+
+            add(recDot);
+            add(titleLabel);
+            add(closeButton);
+        }
+
+        void setRecording(boolean on) {
+            this.recording = on;
+            recDot.setVisible(on);
+            // Optional: Titel fett während Aufnahme
+            titleLabel.setFont(titleLabel.getFont().deriveFont(on ? Font.BOLD : Font.PLAIN));
+            revalidate(); repaint();
+        }
     }
 }

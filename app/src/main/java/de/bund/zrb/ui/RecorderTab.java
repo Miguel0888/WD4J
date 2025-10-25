@@ -22,7 +22,6 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     private final UserRegistry.User selectedUser;
 
     private final ActionTable actionTable = new ActionTable();
-    private final JToggleButton recordToggle = new JToggleButton("⏸"); // default: Pause-Symbol
     private final JComboBox<String> suiteDropdown = new JComboBox<>();
 
     /** Der alte EventService wurde ersetzt – dieser Feldname bleibt zur Kompatibilität.
@@ -47,16 +46,6 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         for (TestSuite suite : TestRegistry.getInstance().getAll()) {
             suiteDropdown.addItem(suite.getName());
         }
-
-        // Record-Button (rechtsbündig; invertierte Optik wird in setRecordingUiState gesetzt)
-        recordToggle.setFocusPainted(false);
-        recordToggle.setOpaque(true);
-        recordToggle.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
-        recordToggle.setToolTipText("Start Recording");
-        recordToggle.setBackground(UIManager.getColor("Panel.background")); // neutral im Ruhezustand
-        recordToggle.addActionListener(e ->
-                RecorderCoordinator.getInstance().toggleForUser(selectedUser.getUsername())
-        );
 
         JButton saveButton = new JButton("Neue Testsuite speichern");
         saveButton.addActionListener(e -> saveAsNewTestSuite());
@@ -94,7 +83,6 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         // --- Topbar: links Bedienelemente, rechts der Record-Toggle ---
         JPanel topBar = new JPanel(new BorderLayout());
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
 
         left.add(saveButton);
         left.add(addButton);
@@ -107,10 +95,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         left.add(importButton);
         left.add(exportButton);
 
-        right.add(recordToggle);
-
         topBar.add(left, BorderLayout.CENTER);
-        topBar.add(right, BorderLayout.EAST);
         add(topBar, BorderLayout.NORTH);
 
         // Center: nur noch die Actions-Tabelle (Meta/Events-Drawer entfernt)
@@ -147,24 +132,9 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
     @Override
     public void setRecordingUiState(final boolean recording) {
-        // Optik:
-        //  - recording = true  → Button gedrückt, roter Hintergrund + schwarzer Punkt ●
-        //  - recording = false → normal, Pause-Symbol ⏸, neutraler Hintergrund
-        SwingUtilities.invokeLater(() -> {
-            if (recording) {
-                recordToggle.setSelected(true);
-                recordToggle.setText("●");         // schwarzer Punkt
-                recordToggle.setToolTipText("Stop Recording");
-                recordToggle.setBackground(Color.RED);
-                recordToggle.setForeground(Color.BLACK);
-            } else {
-                recordToggle.setSelected(false);
-                recordToggle.setText("⏸");        // Pause-Symbol
-                recordToggle.setToolTipText("Start Recording");
-                recordToggle.setBackground(UIManager.getColor("Panel.background"));
-                recordToggle.setForeground(UIManager.getColor("Label.foreground"));
-            }
-        });
+        SwingUtilities.invokeLater(() ->
+                rightDrawer.setTabRecording(selectedUser, recording)
+        );
     }
 
     @Override
