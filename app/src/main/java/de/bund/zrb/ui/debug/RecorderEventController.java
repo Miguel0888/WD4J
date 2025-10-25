@@ -52,9 +52,21 @@ public final class RecorderEventController {
             // 1) immer mitschreiben (für Timing/Analyse)
             session.recordRawEvent(eventName, payload);
 
-            // 2) UI-Eintrag bauen (HTML-Label mit Details + Tooltip)
-            final JLabel label = buildEventLabel(eventName, payload);
+            // 2) UI Eintrag bauen (Label + pretty JSON als Client-Property)
+            String line = summarize(eventName, payload);
+            JLabel label = new JLabel(line);
             label.putClientProperty("eventName", eventName);
+
+            // pretty JSON für Detail-Panel ablegen
+            try {
+                String pretty = (payload == null) ? "(null)" :
+                        new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(payload);
+                // hard cap, damit rechts nicht völlig ausufert
+                if (pretty.length() > 200_000) pretty = pretty.substring(0, 200_000) + "\n… (truncated)";
+                label.putClientProperty("payloadPretty", pretty);
+            } catch (Throwable t) {
+                if (payload != null) label.putClientProperty("payloadPretty", String.valueOf(payload));
+            }
 
             // 3) ins Event-Monitor-Fenster des aktuellen Users einhängen (auf dem EDT!)
             final UserRegistry.User user = resolveUser();
@@ -151,66 +163,120 @@ public final class RecorderEventController {
     }
 
     /** Baut eine kompakte HTML-Zeile pro Event. */
+    // --- ERSETZEN: renderHtmlLine(...) komplett austauschen ---
     @SuppressWarnings("unchecked")
     private String renderHtmlLine(String name, Object payload, long deltaMs) {
         String tag = shortName(name);
-        StringBuilder sb = new StringBuilder(128);
-        sb.append("<html>");
-
-        // Haupt-Tag
-        sb.append("<b>").append(escapeHtml(tag)).append("</b>");
+        StringBuilder sb = new StringBuilder(192);
+        sb.append("<html><b>").append(escapeHtml(tag)).append("</b>");
 
         Map<?,?> m = (payload instanceof Map) ? (Map<?,?>) payload : null;
 
-        // Network: request/response/done
+        // ---- Network: request/response/done ----
         if (name.startsWith("network.beforeRequestSent")) {
             String method = deepStr(m, "request", "method");
             String url    = deepStr(m, "request", "url");
+            String reqId  = deepStr(m, "request", "request");
             sb.append("&nbsp;&nbsp;<span style='color:#444;'>")
                     .append(escapeHtml(nullTo(method, "GET"))).append(" ")
                     .append(escapeHtml(shortUrl(url))).append("</span>");
-        } else if (name.startsWith("network.responseStarted") || name.startsWith("network.responseCompleted")) {
-            String method = deepStr(m, "request", "method");
-            String url    = deepStr(m, "request", "url");
-            String status = deepStr(m, "response", "status");
-            String mime   = firstNonNull(
-                    header(m, "content-type"),
-                    deepStr(m, "response", "mimeType")
-            );
+            if (reqId != null) sb.append("&nbsp;").append(badgeMuted("#" + reqId));
+        }
+        else if (name.startsWith("network.responseStarted") || name.startsWith("network.responseCompleted")) {
+            String method   = deepStr(m, "request", "method");
+            String url      = deepStr(m, "request", "url");
+            String status   = deepStr(m, "response", "status");
+            String mime     = firstNonNull(header(m, "content-type"), deepStr(m, "response", "mimeType"));
+            String proto    = deepStr(m, "response", "protocol");
+            String fromCache= String.valueOf(deep(m, "response", "fromCache"));
+            String blocked  = String.valueOf(deep(m, "isBlocked"));
+            String redirects= String.valueOf(deep(m, "redirectCount"));
+            String reqId    = deepStr(m, "request", "request");
+
             String size = humanSize(
                     deepLong(m, "response", "encodedDataLength"),
                     deepLong(m, "response", "bytesReceived"),
-                    -1L
+                    deepLong(m, "response", "bodySize")
             );
+
+            // Timings (Heuristik: Mikrosekunden → ms)
+            long requestStart  = deepLong(m, "request",  "timings", "requestStart");
+            long responseStart = deepLong(m, "request",  "timings", "responseStart");
+            long responseEnd   = deepLong(m, "request",  "timings", "responseEnd");
+            Long ttfb = (requestStart >= 0 && responseStart >= 0) ? (responseStart - requestStart) : null;
+            Long total= (requestStart >= 0 && responseEnd   >= 0) ? (responseEnd   - requestStart) : null;
 
             sb.append("&nbsp;&nbsp;<span style='color:#444;'>")
                     .append(escapeHtml(nullTo(method, ""))).append(" ")
                     .append(escapeHtml(shortUrl(url))).append("</span>");
 
             sb.append("&nbsp;&nbsp;").append(colorStatus(status));
+            if (mime != null)  sb.append("&nbsp;<span style='color:#666;'>").append(escapeHtml(mime)).append("</span>");
+            if (size != null)  sb.append("&nbsp;<span style='color:#666;'>").append(size).append("</span>");
+            if (proto != null) sb.append("&nbsp;").append(badgeMuted(proto));
+            if ("true".equalsIgnoreCase(fromCache)) sb.append("&nbsp;").append(badge("cache", "#2e7d32"));
+            if ("true".equalsIgnoreCase(blocked))   sb.append("&nbsp;").append(badge("blocked", "#c62828"));
 
-            if (mime != null) {
-                sb.append("&nbsp;<span style='color:#666;'>")
-                        .append(escapeHtml(mime)).append("</span>");
-            }
-            if (size != null) {
-                sb.append("&nbsp;<span style='color:#666;'>")
-                        .append(size).append("</span>");
-            }
+            try {
+                int rc = Integer.parseInt(redirects);
+                if (rc > 0) sb.append("&nbsp;").append(badge(rc + " redirects", "#ef6c00"));
+            } catch (Exception ignore) {}
+
+            if (ttfb != null && ttfb >= 0)  sb.append("&nbsp;").append(badgeMuted("TTFB " + ms(ttfb)));
+            if (total != null && total >= 0)sb.append("&nbsp;").append(badgeMuted("Total " + ms(total)));
+            if (reqId != null) sb.append("&nbsp;").append(badgeMuted("#" + reqId));
         }
-        // Console
+        // ---- Console ----
         else if (name.startsWith("log.entryAdded")) {
             String level = deepStr(m, "level");
             String text  = firstNonNull(deepStr(m, "text"), deepStr(m, "args", "0", "value"));
             if (level != null) {
-                sb.append("&nbsp;&nbsp;<span style='color:#666;'>")
-                        .append("console.").append(escapeHtml(level)).append("</span>");
+                sb.append("&nbsp;&nbsp;<span style='color:#666;'>console.")
+                        .append(escapeHtml(level)).append("</span>");
             }
-            if (text != null) {
-                sb.append("&nbsp;&nbsp;").append(escapeHtml(ellipsize(text, 200)));
+            if (text != null) sb.append("&nbsp;&nbsp;").append(escapeHtml(ellipsize(text, 240)));
+        }
+        // ---- script.message (Channels) ----
+        else if (name.startsWith("script.message")) {
+            String channel = deepStr(m, "channel");
+            if ("recording-events-channel".equals(channel)) {
+                Object ev0 = deep(m, "data", "value"); // wire format (array of pairs)
+                // Kurzfassung: action + selector (erstes Event)
+                String action   = deepStr(m, "data", "value", "0", "1", "value", "0", "1", "value", "action", "value");
+                String selector = deepStr(m, "data", "value", "0", "1", "value", "0", "1", "value", "selector", "value");
+                if (action != null) {
+                    sb.append("&nbsp;&nbsp;<span style='color:#666;'>rec</span>")
+                            .append("&nbsp;").append(escapeHtml(action))
+                            .append(selector != null ? "&nbsp;<span style='color:#444;'>" + escapeHtml(selector) + "</span>" : "");
+                } else {
+                    sb.append("&nbsp;&nbsp;<span style='color:#666;'>rec</span>");
+                }
+            } else if ("activity-events-channel".equals(channel)) {
+                String xhr   = deepStr(m, "data", "value", "1", "1", "value", "inflightXHR", "value");
+                String fetch = deepStr(m, "data", "value", "1", "1", "value", "inflightFetch", "value");
+                String q     = deepStr(m, "data", "value", "1", "1", "value", "pfQueueDepth", "value");
+                String dcl   = deepStr(m, "data", "value", "1", "1", "value", "lastDomContentLoaded", "value");
+                String load  = deepStr(m, "data", "value", "1", "1", "value", "lastLoad", "value");
+                sb.append("&nbsp;&nbsp;<span style='color:#666;'>activity</span>")
+                        .append("&nbsp;").append(badgeMuted("xhr " + nullTo(xhr,"0")))
+                        .append("&nbsp;").append(badgeMuted("fetch " + nullTo(fetch,"0")))
+                        .append("&nbsp;").append(badgeMuted("queue " + nullTo(q,"0")));
+                if (!"0".equals(nullTo(dcl,"0")))  sb.append("&nbsp;").append(badgeMuted("dom " + dcl));
+                if (!"0".equals(nullTo(load,"0"))) sb.append("&nbsp;").append(badgeMuted("load " + load));
+            } else if ("focus-events-channel".equals(channel)) {
+                String vis = deepStr(m, "data", "value", "1", "1", "value");
+                String url = deepStr(m, "data", "value", "2", "1", "value");
+                sb.append("&nbsp;&nbsp;<span style='color:#666;'>focus</span>")
+                        .append(vis != null ? "&nbsp;" + escapeHtml(vis) : "")
+                        .append(url != null ? "&nbsp;<span style='color:#444;'>" + escapeHtml(shortUrl(url)) + "</span>" : "");
+            } else {
+                // generischer Fallback
+                String type = deepStr(m, "data", "value", "0", "1", "value");
+                sb.append("&nbsp;&nbsp;<span style='color:#666;'>").append(escapeHtml(nullTo(channel,"message"))).append("</span>");
+                if (type != null) sb.append("&nbsp;").append(escapeHtml(type));
             }
         }
-        // BrowsingContext / Navigation / DOM
+        // ---- BrowsingContext / Navigation / DOM ----
         else if (name.startsWith("browsingContext.") || name.startsWith("log.")) {
             String url = deepStr(m, "url");
             if (url != null) {
@@ -218,38 +284,24 @@ public final class RecorderEventController {
                         .append(escapeHtml(shortUrl(url))).append("</span>");
             }
         }
-        // Sonstige (Channels/Custom)
+        // ---- Sonstige ----
         else {
             String type = deepStr(m, "type");
             String url  = deepStr(m, "url");
             String vis  = deepStr(m, "visibility");
             String msg  = deepStr(m, "message");
-
-            if (type != null) {
-                sb.append("&nbsp;&nbsp;<span style='color:#666;'>")
-                        .append(escapeHtml(type)).append("</span>");
-            }
-            if (url != null) {
-                sb.append("&nbsp;&nbsp;<span style='color:#444;'>")
-                        .append(escapeHtml(shortUrl(url))).append("</span>");
-            }
-            if (vis != null) {
-                sb.append("&nbsp;&nbsp;<span style='color:#666;'>")
-                        .append("vis=").append(escapeHtml(vis)).append("</span>");
-            }
-            if (msg != null) {
-                sb.append("&nbsp;&nbsp;").append(escapeHtml(ellipsize(msg, 160)));
-            }
+            if (type != null) sb.append("&nbsp;&nbsp;<span style='color:#666;'>").append(escapeHtml(type)).append("</span>");
+            if (url  != null) sb.append("&nbsp;&nbsp;<span style='color:#444;'>").append(escapeHtml(shortUrl(url))).append("</span>");
+            if (vis  != null) sb.append("&nbsp;&nbsp;<span style='color:#666;'>vis=").append(escapeHtml(vis)).append("</span>");
+            if (msg  != null) sb.append("&nbsp;&nbsp;").append(escapeHtml(ellipsize(msg, 160)));
         }
 
-        // am Ende: Δt
-        sb.append("&nbsp;&nbsp;<span style='color:#999;'>")
-                .append("+").append(deltaMs).append("ms")
-                .append("</span>");
-
+        // Δt seit letztem Item
+        sb.append("&nbsp;&nbsp;<span style='color:#999;'>+").append(deltaMs).append("ms</span>");
         sb.append("</html>");
         return sb.toString();
     }
+
 
     // -----------------------------------------------------------------------------------------------------------------
     // Kleine Hilfen
@@ -368,4 +420,77 @@ public final class RecorderEventController {
         this.userContextFilter = userContextId;
         return this;
     }
+
+    // --- NEU: kleine Badge-Helfer ---
+    private static String badge(String text, String color) {
+        if (text == null || text.isEmpty()) return "";
+        return "<span style='border:1px solid " + color + ";color:" + color +
+                ";padding:0 3px;margin-left:6px;border-radius:3px;font-size:11px;'>" +
+                escapeHtml(text) + "</span>";
+    }
+
+    private static String badgeMuted(String text) {
+        return badge(text, "#777");
+    }
+
+    private static String ms(long usOrMs) {
+        // BiDi timings sind i.d.R. Mikrosekunden; wenn groß, als µs interpretieren
+        if (usOrMs > 10_000) { // heuristik
+            return (usOrMs / 1000) + "ms";
+        }
+        return usOrMs + "ms";
+    }
+
+    // RecorderEventController.java – Methode einfügen
+    private static String summarize(String name, Object payload) {
+        String base = shortName(name);
+
+        if (payload instanceof Map) {
+            Map<?,?> m = (Map<?,?>) payload;
+
+            if (name.startsWith("network.beforeRequestSent")) {
+                String url = deepStr(m, "request", "url");
+                if (url != null) return base + "  " + trimUrl(url);
+            }
+            if (name.startsWith("network.responseStarted")) {
+                String url = deepStr(m, "request", "url");
+                String status = deepStr(m, "response", "status");
+                if (url != null) return base + "  " + trimUrl(url) + (status != null ? "  [" + status + "]" : "");
+            }
+            if (name.startsWith("network.responseCompleted")) {
+                String url = deepStr(m, "request", "url");
+                String status = deepStr(m, "response", "status");
+                if (url != null) return base + "  " + trimUrl(url) + (status != null ? "  [" + status + "]" : "");
+            }
+            if (name.startsWith("log.entryAdded")) {
+                String text = deepStr(m, "text");
+                if (text == null) text = deepStr(m, "args", "0", "value");
+                if (text != null) return base + "  " + ellipsize(text, 160);
+            }
+            if (name.startsWith("browsingContext.")) {
+                String url = deepStr(m, "url");
+                if (url != null) return base + "  " + trimUrl(url);
+            }
+        }
+        return base;
+    }
+
+    private static String trimUrl(String url) {
+        if (url == null) return null;
+        try {
+            int scheme = url.indexOf("://");
+            if (scheme >= 0) {
+                int slash = url.indexOf('/', scheme + 3);
+                if (slash >= 0 && slash < url.length()) {
+                    return url.substring(slash);
+                } else {
+                    return "/"; // nur Host → als "/" anzeigen
+                }
+            }
+            return url; // bereits Pfad oder relative URL
+        } catch (Throwable ignore) {
+            return url;
+        }
+    }
+
 }

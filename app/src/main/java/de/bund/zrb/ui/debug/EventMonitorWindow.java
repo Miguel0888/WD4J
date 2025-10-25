@@ -13,16 +13,23 @@ public final class EventMonitorWindow extends JFrame {
     private final JPanel checkboxPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
     private final JPanel list = new JPanel();
 
+    private final JTextArea detailArea = new JTextArea();
+    private final JScrollPane detailScroll = new JScrollPane(detailArea);
+    private JComponent selectedRow;
+
+    // Start/Stop wieder hinzufügen
+    private final JButton btnStart = new JButton("Start");
+    private final JButton btnStop  = new JButton("Stop");
+
     // Flags kommen aus der Session; wir halten nur den letzten Stand zum Filtern
     private EnumMap<WDEventNames, Boolean> flags = new EnumMap<>(WDEventNames.class);
 
     public EventMonitorWindow(String username) {
         super("Events – " + username);
         setDefaultCloseOperation(WindowConstants.HIDE_ON_CLOSE);
-        setSize(720, 520);
+        setSize(960, 560); // etwas breiter für den Split
         setLocationByPlatform(true);
 
-        // Layout
         list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
         JScrollPane scroll = new JScrollPane(list);
 
@@ -32,21 +39,19 @@ public final class EventMonitorWindow extends JFrame {
             list.removeAll();
             list.revalidate();
             list.repaint();
+            detailArea.setText(""); // Details leeren
+            selectedRow = null;
         });
 
-        // Start/Stop-Buttons für Event-Logging (integriert neben "Clear")
-        JButton btnStart = new JButton("Start");
+        // Start/Stop klicks: an den EventBus publizieren (wie die früheren Commands)
         btnStart.setFocusable(false);
-        btnStart.setToolTipText("Event-Logging starten");
         btnStart.addActionListener(e ->
                 ApplicationEventBus.getInstance().publish(
                         new EventServiceControlRequestedEvent(EventServiceControlRequestedEvent.Operation.START)
                 )
         );
 
-        JButton btnStop = new JButton("Stop");
         btnStop.setFocusable(false);
-        btnStop.setToolTipText("Event-Logging stoppen");
         btnStop.addActionListener(e ->
                 ApplicationEventBus.getInstance().publish(
                         new EventServiceControlRequestedEvent(EventServiceControlRequestedEvent.Operation.STOP)
@@ -55,15 +60,34 @@ public final class EventMonitorWindow extends JFrame {
 
         header.add(new JLabel("Events"));
         header.add(btnClear);
+        header.add(Box.createHorizontalStrut(8));
         header.add(btnStart);
         header.add(btnStop);
         header.add(Box.createHorizontalStrut(12));
         header.add(checkboxPanel);
 
+        // Details rechts vorbereiten
+        detailArea.setEditable(false);
+        detailArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        detailArea.setLineWrap(false);
+        detailScroll.setBorder(BorderFactory.createTitledBorder("Details"));
+
+        JPanel left = new JPanel(new BorderLayout(6, 6));
+        left.add(header, BorderLayout.NORTH);
+        left.add(scroll, BorderLayout.CENTER);
+
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, detailScroll);
+        split.setResizeWeight(0.55);   // mehr Platz links
+        split.setDividerLocation(0.55);
+
         JPanel content = new JPanel(new BorderLayout(6, 6));
-        content.add(header, BorderLayout.NORTH);
-        content.add(scroll, BorderLayout.CENTER);
+        content.add(split, BorderLayout.CENTER);
         setContentPane(content);
+    }
+
+    //  Flags abrufen (für externes Start-Wiring nützlich)
+    public EnumMap<WDEventNames, Boolean> getFlags() {
+        return new EnumMap<>(this.flags);
     }
 
     public void setFlags(EnumMap<WDEventNames, Boolean> flags, Runnable onFlagChanged) {
@@ -111,10 +135,46 @@ public final class EventMonitorWindow extends JFrame {
             visible = isEnabled((String) name);
         }
         c.setVisible(visible);
+
+        // Klick selektiert die Zeile und zeigt Details rechts
+        c.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mouseClicked(java.awt.event.MouseEvent e) {
+                setSelectedRow(c);
+                showDetailsFrom(c);
+            }
+        });
+
         list.add(c);
         list.revalidate();
         list.repaint();
         try { list.scrollRectToVisible(c.getBounds()); } catch (Throwable ignore) {}
+    }
+
+    // visuelle Selektion und Details zeigen
+    private void setSelectedRow(JComponent row) {
+        if (selectedRow != null) {
+            selectedRow.setBackground(null);
+            selectedRow.setOpaque(false);
+        }
+        selectedRow = row;
+        if (selectedRow != null) {
+            selectedRow.setOpaque(true);
+            selectedRow.setBackground(new Color(0xE6F2FF)); // dezentes Blau
+            selectedRow.repaint();
+        }
+    }
+
+    private void showDetailsFrom(JComponent c) {
+        Object pretty = c.getClientProperty("payloadPretty");
+        if (pretty instanceof String) {
+            detailArea.setText((String) pretty);
+            detailArea.setCaretPosition(0);
+        } else {
+            // Fallback: rudimentär aus eventName
+            Object ev = c.getClientProperty("eventName");
+            detailArea.setText(ev == null ? "" : String.valueOf(ev));
+            detailArea.setCaretPosition(0);
+        }
     }
 
     private void applyFilter() {

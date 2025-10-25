@@ -183,4 +183,9 @@ public final class RecorderCoordinator {
         }
     }
 
+    public synchronized RecordingSession getSession(String username) {
+        if (username == null) return null;
+        return sessions.get(username);
+    }
+
 }

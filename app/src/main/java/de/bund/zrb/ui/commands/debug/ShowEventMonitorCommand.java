@@ -30,8 +30,16 @@ public final class ShowEventMonitorCommand extends ShortcutMenuCommand {
         // Flags aus der Session (falls verfügbar) synchronisieren
         EnumMap<WDEventNames, Boolean> flags = WDEventFlagPresets.recorderDefaults();
         win.setFlags(flags, () -> {
-            // Wenn im Fenster Flags geändert werden, hier optional in Session zurückschreiben,
-            // falls du eine globale Quelle pflegen willst. (Kann auch leer bleiben.)
+            try {
+                // Hole die aktive RecordingSession des Users und schreibe die Flags hinein
+                de.bund.zrb.service.RecorderCoordinator rc = de.bund.zrb.service.RecorderCoordinator.getInstance();
+                de.bund.zrb.service.RecordingSession s = rc.getSession(user.getUsername());
+                if (s != null) {
+                    s.setEventFlags(win.getFlags()); // Session-Quelle aktualisieren
+                }
+            } catch (Throwable ignore) {
+                // falls Coordinator-API anders heißt – hier ist bewusst "soft"
+            }
         });
 
         win.setVisible(true);
