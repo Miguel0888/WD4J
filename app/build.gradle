@@ -46,6 +46,9 @@ dependencies {
     // pdf Erzeugung
     implementation 'org.apache.pdfbox:pdfbox:2.0.27' // Letzte Version mit Java 8-Support
 
+    // Pretty Print
+    implementation 'com.google.googlejavaformat:google-java-format:1.7'
+
     // JavaScript
     implementation 'com.fifesoft:rsyntaxtextarea:3.3.3'
     implementation 'org.graalvm.js:js:22.3.0'
