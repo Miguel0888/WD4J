@@ -14,40 +14,99 @@ Das WebDriver BiDi-Protokoll ist eine neue standardisierte Methode für die Komm
 
 ## Aktueller Stand
 
-### Implementierte Features (Milestone 0)
+Der aktuelle Stand beschreibt den Zustand kurz vor dem ersten produktiven Release (Stand: Oktober 2025).
 
-- **Starten und Beenden von Browser-Instanzen**:
-    - Unterstützung für Chrome, Edge, Firefox und Safari.
-    - Optionale Konfiguration von Profilpfaden und Startoptionen wie Headless-Modus.
+### 1. Core-Engine (`wd4j`)
+- **WebDriver-BiDi-Client in Java 8**  
+  WD4J enthält eine eigenständige Implementierung des WebDriver-BiDi-Protokolls. Die Kommunikation erfolgt über WebSocket direkt mit dem Browser.
 
-- **WebSocket-Verbindung**:
-    - Kommunikation mit den Browsern über WebSocket gemäß BiDi-Protokoll.
-    - Verbindung wird bei Beendigung korrekt geschlossen.
+- **Sitzungs- und Kontext-Verwaltung**  
+  Es gibt Manager-Klassen für Sessions, Browser-Kontexte (Tabs/Fenster), Eingaben (Maus/Tastatur), Netzwerk, Skriptausführung usw.  
+  Jede Verantwortlichkeit ist klar getrennt (Single Responsibility):  
+  z. B. `WDBrowserManager`, `WDSessionManager`, `WDInputManager`, `WDScriptManager`, …
 
-- **Grundlegendes WebDriver-Interface**:
-    - `BiDiWebDriver` als zentrale Klasse für Steuerung.
-    - Navigation zu URLs (`get`-Methode) und erste Unterstützung für `findElement`.
+- **Bidirektionales Messaging & Events**  
+  Ereignisse (z. B. Navigation, DOM-Änderungen, User-Interaktionen) werden zentral entgegengenommen, typisiert und über einen Event-Dispatcher verteilt.  
+  Dieser Dispatcher arbeitet nach dem Observer-Pattern (Listener-Registrierung pro Eventtyp bzw. pro Browsing Context).  
+  → Das erlaubt es höheren Schichten, live auf Browserzustand zu reagieren (z. B. Recorder, UI).
 
----
+- **Eingriffe in die Seite / Skriptausführung**  
+  Es ist möglich, JavaScript gezielt in den aktiven Realm einer Page zu injizieren, z. B. um Overlays, Selektor-Tooltips oder DOM-Observer zu aktivieren.  
+  Das wird für den integrierten Recorder genutzt.
 
-## Milestones
+- **Screenshots, Navigation, Aktivierung von Tabs**  
+  Aktive Tabs können gewechselt, sichtbar gemacht, angesprochen und gescreenshottet werden.
 
-### **Milestone 1: Basis-API für WebDriver BiDi**
-- Implementierung von grundlegenden WebDriver-BiDi-Funktionen:
-    - Navigation (z. B. `get`, `getCurrentUrl`, `getTitle`).
-    - Elementinteraktionen (z. B. `findElement`, `click`, `sendKeys`).
-- Unterstützung für Browser-spezifische Optionen (z. B. `noRemote`, `disableGpu`).
+- **Bekannter offener Punkt: Messaging-Overhead**  
+  Das interne Messaging-System in WD4J wurde anfangs so aufgebaut, dass zwischen sogenannten "Frames" unterschieden wird. Dabei wurde das Playwright-Konzept "Frame" (HTML-IFrame innerhalb einer Seite) fälschlich als technischer Transport-Kanal interpretiert.  
+  Ergebnis: unnötige Zwischenschichten und zusätzliche Verteilung pro "Frame".  
+  Das ist kein Architektur-Blocker, aber eine Stelle für Performance-Tuning (weniger unnötige Umsortierung von Events, weniger Copying).  
+  Geplant ist, diesen Layer zu vereinfachen – Events sollen direkt pro Browsing Context (Tab/Fenster) geroutet werden, nicht über ein künstliches "Frame"-Konstrukt.
 
-### **Milestone 2: Erweiterte BiDi-Funktionalitäten**
-- Netzwerkinterception und Logging:
-    - Abfangen und Bearbeiten von Netzwerkrequests.
-    - Zugriff auf Logs (z. B. Konsole, Netzwerkaktivität).
-- Unterstützung für Events:
-    - Abonnieren von Browser-Ereignissen (z. B. DOM-Änderungen, Netzwerkereignisse).
+### 2. Playwright-kompatible API (`playwright-java` + `playwright-adapter`)
+- **API-Oberfläche (`playwright-java`)**  
+  Das Modul `playwright-java` stellt die bekannten Interfaces aus Playwright bereit (`Playwright`, `Browser`, `BrowserContext`, `Page`, `Locator`, `BrowserType`, usw.).  
+  Diese Interfaces sind unabhängig vom Rest und bilden den "Port" – also die Abstraktion, gegen die höherliegende Software programmiert.
 
-### **Milestone 3: Vollständiges WebDriver-BiDi-Interface**
-- Vollständige Unterstützung aller BiDi-Features gemäß dem W3C-Standard.
-- Abbildung des Selenium-WebDriver-Interfaces (ohne den Legacy-Teil).
+- **Adapter/Implementierung (`playwright-adapter`)**  
+  Das Modul `playwright-adapter` liefert die konkreten Implementierungen (`BrowserImpl`, `PageImpl`, `LocatorImpl`, `BrowserTypeImpl`, `PlaywrightImpl`, …).  
+  Diese Implementierungen sprechen intern direkt mit `wd4j`.
+
+  Konkret unterstützt sind u. a.:
+  - Browser starten (`BrowserType.launch(...)`) inkl. Headless/Args.
+  - Erstellen von BrowserContexts (isolation pro Nutzer / Testfall).
+  - Erstellen und Wechseln von Tabs/Pages.
+  - Navigation (`page.navigate("https://…")`).
+  - Element-Lokalisierung über CSS/XPath-Selektoren (`page.locator("button#submit")`).
+  - Interaktion (Klicks, Eingaben, Zurück/Vorwärts-Navigation).
+  - Screenshots.
+
+  Nicht vollständig bzw. noch eingeschränkt:
+  - Komplexe `LaunchOptions` / `NewContextOptions` (z. B. alle Playwright-Flags, Netzwerk-Proxy-Optionen, Geolocation etc.).
+  - APIRequest / Network-Intercept / Request-Weiterleitung.
+  - Vollständige Event-API von Playwright (z. B. `page.on("console", ...)`) ist teilweise vorhanden, aber nicht überall 1:1 kompatibel.
+
+  Wichtig:  
+  Die Basisfunktionen zum Steuern des Browsers über eine Playwright-ähnliche API sind vorhanden und lauffähig.  
+  Detailoptionen und Edge-Cases fehlen an manchen Stellen noch – aber die Architektur blockiert diese Erweiterungen nicht.
+
+### 3. Desktop-App & Recorder (`app`)
+- **GUI (Swing)**  
+  Das Modul `app` stellt eine Desktop-Anwendung bereit. Diese Anwendung kann:
+  - den Browser starten,
+  - Benutzerkontexte verwalten (z. B. "User A", "User B" → jeweils eigener `BrowserContext`),
+  - Tabs öffnen/schließen,
+  - aktuelle Seite wechseln,
+  - die aktuelle Seite inspizieren.
+
+- **Aufnahme von Interaktionen (Recorder)**  
+  WD4J injiziert JavaScript-Hooks in die aktuell geöffnete Seite, um Benutzeraktionen mitzuschneiden:
+  - Klicks,
+  - Tastatureingaben,
+  - Navigation,
+  - DOM-Änderungen.
+
+  Diese Events werden über den WD4J-Event-Dispatcher an die Recorder-Logik weitergeleitet.  
+  Daraus entstehen strukturierte Schritte, die in Richtung "Playwright-Script" übersetzbar sind.
+
+- **Screenshots & Video**  
+  Es gibt eine integrierte Video-/Bild-Aufnahme (Fenster-Capture), um Testschritte visuell zu dokumentieren.
+
+- **Multi-User-Kontext**  
+  Das UI erlaubt, mehrere isolierte BrowserContexts parallel zu pflegen und dynamisch umzuschalten.  
+  Damit lassen sich z. B. Multi-User-Szenarien oder parallele Sessions nachstellen.
+
+### 4. Plattform / Reifegrad
+- **Zielplattform aktuell:** Windows.
+- **Browser-Fokus aktuell:** Firefox über WebDriver BiDi.
+  - Chromium / Edge / WebKit sind konzeptionell vorbereitet (Factory-Methoden `newChromiumInstance()`, `newEdgeInstance()`, … sind vorhanden).
+  - Der Code zum tatsächlichen Starten, Parametrisieren und Verbinden dieser Browser-Typen ist angelegt, aber noch nicht in allen Fällen stabil produktiv getestet.
+- **Java-Version:** Java 8 (keine neueren Sprachfeatures notwendig).
+
+**Fazit:**  
+Die grundlegende Funktionalität – Browser kontrollieren, Pages ansteuern, Elemente finden und interagieren, Events mitschneiden und über eine Desktop-App verwalten – ist implementiert.  
+Offene Arbeiten betreffen hauptsächlich Feinschliff (Optionen, Edge-Cases, Performance im Messaging), nicht die Grundarchitektur. Es gibt aktuell keinen grundlegenden Designfehler, der die Weiterentwicklung behindern würde.
+
 
 ---
 
@@ -93,33 +152,148 @@ WD4J bietet eine moderne, native Alternative:
 
 ---
 
-## Beispielcode
+## Code-Beispiele
 
-Hier ist ein einfacher Anwendungsfall mit WD4J:
+WD4J kann auf zwei Arten verwendet werden:
+
+1. **High-Level über die Playwright-kompatible API**  
+   → Ideal, wenn du Playwright kennst und einfach Browser steuern willst.
+
+2. **Low-Level direkt über den WD4J-Core (`wd4j`)**  
+   → Ideal, wenn du volle Kontrolle über BiDi brauchst oder WD4J als eigenständige Library (ohne Playwright-Schicht) nutzen möchtest.
+
+---
+
+### Variante A: Playwright-kompatible API (über `playwright-adapter`)
+
+Dieses Beispiel zeigt, wie WD4J die Playwright-Java-Interfaces bereitstellt (`com.microsoft.playwright.*`) und wie der Adapter (`playwright-adapter`) unter der Haube den Browser startet, die WebSocket-Verbindung herstellt und die Objekte `Browser`, `BrowserContext`, `Page`, `Locator` usw. liefert.
 
 ```java
-import wd4j.core.WebDriver;
-import com.microsoft.playwright.impl.BrowserTypeImpl;
+import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Playwright;
 
-public class Example {
+/**
+ * Demonstrate how to automate a browser using the Playwright-like API implemented by WD4J.
+ */
+public class PlaywrightStyleExample {
     public static void main(String[] args) {
-        BiDiWebDriver driver = new BiDiWebDriver(BrowserType.CHROME);
-        
-        // Navigiere zu einer URL
-        driver.get("https://www.example.com");
-        
-        // Finde ein Element und klicke darauf
-        WebElement element = driver.findElement(By.cssSelector("button#submit"));
-        element.click();
+        // Create Playwright runtime (this is backed by WD4J, no Node.js required)
+        Playwright playwright = Playwright.create();
 
-        // Beende den Browser
-        driver.close();
+        // Choose a browser type (e.g. Firefox)
+        BrowserType browserType = playwright.firefox();
+
+        // Launch the browser (LaunchOptions can set headless, args, etc.)
+        Browser browser = browserType.launch(
+            new BrowserType.LaunchOptions()
+                .setHeadless(false) // Run browser in headed mode for debugging
+        );
+
+        // Create an isolated BrowserContext (separate cookies/storage)
+        BrowserContext context = browser.newContext(
+            new Browser.NewContextOptions()
+        );
+
+        // Open a new Page (tab) inside that context
+        Page page = context.newPage();
+
+        // Navigate to a URL
+        page.navigate("https://example.com");
+
+        // Interact with the page
+        page.locator("button#submit").click(); // Click the button with id="submit"
+
+        // Take a screenshot (PNG bytes)
+        byte[] screenshot = page.screenshot();
+
+        // Clean up resources
+        browser.close();      // Close the browser process
+        playwright.close();   // Close the Playwright runtime
     }
 }
 ```
 
+Wichtig:
+- Alle Imports kommen aus `com.microsoft.playwright.*` – also aus `playwright-java`.
+- Die tatsächlichen Implementierungen (`BrowserTypeImpl`, `BrowserImpl`, `PageImpl`, …) liegen in `playwright-adapter` und nutzen intern den WD4J-Core.
+- `BrowserType.launch(...)` startet wirklich einen echten Browser-Prozess (z. B. Firefox), liest dessen BiDi-WebSocket-Endpunkt aus, verbindet sich darüber und richtet Events, Recording-Hooks usw. ein.
+
 ---
 
+### Variante B: Direkter Zugriff auf den WD4J-Core (`wd4j`)
+
+Dieses Beispiel zeigt, wie man WD4J ohne den Playwright-Adapter verwendet.  
+Hier arbeitest du direkt mit der BiDi-Engine (`WebDriver`, `WDBrowsingContextManager`, …).  
+Das ist sinnvoll, wenn du sehr niedrigschwellig mit dem Browser reden willst oder eigene Tools um BiDi baust.
+
+```java
+import de.bund.zrb.WebDriver;
+import de.bund.zrb.WDWebSocketImpl;
+import de.bund.zrb.WDWebSocketManagerImpl;
+import de.bund.zrb.command.response.WDBrowsingContextResult;
+
+/**
+ * Demonstrate how to talk directly to the WebDriver BiDi core (wd4j) without the Playwright adapter.
+ */
+public class CoreStyleExample {
+    public static void main(String[] args) throws Exception {
+
+        // 1. Start browser manually (e.g. Firefox with WebDriver BiDi enabled)
+        //    and obtain its WebDriver BiDi WebSocket URL, for example:
+        //    ws://127.0.0.1:9222/session
+        //
+        //    BrowserTypeImpl.launch(...) in the adapter does this automatically.
+        //    Here we assume you already have the URL.
+        String webSocketUrl = "ws://127.0.0.1:9222/session";
+
+        // 2. Open WebSocket connection to the browser's BiDi endpoint
+        WDWebSocketImpl socket = new WDWebSocketImpl(
+            java.net.URI.create(webSocketUrl)
+        );
+        socket.connect(); // Establish the low-level WebSocket connection
+
+        // 3. Wrap the socket with the WebSocketManager
+        WDWebSocketManagerImpl webSocketManager = new WDWebSocketManagerImpl(socket);
+
+        // 4. Create the WD4J core driver
+        WebDriver driver = new WebDriver(webSocketManager);
+
+        // 5. Create a new BiDi session for a given browser (e.g. "firefox")
+        driver.connect("firefox"); // Register a new WebDriver BiDi session
+
+        // 6. Create a new browsing context (tab / window)
+        WDBrowsingContextResult.CreateResult createResult =
+            driver.browsingContext().create();
+        String contextId = createResult.getContext(); // Store context id
+
+        // 7. Navigate to a page inside that context
+        driver.browsingContext().navigate("https://example.com", contextId);
+
+        // 8. Capture a screenshot from that context
+        WDBrowsingContextResult.CaptureScreenshotResult screenshotResult =
+            driver.browsingContext().captureScreenshot(contextId);
+        String base64Png = screenshotResult.getData(); // PNG as Base64 string
+
+        // 9. End the BiDi session and clean up
+        driver.session().endSession(); // Close WebDriver BiDi session
+        socket.close();                // Close WebSocket connection
+    }
+}
+```
+
+Wichtige Punkte zur Core-Variante:
+- Du arbeitest direkt mit dem BiDi-Protokoll über `WebDriver`, `WDSessionManager`, `WDBrowsingContextManager`, usw.
+- Du bekommst Kontext-IDs, kannst Tabs erzeugen, navigieren, Screenshots machen, Events abonnieren usw.
+- Du bist näher am Standard. Das ist ideal, wenn du eigene Automations- oder Analyse-Tools baust und Playwright-Semantik nicht brauchst.
+- Der Playwright-Adapter (`playwright-adapter`) macht intern ebenfalls genau das, plus Komfortschicht und API-Modellierung im Playwright-Stil.
+
+
+---
+
+## Entwicklerinformationen
 ### Automatische Proxy-Konfiguration per WPAD/PAC-Datei
 Wenn unter Windows ein Setupskript mit URL für das Netzwerk hinterlegt ist, muss das Projekt wie folgt über die PowerShell gebaut werden:
 
@@ -148,8 +322,8 @@ Die URL für die halbautomatische Einstellung bekommt man über ein Klick auf de
 ## Contribution
 
 Beiträge sind willkommen! Wenn du helfen möchtest:
-- Schaue in den [Issue Tracker](https://github.com/Miguel0888/WD4J/issues), um offene Aufgaben zu finden.
-- Reiche Pull Requests ein, um Funktionen oder Fehlerbehebungen vorzuschlagen.
+- Schaue in den [Issue Tracker](https://github.com/Miguel0888/WD4J/issues) oder die ToDos, um evtl. offene Aufgaben zu finden.
+- Reiche Pull Requests ein, um Funktionen oder Fehlerbehebungen vorzuschlagen. (Via Fork)
 
 
 ------
@@ -209,9 +383,5 @@ Dieses Projekt steht unter der **MIT-Lizenz**. Bitte beachten Sie, dass die verw
 
 ## Implementierung des Event-Recordings
 
-## Umwandlung in PlayWright-Befehle (Java Code) ??
-
-## Abspielen des Codes ermöglichen, indem alle notwendigen API-Funktionen implementiert sind
-
-## Laden des Test Codes aus einer externen Datei als Plugin (Java ServiceLoader)
+Der Recorder der App-Schicht verwendet seine eigene von PlayWright abweichende Logik, sendet die Events aber per WebDriver BiDi Messages an die Anwendung zurück.
 
