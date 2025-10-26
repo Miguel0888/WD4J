@@ -280,6 +280,6 @@ function(){
     };
 
     // auto-enable to test immediately
-    toggleTooltip(true);
-    console.log('[selector-overlay:min] ready. Use toggleTooltip(false) to hide, __wd4j.all($0) to inspect.');
+    // toggleTooltip(true);
+    // console.log('[selector-overlay:min] ready. Use toggleTooltip(false) to hide, __wd4j.all($0) to inspect.');
 }
