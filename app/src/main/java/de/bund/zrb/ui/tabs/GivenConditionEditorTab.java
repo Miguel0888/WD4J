@@ -2,6 +2,8 @@ package de.bund.zrb.ui.tabs;
 
 import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.Precondition;
+import de.bund.zrb.model.TestCase;
+import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.PreconditionRegistry;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.UserRegistry;
@@ -12,13 +14,13 @@ import de.bund.zrb.ui.expressions.ExpressionTreeNode;
 import de.bund.zrb.expressions.domain.ResolvableExpression;
 import de.bund.zrb.expressions.engine.ExpressionParser;
 import de.bund.zrb.expressions.engine.LiteralExpression;
+
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
-import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
-import org.fife.ui.rtextarea.RTextScrollPane;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.table.AbstractTableModel;
 import javax.swing.text.Document;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeCellRenderer;
@@ -36,63 +38,89 @@ import java.util.Map;
  * Edit one GivenCondition in a human-friendly way.
  *
  * Intent:
- * - Let the tester describe a Given/precondition step using a DSL-like expression ({{...}} etc.).
- * - Let the tester optionally link a reusable Precondition (UUID), and also use it as "Vorlage".
- * - Show live AST preview. Show syntax validity feedback.
+ * - Bearbeite ein einzelnes Given.
+ * - Erfasse:
+ *    - username / User-Auswahl
+ *    - optionale Referenz auf eine Precondition (preconditionRef.id)
+ *    - Ausdruck (expressionRaw) inkl. Live-AST-Vorschau, Syntax-Status
+ *    - Scope-Variablen (Key/Value) für diesen Given (Case-/Suite-/Root-Scope)
  *
- * Responsibilities:
- * - Manage user selection (username).
- * - Manage optional preconditionRef.id (UUID) and treat that dropdown as "Vorlagenauswahl".
- * - Manage expressionRaw (free form expression text) with rainbow highlighting, {{}} buttons, tooltip.
- * - Persist data back into GivenCondition.value.
+ * Architektur:
+ * - Konstruktor nimmt NUR das GivenCondition-Objekt.
+ * - Wir leiten den Scope (CASE / SUITE / ROOT) intern über TestRegistry her,
+ *   indem wir schauen, wo dieses Given im Modell vorkommt.
  *
- * No longer use GivenRegistry. We inline knowledge about the only supported type "preconditionRef".
- *
- * condition.getType() is still stored in the model (e.g. "preconditionRef"), but we do not allow changing it here.
+ * Persistenz:
+ * - Alle Daten werden in condition.setValue(...) als key=value&key2=value2 gespeichert.
+ *   Reservierte Keys:
+ *     username
+ *     id              (UUID der Precondition, falls type == preconditionRef)
+ *     expressionRaw   (der eingegebene Text mit {{...}})
+ *   Alle anderen Keys aus der Variablentabelle werden ebenfalls geschrieben.
  */
 public class GivenConditionEditorTab extends JPanel {
 
     private static final String TYPE_PRECONDITION_REF = "preconditionRef";
 
-    // ---------- Model ----------
-    private final GivenCondition condition;
+    /**
+     * Represent logical runtime scope for variables of this Given.
+     * SUITE  -> Suite-weite Variablen
+     * CASE   -> nur in diesem TestCase gültig
+     * ROOT   -> global/fallback, wenn weder Suite- noch Case-Zuordnung gefunden wurde
+     */
+    public static enum ScopeLevel {
+        SUITE,
+        CASE,
+        ROOT
+    }
 
-    // ---------- Header widgets ----------
+    // ----------------- Modell -----------------
+    private final GivenCondition condition;
+    private final ScopeLevel scopeLevel;
+
+    // ----------------- Header: User -----------------
     private final JComboBox<String> userBox;
 
-    // ---------- Dynamic area ----------
+    // ----------------- Dynamischer Bereich -----------------
     private final JPanel dynamicFieldsPanel = new JPanel(new GridBagLayout());
     private final Map<String, JComponent> inputs = new LinkedHashMap<String, JComponent>();
 
-    // We keep the special combo for preconditionRef.id so we can hook template behavior
+    // preconditionRef.id Auswahl (gleichzeitig "Vorlage")
     private JComboBox<PreItem> preconditionComboBox;
 
-    // ---------- Expression + AST ----------
+    // Expression + AST
     private ExpressionInputPanel expressionPanel;
     private JTree astPreviewTree;
     private JScrollPane astPreviewScroll;
 
+    // Scope-Variablen Tabelle
+    private VariableTablePanel variableTablePanel;
+
+    /**
+     * Konstruktor wie von dir verlangt: nur das GivenCondition.
+     * Der Scope wird intern bestimmt.
+     */
     public GivenConditionEditorTab(GivenCondition condition) {
         this.condition = condition;
+        this.scopeLevel = detectScopeLevel(condition);
 
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         ////////////////////////////////////////////////////////////////////////////
-        // Header: only "User"
+        // Header: User (=> "username")
         ////////////////////////////////////////////////////////////////////////////
 
         JPanel header = new JPanel(new GridLayout(0, 2, 8, 8));
-
-        header.add(new JLabel("User:"));
+        header.add(new JLabel("User (username):"));
 
         String[] users = UserRegistry.getInstance().getAll()
                 .stream()
                 .map(User::getUsername)
                 .toArray(String[]::new);
+
         userBox = new JComboBox<String>(users);
 
-        // Prefill username from stored condition.value
         String initialUser = (String) parseValueMap(condition.getValue()).get("username");
         if (initialUser != null && initialUser.trim().length() > 0) {
             userBox.setSelectedItem(initialUser.trim());
@@ -100,7 +128,7 @@ public class GivenConditionEditorTab extends JPanel {
         header.add(userBox);
 
         ////////////////////////////////////////////////////////////////////////////
-        // Layout container
+        // Form / Footer
         ////////////////////////////////////////////////////////////////////////////
 
         JPanel form = new JPanel(new BorderLayout(8, 8));
@@ -108,7 +136,6 @@ public class GivenConditionEditorTab extends JPanel {
         form.add(dynamicFieldsPanel, BorderLayout.CENTER);
         add(form, BorderLayout.CENTER);
 
-        // Footer with "Speichern"
         JButton saveBtn = new JButton("Speichern");
         saveBtn.addActionListener(new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
@@ -121,38 +148,21 @@ public class GivenConditionEditorTab extends JPanel {
         add(footer, BorderLayout.SOUTH);
 
         ////////////////////////////////////////////////////////////////////////////
-        // Build dynamic area:
-        // - Render fields depending on condition.getType()
-        // - Render expression editor
-        // - Render AST preview
+        // Hauptbereich aufbauen
         ////////////////////////////////////////////////////////////////////////////
 
         rebuildDynamicForm(condition.getType());
 
-        // Wire template behavior now that preconditionComboBox and expressionPanel exist
+        // Nach dem Aufbau (preconditionComboBox existiert jetzt) das Vorlagen-Verhalten verdrahten
         wirePreconditionTemplateBehavior();
     }
 
     /**
-     * Build the dynamic area below the header.
-     *
-     * Steps:
-     * 1. Render the "type-specific" inputs. Since we dropped GivenRegistry,
-     *    we handle the known type(s) inline.
-     *
-     *    Currently we only support:
-     *      TYPE_PRECONDITION_REF ("preconditionRef"):
-     *        - Show a combo ("Precondition / Vorlage")
-     *        - First item is "", meaning "keine Vorlage / keine Referenz"
-     *        - Other items come from PreconditionRegistry
-     *        - We still persist just the UUID in condition.value under key "id"
-     *        - Selecting an item will also pre-fill expressionRaw as a template
-     *
-     *    If you ever add more types later, extend this method with more branches.
-     *
-     * 2. Render ExpressionInputPanel (rainbow braces, {{/}} buttons, help, status).
-     * 3. Render AST preview tree below it.
-     * 4. Attach live parsing listener.
+     * Baue die komplette rechte Seite für dieses Given:
+     * (1) Precondition-/Vorlagen-Auswahl (falls type == preconditionRef)
+     * (2) ExpressionInputPanel (Regenbogen-Klammern, {{ }}, Help-Icon, Buttons)
+     * (3) AST-Vorschau (JTree)
+     * (4) Scope-Variablen Tabelle inkl. Scope-Label (Suite / Case / Root)
      */
     private void rebuildDynamicForm(String type) {
         dynamicFieldsPanel.removeAll();
@@ -167,14 +177,11 @@ public class GivenConditionEditorTab extends JPanel {
         int row = 0;
 
         ////////////////////////////////////////////////////////////////////////////
-        // 1. Type-specific block(s)
+        // (1) Precondition / Vorlage-Auswahl (nur bei preconditionRef)
         ////////////////////////////////////////////////////////////////////////////
 
         if (TYPE_PRECONDITION_REF.equals(type)) {
-            // We know this type uses one parameter "id" which is the referenced precondition UUID.
-            // We now extend semantics: The same combo is also our "Vorlagen"-Picker.
-
-            Object rawValue = paramMap.get("id"); // previously saved UUID
+            Object rawValue = paramMap.get("id");
             String savedUuid = rawValue != null ? String.valueOf(rawValue) : "";
 
             gbc.gridx = 0; gbc.gridy = row;
@@ -191,14 +198,12 @@ public class GivenConditionEditorTab extends JPanel {
             JComboBox<PreItem> preBox = new JComboBox<PreItem>();
             preBox.setEditable(false);
 
-            // 1) Add an explicit "leer" option as first item
+            // explizit erster Eintrag = leer
             PreItem emptyItem = new PreItem(null, null);
             preBox.addItem(emptyItem);
 
-            // 2) Add all known preconditions from registry
             List<Precondition> pres = PreconditionRegistry.getInstance().getAll();
             PreItem selected = emptyItem;
-
             for (int i = 0; i < pres.size(); i++) {
                 Precondition p = pres.get(i);
                 String id = p.getId();
@@ -207,32 +212,22 @@ public class GivenConditionEditorTab extends JPanel {
                         : "(unnamed)";
                 PreItem item = new PreItem(id, name);
                 preBox.addItem(item);
-
-                // Preselect if savedUuid matches this id
                 if (savedUuid.equals(id)) {
                     selected = item;
                 }
             }
-
             preBox.setSelectedItem(selected);
 
             dynamicFieldsPanel.add(preBox, gbc);
 
-            // Remember for save() and for template behavior
             preconditionComboBox = preBox;
             inputs.put("id", preBox);
 
             row++;
-
-        } else {
-            // Fallback: no special fields for unknown types.
-            // This keeps editor robust even if type != preconditionRef.
         }
 
         ////////////////////////////////////////////////////////////////////////////
-        // 2. ExpressionInputPanel (buntes Feld)
-        //
-        // This is the DSL expression. We store it as "expressionRaw".
+        // (2) ExpressionInputPanel mit Regenbogen-Highlight und {{}}-Buttons
         ////////////////////////////////////////////////////////////////////////////
 
         gbc.gridx = 0; gbc.gridy = row;
@@ -246,17 +241,14 @@ public class GivenConditionEditorTab extends JPanel {
         String initialRaw = asString(paramMap.get("expressionRaw"));
         if (initialRaw != null && initialRaw.trim().length() > 0) {
             expressionPanel.setExpressionText(initialRaw.trim());
-        } else {
-            // Keep panel's internal default demo text. It teaches syntax.
         }
-
         dynamicFieldsPanel.add(expressionPanel, gbc);
         inputs.put("expressionRaw", expressionPanel);
 
         row++;
 
         ////////////////////////////////////////////////////////////////////////////
-        // 3. AST preview tree (read-only)
+        // (3) AST-Vorschau (read-only JTree der aktuellen expressionRaw)
         ////////////////////////////////////////////////////////////////////////////
 
         gbc.gridx = 0; gbc.gridy = row;
@@ -272,16 +264,62 @@ public class GivenConditionEditorTab extends JPanel {
         astPreviewTree.setFocusable(false);
 
         astPreviewScroll = new JScrollPane(astPreviewTree);
-        astPreviewScroll.setPreferredSize(new Dimension(300, 160));
-
+        astPreviewScroll.setPreferredSize(new Dimension(300, 140));
         dynamicFieldsPanel.add(astPreviewScroll, gbc);
 
         row++;
 
         ////////////////////////////////////////////////////////////////////////////
-        // 4. Live parsing:
-        //    - Listen to expressionPanel editor changes
-        //    - Update AST and status on each keystroke
+        // (4) Variablen-Tabelle (Scope-Variablen)
+        //
+        // Diese Variablen + username fließen zur Laufzeit in den entsprechenden
+        // Scope-Kontext (Case-/Suite-/Root-Variablen).
+        ////////////////////////////////////////////////////////////////////////////
+
+        gbc.gridx = 0; gbc.gridy = row;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.weighty = 0.0;
+        gbc.fill = GridBagConstraints.BOTH;
+
+        variableTablePanel = new VariableTablePanel();
+
+        // passendes Scope-Label setzen
+        String scopeText;
+        switch (scopeLevel) {
+            case SUITE:
+                scopeText = "Scope-Variablen (Suite-Scope):";
+                break;
+            case CASE:
+                scopeText = "Scope-Variablen (Case-Scope):";
+                break;
+            default:
+                scopeText = "Scope-Variablen (Global-Scope):";
+                break;
+        }
+        variableTablePanel.setScopeLabel(scopeText);
+
+        // Tabelle initial mit allen Key/Value befüllen außer reservierten Keys
+        for (Map.Entry<String, Object> e : paramMap.entrySet()) {
+            String k = e.getKey();
+            Object v = e.getValue();
+            if ("id".equals(k)) continue;
+            if ("expressionRaw".equals(k)) continue;
+            // username darf (und soll) hier auftauchen
+            if (v != null) {
+                variableTablePanel.addRow(k, String.valueOf(v));
+            }
+        }
+
+        // username aus userBox synchronisieren
+        syncUserBoxIntoTable(variableTablePanel);
+
+        dynamicFieldsPanel.add(variableTablePanel, gbc);
+
+        row++;
+
+        ////////////////////////////////////////////////////////////////////////////
+        // 5. Live-AST-Update für expressionRaw
         ////////////////////////////////////////////////////////////////////////////
 
         Document doc = getExpressionDocument();
@@ -293,7 +331,7 @@ public class GivenConditionEditorTab extends JPanel {
             });
         }
 
-        // First parse and render
+        // initial parse ausführen
         updateAstAndStatus();
 
         dynamicFieldsPanel.revalidate();
@@ -301,19 +339,85 @@ public class GivenConditionEditorTab extends JPanel {
     }
 
     /**
-     * Connect the preconditionComboBox (if present) with the expressionPanel.
+     * Scope bestimmen (CASE / SUITE / ROOT), ohne dass der Aufrufer das übergeben muss.
      *
-     * Behavior:
-     * - If user selects the empty item:
-     *     -> Clear expressionPanel text
-     *     -> Set status neutral
-     *     -> Refresh AST
+     * Strategie:
+     * - Hol alle Suites aus TestRegistry.
+     * - Wenn dieses Given direkt in suite.getGiven() vorkommt -> SUITE
+     * - Sonst: jede suite durchgehen, jede ihrer TestCases prüfen:
+     *      wenn testCase.getGiven() dieses Given enthält -> CASE
+     * - Falls wir es nirgends finden -> ROOT
      *
-     * - If user selects a Precondition:
-     *     -> Copy that Precondition's name into expressionPanel as the new expressionRaw
-     *     -> Re-parse to update AST and status
-     *
-     * This replaces the old "Vorlagen-Dropdown", so we no longer need GivenRegistry.
+     * Annahme:
+     * - TestRegistry hat getAllSuites().
+     * - TestSuite hat getGiven() und getTestCases() (oder getCases()).
+     *   Wenn dein Modell leicht anders heißt, bitte hier anpassen.
+     */
+    private ScopeLevel detectScopeLevel(GivenCondition target) {
+        try {
+            List<TestSuite> suites = TestRegistry.getInstance().getAll();
+
+            // 1) Suite-Level?
+            for (int i = 0; i < suites.size(); i++) {
+                TestSuite s = suites.get(i);
+
+                // Suite-Givens?
+                List<GivenCondition> suiteGivens = s.getGiven();
+                if (suiteGivens != null) {
+                    for (int g = 0; g < suiteGivens.size(); g++) {
+                        if (suiteGivens.get(g) == target) {
+                            return ScopeLevel.SUITE;
+                        }
+                    }
+                }
+
+                // 2) Case-Level?
+                List<TestCase> cases = s.getTestCases(); // falls deine API anders heißt, hier anpassen
+                if (cases != null) {
+                    for (int c = 0; c < cases.size(); c++) {
+                        TestCase tc = cases.get(c);
+                        List<GivenCondition> caseGivens = tc.getGiven();
+                        if (caseGivens != null) {
+                            for (int g = 0; g < caseGivens.size(); g++) {
+                                if (caseGivens.get(g) == target) {
+                                    return ScopeLevel.CASE;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignore) {
+            // Wenn irgendwas schief geht (z.B. API anders), fallback auf ROOT
+        }
+        return ScopeLevel.ROOT;
+    }
+
+    /**
+     * username zwischen ComboBox und Tabelle synchronisieren:
+     * - Falls Tabelle noch keinen "username" Key hat, nimm userBox.
+     * - Falls Tabelle schon "username" hat, übernehme diesen Wert in userBox.
+     */
+    private void syncUserBoxIntoTable(VariableTablePanel tablePanel) {
+        String selUser = (String) userBox.getSelectedItem();
+        if (selUser != null && selUser.trim().length() > 0) {
+            if (!tablePanel.hasKey("username")) {
+                tablePanel.addRow("username", selUser.trim());
+            } else {
+                String tableVal = tablePanel.getValueForKey("username");
+                if (tableVal != null && tableVal.trim().length() > 0) {
+                    userBox.setSelectedItem(tableVal.trim());
+                } else {
+                    tablePanel.setValueForKey("username", selUser.trim());
+                }
+            }
+        }
+    }
+
+    /**
+     * Precondition-Auswahl wirkt wie "Vorlage":
+     * - Leerer Eintrag -> Ausdruck leeren, Status neutral
+     * - Eintrag mit UUID -> Ausdruck mit Precondition-Name vorbelegen
      */
     private void wirePreconditionTemplateBehavior() {
         if (preconditionComboBox == null) {
@@ -321,16 +425,11 @@ public class GivenConditionEditorTab extends JPanel {
         }
         preconditionComboBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
-                if (e.getStateChange() != ItemEvent.SELECTED) {
-                    return;
-                }
-                if (expressionPanel == null) {
-                    return;
-                }
+                if (e.getStateChange() != ItemEvent.SELECTED) return;
+                if (expressionPanel == null) return;
 
                 Object selObj = preconditionComboBox.getSelectedItem();
                 if (!(selObj instanceof PreItem)) {
-                    // defensive fallback
                     expressionPanel.setExpressionText("");
                     expressionPanel.setStatusNeutral("Kein Ausdruck");
                     updateAstAndStatus();
@@ -338,8 +437,6 @@ public class GivenConditionEditorTab extends JPanel {
                 }
 
                 PreItem item = (PreItem) selObj;
-
-                // Empty item (id == null) means "keine Vorlage"
                 if (item.id == null) {
                     expressionPanel.setExpressionText("");
                     expressionPanel.setStatusNeutral("Kein Ausdruck");
@@ -347,7 +444,6 @@ public class GivenConditionEditorTab extends JPanel {
                     return;
                 }
 
-                // Use the Precondition name as initial expressionRaw text
                 String templateName = (item.name != null) ? item.name : "";
                 expressionPanel.setExpressionText(templateName);
                 updateAstAndStatus();
@@ -356,16 +452,10 @@ public class GivenConditionEditorTab extends JPanel {
     }
 
     /**
-     * Parse expressionRaw live, show AST and validation status.
-     *
-     * - On valid parse: mark green.
-     * - On empty     : neutral.
-     * - On error     : red, and AST node shows ERROR.
+     * Parse expressionRaw und aktualisiere AST-Baum + Statusanzeige im Editor.
      */
     private void updateAstAndStatus() {
-        if (expressionPanel == null || astPreviewTree == null) {
-            return;
-        }
+        if (expressionPanel == null || astPreviewTree == null) return;
 
         String raw = expressionPanel.getExpressionText();
 
@@ -391,25 +481,11 @@ public class GivenConditionEditorTab extends JPanel {
         expandAll(astPreviewTree);
     }
 
-    /**
-     * Get Document of the underlying RSyntaxTextArea in the ExpressionInputPanel
-     * so we can attach a DocumentListener.
-     *
-     * IMPORTANT:
-     * ExpressionInputPanel must provide:
-     *
-     *   public RSyntaxTextArea getEditor() {
-     *       return editor;
-     *   }
-     */
     private Document getExpressionDocument() {
         if (expressionPanel == null) return null;
         return expressionPanel.getEditor().getDocument();
     }
 
-    /**
-     * Build fallback node for empty expressions.
-     */
     private ExpressionTreeNode buildFallbackNoDataTree() {
         LiteralExpression lit = new LiteralExpression("No data");
         return new ExpressionTreeNode(
@@ -419,9 +495,6 @@ public class GivenConditionEditorTab extends JPanel {
         );
     }
 
-    /**
-     * Build error node if parsing fails.
-     */
     private ExpressionTreeNode buildErrorTree(String raw, String msg) {
         LiteralExpression lit = new LiteralExpression("Parse Error: " + msg);
         return new ExpressionTreeNode(
@@ -431,18 +504,12 @@ public class GivenConditionEditorTab extends JPanel {
         );
     }
 
-    /**
-     * Convert ExpressionTreeNode structure into a TreeModel for the preview JTree.
-     */
     private TreeModel buildSwingModel(ExpressionTreeNode rootUiNode) {
         ExpressionTreeModelBuilder builder = new ExpressionTreeModelBuilder();
         DefaultMutableTreeNode swingRoot = builder.buildSwingTree(rootUiNode);
         return new DefaultTreeModel(swingRoot);
     }
 
-    /**
-     * Expand all rows in the preview tree for full visibility.
-     */
     private void expandAll(JTree tree) {
         int row = 0;
         while (row < tree.getRowCount()) {
@@ -451,9 +518,6 @@ public class GivenConditionEditorTab extends JPanel {
         }
     }
 
-    /**
-     * Render AST labels from ExpressionTreeModelBuilder.NodePayload.
-     */
     private DefaultTreeCellRenderer createPreviewRenderer() {
         return new DefaultTreeCellRenderer() {
             public Component getTreeCellRendererComponent(
@@ -483,71 +547,66 @@ public class GivenConditionEditorTab extends JPanel {
     }
 
     /**
-     * Persist current edits back into condition.value and save globally.
+     * Speichere alle aktuellen Eingaben zurück ins GivenCondition.
      *
-     * We DO NOT touch condition.type here (that is owned by whoever created the GivenCondition).
-     *
-     * We save:
-     *  - username                    -> from userBox
-     *  - id (preconditionRef.id)     -> UUID or "" (from preconditionComboBox)
-     *  - expressionRaw               -> text from expressionPanel
+     * - Hole alle Rows aus der Variablentabelle (key=value)
+     * - Forciere username aus userBox => überschreibt ggf. Tabelleneintrag
+     * - Hole preconditionRef.id aus preconditionComboBox (falls vorhanden)
+     * - Hole expressionRaw aus expressionPanel
+     * - Schreibe alles als key=value&key2=value2...
+     * - Rufe TestRegistry.save()
      */
     private void save() {
-
         Map<String, String> result = new LinkedHashMap<String, String>();
 
-        // username
+        // 1) alle Tabellenvariablen
+        java.util.List<VarRow> rows = variableTablePanel.getRows();
+        for (int i = 0; i < rows.size(); i++) {
+            VarRow r = rows.get(i);
+            if (r.key != null && r.key.trim().length() > 0) {
+                result.put(r.key.trim(), (r.value != null) ? r.value : "");
+            }
+        }
+
+        // 2) username aus userBox zwingend setzen
         Object u = userBox.getSelectedItem();
         if (u != null && u.toString().trim().length() > 0) {
             result.put("username", u.toString().trim());
         }
 
-        // collect dynamic fields
-        for (Map.Entry<String, JComponent> entry : inputs.entrySet()) {
-            String key = entry.getKey();
-            JComponent comp = entry.getValue();
-
-            if (comp instanceof ExpressionInputPanel) {
-                ExpressionInputPanel p = (ExpressionInputPanel) comp;
-                result.put(key, p.getExpressionText());
-
-            } else if (comp instanceof JComboBox) {
-                JComboBox box = (JComboBox) comp;
-                Object sel = box.getSelectedItem();
-                if (sel instanceof PreItem) {
-                    PreItem pi = (PreItem) sel;
-                    // Persist ONLY the UUID or "" if no selection
-                    result.put(key, pi.id == null ? "" : pi.id);
-                } else {
-                    // Defensive fallback
-                    Object editorVal = (box.getEditor() != null)
-                            ? box.getEditor().getItem()
-                            : sel;
-                    result.put(key, editorVal == null ? "" : String.valueOf(editorVal));
-                }
-
-            } else if (comp instanceof JTextField) {
-                result.put(key, ((JTextField) comp).getText());
-
-            } else if (comp instanceof RSyntaxTextArea) {
-                result.put(key, ((RSyntaxTextArea) comp).getText());
+        // 3) preconditionRef.id (UUID) speichern, falls vorhanden
+        if (preconditionComboBox != null) {
+            Object sel = preconditionComboBox.getSelectedItem();
+            if (sel instanceof PreItem) {
+                PreItem pi = (PreItem) sel;
+                result.put("id", (pi.id == null ? "" : pi.id));
+            } else if (sel != null) {
+                result.put("id", String.valueOf(sel));
+            } else {
+                result.put("id", "");
             }
         }
 
-        // push back into condition
+        // 4) expressionRaw speichern
+        if (expressionPanel != null) {
+            result.put("expressionRaw", expressionPanel.getExpressionText());
+        }
+
+        // 5) In condition.value schreiben
         condition.setValue(serializeValueMap(result));
 
-        // persist global test model
+        // 6) global speichern
         TestRegistry.getInstance().save();
 
         JOptionPane.showMessageDialog(
                 this,
                 "Änderungen gespeichert.\n" +
+                        "Scope: " + scopeLevel + "\n" +
                         "expressionRaw = " + result.get("expressionRaw")
         );
     }
 
-    // -------------------- helper: value-map parsing/serialization --------------------
+    // -------------------- Hilfen: Map <-> String --------------------
 
     private Map<String, Object> parseValueMap(String value) {
         Map<String, Object> result = new LinkedHashMap<String, Object>();
@@ -575,25 +634,187 @@ public class GivenConditionEditorTab extends JPanel {
         return sb.toString();
     }
 
+    // -------------------- Innere Hilfstypen --------------------
+
     /**
-     * Represent one selectable Precondition in the preconditionRef.id combo.
-     *
-     * Behavior:
-     * - id == null, name == null   -> special empty entry (no reference, no template)
-     * - otherwise: name {uuid}
-     *
-     * Persist:
-     * - Only store the UUID (id). For the empty entry store "".
+     * Eine Tabellenzeile in der Scope-Variablen-Tabelle.
+     */
+    private static class VarRow {
+        String key;
+        String value;
+        VarRow(String k, String v) {
+            this.key = k;
+            this.value = v;
+        }
+    }
+
+    /**
+     * TableModel für die Variablen-Tabelle.
+     * Eine Zeile = (Schlüssel, Wert). Beide Spalten editierbar.
+     */
+    private static class VarTableModel extends AbstractTableModel {
+        private final java.util.List<VarRow> rows = new java.util.ArrayList<VarRow>();
+
+        public int getRowCount() {
+            return rows.size();
+        }
+
+        public int getColumnCount() {
+            return 2;
+        }
+
+        public String getColumnName(int col) {
+            return (col == 0) ? "Name" : "Wert";
+        }
+
+        public boolean isCellEditable(int rowIndex, int columnIndex) {
+            return true;
+        }
+
+        public Object getValueAt(int row, int col) {
+            VarRow r = rows.get(row);
+            return (col == 0) ? r.key : r.value;
+        }
+
+        public void setValueAt(Object aValue, int row, int col) {
+            VarRow r = rows.get(row);
+            if (col == 0) {
+                r.key = (aValue == null) ? "" : aValue.toString();
+            } else {
+                r.value = (aValue == null) ? "" : aValue.toString();
+            }
+            fireTableRowsUpdated(row, row);
+        }
+
+        public void addRow(String key, String value) {
+            rows.add(new VarRow(key, value));
+            fireTableRowsInserted(rows.size() - 1, rows.size() - 1);
+        }
+
+        public void removeRow(int idx) {
+            if (idx >= 0 && idx < rows.size()) {
+                rows.remove(idx);
+                fireTableRowsDeleted(idx, idx);
+            }
+        }
+
+        public java.util.List<VarRow> getRows() {
+            return new java.util.ArrayList<VarRow>(rows);
+        }
+
+        public boolean hasKey(String k) {
+            for (int i = 0; i < rows.size(); i++) {
+                VarRow r = rows.get(i);
+                if (k.equals(r.key)) return true;
+            }
+            return false;
+        }
+
+        public String getValueForKey(String k) {
+            for (int i = 0; i < rows.size(); i++) {
+                VarRow r = rows.get(i);
+                if (k.equals(r.key)) return r.value;
+            }
+            return null;
+        }
+
+        public void setValueForKey(String k, String v) {
+            for (int i = 0; i < rows.size(); i++) {
+                VarRow r = rows.get(i);
+                if (k.equals(r.key)) {
+                    r.value = v;
+                    fireTableRowsUpdated(i, i);
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * Panel um die Variablen-Tabelle herum:
+     * - Label mit Scope ("Case-Scope", "Suite-Scope", ...)
+     * - JTable
+     * - + / - Buttons
+     */
+    private static class VariableTablePanel extends JPanel {
+        private final VarTableModel model;
+        private final JTable table;
+
+        VariableTablePanel() {
+            super(new BorderLayout(5,5));
+            this.model = new VarTableModel();
+            this.table = new JTable(model);
+
+            JScrollPane scroll = new JScrollPane(table);
+            scroll.setPreferredSize(new Dimension(300, 120));
+
+            JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+            JButton addBtn = new JButton("+");
+            JButton rmBtn  = new JButton("–");
+            addBtn.setToolTipText("Neue Variable hinzufügen");
+            rmBtn.setToolTipText("Ausgewählte Variable entfernen");
+
+            addBtn.addActionListener(new AbstractAction() {
+                public void actionPerformed(ActionEvent e) {
+                    model.addRow("", "");
+                }
+            });
+            rmBtn.addActionListener(new AbstractAction() {
+                public void actionPerformed(ActionEvent e) {
+                    int sel = table.getSelectedRow();
+                    if (sel >= 0) {
+                        model.removeRow(sel);
+                    }
+                }
+            });
+
+            buttons.add(addBtn);
+            buttons.add(rmBtn);
+
+            JLabel scopeLabel = new JLabel("Scope-Variablen:");
+            add(scopeLabel, BorderLayout.NORTH);
+            add(scroll, BorderLayout.CENTER);
+            add(buttons, BorderLayout.SOUTH);
+        }
+
+        public void setScopeLabel(String txt) {
+            if (getComponentCount() > 0 && getComponent(0) instanceof JLabel) {
+                ((JLabel) getComponent(0)).setText(txt);
+            }
+        }
+
+        public void addRow(String key, String value) {
+            model.addRow(key, value);
+        }
+
+        public boolean hasKey(String k) {
+            return model.hasKey(k);
+        }
+
+        public String getValueForKey(String k) {
+            return model.getValueForKey(k);
+        }
+
+        public void setValueForKey(String k, String v) {
+            model.setValueForKey(k, v);
+        }
+
+        public java.util.List<VarRow> getRows() {
+            return model.getRows();
+        }
+    }
+
+    /**
+     * Einträge für die Precondition-Auswahl.
+     * id == null => leerer Eintrag ("keine Vorlage / keine Referenz").
      */
     private static final class PreItem {
         final String id;
         final String name;
-
         PreItem(String id, String name) {
             this.id = id;
             this.name = name;
         }
-
         public String toString() {
             if (id == null && name == null) {
                 return "";

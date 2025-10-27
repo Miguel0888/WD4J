@@ -7,6 +7,7 @@ import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
+import de.bund.zrb.runtime.*;
 import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.TestPlayerUi;
 import de.bund.zrb.ui.components.log.*;
@@ -41,6 +42,8 @@ public class TestPlayerService {
 
     private static final int QUIET_MS = 500; // 400–600ms hat sich bewährt
     private static final String TYPE_PRECONDITION_REF = "preconditionRef";
+    private final RuntimeVariableContext runtimeCtx =
+            new RuntimeVariableContext(ExpressionRegistryImpl.getInstance());
 
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -151,6 +154,9 @@ public class TestPlayerService {
     }
 
     private LogComponent executeTestCaseNode(TestNode node, TestCase testCase) {
+        // Neue Case-Variablen beginnen
+        runtimeCtx.enterCase();
+
         // Subtitle = TestCase-Name
         String sub = (testCase.getName() != null) ? testCase.getName().trim() : "";
         OverlayBridge.setSubtitle(sub);
@@ -172,6 +178,9 @@ public class TestPlayerService {
     }
 
     private LogComponent executeSuiteNode(TestNode node, TestSuite suite) {
+        // Beginne neue Suite → Variablen-Kontext für Suite + Case zurücksetzen
+        runtimeCtx.enterSuite();
+
         // Caption = Suite-Description (oder Name), Subtitle leer
         String cap = (suite.getDescription() != null && !suite.getDescription().trim().isEmpty())
                 ? suite.getDescription().trim()
@@ -214,17 +223,17 @@ public class TestPlayerService {
     }
 
     private List<LogComponent> executeGivenList(List<GivenCondition> givens, SuiteLog parentLog, String label) {
-        List<LogComponent> out = new ArrayList<>();
+        List<LogComponent> out = new ArrayList<LogComponent>();
         if (givens == null || givens.isEmpty()) return out;
 
-        for (GivenCondition given : givens) {
+        for (int i = 0; i < givens.size(); i++) {
 
-            // --- Log-Text bestimmen ---
+            GivenCondition given = givens.get(i);
+
             String logText;
             if (TYPE_PRECONDITION_REF.equals(given.getType())) {
                 String id = parseIdFromValue(given.getValue());
                 String name = resolvePreconditionName(id);
-                // -> genau das wolltest du: Name der Precondition statt "preconditionRef"
                 logText = "Precondition: " + name;
             } else {
                 logText = "Given: " + given.getType();
@@ -234,20 +243,45 @@ public class TestPlayerService {
 
             try {
                 String user = inferUsername(given);
+
+                // 1. Führe das Given fachlich aus (z. B. Benutzer anlegen, Session aufbauen, etc.)
                 givenExecutor.apply(user, given);
+
+                // 2. Schreibe Variablen ins laufende Case-Scope
+                //
+                // username ist ein super häufiges Binding -> als caseVar ablegen
+                if (user != null && user.trim().length() > 0) {
+                    runtimeCtx.setCaseVar("username", user.trim());
+                }
+
+                // Falls dein GivenParameterMap weitere Werte enthält, lege sie auch ab:
+                // Beispiel: Belegnummer=4711-ABC aus "Es existiert eine {{Belegnummer}}."
+                if (given.getParameterMap() != null) {
+                    java.util.Map<String, Object> p = given.getParameterMap();
+                    for (java.util.Map.Entry<String, Object> entry : p.entrySet()) {
+                        String k = entry.getKey();
+                        Object v = entry.getValue();
+                        if (k != null && v instanceof String && ((String) v).trim().length() > 0) {
+                            runtimeCtx.setCaseVar(k, ((String) v).trim());
+                        }
+                    }
+                }
+
+                // 3. Markiere im Log als Erfolg
                 givenLog.setStatus(true);
+
             } catch (Exception ex) {
                 givenLog.setStatus(false);
                 givenLog.setError(ex.getMessage());
             }
 
             givenLog.setParent(parentLog);
-            logger.append(givenLog);          // sofort streamen
+            logger.append(givenLog);
             out.add(givenLog);
         }
+
         return out;
     }
-
 
     private List<LogComponent> executeThenPhase(TestNode caseNode, TestCase testCase, SuiteLog parentLog) {
         List<LogComponent> out = new ArrayList<>();
@@ -297,44 +331,73 @@ public class TestPlayerService {
     // Aktion ausführen (bestehende Logik, nur lesbarer gemacht)
     ////////////////////////////////////////////////////////////////////////////////
 
-    public synchronized boolean playSingleAction(TestAction action, StepLog stepLog) {
+    public synchronized boolean playSingleAction(final TestAction action, final StepLog stepLog) {
         try {
-            lastUsernameUsed = action.getUser();
-            if (lastUsernameUsed == null || lastUsernameUsed.isEmpty()) {
-                System.err.println("⚠️ Keine User-Zuordnung für Action: " + action.getAction());
-                return false;
-            }
+            // 1. Welcher User führt diese Action aus (Browserkontext)?
+            final String effectiveUser = resolveEffectiveUserForAction(action);
 
-            PageImpl page = (PageImpl) browserService.getActivePage(lastUsernameUsed);
+            // 2. Merken, damit nachfolgende Actions gleichen User behalten können
+            lastUsernameUsed = effectiveUser;
+
+            // 3. Browser-Kontext auf diesen User umschalten
+            PageImpl page = (PageImpl) browserService.getActivePage(effectiveUser);
             if (page != null) {
                 String contextId = page.getBrowsingContext().value();
                 browserService.switchSelectedPage(contextId);
             } else {
-                JOptionPane.showMessageDialog(null, "Kein Tab für den im Testfall eingestellten User verfügbar.");
+                JOptionPane.showMessageDialog(
+                        null,
+                        "Kein Tab für den im Testfall eingestellten User verfügbar (" + effectiveUser + ")."
+                );
                 return false;
             }
+
+            // 4. Stelle sicher, dass username auch wirklich im Case-Scope steht,
+            //    falls kein Given vorher gesetzt hat:
+            if (effectiveUser != null && effectiveUser.trim().length() > 0) {
+                runtimeCtx.setCaseVar("username", effectiveUser.trim());
+            }
+
+            // 5. Baue jetzt den ValueScope aus runtimeCtx (case -> suite -> root)
+            final ValueScope scopeForThisAction = runtimeCtx.buildCaseScope();
+
+            // 6. Was für eine Aktion ist das?
             String act = action.getAction();
 
             switch (act) {
-                case "navigate":
-                    // Navigation selbst ist die Aktion → wie jede andere: markieren + navigieren + settle
-                    return doWithSettling(page, action.getTimeout(), () ->
-                            page.navigate(action.getValue(),
-                                    new Page.NavigateOptions().setTimeout(action.getTimeout()))
-                    );
+
+                case "navigate": {
+                    final String navUrl = resolveActionValueAtRuntime(action, scopeForThisAction);
+
+                    return doWithSettling(page, action.getTimeout(), new Runnable() {
+                        public void run() {
+                            page.navigate(
+                                    navUrl,
+                                    new Page.NavigateOptions().setTimeout(action.getTimeout())
+                            );
+                        }
+                    });
+                }
 
                 case "wait":
-                    sleep(Long.parseLong(action.getValue()));
+                    Thread.sleep(Long.parseLong(action.getValue()));
                     return true;
 
                 case "click": {
-                    Locator loc = LocatorResolver.resolve(page, action);
-                    withRecordingSuppressed(page, () ->
-                            waitThen(loc, action.getTimeout(), () -> {
-                                doWithSettling(page, action.getTimeout(),
-                                        () -> loc.click(new Locator.ClickOptions().setTimeout(action.getTimeout())));
-                            })
-                    );
+                    final Locator loc = LocatorResolver.resolve(page, action);
+                    withRecordingSuppressed(page, new Runnable() {
+                        public void run() {
+                            waitThen(loc, action.getTimeout(), new Runnable() {
+                                public void run() {
+                                    doWithSettling(page, action.getTimeout(), new Runnable() {
+                                        public void run() {
+                                            loc.click(new Locator.ClickOptions().setTimeout(action.getTimeout()));
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
                     return true;
                 }
 
@@ -346,13 +409,12 @@ public class TestPlayerService {
                         public void run() {
                             waitThen(loc, action.getTimeout(), new Runnable() {
                                 public void run() {
-                                    // Resolve OTP / Parameter placeholders NOW (just-in-time)
-                                    final String resolvedText = InputValueResolver.resolveDynamicText(action);
+                                    final String resolvedText =
+                                            resolveActionValueAtRuntime(action, scopeForThisAction);
 
                                     loc.fill(
                                             resolvedText,
-                                            new com.microsoft.playwright.Locator.FillOptions()
-                                                    .setTimeout(action.getTimeout())
+                                            new Locator.FillOptions().setTimeout(action.getTimeout())
                                     );
                                 }
                             });
@@ -362,22 +424,39 @@ public class TestPlayerService {
                 }
 
                 case "select": {
-                    Locator loc = LocatorResolver.resolve(page, action);
-                    withRecordingSuppressed(page, () ->
-                            waitThen(loc, action.getTimeout(), () -> loc.selectOption(action.getValue())));
+                    final Locator loc = LocatorResolver.resolve(page, action);
+
+                    final String optionToSelect =
+                            resolveActionValueAtRuntime(action, scopeForThisAction);
+
+                    withRecordingSuppressed(page, new Runnable() {
+                        public void run() {
+                            waitThen(loc, action.getTimeout(), new Runnable() {
+                                public void run() {
+                                    loc.selectOption(optionToSelect);
+                                }
+                            });
+                        }
+                    });
                     return true;
                 }
 
                 case "check":
                 case "radio": {
-                    Locator loc = LocatorResolver.resolve(page, action);
-                    withRecordingSuppressed(page, () ->
-                            waitThen(loc, action.getTimeout(), () ->
-                                    loc.check(new Locator.CheckOptions().setTimeout(action.getTimeout()))));
+                    final Locator loc = LocatorResolver.resolve(page, action);
+                    withRecordingSuppressed(page, new Runnable() {
+                        public void run() {
+                            waitThen(loc, action.getTimeout(), new Runnable() {
+                                public void run() {
+                                    loc.check(new Locator.CheckOptions().setTimeout(action.getTimeout()));
+                                }
+                            });
+                        }
+                    });
                     return true;
                 }
 
-                case "screenshot":
+                case "screenshot": {
                     byte[] png = screenshotAfterWait(action.getTimeout(), page);
 
                     String baseName = (stepLog.getName() == null) ? "case" : stepLog.getName();
@@ -389,8 +468,8 @@ public class TestPlayerService {
                             "<img src='" + rel + "' alt='Screenshot' style='max-width:100%;border:1px solid #ccc;margin-top:.5rem'/>"
                     );
                     return true;
+                }
 
-                //optional:
                 case "press": {
                     final Locator loc = LocatorResolver.resolve(page, action);
 
@@ -398,8 +477,10 @@ public class TestPlayerService {
                         public void run() {
                             waitThen(loc, action.getTimeout(), new Runnable() {
                                 public void run() {
-                                    // "press" uses key names like "Enter", usually no OTP/params, aber
-                                    // man könnte hier auch resolveDynamicText(action) einsetzen falls gewünscht.
+                                    // For press: normalerweise feste Keys wie "Enter".
+                                    // Wenn du jemals dynamisch pressen willst:
+                                    // final String key = resolveActionValueAtRuntime(action, scopeForThisAction);
+                                    // loc.press(key);
                                     loc.press(action.getValue());
                                 }
                             });
@@ -407,6 +488,7 @@ public class TestPlayerService {
                     });
                     return true;
                 }
+
                 case "type": {
                     final Locator loc = LocatorResolver.resolve(page, action);
 
@@ -414,9 +496,8 @@ public class TestPlayerService {
                         public void run() {
                             waitThen(loc, action.getTimeout(), new Runnable() {
                                 public void run() {
-                                    // Resolve OTP / Parameter placeholders NOW
-                                    final String resolvedText = InputValueResolver.resolveDynamicText(action);
-
+                                    final String resolvedText =
+                                            resolveActionValueAtRuntime(action, scopeForThisAction);
                                     loc.type(resolvedText);
                                 }
                             });
@@ -633,5 +714,62 @@ public class TestPlayerService {
         // nicht gefunden -> zeig die id
         return id;
     }
+
+    /**
+     * Resolve the dynamic template for this action into a concrete runtime String.
+     *
+     * Intent:
+     * - Parse placeholders like {{username}} or {{OTP({{username}})}}.
+     * - Evaluate functions via ExpressionRegistry.
+     * - Evaluate variables via ValueScope chain.
+     * - Do this LAZY (right now, not beim Speichern).
+     */
+    private String resolveActionValueAtRuntime(TestAction action, ValueScope scope) {
+        String template = action.getValue(); // z.B. "{{OTP({{username}})}}" oder "4711" oder "{{username}}"
+        if (template == null) {
+            return "";
+        }
+        return ActionRuntimeEvaluator.evaluateActionValue(template, scope);
+    }
+
+    /**
+     * Determine which logical user is active for this action.
+     *
+     * Intent:
+     * - Return the username that should drive browser context AND be exposed
+     *   as {{username}} in expressions.
+     *
+     * Fallback order:
+     * 1. action.getUser()
+     * 2. lastUsernameUsed (vom vorherigen Step)
+     * 3. erster registrierter User aus UserRegistry
+     * 4. "default"
+     */
+    private String resolveEffectiveUserForAction(TestAction action) {
+        // 1. Direkt an der Action gesetzt?
+        if (action.getUser() != null && action.getUser().trim().length() > 0) {
+            return action.getUser().trim();
+        }
+
+        // 2. Zuletzt benutzter User im Lauf?
+        if (lastUsernameUsed != null && lastUsernameUsed.trim().length() > 0) {
+            return lastUsernameUsed.trim();
+        }
+
+        // 3. Fallback: nimm ersten bekannten User
+        java.util.List<UserRegistry.User> all = UserRegistry.getInstance().getAll();
+        if (!all.isEmpty()) {
+            UserRegistry.User u = all.get(0);
+            if (u != null && u.getUsername() != null && u.getUsername().trim().length() > 0) {
+                return u.getUsername().trim();
+            }
+        }
+
+        // 4. Letzte Eskalationsstufe
+        return "default";
+    }
+
+
+
 
 }

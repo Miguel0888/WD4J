@@ -1,5 +1,7 @@
 package de.bund.zrb.ui.expressions;
 
+import de.bund.zrb.runtime.ExpressionRegistry;
+import de.bund.zrb.runtime.ExpressionRegistryImpl;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.fife.ui.rtextarea.RTextScrollPane;
@@ -10,362 +12,437 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.util.Stack;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 
 /**
- * Provide a reusable Swing panel for editing dynamic Given/When expressions.
+ * Provide an inline expression editor for GivenCondition.
  *
  * Intent:
- * - Let test authors write expressions like:
- *      "Es existiert eine {{Belegnummer}}."
- *      "{{OTP({{username}})}}"
- *      "{{Uhrzeit}}"
+ * - Let the tester type expressions like:
+ *      Es existiert eine {{Belegnummer}}.
+ *      Der Benutzer hat einen OTP-Code {{OTP({{username}})}}.
  *
- * - Offer UX helpers:
- *      * Insert "{{" and "}}" via buttons.
- *      * Show inline help via a blue question mark icon (tooltip on hover).
- *      * Highlight all brace pairs with rainbow nesting colors.
+ * UX goals:
+ * - Toolbar in one row: [QuickInsert][{{][}}] ... [ⓘ]
+ * - Medium sized editor (6 rows, ~70 columns) instead of full-screen monster.
+ * - Rainbow highlighting for delimiters {{ }}, ( ) with soft pastel colors.
  *
- * Responsibilities:
- * - Contain the editor (RSyntaxTextArea).
- * - Manage brace highlighting on every change.
- * - Offer public getters/setters for integration in higher-level forms.
- *
- * Do not:
- * - Parse or validate expressions here.
- * - Bind this panel to scenario state directly.
- *
- * Usage:
- *   ExpressionInputPanel p = new ExpressionInputPanel();
- *   someParent.add(p);
- *   String rawExpr = p.getExpressionText();
+ * Scope:
+ * - Only UI. Parsing/evaluation is done outside.
  */
 public class ExpressionInputPanel extends JPanel {
 
+    // UI parts
     private final RSyntaxTextArea editor;
-    private final JButton btnInsertOpen;
-    private final JButton btnInsertClose;
-    private final JLabel helpIcon;
-    private final RTextScrollPane scrollPane;
+    private final JLabel statusLabel;
+    private final JComboBox<String> quickInsertBox;
+    private final JButton btnOpenBraces;
+    private final JButton btnCloseBraces;
+    private final JLabel helpLabel;
 
-    // Keep track of current highlight tags so they can be removed before repaint
-    private final List<Object> rainbowHighlights = new ArrayList<Object>();
+    // Highlight infra
+    private final DefaultHighlighter highlighter;
 
-    // Define rainbow colors for nesting depth
-    private final Color[] rainbowColors = new Color[] {
-            new Color(255,  99,  71),   // tomato / reddish
-            new Color(255, 165,   0),   // orange
-            new Color(255, 215,   0),   // gold / yellow-ish
-            new Color( 60, 179, 113),   // medium sea green
-            new Color( 30, 144, 255),   // dodger blue
-            new Color(138,  43, 226)    // blueviolet
+    // soft rainbow base colors
+    private final Color[] rainbowBase = new Color[]{
+            new Color(255, 105, 97),   // coral red-ish
+            new Color(255, 179, 71),   // orange
+            new Color(255, 249, 128),  // yellow
+            new Color(144, 238, 144),  // green
+            new Color(135, 206, 250),  // blue
+            new Color(221, 160, 221)   // purple
     };
 
     public ExpressionInputPanel() {
         super(new BorderLayout(6, 6));
 
-        // --- Editor vorbereiten --------------------------------------------
-        editor = new RSyntaxTextArea(3, 40);
-        editor.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_NONE);
-        editor.setCodeFoldingEnabled(false);
+        // ───────────────── Toolbar: QuickInsert + {{ }} + Info ─────────────────
+        JPanel toolbarRow = new JPanel(new BorderLayout(4, 0));
+
+        JPanel leftTools = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+
+        quickInsertBox = new JComboBox<String>();
+        quickInsertBox.setEditable(false);
+        quickInsertBox.setPrototypeDisplayValue("OTP({{username}})");
+        quickInsertBox.setToolTipText("Füge vordefinierte Funktion/Variable ein");
+        fillQuickInsertBox(quickInsertBox);
+
+        quickInsertBox.addActionListener(new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                Object sel = quickInsertBox.getSelectedItem();
+                if (sel != null) {
+                    insertTextAtCaret(sel.toString());
+                }
+            }
+        });
+
+        btnOpenBraces = new JButton("{{");
+        btnOpenBraces.setMargin(new Insets(2, 6, 2, 6));
+        btnOpenBraces.setFocusable(false);
+        btnOpenBraces.setToolTipText("Beginne Platzhalter/Funktion");
+        btnOpenBraces.addActionListener(new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                insertTextAtCaret("{{");
+            }
+        });
+
+        btnCloseBraces = new JButton("}}");
+        btnCloseBraces.setMargin(new Insets(2, 6, 2, 6));
+        btnCloseBraces.setFocusable(false);
+        btnCloseBraces.setToolTipText("Schließe Platzhalter/Funktion");
+        btnCloseBraces.addActionListener(new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                insertTextAtCaret("}}");
+            }
+        });
+
+        leftTools.add(quickInsertBox);
+        leftTools.add(btnOpenBraces);
+        leftTools.add(btnCloseBraces);
+
+        JPanel rightHelp = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        helpLabel = new JLabel("\u24D8"); // ⓘ
+        helpLabel.setForeground(new Color(0x1976D2)); // blue accent
+        helpLabel.setFont(helpLabel.getFont().deriveFont(Font.BOLD, 14f));
+        helpLabel.setToolTipText(
+                "<html>" +
+                        "<b>Syntax-Hilfe</b><br>" +
+                        "• Freitext: Es existiert eine {{Belegnummer}}.<br>" +
+                        "• Variable: {{username}}<br>" +
+                        "• Systemwert: {{Uhrzeit}}<br>" +
+                        "• Funktion: OTP({{username}})<br>" +
+                        "• Verschachtelt: Signatur(OTP({{username}}))<br>" +
+                        "• Aufgelöst erst zur Laufzeit (spätester Zeitpunkt)." +
+                        "</html>"
+        );
+        rightHelp.add(helpLabel);
+
+        toolbarRow.add(leftTools, BorderLayout.CENTER);
+        toolbarRow.add(rightHelp, BorderLayout.EAST);
+
+        // ───────────────── Editor-Bereich mittelgroß ─────────────────
+        editor = new RSyntaxTextArea();
+        editor.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVA);
+        editor.setCodeFoldingEnabled(true);
         editor.setFont(new Font("Monospaced", Font.PLAIN, 14));
-        editor.setTabSize(2);
-        editor.setAntiAliasingEnabled(true);
+        editor.setLineWrap(false);
+        editor.setWrapStyleWord(false);
 
-        // Provide gentle gray placeholder if empty (visual guidance for first-time users)
-        editor.setText("Es existiert eine {{Belegnummer}}.");
+        // kleinere Default-Höhe:
+        editor.setRows(6);      // vorher 10
+        editor.setColumns(70);  // vorher 80
 
-        scrollPane = new RTextScrollPane(editor);
-        scrollPane.setFoldIndicatorEnabled(false);
-        scrollPane.setLineNumbersEnabled(false);
+        RTextScrollPane scrollPane = new RTextScrollPane(editor);
 
-        // --- Buttons für {{ und }} -----------------------------------------
-        btnInsertOpen = new JButton("{{");
-        btnInsertOpen.setFocusable(false);
-        btnInsertOpen.setMargin(new Insets(2, 6, 2, 6));
-        btnInsertOpen.setToolTipText("Füge '{{' an der Cursor-Position ein");
+        // wir geben jetzt moderate Mindest-/Preferred-Größen
+        Dimension minSize = new Dimension(500, 140);
+        Dimension prefSize = new Dimension(650, 160);
+        scrollPane.setMinimumSize(minSize);
+        scrollPane.setPreferredSize(prefSize);
 
-        btnInsertClose = new JButton("}}");
-        btnInsertClose.setFocusable(false);
-        btnInsertClose.setMargin(new Insets(2, 6, 2, 6));
-        btnInsertClose.setToolTipText("Füge '}}' an der Cursor-Position ein");
+        // Wrapper, damit GridBag was Greifbares hat
+        JPanel editorRegion = new JPanel(new BorderLayout());
+        editorRegion.add(scrollPane, BorderLayout.CENTER);
+        editorRegion.setMinimumSize(minSize);
+        editorRegion.setPreferredSize(prefSize);
 
-        btnInsertOpen.addActionListener(new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                insertAtCaret("{{");
-            }
-        });
+        // Rainbow-Highlighter
+        highlighter = (DefaultHighlighter) editor.getHighlighter();
+        highlighter.setDrawsLayeredHighlights(true);
 
-        btnInsertClose.addActionListener(new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                insertAtCaret("}}");
-            }
-        });
-
-        // --- Help Icon (blaues Fragezeichen) --------------------------------
-        helpIcon = new JLabel("?");
-        helpIcon.setOpaque(true);
-        helpIcon.setHorizontalAlignment(SwingConstants.CENTER);
-        helpIcon.setForeground(Color.WHITE);
-        helpIcon.setBackground(new Color(30, 144, 255)); // dodger blue
-        helpIcon.setBorder(BorderFactory.createLineBorder(new Color(30, 144, 255), 2, true));
-        helpIcon.setFont(helpIcon.getFont().deriveFont(Font.BOLD, 12f));
-        helpIcon.setPreferredSize(new Dimension(20, 20));
-        helpIcon.setToolTipText(buildHelpTooltipHtml());
-
-        // make it round-ish
-        helpIcon.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) {
-                helpIcon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            }
-            public void mouseExited(MouseEvent e) {
-                helpIcon.setCursor(Cursor.getDefaultCursor());
-            }
-        });
-
-        // --- Rechte Seitenleiste (Buttons + Help) ---------------------------
-        JPanel rightBar = new JPanel();
-        rightBar.setLayout(new BoxLayout(rightBar, BoxLayout.Y_AXIS));
-        rightBar.add(btnInsertOpen);
-        rightBar.add(Box.createVerticalStrut(4));
-        rightBar.add(btnInsertClose);
-        rightBar.add(Box.createVerticalStrut(10));
-        rightBar.add(helpIcon);
-        rightBar.add(Box.createVerticalGlue());
-
-        // --- Untertitel / Hilfetext unterhalb des Editors -------------------
-        JLabel hintLabel = new JLabel("Variablen mit {{Name}}, Funktionen wie {{OTP({{username}})}}, Text bleibt normal.");
-        hintLabel.setFont(hintLabel.getFont().deriveFont(Font.ITALIC, 11f));
-        hintLabel.setForeground(Color.DARK_GRAY);
-
-        // --- Status Label für Validität (optional, nur Anzeige) -------------
-        // Du kannst das später von außen setzen, z. B. "✔ gültig" / "❌ Fehler"
-        // Für jetzt geben wir nur einen neutralen Startzustand.
-        statusLabel = new JLabel("Status: -");
-        statusLabel.setFont(statusLabel.getFont().deriveFont(11f));
-        statusLabel.setForeground(Color.GRAY);
-
-        JPanel bottomInfoPanel = new JPanel(new BorderLayout(6, 2));
-        bottomInfoPanel.add(hintLabel, BorderLayout.NORTH);
-        bottomInfoPanel.add(statusLabel, BorderLayout.SOUTH);
-
-        // --- Zusammenbauen --------------------------------------------------
-        JPanel editorWithRightBar = new JPanel(new BorderLayout(4, 4));
-        editorWithRightBar.add(scrollPane, BorderLayout.CENTER);
-        editorWithRightBar.add(rightBar, BorderLayout.EAST);
-
-        add(editorWithRightBar, BorderLayout.CENTER);
-        add(bottomInfoPanel, BorderLayout.SOUTH);
-
-        // --- Listener für Rainbow-Highlight + Status -----------------------
         editor.getDocument().addDocumentListener(new DocumentListener() {
-            public void insertUpdate(DocumentEvent e) { onEditorChanged(); }
-            public void removeUpdate(DocumentEvent e) { onEditorChanged(); }
-            public void changedUpdate(DocumentEvent e) { onEditorChanged(); }
+            @Override public void insertUpdate(DocumentEvent e) { refreshRainbow(); }
+            @Override public void removeUpdate(DocumentEvent e) { refreshRainbow(); }
+            @Override public void changedUpdate(DocumentEvent e) { refreshRainbow(); }
         });
 
-        // Initial highlight
-        applyRainbowHighlight();
+        // ───────────────── Status-Zeile ─────────────────
+        statusLabel = new JLabel(" ");
+        statusLabel.setOpaque(true);
+        setStatusNeutral("Kein Ausdruck");
+
+        // ───────────────── Zusammenbauen ─────────────────
+        add(toolbarRow, BorderLayout.NORTH);
+        add(editorRegion, BorderLayout.CENTER);
+        add(statusLabel, BorderLayout.SOUTH);
     }
 
-    // Expose status label so container can also update validity info if gewünscht
-    private final JLabel statusLabel;
+    // ----- Public API for GivenConditionEditorTab -----
 
-    /**
-     * Get current expression text content.
-     */
+    public RSyntaxTextArea getEditor() {
+        return editor;
+    }
+
     public String getExpressionText() {
         return editor.getText();
     }
 
-    /**
-     * Set expression text content programmatically.
-     * (Use this when loading existing GivenCondition data.)
-     */
-    public void setExpressionText(String txt) {
-        if (txt == null) {
-            txt = "";
-        }
-        editor.setText(txt);
-        applyRainbowHighlight();
+    public void setExpressionText(String text) {
+        editor.setText(text == null ? "" : text);
+        editor.setCaretPosition(editor.getText().length());
+        refreshRainbow();
     }
 
-    /**
-     * Set status message and color to give user feedback (e.g. parser status).
-     * Example usage:
-     *     panel.setStatusOk("Ausdruck ist gültig");
-     *     panel.setStatusError("Unbekannte Variable X");
-     */
     public void setStatusOk(String msg) {
-        statusLabel.setText("Status: \u2714 " + msg); // ✔
-        statusLabel.setForeground(new Color(0,128,0));
+        statusLabel.setBackground(new Color(0xC8E6C9));
+        statusLabel.setForeground(new Color(0x2E7D32));
+        statusLabel.setText(msg != null ? msg : "OK");
     }
 
     public void setStatusError(String msg) {
-        statusLabel.setText("Status: \u274C " + msg); // ❌
-        statusLabel.setForeground(Color.RED);
+        statusLabel.setBackground(new Color(0xFFCDD2));
+        statusLabel.setForeground(new Color(0xC62828));
+        statusLabel.setText(msg != null ? msg : "Fehler");
     }
 
     public void setStatusNeutral(String msg) {
-        statusLabel.setText("Status: " + msg);
-        statusLabel.setForeground(Color.GRAY);
+        statusLabel.setBackground(new Color(0xFFF9C4));
+        statusLabel.setForeground(new Color(0x5D4037));
+        statusLabel.setText(msg != null ? msg : "…");
     }
 
-    /**
-     * Insert a snippet into the editor at the caret position.
-     * Keep caret after the inserted text.
-     */
-    private void insertAtCaret(String snippet) {
-        if (snippet == null) return;
+    // ----- Toolbar helpers -----
+
+    private void fillQuickInsertBox(JComboBox<String> box) {
+        addIfAbsent(box, "OTP({{username}})");
+        addIfAbsent(box, "{{username}}");
+        addIfAbsent(box, "{{Uhrzeit}}");
+
+        // add dynamic functions from registry (if available)
+        try {
+            ExpressionRegistry reg = ExpressionRegistryImpl.getInstance();
+            List<String> keys = new ArrayList<String>(reg.getKeys());
+            for (int i = 0; i < keys.size(); i++) {
+                String k = keys.get(i);
+                addIfAbsent(box, k + "(...)");
+            }
+        } catch (Throwable ignore) {
+            // registry might not be initialized yet
+        }
+    }
+
+    private void addIfAbsent(JComboBox<String> box, String value) {
+        for (int i = 0; i < box.getItemCount(); i++) {
+            Object it = box.getItemAt(i);
+            if (value.equals(it)) return;
+        }
+        box.addItem(value);
+    }
+
+    private void insertTextAtCaret(String snippet) {
+        if (snippet == null || snippet.length() == 0) return;
         int pos = editor.getCaretPosition();
         try {
             editor.getDocument().insertString(pos, snippet, null);
             editor.setCaretPosition(pos + snippet.length());
         } catch (BadLocationException ex) {
-            // ignore, caret out of range should never happen
+            // ignore
         }
     }
 
-    /**
-     * React to text changes in the editor.
-     * Do not call expensive parsing here (that happens in outer tabs).
-     * Only redo rainbow highlight locally.
-     */
-    private void onEditorChanged() {
-        applyRainbowHighlight();
-        // Outer container (GivenConditionEditorTab) kann zusätzlich parse + setStatusOk/Error aufrufen,
-        // z. B. via DocumentListener, um Validität anzuzeigen.
-    }
+    // ----- Rainbow highlighting -----
 
-    /**
-     * Apply rainbow highlight for nested {{ ... }} pairs.
-     *
-     * Concept:
-     * - Scan all chars.
-     * - Treat "{{" as "push new nesting level".
-     * - Treat "}}" as "pop nesting level".
-     * - For each brace token, add a highlight with a color based on nesting depth.
-     *
-     * Simplification:
-     * - We highlight only the braces themselves ("{{" and "}}"), not the full region.
-     * - Nested braces get different (cycled) colors.
-     */
-    private void applyRainbowHighlight() {
-        Highlighter hl = editor.getHighlighter();
-
-        // Remove previous rainbow highlights
-        for (int i = 0; i < rainbowHighlights.size(); i++) {
-            Object tag = rainbowHighlights.get(i);
-            hl.removeHighlight(tag);
-        }
-        rainbowHighlights.clear();
+    private void refreshRainbow() {
+        highlighter.removeAllHighlights();
 
         String text = editor.getText();
         if (text == null || text.length() == 0) {
             return;
         }
 
-        // Find all brace tokens and collect them with depth info
-        // We handle tokens as 2-char sequences "{{" and "}}".
-        class BraceToken {
-            int startOffset;
-            int endOffset;
-            int depth;
-            BraceToken(int s, int e, int d) {
-                this.startOffset = s;
-                this.endOffset = e;
-                this.depth = d;
+        List<BracketPair> pairs = collectPairs(text);
+
+        for (int i = 0; i < pairs.size(); i++) {
+            BracketPair p = pairs.get(i);
+
+            Color base = rainbowBase[p.depth % rainbowBase.length];
+            Color bg   = new Color(base.getRed(), base.getGreen(), base.getBlue(), 60);
+            Color line = new Color(base.getRed(), base.getGreen(), base.getBlue(), 180);
+
+            Highlighter.HighlightPainter painter = new SoftRainbowPainter(bg, line);
+
+            try {
+                highlighter.addHighlight(p.openStart, p.openEnd, painter);
+                if (p.closeStart >= 0 && p.closeEnd >= 0) {
+                    highlighter.addHighlight(p.closeStart, p.closeEnd, painter);
+                }
+            } catch (BadLocationException ignore) {
             }
         }
+    }
 
-        List<BraceToken> tokens = new ArrayList<BraceToken>();
-        Stack<Integer> depthStack = new Stack<Integer>();
-        int depth = 0;
+    private List<BracketPair> collectPairs(String text) {
+        List<BracketPair> result = new ArrayList<BracketPair>();
+
+        Stack<OpenToken> curlyStack = new Stack<OpenToken>();
+        Stack<OpenToken> parenStack = new Stack<OpenToken>();
 
         int i = 0;
-        while (i < text.length() - 1) {
-            char c1 = text.charAt(i);
-            char c2 = text.charAt(i + 1);
+        while (i < text.length()) {
 
-            if (c1 == '{' && c2 == '{') {
-                // Opening
-                depthStack.push(Integer.valueOf(depth));
-                depth = depth + 1;
-                if (depth < 0) depth = 0; // safety
+            // "{{"
+            if (i + 1 < text.length()
+                    && text.charAt(i) == '{'
+                    && text.charAt(i + 1) == '{') {
 
-                tokens.add(new BraceToken(i, i + 2, depth));
-
+                OpenToken tok = new OpenToken(OpenToken.KIND_CURLY, i, i + 2, curlyStack.size());
+                curlyStack.push(tok);
                 i += 2;
                 continue;
             }
 
-            if (c1 == '}' && c2 == '}') {
-                // Closing
-                // Closing corresponds to current depth, then pop
-                if (depth < 1) {
-                    depth = 1;
-                }
-                tokens.add(new BraceToken(i, i + 2, depth));
+            // "}}"
+            if (i + 1 < text.length()
+                    && text.charAt(i) == '}'
+                    && text.charAt(i + 1) == '}') {
 
-                if (!depthStack.isEmpty()) {
-                    depthStack.pop();
+                if (!curlyStack.isEmpty()) {
+                    OpenToken open = curlyStack.pop();
+                    result.add(new BracketPair(
+                            open.depth,
+                            open.posStart, open.posEnd,
+                            i, i + 2
+                    ));
                 }
-                depth = Math.max(0, depth - 1);
-
                 i += 2;
                 continue;
             }
 
-            i++;
+            // "("
+            if (text.charAt(i) == '(') {
+                OpenToken tok = new OpenToken(OpenToken.KIND_PAREN, i, i + 1, parenStack.size());
+                parenStack.push(tok);
+                i += 1;
+                continue;
+            }
+
+            // ")"
+            if (text.charAt(i) == ')') {
+                if (!parenStack.isEmpty()) {
+                    OpenToken open = parenStack.pop();
+                    result.add(new BracketPair(
+                            open.depth,
+                            open.posStart, open.posEnd,
+                            i, i + 1
+                    ));
+                }
+                i += 1;
+                continue;
+            }
+
+            i += 1;
         }
 
-        // Paint each token using rainbow color based on depth
-        for (int j = 0; j < tokens.size(); j++) {
-            BraceToken t = tokens.get(j);
-            Color col = rainbowColors[(t.depth - 1 + rainbowColors.length) % rainbowColors.length];
-            Highlighter.HighlightPainter painter = new DefaultHighlighter.DefaultHighlightPainter(
-                    new Color(col.getRed(), col.getGreen(), col.getBlue(), 60)
-            );
+        // Markiere auch ungeschlossene opener
+        while (!curlyStack.isEmpty()) {
+            OpenToken open = curlyStack.pop();
+            result.add(new BracketPair(
+                    open.depth,
+                    open.posStart, open.posEnd,
+                    -1, -1
+            ));
+        }
+        while (!parenStack.isEmpty()) {
+            OpenToken open = parenStack.pop();
+            result.add(new BracketPair(
+                    open.depth,
+                    open.posStart, open.posEnd,
+                    -1, -1
+            ));
+        }
+
+        return result;
+    }
+
+    private static class SoftRainbowPainter extends DefaultHighlighter.DefaultHighlightPainter {
+
+        private final Color fillColor;
+        private final Color lineColor;
+
+        SoftRainbowPainter(Color fillColor, Color lineColor) {
+            super(fillColor);
+            this.fillColor = fillColor;
+            this.lineColor = lineColor;
+        }
+
+        @Override
+        public Shape paintLayer(Graphics g, int offs0, int offs1,
+                                Shape bounds, JTextComponent c, View view) {
+
             try {
-                Object tag = hl.addHighlight(t.startOffset, t.endOffset, painter);
-                rainbowHighlights.add(tag);
-            } catch (BadLocationException ex) {
-                // ignore invalid offsets
+                Shape shape = view.modelToView(
+                        offs0, Position.Bias.Forward,
+                        offs1, Position.Bias.Backward,
+                        bounds
+                );
+                Rectangle r = (shape instanceof Rectangle)
+                        ? (Rectangle) shape
+                        : shape.getBounds();
+
+                Graphics2D g2 = (Graphics2D) g.create();
+                try {
+                    g2.setColor(fillColor);
+                    int arc = 6;
+                    int padY = 1;
+                    int padX = 1;
+                    g2.fillRoundRect(
+                            r.x - padX,
+                            r.y + padY,
+                            r.width + (padX * 2),
+                            r.height - (padY * 2),
+                            arc,
+                            arc
+                    );
+
+                    g2.setColor(lineColor);
+                    g2.setStroke(new BasicStroke(1.5f));
+                    int y = r.y + r.height - 2;
+                    g2.drawLine(r.x - padX, y, r.x + r.width + padX, y);
+                } finally {
+                    g2.dispose();
+                }
+                return r;
+            } catch (BadLocationException e) {
+                return super.paintLayer(g, offs0, offs1, bounds, c, view);
             }
         }
     }
 
-    /**
-     * Build tooltip HTML. Keep explanation short and approachable for test authors.
-     */
-    private String buildHelpTooltipHtml() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("<html>");
-        sb.append("<b>Syntax-Hilfe</b><br>");
-        sb.append("<br>");
-        sb.append("• <b>Variable</b>: {{Belegnummer}}<br>");
-        sb.append("  Liest zur Laufzeit einen Wert (z. B. Referenznummer).<br>");
-        sb.append("<br>");
-        sb.append("• <b>Funktion</b>: {{OTP({{username}})}}<br>");
-        sb.append("  Ruft eine registrierte Funktion (z. B. OTP) auf.<br>");
-        sb.append("  Parameter können wiederum Variablen sein.<br>");
-        sb.append("<br>");
-        sb.append("• <b>Text</b>: Alles außerhalb von {{...}} bleibt Literal-Text.<br>");
-        sb.append("<br>");
-        sb.append("Verschachtelung ist erlaubt, z. B.:<br>");
-        sb.append("  {{wrap({{OTP({{username}})}})}}<br>");
-        sb.append("<br>");
-        sb.append("Tipp: Verwende die Buttons '{{' / '}}' um sauber zu arbeiten.");
-        sb.append("</html>");
-        return sb.toString();
+    private static class OpenToken {
+        static final int KIND_CURLY = 1;
+        static final int KIND_PAREN = 2;
+
+        final int kind;
+        final int posStart;
+        final int posEnd;
+        final int depth;
+
+        OpenToken(int kind, int posStart, int posEnd, int depth) {
+            this.kind = kind;
+            this.posStart = posStart;
+            this.posEnd = posEnd;
+            this.depth = depth;
+        }
     }
 
-    public RSyntaxTextArea getEditor() {
-        // Return internal editor so outer code can attach a DocumentListener
-        return editor;
+    private static class BracketPair {
+        final int depth;
+        final int openStart;
+        final int openEnd;
+        final int closeStart;
+        final int closeEnd;
+
+        BracketPair(int depth, int openStart, int openEnd, int closeStart, int closeEnd) {
+            this.depth = depth;
+            this.openStart = openStart;
+            this.openEnd = openEnd;
+            this.closeStart = closeStart;
+            this.closeEnd = closeEnd;
+        }
     }
 }

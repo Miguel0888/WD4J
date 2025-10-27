@@ -30,4 +30,8 @@ public class LiteralExpression implements ResolvableExpression {
     public String toString() {
         return literal;
     }
+
+    public String getText() {
+        return literal;
+    }
 }

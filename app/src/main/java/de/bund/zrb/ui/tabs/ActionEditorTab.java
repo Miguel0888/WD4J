@@ -1,16 +1,19 @@
 package de.bund.zrb.ui.tabs;
 
+import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.TestAction;
-import de.bund.zrb.service.ParameterRegistry;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.expressions.ExpressionSelectionListener;
 import de.bund.zrb.ui.expressions.ExpressionTreeComboBox;
+import de.bund.zrb.ui.expressions.ExpressionTreeModelBuilder;
 import de.bund.zrb.ui.expressions.ExpressionTreeNode;
 import de.bund.zrb.util.LocatorType;
 import de.bund.zrb.expressions.domain.ResolvableExpression;
 import de.bund.zrb.expressions.engine.CompositeExpression;
+import de.bund.zrb.expressions.engine.ExpressionParser;
 import de.bund.zrb.expressions.engine.FunctionExpression;
+import de.bund.zrb.expressions.engine.LiteralExpression;
 import de.bund.zrb.expressions.engine.VariableExpression;
 
 import javax.swing.*;
@@ -20,44 +23,60 @@ import java.util.*;
 
 /**
  * Edit a single TestAction.
- * Keep UI decoupled from playback logic:
- * - Let user pick an action type (click/fill/...).
- * - Let user pick or edit selector and value template.
- * - Sync changes back into TestAction.
  *
- * Value handling (NEW):
- * - Instead of a plain JComboBox<String>, present an expression-aware dropdown.
- * - The dropdown shows an expression AST as a tree (indented).
- * - User clicks any node (Variable, Function, Composite, ...) to select it.
- * - The chosen node can later be evaluated at runtime.
+ * Intent:
+ * - Bind this action (typically a When-step like "fill field X") to a specific dynamic value.
+ * - That value is not typed in manually anymore. Instead, it comes from any Given in the same test.
  *
- * Test mode:
- * - Use dummy AST data: OTP(username) and Uhrzeit.
- * - Store the chosen node label back into action.setValue(...) when "Speichern" is pressed.
+ * UX:
+ * - The "Value:" control is an ExpressionTreeComboBox.
+ * - It shows all expressions and subexpressions coming from all GivenConditions of this test.
+ * - The user opens the dropdown, sees a tree:
+ *      Givens
+ *        Given #1: Es existiert eine {{Belegnummer}}.
+ *          Literal: "Es existiert eine "
+ *          Variable: Belegnummer
+ *          Literal: "."
+ *        Given #2: Der Benutzer hat einen OTP-Code {{OTP({{username}})}}.
+ *          Function: OTP
+ *            Variable: username
+ * - Clicking any node selects it.
  *
- * Next step (not done here):
- * - Instead of saving only the label, store the chosen ResolvableExpression in ScenarioState
- *   under a logical key, so the When-step can resolve it lazily.
+ * Runtime idea:
+ * - We store which node was chosen (chosenExpressionLabel + chosenExpression AST node).
+ * - Later during playback we evaluate that chosen node lazily (Supplier etc.).
+ *
+ * Clean Code / Architektur:
+ * - ActionEditorTab does NOT evaluate anything.
+ * - ActionEditorTab only lets the tester *bind* an action to a specific AST node.
+ * - Evaluation happens later in the runtime layer, not in the UI.
  */
 public class ActionEditorTab extends AbstractEditorTab<TestAction> {
 
-    // Keep reference to what user picked in the expression dropdown
+    /** Remember what the user actually picked from the tree */
     private ResolvableExpression chosenExpression;
     private String chosenExpressionLabel;
 
-    public ActionEditorTab(final TestAction action) {
+    /** We also need the Givens of this scenario/test/suite */
+    private final java.util.List<GivenCondition> givens;
+
+    public ActionEditorTab(final TestAction action,
+                           final java.util.List<GivenCondition> givensForThisAction) {
         super("Edit Action", action);
+        this.givens = (givensForThisAction != null)
+                ? givensForThisAction
+                : java.util.Collections.<GivenCondition>emptyList();
+
         setLayout(new BorderLayout());
 
         JPanel formPanel = new JPanel(new GridLayout(0, 2, 8, 8));
         formPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         ////////////////////////////////////////////////////////////////////////////
-        // Build dropdown data
+        // Build dropdown data for "Action" and "Locator Type"
         ////////////////////////////////////////////////////////////////////////////
 
-        // Known/best-effort actions. Extend as recorder learns more.
-        // (Add navigate, wait, fill, type, press etc. so the user sees common actions.)
+        // Known/best-effort actions (extend as needed)
         Set<String> knownActions = new TreeSet<String>(Arrays.asList(
                 "click", "input", "fill", "type", "press",
                 "select", "check", "radio",
@@ -70,11 +89,6 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
             locatorTypes.add(t.getKey());
         }
 
-        // Old value model (string-based). Keep method for future fallback,
-        // but we will not use it anymore:
-        // DefaultComboBoxModel<String> valueModel = buildValueModel(action);
-
-
         ////////////////////////////////////////////////////////////////////////////
         // UI fields
         ////////////////////////////////////////////////////////////////////////////
@@ -86,38 +100,30 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
         actionBox.setSelectedItem(action.getAction());
         formPanel.add(actionBox);
 
-        // Value (AST-driven dropdown instead of plain text model)
+        // Value
         formPanel.add(new JLabel("Value:"));
 
-        // Create the special combo-like component that shows a tree in a popup
+        // Our special "tree dropdown"
         final ExpressionTreeComboBox valueBox = new ExpressionTreeComboBox();
 
-        // Build dummy AST and connect it to the dropdown
-        // (In real code this would come from ScenarioState.getRootExpression() etc.)
-        ExpressionTreeNode uiRoot = buildDummyExpressionTreeNode();
+        // Build AST tree root from ALL givens of this test
+        ExpressionTreeNode uiRoot = buildTreeFromAllGivens(this.givens);
+
+        // Attach tree to combo
         valueBox.setTreeRoot(uiRoot);
 
-        // Pre-fill display with whatever the action had before,
-        // so the user sees existing state when editing.
-        chosenExpressionLabel = action.getValue() != null ? action.getValue() : "";
-        // NOTE: chosenExpression stays null until user actively picks from tree,
-        // which is fine for a first test run.
-
+        // Pre-fill UI field with whatever was already chosen before (action.getValue())
+        chosenExpressionLabel = (action.getValue() != null) ? action.getValue() : "";
         if (chosenExpressionLabel != null && chosenExpressionLabel.trim().length() > 0) {
-            // Show previous label in the UI field to preserve user's context.
-            // We simulate an already chosen node label by directly setting text in the field.
-            // (Hack: reuse combo's internal property contract)
-            // -> This keeps the preview consistent with the rest of the component's API.
             trySetInitialSelection(valueBox, chosenExpressionLabel);
         }
 
-        // Listen for user selection from the popup tree
+        // React to user picking a node from the dropdown tree
         valueBox.addSelectionListener(new ExpressionSelectionListener() {
-            public void onExpressionSelected(String chosenLabel,
-                                             ResolvableExpression chosenExpr) {
-                // Store for saving
-                chosenExpression = chosenExpr;
-                chosenExpressionLabel = chosenLabel;
+            public void onExpressionSelected(String label, ResolvableExpression expr) {
+                // Keep both label and AST node so we can persist and later evaluate
+                chosenExpressionLabel = label;
+                chosenExpression = expr;
             }
         });
 
@@ -142,7 +148,7 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
         selectorBox.setSelectedItem(action.getSelectedSelector());
         formPanel.add(selectorBox);
 
-        // User
+        // User (which account performs the action at playback)
         formPanel.add(new JLabel("User:"));
         String[] users = UserRegistry.getInstance().getAll().stream()
                 .map(UserRegistry.User::getUsername)
@@ -157,7 +163,6 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
         formPanel.add(timeoutField);
 
         add(formPanel, BorderLayout.NORTH);
-
 
         ////////////////////////////////////////////////////////////////////////////
         // Interaktionen
@@ -181,30 +186,37 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
             }
         });
 
-
         ////////////////////////////////////////////////////////////////////////////
         // Speichern-Button
+        //
+        // Intent:
+        // - Persist user choices directly into the TestAction
+        // - chosenExpressionLabel becomes action.value (so runtime knows which node we meant)
         ////////////////////////////////////////////////////////////////////////////
 
         JButton saveButton = new JButton("Speichern");
         saveButton.addActionListener(new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
 
-                // Action
+                // Actiontyp setzen
                 action.setAction(stringValue(actionBox.getSelectedItem()));
 
-                // Value template:
-                // Previously: action.setValue(stringValue(valueBox.getSelectedItem()))
-                // Now: take the label of the chosen AST node.
-                // Intent: Express which AST node the user bound to this TestAction.
-                action.setValue(chosenExpressionLabel != null ? chosenExpressionLabel : "");
+                // WICHTIG:
+                // Speichere ab jetzt das echte Template, nicht die UI-Beschreibung.
+                // Beispiel: "{{username}}" oder "{{OTP({{username}})}}"
+                if (chosenExpression != null) {
+                    String template = de.bund.zrb.runtime.ExpressionTemplateRenderer.render(chosenExpression);
+                    action.setValue(template);
+                } else {
+                    // Wenn der User nichts aus dem Tree gewählt hat, behalten wir das alte oder setzen leer
+                    action.setValue(action.getValue() != null ? action.getValue() : "");
+                }
 
-                // Locator type
+                // Rest wie gehabt
                 String typeKey = stringValue(locatorBox.getSelectedItem());
                 LocatorType enumType = LocatorType.fromKey(typeKey);
                 action.setLocatorType(enumType);
 
-                // Selector
                 String selector = stringValue(selectorBox.getSelectedItem());
                 if (!isSelectorValidForType(typeKey, selector)) {
                     JOptionPane.showMessageDialog(
@@ -217,21 +229,20 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                 }
                 action.setSelectedSelector(selector);
 
-                // User
                 action.setUser(stringValue(userBox.getSelectedItem()));
 
-                // Timeout
                 try {
                     action.setTimeout(Integer.parseInt(timeoutField.getText().trim()));
                 } catch (NumberFormatException ignored) {
-                    // Keep previous value if parsing fails
+                    // keep previous
                 }
 
-                // Persist test data
                 TestRegistry.getInstance().save();
 
-                JOptionPane.showMessageDialog(ActionEditorTab.this, "Änderungen gespeichert.\n" +
-                        "Gewählter Ausdruck: " + chosenExpressionLabel);
+                JOptionPane.showMessageDialog(
+                        ActionEditorTab.this,
+                        "Änderungen gespeichert.\nTemplate ist jetzt:\n" + action.getValue()
+                );
             }
         });
 
@@ -241,84 +252,191 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
     }
 
     ////////////////////////////////////////////////////////////////////////////////
-    // Hilfsmethoden
+    // AST-Baum aus allen Givens bauen
     ////////////////////////////////////////////////////////////////////////////////
 
     /**
-     * Create a dummy AST and wrap it as ExpressionTreeNode for preview/testing.
+     * Build a single root ExpressionTreeNode that groups all ASTs
+     * derived from the GivenConditions of this test.
      *
-     * Intent:
-     * - Provide stable test data independent of ScenarioState.
-     * - Show how nested nodes appear.
+     * Steps:
+     * - For each GivenCondition:
+     *      * extract expressionRaw from its value map
+     *      * parse expressionRaw into a ResolvableExpression via ExpressionParser
+     *      * wrap it with ExpressionTreeNode.fromExpression(...)
+     *      * prefix with a friendly "Given #i: ..." label, so the user sees context
      *
-     * This mimics something like:
-     *   Composite(
-     *     Function OTP( Variable username ),
-     *     Variable Uhrzeit
-     *   )
+     * - Then create a synthetic "Givens" root node that has all those as children.
      *
-     * Visuell im Tree siehst du dann:
-     *   - Composite
-     *     - Function: OTP
-     *       - Variable: username
-     *     - Variable: Uhrzeit
+     * Error handling:
+     * - If parsing fails for a Given, create an ERROR leaf so it's still visible in the tree.
+     * - If there are no Givens or no expressions, fall back to a "No data" node.
      */
-    private ExpressionTreeNode buildDummyExpressionTreeNode() {
-        // Build Variable username
-        VariableExpression usernameVar = new VariableExpression("username");
+    private ExpressionTreeNode buildTreeFromAllGivens(java.util.List<GivenCondition> givens) {
 
-        // Build Function OTP(username)
-        java.util.List<ResolvableExpression> otpArgs = new ArrayList<ResolvableExpression>();
-        otpArgs.add(usernameVar);
-        FunctionExpression otpFunc = new FunctionExpression("OTP", otpArgs);
+        java.util.List<ExpressionTreeNode> children = new ArrayList<ExpressionTreeNode>();
 
-        // Build Variable Uhrzeit
-        VariableExpression timeVar = new VariableExpression("Uhrzeit");
+        for (int i = 0; i < givens.size(); i++) {
+            GivenCondition gc = givens.get(i);
 
-        // Build Composite [ OTP(username), Uhrzeit ]
-        java.util.List<ResolvableExpression> parts = new ArrayList<ResolvableExpression>();
-        parts.add(otpFunc);
-        parts.add(timeVar);
-        CompositeExpression root = new CompositeExpression(parts);
+            // Hole expressionRaw=... aus gc.getValue()
+            Map<String, Object> valueMap = parseValueMap(gc.getValue());
+            String raw = asString(valueMap.get("expressionRaw"));
 
-        // Wrap root expression into a UI tree node
-        return ExpressionTreeNode.fromExpression(root);
+            if (raw == null || raw.trim().length() == 0) {
+                // Kein Ausdruck -> zeige Hinweis
+                ExpressionTreeNode child = buildNoDataNode("Given #" + (i + 1) + ": (kein expressionRaw)");
+                children.add(child);
+                continue;
+            }
+
+            try {
+                // Parse den Ausdruck aus dem Given
+                ExpressionParser parser = new ExpressionParser();
+                ResolvableExpression expr = parser.parseTemplate(raw);
+
+                // Baue UI-Knoten für den Parsed AST
+                ExpressionTreeNode givenRoot = ExpressionTreeNode.fromExpression(expr);
+
+                // Hänge einen "Wrapper"-Knoten davor, damit der User erkennt,
+                // aus welchem Given das stammt.
+                String preview = summarizeExpression(raw);
+                ExpressionTreeNode wrapped = wrapUnderLabel(
+                        "Given #" + (i + 1) + ": " + preview,
+                        givenRoot
+                );
+                children.add(wrapped);
+
+            } catch (Exception ex) {
+                // Parsefehler -> Knoten mit ERROR-Hinweis
+                ExpressionTreeNode errNode = buildErrorNode(
+                        "Given #" + (i + 1) + ": PARSE ERROR",
+                        raw,
+                        ex.getMessage()
+                );
+                children.add(errNode);
+            }
+        }
+
+        if (children.isEmpty()) {
+            // Fallback wenn gar keine Givens oder alle leer
+            return buildNoDataNode("Givens: No data");
+        }
+
+        // Erzeuge künstlichen Root "Givens"
+        return new ExpressionTreeNode(
+                null, // no direct ResolvableExpression for the synthetic root
+                "Givens",
+                children
+        );
     }
 
     /**
-     * Pre-populate the ExpressionTreeComboBox's display text with a previous value.
+     * Wrap a single ExpressionTreeNode under a new parent node that has
+     * a friendly label.
      *
-     * Intent:
-     * - Simulate that the user had already picked something earlier, even
-     *   if they haven't clicked in this session yet.
+     * Example:
+     * parentLabel = "Given #1: Es existiert eine {{Belegnummer}}."
+     * child = (Composite -> Literal + Variable + Literal)
      *
-     * This method does not set a chosenExpression ResolvableExpression on purpose,
-     * because we cannot safely guess which AST node matches the previous string.
-     * We only show the label to avoid confusing empty state.
+     * Result:
+     *   Given #1: Es existiert eine {{Belegnummer}}.
+     *     Composite
+     *       Literal: "Es existiert eine "
+     *       Variable: Belegnummer
+     *       Literal: "."
+     */
+    private ExpressionTreeNode wrapUnderLabel(String parentLabel,
+                                              ExpressionTreeNode childNode) {
+        java.util.List<ExpressionTreeNode> singleChild = new ArrayList<ExpressionTreeNode>();
+        singleChild.add(childNode);
+
+        return new ExpressionTreeNode(
+                null,
+                parentLabel,
+                singleChild
+        );
+    }
+
+    /**
+     * Build a tiny "No data" node or info node.
+     */
+    private ExpressionTreeNode buildNoDataNode(String label) {
+        LiteralExpression lit = new LiteralExpression("No data");
+        return new ExpressionTreeNode(
+                lit,
+                label,
+                java.util.Collections.<ExpressionTreeNode>emptyList()
+        );
+    }
+
+    /**
+     * Build a node describing a parse error for a Given.
+     */
+    private ExpressionTreeNode buildErrorNode(String headline,
+                                              String raw,
+                                              String msg) {
+        LiteralExpression lit = new LiteralExpression("Parse Error: " + msg);
+        java.util.List<ExpressionTreeNode> kids = new ArrayList<ExpressionTreeNode>();
+
+        kids.add(new ExpressionTreeNode(
+                null,
+                "Raw: " + raw,
+                java.util.Collections.<ExpressionTreeNode>emptyList()
+        ));
+        kids.add(new ExpressionTreeNode(
+                null,
+                "Error: " + msg,
+                java.util.Collections.<ExpressionTreeNode>emptyList()
+        ));
+
+        return new ExpressionTreeNode(
+                lit,
+                headline,
+                kids
+        );
+    }
+
+    /**
+     * Create a short preview for the Given headline.
+     * Limit length so the dropdown stays readable.
+     */
+    private String summarizeExpression(String raw) {
+        String s = raw.trim().replace("\n", " ");
+        int max = 60;
+        if (s.length() > max) {
+            s = s.substring(0, max) + "...";
+        }
+        return s;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // Helper to preset the visible text of ExpressionTreeComboBox
+    ////////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Simulate a pre-selection in the combo's display field, so when you re-open
+     * an action you still see what was previously chosen.
+     *
+     * This does not "rebind" chosenExpression (because wir nicht sicher wissen,
+     * welcher AST-Knoten das genau war), aber es zeigt den String wieder an.
      */
     private void trySetInitialSelection(ExpressionTreeComboBox combo, String label) {
-        // Hack the "public API" we defined in ExpressionTreeComboBox:
-        // We write the text and client properties the same way fireSelection() would.
-        // This keeps everything consistent with getSelectedLabel().
-        JTextField f = getComboDisplayField(combo);
-        if (f != null) {
-            f.setText(label);
-            f.putClientProperty("chosenExpr", null);
-            f.putClientProperty("chosenLabel", label);
+        JTextField field = getComboDisplayField(combo);
+        if (field != null) {
+            field.setText(label);
+            field.putClientProperty("chosenExpr", null);
+            field.putClientProperty("chosenLabel", label);
         }
     }
 
     /**
-     * Extract the internal, non-editable display field from ExpressionTreeComboBox
-     * in order to preset it. This is a bit of an integration hack for test/demo mode.
-     *
-     * IMPORTANT:
-     * - Keep this method only for demo integration.
-     * - In production, add a proper setter method to ExpressionTreeComboBox instead.
+     * Find the display JTextField inside ExpressionTreeComboBox.
+     * ExpressionTreeComboBox ist ein JPanel(BorderLayout) mit:
+     *  - CENTER = JTextField (read-only display)
+     *  - EAST   = JButton (opens popup)
      */
     private JTextField getComboDisplayField(ExpressionTreeComboBox combo) {
-        // ExpressionTreeComboBox is a JPanel(BorderLayout) with CENTER = JTextField, EAST = JButton.
-        // We iterate its children to find the JTextField. This avoids reflection.
         Component[] children = combo.getComponents();
         for (int i = 0; i < children.length; i++) {
             if (children[i] instanceof JTextField) {
@@ -328,56 +446,9 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
         return null;
     }
 
-    /**
-     * Build the dropdown model for the "old" string-based Value field.
-     * Left in place for reference / fallback, but not used anymore.
-     */
-    private DefaultComboBoxModel<String> buildValueModel(TestAction action) {
-        java.util.List<String> items = new ArrayList<String>();
-
-        // 1. Empty entry -> user can type a literal fixed value
-        items.add("");
-
-        // 2. OTP placeholder
-        items.add("{{OTP}}");
-
-        // 3. All known parameters from registry, as placeholders
-        java.util.List<String> params = ParameterRegistry.getInstance().getAllParameterNames();
-        for (String p : params) {
-            if (p != null && p.trim().length() > 0) {
-                String placeholder = "{{" + p.trim() + "}}";
-                addIfAbsent(items, placeholder);
-            }
-        }
-
-        // 4. Current action value (template or literal), keep it selectable
-        String curVal = action.getValue();
-        if (curVal != null && curVal.trim().length() > 0) {
-            addIfAbsent(items, curVal);
-        }
-
-        DefaultComboBoxModel<String> model =
-                new DefaultComboBoxModel<String>(items.toArray(new String[0]));
-        return model;
-    }
-
-    private void addIfAbsent(java.util.List<String> list, String value) {
-        for (String s : list) {
-            if (s.equals(value)) {
-                return;
-            }
-        }
-        list.add(value);
-    }
-
-    private void addIfAbsent(JComboBox<String> box, String value) {
-        int count = box.getItemCount();
-        for (int i = 0; i < count; i++) {
-            Object it = box.getItemAt(i);
-            if (value.equals(it)) return;
-        }
-        box.addItem(value);
-    }
+    ////////////////////////////////////////////////////////////////////////////////
+    // Locator / selector helpers (unchanged logic)
+    ////////////////////////////////////////////////////////////////////////////////
 
     private String resolveInitialTypeKey(TestAction action) {
         // Prefer explicit enum
@@ -385,17 +456,17 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
             return action.getLocatorType().getKey();
         }
 
-        // Infer from selector if possible
+        // Infer from selector
         String sel = action.getSelectedSelector();
         if (sel != null) {
             String s = sel.trim();
             if (looksLikeXpath(s)) return LocatorType.XPATH.getKey();
             if (s.startsWith("#")) return LocatorType.ID.getKey();
-            // Default to css
+            // Default css
             return LocatorType.CSS.getKey();
         }
 
-        // Fallback heuristics from recorded locators
+        // Fallback heuristics
         if (hasLocator(action, "role")) return LocatorType.ROLE.getKey();
         if (hasLocator(action, "text")) return LocatorType.TEXT.getKey();
         if (hasLocator(action, "xpath")) return LocatorType.XPATH.getKey();
@@ -425,7 +496,7 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
             addIfAbsent(selectorBox, candidate);
         }
 
-        // Also allow the currently selected selector if it fits
+        // Also allow current selection if it fits
         String currentSelected = action.getSelectedSelector();
         if (currentSelected != null && currentSelected.trim().length() > 0) {
             if (isSelectorValidForType(typeKey, currentSelected)) {
@@ -442,6 +513,15 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
         if (selectorBox.getSelectedItem() == null && selectorBox.getItemCount() > 0) {
             selectorBox.setSelectedIndex(0);
         }
+    }
+
+    private void addIfAbsent(JComboBox<String> box, String value) {
+        int count = box.getItemCount();
+        for (int i = 0; i < count; i++) {
+            Object it = box.getItemAt(i);
+            if (value.equals(it)) return;
+        }
+        box.addItem(value);
     }
 
     private String stringValue(Object o) {
@@ -475,7 +555,7 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
             case PLACEHOLDER:
             case ALTTEXT:
             case ROLE:
-                // Allow anything non-empty; deeper validation happens at playback.
+                // Accept anything non-empty; deeper validation happens at playback.
                 return true;
             default:
                 return true;
@@ -488,5 +568,28 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                 || t.startsWith(".//")
                 || t.startsWith("/")
                 || t.startsWith("(");
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // Tiny parsing helpers for GivenCondition.value (key=value&key=value...)
+    ////////////////////////////////////////////////////////////////////////////////
+
+    private Map<String, Object> parseValueMap(String value) {
+        Map<String, Object> result = new LinkedHashMap<String, Object>();
+        if (value != null && value.contains("=")) {
+            String[] pairs = value.split("&");
+            for (int i = 0; i < pairs.length; i++) {
+                String pair = pairs[i];
+                String[] kv = pair.split("=", 2);
+                if (kv.length == 2) {
+                    result.put(kv[0], kv[1]);
+                }
+            }
+        }
+        return result;
+    }
+
+    private String asString(Object o) {
+        return (o == null) ? "" : String.valueOf(o);
     }
 }
