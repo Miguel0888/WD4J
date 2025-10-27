@@ -70,4 +70,8 @@ public class FunctionExpression implements ResolvableExpression {
     public List<ResolvableExpression> getArguments() {
         return arguments;
     }
+
+    public List<ResolvableExpression> getArgs() {
+        return arguments;
+    }
 }
