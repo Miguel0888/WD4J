@@ -149,6 +149,7 @@ public class MainWindow {
         // Vorhandene/alte Commands
         commandRegistry.register(new ShowShortcutConfigMenuCommand(frame));
         commandRegistry.register(new SettingsCommand());
+        commandRegistry.register(new ExpressionEditorCommand());
         commandRegistry.register(new RegexPresetsCommand());
         commandRegistry.register(new PlayTestSuiteCommand(tabbedPane));
         commandRegistry.register(new StopPlaybackCommand());

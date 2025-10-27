@@ -340,10 +340,24 @@ public class TestPlayerService {
 
                 case "input":
                 case "fill": {
-                    Locator loc = LocatorResolver.resolve(page, action);
-                    withRecordingSuppressed(page, () ->
-                            waitThen(loc, action.getTimeout(), () ->
-                                    loc.fill(action.getValue(), new Locator.FillOptions().setTimeout(action.getTimeout()))));
+                    final Locator loc = LocatorResolver.resolve(page, action);
+
+                    withRecordingSuppressed(page, new Runnable() {
+                        public void run() {
+                            waitThen(loc, action.getTimeout(), new Runnable() {
+                                public void run() {
+                                    // Resolve OTP / Parameter placeholders NOW (just-in-time)
+                                    final String resolvedText = InputValueResolver.resolveDynamicText(action);
+
+                                    loc.fill(
+                                            resolvedText,
+                                            new com.microsoft.playwright.Locator.FillOptions()
+                                                    .setTimeout(action.getTimeout())
+                                    );
+                                }
+                            });
+                        }
+                    });
                     return true;
                 }
 
@@ -378,15 +392,36 @@ public class TestPlayerService {
 
                 //optional:
                 case "press": {
-                    Locator loc = LocatorResolver.resolve(page, action);
-                    withRecordingSuppressed(page, () ->
-                            waitThen(loc, action.getTimeout(), () -> loc.press(action.getValue())));
+                    final Locator loc = LocatorResolver.resolve(page, action);
+
+                    withRecordingSuppressed(page, new Runnable() {
+                        public void run() {
+                            waitThen(loc, action.getTimeout(), new Runnable() {
+                                public void run() {
+                                    // "press" uses key names like "Enter", usually no OTP/params, aber
+                                    // man könnte hier auch resolveDynamicText(action) einsetzen falls gewünscht.
+                                    loc.press(action.getValue());
+                                }
+                            });
+                        }
+                    });
                     return true;
                 }
                 case "type": {
-                    Locator loc = LocatorResolver.resolve(page, action);
-                    withRecordingSuppressed(page, () ->
-                            waitThen(loc, action.getTimeout(), () -> loc.type(action.getValue())));
+                    final Locator loc = LocatorResolver.resolve(page, action);
+
+                    withRecordingSuppressed(page, new Runnable() {
+                        public void run() {
+                            waitThen(loc, action.getTimeout(), new Runnable() {
+                                public void run() {
+                                    // Resolve OTP / Parameter placeholders NOW
+                                    final String resolvedText = InputValueResolver.resolveDynamicText(action);
+
+                                    loc.type(resolvedText);
+                                }
+                            });
+                        }
+                    });
                     return true;
                 }
 
