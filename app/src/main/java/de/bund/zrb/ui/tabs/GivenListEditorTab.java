@@ -117,25 +117,20 @@ public class GivenListEditorTab extends JPanel {
         int kind = dlg.getSelectedKind();
         String idOrType = dlg.getIdOrType();
 
-        if (kind == GivenChoiceDialog.KIND_GIVEN_TYPE) {
-            // Create a standard GivenCondition with selected type
-            GivenCondition gc = new GivenCondition();
-            gc.setType(idOrType);
-            // value stays null; edit later
-            model.add(gc);
-            listModel.addElement(gc);
-            list.setSelectedValue(gc, true);
-            // Optionally open editor directly:
-            openEditorFor(gc);
-        } else if (kind == GivenChoiceDialog.KIND_PRECONDITION) {
-            // Create a precondition reference: type=preconditionRef, value="id=<uuid>"
-            GivenCondition gc = new GivenCondition();
-            gc.setType(TYPE_PRECONDITION_REF);
-            gc.setValue("id=" + idOrType);
-            model.add(gc);
-            listModel.addElement(gc);
-            list.setSelectedValue(gc, true);
-        }
+        // We only support picking an existing Precondition (or none).
+        // So we always create a GivenCondition of type "preconditionRef".
+
+        GivenCondition gc = new GivenCondition();
+        gc.setType("preconditionRef"); // or TYPE_PRECONDITION_REF constant
+        gc.setValue("id=" + idOrType); // idOrType is the UUID (or "" if user chose the empty entry)
+
+        model.add(gc);
+        listModel.addElement(gc);
+        list.setSelectedValue(gc, true);
+
+        // Optional: direkt Editor öffnen, wenn du das alte Verhalten behalten willst
+        openEditorFor(gc);
+
     }
 
     private void onEdit() {

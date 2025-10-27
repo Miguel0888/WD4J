@@ -1,9 +1,6 @@
 package de.bund.zrb.ui.tabs;
 
 import de.bund.zrb.model.GivenCondition;
-import de.bund.zrb.model.GivenRegistry;
-import de.bund.zrb.model.GivenTypeDefinition;
-import de.bund.zrb.model.GivenTypeDefinition.GivenField;
 import de.bund.zrb.model.Precondition;
 import de.bund.zrb.service.PreconditionRegistry;
 import de.bund.zrb.service.TestRegistry;
@@ -12,7 +9,6 @@ import de.bund.zrb.service.UserRegistry.User;
 import de.bund.zrb.ui.expressions.ExpressionInputPanel;
 import de.bund.zrb.ui.expressions.ExpressionTreeModelBuilder;
 import de.bund.zrb.ui.expressions.ExpressionTreeNode;
-import de.bund.zrb.ui.parts.Code;
 import de.bund.zrb.expressions.domain.ResolvableExpression;
 import de.bund.zrb.expressions.engine.ExpressionParser;
 import de.bund.zrb.expressions.engine.LiteralExpression;
@@ -30,6 +26,8 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,44 +36,41 @@ import java.util.Map;
  * Edit one GivenCondition in a human-friendly way.
  *
  * Intent:
- * - Let test authors maintain Given facts like
- *   "Es existiert eine {{Belegnummer}}." or "{{OTP({{username}})}}"
- * - Show live AST preview so they understand what will be reusable later
- * - Persist everything back into the GivenCondition for this scenario
+ * - Let the tester describe a Given/precondition step using a DSL-like expression ({{...}} etc.).
+ * - Let the tester optionally link a reusable Precondition (UUID), and also use it as "Vorlage".
+ * - Show live AST preview. Show syntax validity feedback.
  *
  * Responsibilities:
- * - Choose Given type (from GivenRegistry)
- * - Choose User (username is stored)
- * - Render dynamic fields defined in GivenTypeDefinition
- * - Provide ExpressionInputPanel (syntax help, rainbow braces, {{ / }} buttons)
- * - Parse expressionRaw live and show AST in a read-only JTree
+ * - Manage user selection (username).
+ * - Manage optional preconditionRef.id (UUID) and treat that dropdown as "Vorlagenauswahl".
+ * - Manage expressionRaw (free form expression text) with rainbow highlighting, {{}} buttons, tooltip.
+ * - Persist data back into GivenCondition.value.
  *
- * Persistence format in condition.value:
- *   username=<...>&someField=<...>&expressionRaw=<user text>...
+ * No longer use GivenRegistry. We inline knowledge about the only supported type "preconditionRef".
  *
- * NO node binding/selection is done here. That happens later (e.g. in ActionEditorTab).
+ * condition.getType() is still stored in the model (e.g. "preconditionRef"), but we do not allow changing it here.
  */
 public class GivenConditionEditorTab extends JPanel {
 
     private static final String TYPE_PRECONDITION_REF = "preconditionRef";
 
-    // Model
+    // ---------- Model ----------
     private final GivenCondition condition;
 
-    // Header widgets (always visible)
-    private final JComboBox<String> typeBox;
+    // ---------- Header widgets ----------
     private final JComboBox<String> userBox;
 
-    // Dynamic UI area below header
+    // ---------- Dynamic area ----------
     private final JPanel dynamicFieldsPanel = new JPanel(new GridBagLayout());
-
-    // Keep references to dynamic input components so save() can read them
     private final Map<String, JComponent> inputs = new LinkedHashMap<String, JComponent>();
 
-    // Expression editing + preview
-    private ExpressionInputPanel expressionPanel; // custom panel with RSyntaxTextArea, help icon, {{/}} buttons
-    private JTree astPreviewTree;                 // read-only AST tree
-    private JScrollPane astPreviewScroll;         // scroll wrapper for tree
+    // We keep the special combo for preconditionRef.id so we can hook template behavior
+    private JComboBox<PreItem> preconditionComboBox;
+
+    // ---------- Expression + AST ----------
+    private ExpressionInputPanel expressionPanel;
+    private JTree astPreviewTree;
+    private JScrollPane astPreviewScroll;
 
     public GivenConditionEditorTab(GivenCondition condition) {
         this.condition = condition;
@@ -84,54 +79,36 @@ public class GivenConditionEditorTab extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         ////////////////////////////////////////////////////////////////////////////
-        // Header: Typ + User
+        // Header: only "User"
         ////////////////////////////////////////////////////////////////////////////
 
         JPanel header = new JPanel(new GridLayout(0, 2, 8, 8));
 
-        // Typ
-        header.add(new JLabel("Typ:"));
-        String[] types = GivenRegistry.getInstance().getAll()
-                .stream()
-                .map(GivenTypeDefinition::getType)
-                .toArray(String[]::new);
-        typeBox = new JComboBox<String>(types);
-        typeBox.setEditable(true);
-        typeBox.setSelectedItem(condition.getType());
-        header.add(typeBox);
-
-        // User
         header.add(new JLabel("User:"));
+
         String[] users = UserRegistry.getInstance().getAll()
                 .stream()
                 .map(User::getUsername)
                 .toArray(String[]::new);
         userBox = new JComboBox<String>(users);
 
-        // Prefill username from condition.value
+        // Prefill username from stored condition.value
         String initialUser = (String) parseValueMap(condition.getValue()).get("username");
         if (initialUser != null && initialUser.trim().length() > 0) {
             userBox.setSelectedItem(initialUser.trim());
         }
         header.add(userBox);
 
-        // Put header + dynamicArea into the north/center of the main panel
+        ////////////////////////////////////////////////////////////////////////////
+        // Layout container
+        ////////////////////////////////////////////////////////////////////////////
+
         JPanel form = new JPanel(new BorderLayout(8, 8));
         form.add(header, BorderLayout.NORTH);
         form.add(dynamicFieldsPanel, BorderLayout.CENTER);
         add(form, BorderLayout.CENTER);
 
-        // Rebuild dynamic fields when type changes
-        typeBox.addActionListener(new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                rebuildDynamicForm(String.valueOf(typeBox.getSelectedItem()));
-            }
-        });
-
-        ////////////////////////////////////////////////////////////////////////////
         // Footer with "Speichern"
-        ////////////////////////////////////////////////////////////////////////////
-
         JButton saveBtn = new JButton("Speichern");
         saveBtn.addActionListener(new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
@@ -144,23 +121,44 @@ public class GivenConditionEditorTab extends JPanel {
         add(footer, BorderLayout.SOUTH);
 
         ////////////////////////////////////////////////////////////////////////////
-        // Initial layout build
+        // Build dynamic area:
+        // - Render fields depending on condition.getType()
+        // - Render expression editor
+        // - Render AST preview
         ////////////////////////////////////////////////////////////////////////////
 
         rebuildDynamicForm(condition.getType());
+
+        // Wire template behavior now that preconditionComboBox and expressionPanel exist
+        wirePreconditionTemplateBehavior();
     }
 
     /**
-     * Rebuild the lower part (dynamicFieldsPanel):
-     *  - Render fields defined for the chosen Given type
-     *  - Render ExpressionInputPanel + AST preview
-     *  - Register live listeners so AST + status update immediately on typing
+     * Build the dynamic area below the header.
+     *
+     * Steps:
+     * 1. Render the "type-specific" inputs. Since we dropped GivenRegistry,
+     *    we handle the known type(s) inline.
+     *
+     *    Currently we only support:
+     *      TYPE_PRECONDITION_REF ("preconditionRef"):
+     *        - Show a combo ("Precondition / Vorlage")
+     *        - First item is "", meaning "keine Vorlage / keine Referenz"
+     *        - Other items come from PreconditionRegistry
+     *        - We still persist just the UUID in condition.value under key "id"
+     *        - Selecting an item will also pre-fill expressionRaw as a template
+     *
+     *    If you ever add more types later, extend this method with more branches.
+     *
+     * 2. Render ExpressionInputPanel (rainbow braces, {{/}} buttons, help, status).
+     * 3. Render AST preview tree below it.
+     * 4. Attach live parsing listener.
      */
     private void rebuildDynamicForm(String type) {
         dynamicFieldsPanel.removeAll();
         inputs.clear();
+        preconditionComboBox = null;
 
-        GivenTypeDefinition def = GivenRegistry.getInstance().get(type);
         Map<String, Object> paramMap = parseValueMap(condition.getValue());
 
         GridBagConstraints gbc = new GridBagConstraints();
@@ -169,112 +167,90 @@ public class GivenConditionEditorTab extends JPanel {
         int row = 0;
 
         ////////////////////////////////////////////////////////////////////////////
-        // 1. Render standard fields from GivenTypeDefinition
+        // 1. Type-specific block(s)
         ////////////////////////////////////////////////////////////////////////////
-        if (def != null) {
-            for (GivenField field : def.getFields().values()) {
 
-                Object value = paramMap.get(field.name);
-                if (value == null && field.defaultValue != null) {
-                    value = field.defaultValue;
+        if (TYPE_PRECONDITION_REF.equals(type)) {
+            // We know this type uses one parameter "id" which is the referenced precondition UUID.
+            // We now extend semantics: The same combo is also our "Vorlagen"-Picker.
+
+            Object rawValue = paramMap.get("id"); // previously saved UUID
+            String savedUuid = rawValue != null ? String.valueOf(rawValue) : "";
+
+            gbc.gridx = 0; gbc.gridy = row;
+            gbc.gridwidth = 1;
+            gbc.weightx = 0.0;
+            gbc.weighty = 0.0;
+            gbc.fill = GridBagConstraints.NONE;
+            dynamicFieldsPanel.add(new JLabel("Precondition / Vorlage:"), gbc);
+
+            gbc.gridx = 1;
+            gbc.weightx = 1.0;
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+
+            JComboBox<PreItem> preBox = new JComboBox<PreItem>();
+            preBox.setEditable(false);
+
+            // 1) Add an explicit "leer" option as first item
+            PreItem emptyItem = new PreItem(null, null);
+            preBox.addItem(emptyItem);
+
+            // 2) Add all known preconditions from registry
+            List<Precondition> pres = PreconditionRegistry.getInstance().getAll();
+            PreItem selected = emptyItem;
+
+            for (int i = 0; i < pres.size(); i++) {
+                Precondition p = pres.get(i);
+                String id = p.getId();
+                String name = (p.getName() != null && p.getName().trim().length() > 0)
+                        ? p.getName().trim()
+                        : "(unnamed)";
+                PreItem item = new PreItem(id, name);
+                preBox.addItem(item);
+
+                // Preselect if savedUuid matches this id
+                if (savedUuid.equals(id)) {
+                    selected = item;
                 }
-
-                // Case: multiline code editor
-                if (field.type == Code.class) {
-                    gbc.gridx = 0; gbc.gridy = row++;
-                    gbc.gridwidth = 2; gbc.weightx = 1.0; gbc.weighty = 0;
-                    gbc.fill = GridBagConstraints.HORIZONTAL;
-                    dynamicFieldsPanel.add(new JLabel(field.label), gbc);
-
-                    RSyntaxTextArea codeEditor = new RSyntaxTextArea(10, 40);
-                    codeEditor.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVASCRIPT);
-                    codeEditor.setCodeFoldingEnabled(true);
-                    codeEditor.setText(value != null ? value.toString() : "");
-                    RTextScrollPane scrollPane = new RTextScrollPane(codeEditor);
-
-                    gbc.gridy = row++; gbc.fill = GridBagConstraints.BOTH; gbc.weighty = 1.0;
-                    dynamicFieldsPanel.add(scrollPane, gbc);
-
-                    inputs.put(field.name, codeEditor);
-                    continue;
-                }
-
-                // Case: preconditionRef.id -> dropdown of known preconditions
-                if (TYPE_PRECONDITION_REF.equals(def.getType()) && "id".equals(field.name)) {
-                    gbc.gridx = 0; gbc.gridy = row;
-                    gbc.gridwidth = 1; gbc.weightx = 0; gbc.weighty = 0;
-                    gbc.fill = GridBagConstraints.NONE;
-                    dynamicFieldsPanel.add(new JLabel(field.label + ":"), gbc);
-
-                    gbc.gridx = 1; gbc.weightx = 1.0;
-                    gbc.fill = GridBagConstraints.HORIZONTAL;
-
-                    JComboBox<PreItem> preBox = new JComboBox<PreItem>();
-                    List<Precondition> pres = PreconditionRegistry.getInstance().getAll();
-                    PreItem selected = null;
-
-                    for (int i = 0; i < pres.size(); i++) {
-                        Precondition p = pres.get(i);
-                        String id = p.getId();
-                        String name = (p.getName() != null && p.getName().trim().length() > 0)
-                                ? p.getName().trim()
-                                : "(unnamed)";
-                        PreItem item = new PreItem(id, name);
-                        preBox.addItem(item);
-
-                        if (value != null && value.equals(id)) {
-                            selected = item;
-                        }
-                    }
-                    if (selected != null) {
-                        preBox.setSelectedItem(selected);
-                    }
-
-                    dynamicFieldsPanel.add(preBox, gbc);
-                    inputs.put(field.name, preBox);
-
-                    row++;
-                    continue;
-                }
-
-                // Case: normal single-line text field
-                gbc.gridx = 0; gbc.gridy = row;
-                gbc.gridwidth = 1; gbc.weightx = 0; gbc.weighty = 0;
-                gbc.fill = GridBagConstraints.NONE;
-                dynamicFieldsPanel.add(new JLabel(field.label + ":"), gbc);
-
-                gbc.gridx = 1; gbc.weightx = 1.0;
-                gbc.fill = GridBagConstraints.HORIZONTAL;
-                JTextField tf = new JTextField(value != null ? value.toString() : "");
-                dynamicFieldsPanel.add(tf, gbc);
-                inputs.put(field.name, tf);
-
-                row++;
             }
+
+            preBox.setSelectedItem(selected);
+
+            dynamicFieldsPanel.add(preBox, gbc);
+
+            // Remember for save() and for template behavior
+            preconditionComboBox = preBox;
+            inputs.put("id", preBox);
+
+            row++;
+
+        } else {
+            // Fallback: no special fields for unknown types.
+            // This keeps editor robust even if type != preconditionRef.
         }
 
         ////////////////////////////////////////////////////////////////////////////
-        // 2. ExpressionInputPanel (our new fancy editor with rainbow braces etc.)
+        // 2. ExpressionInputPanel (buntes Feld)
+        //
+        // This is the DSL expression. We store it as "expressionRaw".
         ////////////////////////////////////////////////////////////////////////////
 
         gbc.gridx = 0; gbc.gridy = row;
         gbc.gridwidth = 2;
-        gbc.weightx = 1.0; gbc.weighty = 0.0;
+        gbc.weightx = 1.0;
+        gbc.weighty = 0.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         expressionPanel = new ExpressionInputPanel();
 
-        // Restore previously saved expressionRaw if available
         String initialRaw = asString(paramMap.get("expressionRaw"));
         if (initialRaw != null && initialRaw.trim().length() > 0) {
             expressionPanel.setExpressionText(initialRaw.trim());
         } else {
-            // else leave panel's default demo text (it guides the user)
+            // Keep panel's internal default demo text. It teaches syntax.
         }
 
         dynamicFieldsPanel.add(expressionPanel, gbc);
-
-        // Store so save() can persist expressionRaw
         inputs.put("expressionRaw", expressionPanel);
 
         row++;
@@ -285,7 +261,8 @@ public class GivenConditionEditorTab extends JPanel {
 
         gbc.gridx = 0; gbc.gridy = row;
         gbc.gridwidth = 2;
-        gbc.weightx = 1.0; gbc.weighty = 1.0;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
         gbc.fill = GridBagConstraints.BOTH;
 
         astPreviewTree = new JTree(new DefaultMutableTreeNode("No data"));
@@ -302,9 +279,9 @@ public class GivenConditionEditorTab extends JPanel {
         row++;
 
         ////////////////////////////////////////////////////////////////////////////
-        // 4. Live update wiring:
-        //    - Listen to text changes in expressionPanel editor
-        //    - On each change: parse, update AST, update status color/message
+        // 4. Live parsing:
+        //    - Listen to expressionPanel editor changes
+        //    - Update AST and status on each keystroke
         ////////////////////////////////////////////////////////////////////////////
 
         Document doc = getExpressionDocument();
@@ -316,7 +293,7 @@ public class GivenConditionEditorTab extends JPanel {
             });
         }
 
-        // Run once initially so preview + status are correct
+        // First parse and render
         updateAstAndStatus();
 
         dynamicFieldsPanel.revalidate();
@@ -324,13 +301,66 @@ public class GivenConditionEditorTab extends JPanel {
     }
 
     /**
-     * Build AST from current expression text, update preview tree,
-     * and set validation status in the ExpressionInputPanel.
+     * Connect the preconditionComboBox (if present) with the expressionPanel.
      *
-     * Policy:
-     * - Parse using ExpressionParser.
-     * - If ok: show full AST, status "✔ Ausdruck ist gültig".
-     * - If fail: show error node, status "❌ Fehler: ...".
+     * Behavior:
+     * - If user selects the empty item:
+     *     -> Clear expressionPanel text
+     *     -> Set status neutral
+     *     -> Refresh AST
+     *
+     * - If user selects a Precondition:
+     *     -> Copy that Precondition's name into expressionPanel as the new expressionRaw
+     *     -> Re-parse to update AST and status
+     *
+     * This replaces the old "Vorlagen-Dropdown", so we no longer need GivenRegistry.
+     */
+    private void wirePreconditionTemplateBehavior() {
+        if (preconditionComboBox == null) {
+            return;
+        }
+        preconditionComboBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                if (e.getStateChange() != ItemEvent.SELECTED) {
+                    return;
+                }
+                if (expressionPanel == null) {
+                    return;
+                }
+
+                Object selObj = preconditionComboBox.getSelectedItem();
+                if (!(selObj instanceof PreItem)) {
+                    // defensive fallback
+                    expressionPanel.setExpressionText("");
+                    expressionPanel.setStatusNeutral("Kein Ausdruck");
+                    updateAstAndStatus();
+                    return;
+                }
+
+                PreItem item = (PreItem) selObj;
+
+                // Empty item (id == null) means "keine Vorlage"
+                if (item.id == null) {
+                    expressionPanel.setExpressionText("");
+                    expressionPanel.setStatusNeutral("Kein Ausdruck");
+                    updateAstAndStatus();
+                    return;
+                }
+
+                // Use the Precondition name as initial expressionRaw text
+                String templateName = (item.name != null) ? item.name : "";
+                expressionPanel.setExpressionText(templateName);
+                updateAstAndStatus();
+            }
+        });
+    }
+
+    /**
+     * Parse expressionRaw live, show AST and validation status.
+     *
+     * - On valid parse: mark green.
+     * - On empty     : neutral.
+     * - On error     : red, and AST node shows ERROR.
      */
     private void updateAstAndStatus() {
         if (expressionPanel == null || astPreviewTree == null) {
@@ -342,7 +372,6 @@ public class GivenConditionEditorTab extends JPanel {
         ExpressionTreeNode uiRoot;
         try {
             if (raw == null || raw.trim().length() == 0) {
-                // No content -> neutral preview
                 uiRoot = buildFallbackNoDataTree();
                 expressionPanel.setStatusNeutral("Kein Ausdruck");
             } else {
@@ -363,16 +392,15 @@ public class GivenConditionEditorTab extends JPanel {
     }
 
     /**
-     * Get the Swing Document from the internal RSyntaxTextArea so we can attach listeners.
+     * Get Document of the underlying RSyntaxTextArea in the ExpressionInputPanel
+     * so we can attach a DocumentListener.
      *
      * IMPORTANT:
-     * - Add this method to ExpressionInputPanel:
+     * ExpressionInputPanel must provide:
      *
      *   public RSyntaxTextArea getEditor() {
      *       return editor;
      *   }
-     *
-     * Then this method here will work.
      */
     private Document getExpressionDocument() {
         if (expressionPanel == null) return null;
@@ -380,7 +408,7 @@ public class GivenConditionEditorTab extends JPanel {
     }
 
     /**
-     * Build a "No data" AST node for empty expressions.
+     * Build fallback node for empty expressions.
      */
     private ExpressionTreeNode buildFallbackNoDataTree() {
         LiteralExpression lit = new LiteralExpression("No data");
@@ -392,7 +420,7 @@ public class GivenConditionEditorTab extends JPanel {
     }
 
     /**
-     * Build an "ERROR" AST node for invalid expressions.
+     * Build error node if parsing fails.
      */
     private ExpressionTreeNode buildErrorTree(String raw, String msg) {
         LiteralExpression lit = new LiteralExpression("Parse Error: " + msg);
@@ -404,8 +432,7 @@ public class GivenConditionEditorTab extends JPanel {
     }
 
     /**
-     * Convert ExpressionTreeNode (domain-ish UI struct)
-     * into a Swing TreeModel for JTree rendering.
+     * Convert ExpressionTreeNode structure into a TreeModel for the preview JTree.
      */
     private TreeModel buildSwingModel(ExpressionTreeNode rootUiNode) {
         ExpressionTreeModelBuilder builder = new ExpressionTreeModelBuilder();
@@ -414,7 +441,7 @@ public class GivenConditionEditorTab extends JPanel {
     }
 
     /**
-     * Expand all tree rows so user always sees full AST immediately.
+     * Expand all rows in the preview tree for full visibility.
      */
     private void expandAll(JTree tree) {
         int row = 0;
@@ -425,8 +452,7 @@ public class GivenConditionEditorTab extends JPanel {
     }
 
     /**
-     * Use a renderer that shows the label for each AST node.
-     * (ExpressionTreeModelBuilder.NodePayload holds the display label.)
+     * Render AST labels from ExpressionTreeModelBuilder.NodePayload.
      */
     private DefaultTreeCellRenderer createPreviewRenderer() {
         return new DefaultTreeCellRenderer() {
@@ -451,24 +477,22 @@ public class GivenConditionEditorTab extends JPanel {
                         setText(payload.getLabel());
                     }
                 }
-
                 return c;
             }
         };
     }
 
     /**
-     * Save changes back into the GivenCondition and persist via TestRegistry.
+     * Persist current edits back into condition.value and save globally.
      *
-     * Steps:
-     * - type -> condition.setType(...)
-     * - username from userBox
-     * - all dynamic fields (including expressionRaw from expressionPanel)
-     * - serialize into condition.value "key=value&key=value"
+     * We DO NOT touch condition.type here (that is owned by whoever created the GivenCondition).
+     *
+     * We save:
+     *  - username                    -> from userBox
+     *  - id (preconditionRef.id)     -> UUID or "" (from preconditionComboBox)
+     *  - expressionRaw               -> text from expressionPanel
      */
     private void save() {
-        // Persist chosen type
-        condition.setType(String.valueOf(typeBox.getSelectedItem()));
 
         Map<String, String> result = new LinkedHashMap<String, String>();
 
@@ -478,36 +502,42 @@ public class GivenConditionEditorTab extends JPanel {
             result.put("username", u.toString().trim());
         }
 
-        // Dynamic fields incl. expressionRaw
+        // collect dynamic fields
         for (Map.Entry<String, JComponent> entry : inputs.entrySet()) {
-            String name = entry.getKey();
-            JComponent input = entry.getValue();
+            String key = entry.getKey();
+            JComponent comp = entry.getValue();
 
-            if (input instanceof ExpressionInputPanel) {
-                ExpressionInputPanel p = (ExpressionInputPanel) input;
-                result.put(name, p.getExpressionText());
-            } else if (input instanceof JTextField) {
-                result.put(name, ((JTextField) input).getText());
-            } else if (input instanceof RSyntaxTextArea) {
-                result.put(name, ((RSyntaxTextArea) input).getText());
-            } else if (input instanceof JComboBox) {
-                JComboBox box = (JComboBox) input;
+            if (comp instanceof ExpressionInputPanel) {
+                ExpressionInputPanel p = (ExpressionInputPanel) comp;
+                result.put(key, p.getExpressionText());
 
-                // PreItem case (preconditionRef.id)
+            } else if (comp instanceof JComboBox) {
+                JComboBox box = (JComboBox) comp;
                 Object sel = box.getSelectedItem();
                 if (sel instanceof PreItem) {
                     PreItem pi = (PreItem) sel;
-                    result.put(name, pi.id); // store only UUID
+                    // Persist ONLY the UUID or "" if no selection
+                    result.put(key, pi.id == null ? "" : pi.id);
                 } else {
-                    Object editorVal = box.getEditor() != null
+                    // Defensive fallback
+                    Object editorVal = (box.getEditor() != null)
                             ? box.getEditor().getItem()
                             : sel;
-                    result.put(name, (editorVal == null) ? "" : String.valueOf(editorVal));
+                    result.put(key, editorVal == null ? "" : String.valueOf(editorVal));
                 }
+
+            } else if (comp instanceof JTextField) {
+                result.put(key, ((JTextField) comp).getText());
+
+            } else if (comp instanceof RSyntaxTextArea) {
+                result.put(key, ((RSyntaxTextArea) comp).getText());
             }
         }
 
+        // push back into condition
         condition.setValue(serializeValueMap(result));
+
+        // persist global test model
         TestRegistry.getInstance().save();
 
         JOptionPane.showMessageDialog(
@@ -517,9 +547,7 @@ public class GivenConditionEditorTab extends JPanel {
         );
     }
 
-    // -------------------------------------------------------------------------
-    // Helpers for serializing / parsing condition.value
-    // -------------------------------------------------------------------------
+    // -------------------- helper: value-map parsing/serialization --------------------
 
     private Map<String, Object> parseValueMap(String value) {
         Map<String, Object> result = new LinkedHashMap<String, Object>();
@@ -548,18 +576,32 @@ public class GivenConditionEditorTab extends JPanel {
     }
 
     /**
-     * Internal helper for preconditionRef.id combo box.
-     * Display "Name {UUID}", but persist only the UUID.
+     * Represent one selectable Precondition in the preconditionRef.id combo.
+     *
+     * Behavior:
+     * - id == null, name == null   -> special empty entry (no reference, no template)
+     * - otherwise: name {uuid}
+     *
+     * Persist:
+     * - Only store the UUID (id). For the empty entry store "".
      */
     private static final class PreItem {
         final String id;
         final String name;
+
         PreItem(String id, String name) {
             this.id = id;
             this.name = name;
         }
+
         public String toString() {
-            return name + " {" + id + "}";
+            if (id == null && name == null) {
+                return "";
+            }
+            String n = (name != null && name.trim().length() > 0)
+                    ? name.trim()
+                    : "(unnamed)";
+            return n + " {" + id + "}";
         }
     }
 

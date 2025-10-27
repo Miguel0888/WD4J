@@ -174,18 +174,24 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
         int kind = dlg.getSelectedKind();
         String idOrType = dlg.getIdOrType();
 
-        if (kind == GivenChoiceDialog.KIND_GIVEN_TYPE) {
-            GivenCondition gc = new GivenCondition();
-            gc.setType(idOrType);
-            addStep(gc);
-            stepList.setSelectedValue(gc, true);
-        } else if (kind == GivenChoiceDialog.KIND_PRECONDITION) {
-            GivenCondition gc = new GivenCondition();
-            gc.setType(TYPE_PRECONDITION_REF);
-            gc.setValue("id=" + idOrType);
-            addStep(gc);
-            stepList.setSelectedValue(gc, true);
-        }
+        // Always treat the choice as a precondition reference now.
+        // KIND_GIVEN_TYPE no longer exists.
+
+        GivenCondition gc = new GivenCondition();
+
+        // Set domain type to "preconditionRef"
+        // (Halte diese Konstante in CaseEditor verfügbar, so wie vorher z. B. aus GivenConditionEditorTab)
+        gc.setType("preconditionRef");
+
+        // Store the chosen UUID into value map style ("id=<uuid>")
+        gc.setValue("id=" + idOrType);
+
+        // Add to test case model
+        addStep(gc);
+
+        // Select newly added entry in UI list
+        stepList.setSelectedValue(gc, true);
+
     }
 
     private String parseIdFromValue(String value) {

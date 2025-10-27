@@ -91,14 +91,12 @@ public class SuiteEditorTab extends AbstractEditorTab<TestSuite> {
         String idOrType = dlg.getIdOrType();
 
         GivenCondition gc = new GivenCondition();
-        if (kind == GivenChoiceDialog.KIND_GIVEN_TYPE) {
-            gc.setType(idOrType);
-        } else if (kind == GivenChoiceDialog.KIND_PRECONDITION) {
-            gc.setType(TYPE_PRECONDITION_REF);
-            gc.setValue("id=" + idOrType);
-        } else {
-            return;
-        }
+        // There is no KIND_GIVEN_TYPE anymore.
+        // Always create/update as preconditionRef using the chosen UUID.
+
+        gc.setType("preconditionRef"); // or TYPE_PRECONDITION_REF
+        gc.setValue("id=" + idOrType);
+
         getModel().getGiven().add(gc);
         TestRegistry.getInstance().save();
 

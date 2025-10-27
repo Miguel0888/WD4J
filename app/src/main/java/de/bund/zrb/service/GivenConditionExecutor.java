@@ -1,10 +1,7 @@
 package de.bund.zrb.service;
 
-import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import de.bund.zrb.model.GivenCondition;
-import de.bund.zrb.model.GivenRegistry;
-import de.bund.zrb.model.GivenTypeDefinition;
 
 import java.util.Map;
 
