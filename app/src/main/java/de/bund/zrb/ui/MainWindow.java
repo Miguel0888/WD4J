@@ -1,9 +1,7 @@
-// File: app/src/main/java/de/bund/zrb/ui/MainWindow.java
 package de.bund.zrb.ui;
 
 import de.bund.zrb.service.BrowserConfig;
 import de.bund.zrb.service.BrowserServiceImpl;
-import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.commandframework.*;
 import de.bund.zrb.ui.commands.*;
@@ -11,6 +9,9 @@ import de.bund.zrb.ui.commands.debug.*;
 import de.bund.zrb.ui.commands.tools.*;
 import de.bund.zrb.ui.widgets.StatusBar;
 import de.bund.zrb.ui.widgets.UserSelectionCombo;
+import de.bund.zrb.ui.state.FileUiStateRepository;
+import de.bund.zrb.ui.state.UiState;
+import de.bund.zrb.ui.state.UiStateService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -20,32 +21,71 @@ import java.util.Optional;
 
 /**
  * TestToolUI with dynamic ActionToolbar and drawers.
+ *
+ * Responsibility of this class:
+ * - Build Swing UI
+ * - Bind UI events
+ * - Ask UiStateService to restore and persist state
  */
 public class MainWindow {
 
     private final BrowserServiceImpl browserService = BrowserServiceImpl.getInstance();
     private final CommandRegistryImpl commandRegistry = CommandRegistryImpl.getInstance();
 
+    // Persistenter UI State (Use-Case-Service)
+    private final UiStateService uiStateService = new UiStateService(new FileUiStateRepository());
+
     private JFrame frame;
     private final JTabbedPane tabbedPane = new JTabbedPane();
 
-    // Für View-Toggles & Persistenz:
+    // Drawer / SplitPane Layout
     private JSplitPane outerSplit;
     private JSplitPane innerSplit;
     private boolean leftDrawerVisible  = true;
     private boolean rightDrawerVisible = true;
-    private int savedOuterDividerLocation = 200;  // Default links
-    private int savedInnerDividerLocation = 900;  // Default rechts
+    private int savedOuterDividerLocation = 200;  // default for left drawer
+    private int savedInnerDividerLocation = 900;  // default for right drawer
 
     private StatusBar statusBar;
     private UserSelectionCombo userCombo;
 
     public void initUI() {
+        // 1. Lade gespeicherten Zustand aus UiStateService
+        UiState persisted = uiStateService.getUiState();
+        UiState.WindowState winState = persisted.getMainWindow();
+        UiState.DrawerState leftState = persisted.getLeftDrawer();
+        UiState.DrawerState rightState = persisted.getRightDrawer();
+
+        // Übernehme in-memory Defaults aus Persistenz in die lokalen Felder
+        this.leftDrawerVisible = leftState.isVisible();
+        this.rightDrawerVisible = rightState.isVisible();
+        this.savedOuterDividerLocation = leftState.getWidth();
+        this.savedInnerDividerLocation = rightState.getWidth();
+
+        // 2. Baue JFrame
         frame = new JFrame("Web Test Recorder & Runner");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(1200, 800);
-        frame.setLocationRelativeTo(null);
         frame.setLayout(new BorderLayout());
+
+        // Stelle Fenstergröße / Position wieder her
+        if (winState.isMaximized()) {
+            // Maximiert: setze Bounds halbwegs sinnvoll und dann maximiere
+            frame.setBounds(
+                    winState.getX(),
+                    winState.getY(),
+                    winState.getWidth(),
+                    winState.getHeight()
+            );
+            frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+        } else {
+            // Normaler Zustand
+            frame.setBounds(
+                    winState.getX(),
+                    winState.getY(),
+                    winState.getWidth(),
+                    winState.getHeight()
+            );
+        }
 
         // Menüleiste
         registerCommands();
@@ -53,11 +93,11 @@ public class MainWindow {
         JMenuBar mb = MenuTreeBuilder.buildMenuBar();
         frame.setJMenuBar(mb);
 
-        // Toolbar
+        // Toolbar oben
         ActionToolbar toolbar = new ActionToolbar();
         frame.add(toolbar, BorderLayout.NORTH);
 
-        // Center-Aufbau
+        // Center-Aufbau (Split Panes etc.)
         outerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         outerSplit.setOneTouchExpandable(true);
 
@@ -66,40 +106,95 @@ public class MainWindow {
 
         innerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         innerSplit.setOneTouchExpandable(true);
+
         JPanel mainPanel = createMainPanel();
         innerSplit.setLeftComponent(mainPanel);
 
         RightDrawer rightDrawer = new RightDrawer(browserService);
         innerSplit.setRightComponent(rightDrawer);
+
         outerSplit.setRightComponent(innerSplit);
 
-        loadDrawerSettings();
+        // Stelle Divider-Positionen wieder her
         outerSplit.setDividerLocation(savedOuterDividerLocation);
         innerSplit.setDividerLocation(savedInnerDividerLocation);
 
+        // Stelle Sichtbarkeit der Drawer wieder her
+        applyInitialLeftDrawerVisibility();
+        applyInitialRightDrawerVisibility();
+
         frame.add(outerSplit, BorderLayout.CENTER);
 
-        // >>> Statusbar (links Meldungen, rechts User-Selector)
+        // Statusbar unten
         userCombo = new UserSelectionCombo(UserRegistry.getInstance());
         statusBar = new StatusBar(userCombo);
         frame.add(statusBar, BorderLayout.SOUTH);
 
-//        // Status-Text immer updaten, wenn der aktuelle User wechselt
-//        de.bund.zrb.service.UserContextMappingService.getInstance()
-//                .addPropertyChangeListener(evt -> {
-//                    if (!"currentUser".equals(evt.getPropertyName())) return;
-//                    de.bund.zrb.service.UserRegistry.User u =
-//                            (de.bund.zrb.service.UserRegistry.User) evt.getNewValue();
-//                    String name = (u == null) ? "<Keinen>" : u.getUsername();
-//                    statusBar.setMessage("Aktiver Benutzer: " + name);
-//                });
-
-        // Browser starten NACHDEM Statusbar steht → wir können dort Meldungen setzen
+        // Browser starten NACH Statusbar
         initBrowser();
 
+        // WindowListener zum Persistieren beim Exit
         frame.addWindowListener(new WindowAdapter() {
-            @Override public void windowClosing(WindowEvent e) {
-                saveDrawerSettings();
+            @Override
+            public void windowClosing(WindowEvent e) {
+
+                // 1. Fensterzustand sichern
+                boolean maximized = (frame.getExtendedState() & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH;
+                int x = frame.getX();
+                int y = frame.getY();
+                int w = frame.getWidth();
+                int h = frame.getHeight();
+
+                uiStateService.updateMainWindowState(x, y, w, h, maximized);
+
+                // 2. Linken Drawer-Zustand sichern
+                // WENN sichtbar -> echten Divider speichern
+                // WENN versteckt -> den zuletzt sinnvollen Wert behalten
+                int leftWidthToPersist;
+                if (outerSplit != null) {
+                    if (leftDrawerVisible) {
+                        // Drawer gerade offen -> echten Wert nehmen
+                        int currentLoc = outerSplit.getDividerLocation();
+                        if (currentLoc > 0) {
+                            savedOuterDividerLocation = currentLoc;
+                        }
+                        leftWidthToPersist = savedOuterDividerLocation;
+                    } else {
+                        // Drawer gerade zu -> NICHT 0 speichern, sondern den gemerkten Wert
+                        leftWidthToPersist = savedOuterDividerLocation;
+                    }
+                } else {
+                    leftWidthToPersist = savedOuterDividerLocation;
+                }
+
+                // 3. Rechten Drawer-Zustand sichern
+                // Gleiches Prinzip spiegelverkehrt
+                int rightWidthToPersist;
+                if (innerSplit != null) {
+                    int maxLoc = innerSplit.getMaximumDividerLocation();
+                    if (rightDrawerVisible) {
+                        // Drawer gerade offen -> echten Wert nehmen
+                        int currentLoc = innerSplit.getDividerLocation();
+                        if (currentLoc < maxLoc) {
+                            savedInnerDividerLocation = currentLoc;
+                        }
+                        rightWidthToPersist = savedInnerDividerLocation;
+                    } else {
+                        // Drawer gerade zu -> NICHT maxLoc speichern, sondern gemerkte Breite
+                        rightWidthToPersist = savedInnerDividerLocation;
+                    }
+                } else {
+                    rightWidthToPersist = savedInnerDividerLocation;
+                }
+
+                // 4. Werte an UiStateService geben
+                uiStateService.updateLeftDrawerState(leftDrawerVisible, leftWidthToPersist);
+                uiStateService.updateRightDrawerState(rightDrawerVisible, rightWidthToPersist);
+
+                // 5. Persistieren
+                uiStateService.persist();
+
+                // 6. Browser runterfahren
                 statusBar.setMessage("🛑 Browser wird beendet…");
                 browserService.terminateBrowser();
             }
@@ -107,6 +202,69 @@ public class MainWindow {
 
         frame.setVisible(true);
     }
+
+    private void applyInitialLeftDrawerVisibility() {
+        if (outerSplit == null) {
+            return;
+        }
+
+        Component leftComp = outerSplit.getLeftComponent();
+        if (leftComp == null) {
+            return;
+        }
+
+        if (!leftDrawerVisible) {
+            // Drawer soll beim Start versteckt sein.
+            // WICHTIG: savedOuterDividerLocation NICHT überschreiben!
+            // Use savedOuterDividerLocation as "letzte sinnvolle Breite", aber wir zeigen sie jetzt nicht.
+            leftComp.setVisible(false);
+            outerSplit.setDividerLocation(0);
+        } else {
+            // Drawer soll beim Start sichtbar sein.
+            leftComp.setVisible(true);
+
+            int restoreLoc = (savedOuterDividerLocation > 0)
+                    ? savedOuterDividerLocation
+                    : 200; // Fallback
+
+            outerSplit.setDividerLocation(restoreLoc);
+        }
+    }
+
+
+    private void applyInitialRightDrawerVisibility() {
+        if (innerSplit == null) {
+            return;
+        }
+
+        Component rightComp = innerSplit.getRightComponent();
+        if (rightComp == null) {
+            return;
+        }
+
+        int maxLoc = innerSplit.getMaximumDividerLocation();
+
+        if (!rightDrawerVisible) {
+            // Drawer soll beim Start versteckt sein.
+            // WICHTIG: savedInnerDividerLocation NICHT überschreiben!
+            rightComp.setVisible(false);
+            innerSplit.setDividerLocation(maxLoc);
+        } else {
+            // Drawer soll beim Start sichtbar sein.
+            rightComp.setVisible(true);
+
+            int restoreLoc;
+            if (savedInnerDividerLocation > 0 && savedInnerDividerLocation < maxLoc) {
+                restoreLoc = savedInnerDividerLocation;
+            } else {
+                // Fallback: ~300px Breite rechts
+                restoreLoc = Math.max(0, maxLoc - 300);
+            }
+
+            innerSplit.setDividerLocation(restoreLoc);
+        }
+    }
+
 
     private void initBrowser() {
         BrowserConfig config = new BrowserConfig();
@@ -146,7 +304,6 @@ public class MainWindow {
     }
 
     private void registerCommands() {
-        // Vorhandene/alte Commands
         commandRegistry.register(new ShowShortcutConfigMenuCommand(frame));
         commandRegistry.register(new SettingsCommand());
         commandRegistry.register(new ExpressionEditorCommand());
@@ -179,15 +336,11 @@ public class MainWindow {
         commandRegistry.register(new NavigationHomeCommand());
         commandRegistry.register(new LoginUserCommand());
 
-        // View-Toggles (Shortcut- & Toolbar-fähig)
         commandRegistry.register(new ToggleLeftDrawerCommand(this));
         commandRegistry.register(new ToggleRightDrawerCommand(this));
 
-        // Video:
         commandRegistry.register(new ToggleVideoRecordCommand());
     }
-
-    // ====== View-Menü („Ansicht“) =================================================
 
     private JMenu buildViewMenu() {
         JMenu view = new JMenu("Ansicht");
@@ -209,85 +362,124 @@ public class MainWindow {
         return view;
     }
 
-    // ====== API für Toggle-Commands ==============================================
-
-    /** Linke Seitenleiste ein-/ausblenden und Position speichern. */
+    /**
+     * Toggle left drawer visibility and remember divider position in memory.
+     * Do not persist to disk immediately. Persist on exit only.
+     */
     public void toggleLeftDrawer() {
-        if (outerSplit == null) return;
+        if (outerSplit == null) {
+            return;
+        }
 
-        if (leftDrawerVisible) {
-            savedOuterDividerLocation = outerSplit.getDividerLocation();
+        Component leftComp = outerSplit.getLeftComponent();
+        if (leftComp == null) {
+            return;
+        }
+
+        // Determine actual visibility state from UI, not nur aus leftDrawerVisible
+        boolean actuallyVisible =
+                leftComp.isVisible() &&
+                        outerSplit.getDividerLocation() > 0;
+
+        if (actuallyVisible) {
+            // Collapse / hide left drawer
+
+            // Only save divider location if it is >0 (usable width)
+            int currentLoc = outerSplit.getDividerLocation();
+            if (currentLoc > 0) {
+                savedOuterDividerLocation = currentLoc;
+            }
+
+            // Hide component and move divider hard left
+            leftComp.setVisible(false);
             outerSplit.setDividerLocation(0);
-            if (outerSplit.getLeftComponent() != null) {
-                outerSplit.getLeftComponent().setVisible(false);
-            }
-        } else {
-            if (outerSplit.getLeftComponent() != null) {
-                outerSplit.getLeftComponent().setVisible(true);
-            }
-            outerSplit.setDividerLocation(savedOuterDividerLocation);
-        }
-        leftDrawerVisible = !leftDrawerVisible;
 
-        // sofort persistieren
-        SettingsService.getInstance().set("leftDividerLocation", outerSplit.getDividerLocation());
+            leftDrawerVisible = false;
+        } else {
+            // Expand / show left drawer
+
+            // Ensure component is visible again
+            leftComp.setVisible(true);
+
+            // Restore last known divider location, but fall back to something sane
+            int restoreLoc = (savedOuterDividerLocation > 0)
+                    ? savedOuterDividerLocation
+                    : 200; // fallback default
+
+            outerSplit.setDividerLocation(restoreLoc);
+
+            leftDrawerVisible = true;
+        }
 
         frame.revalidate();
         frame.repaint();
     }
 
-    /** Rechte Seitenleiste ein-/ausblenden und Position speichern. */
+    /**
+     * Toggle right drawer visibility and remember divider in memory.
+     * Do not persist to disk immediately. Persist on exit only.
+     */
     public void toggleRightDrawer() {
-        if (innerSplit == null) return;
-
-        if (rightDrawerVisible) {
-            savedInnerDividerLocation = innerSplit.getDividerLocation();
-            innerSplit.setDividerLocation(innerSplit.getMaximumDividerLocation());
-            if (innerSplit.getRightComponent() != null) {
-                innerSplit.getRightComponent().setVisible(false);
-            }
-        } else {
-            if (innerSplit.getRightComponent() != null) {
-                innerSplit.getRightComponent().setVisible(true);
-            }
-            innerSplit.setDividerLocation(savedInnerDividerLocation);
+        if (innerSplit == null) {
+            return;
         }
-        rightDrawerVisible = !rightDrawerVisible;
 
-        // sofort persistieren
-        SettingsService.getInstance().set("rightDividerLocation", innerSplit.getDividerLocation());
+        Component rightComp = innerSplit.getRightComponent();
+        if (rightComp == null) {
+            return;
+        }
+
+        int maxLoc = innerSplit.getMaximumDividerLocation();
+
+        // Determine actual visibility from UI, not nur aus rightDrawerVisible
+        boolean actuallyVisible =
+                rightComp.isVisible() &&
+                        innerSplit.getDividerLocation() < maxLoc;
+
+        if (actuallyVisible) {
+            // Collapse / hide right drawer
+
+            // Save current divider location only if not already collapsed
+            int currentLoc = innerSplit.getDividerLocation();
+            if (currentLoc < maxLoc) {
+                savedInnerDividerLocation = currentLoc;
+            }
+
+            // Hide component and shove divider all the way right
+            rightComp.setVisible(false);
+            innerSplit.setDividerLocation(maxLoc);
+
+            rightDrawerVisible = false;
+        } else {
+            // Expand / show right drawer
+
+            rightComp.setVisible(true);
+
+            // Restore previous divider location, fallback if needed
+            int restoreLoc = (savedInnerDividerLocation < maxLoc)
+                    ? savedInnerDividerLocation
+                    : Math.max(0, maxLoc - 300); // fallback: 300px Breite rechts
+
+            innerSplit.setDividerLocation(restoreLoc);
+
+            rightDrawerVisible = true;
+        }
 
         frame.revalidate();
         frame.repaint();
-    }
-
-    // ====== Persistenz der Divider-Positionen ====================================
-
-    private void loadDrawerSettings() {
-        Integer left = SettingsService.getInstance().get("leftDividerLocation", Integer.class);
-        Integer right = SettingsService.getInstance().get("rightDividerLocation", Integer.class);
-        if (left != null)  savedOuterDividerLocation = left.intValue();
-        if (right != null) savedInnerDividerLocation = right.intValue();
-    }
-
-    private void saveDrawerSettings() {
-        if (outerSplit != null) {
-            SettingsService.getInstance().set("leftDividerLocation", outerSplit.getDividerLocation());
-        }
-        if (innerSplit != null) {
-            SettingsService.getInstance().set("rightDividerLocation", innerSplit.getDividerLocation());
-        }
     }
 
     public void setStatus(String text) {
-        if (statusBar != null) statusBar.setMessage(text);
+        if (statusBar != null) {
+            statusBar.setMessage(text);
+        }
     }
 
-    // ====== Startpunkt ============================================================
-
+    // Optional: eigener main() hier könnte bleiben, aber du hast schon einen Main in de.bund.zrb.Main
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
-            @Override public void run() {
+            @Override
+            public void run() {
                 new MainWindow().initUI();
             }
         });
