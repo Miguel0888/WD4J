@@ -455,7 +455,9 @@ public class MainWindow {
             return;
         }
 
-        int maxLoc = innerSplit.getMaximumDividerLocation();
+        int maxLoc = innerSplit.getWidth()
+                - innerSplit.getDividerSize()
+                - innerSplit.getInsets().right;
         int currentLoc = innerSplit.getDividerLocation();
 
         boolean currentlyVisible = false;
