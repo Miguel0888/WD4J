@@ -569,8 +569,25 @@ public class MainWindow {
         frame.repaint();
     }
 
+    /**
+     * Calculate the theoretical "fully collapsed" divider position for innerSplit.
+     *
+     * Meaning:
+     * Move divider so far to the right that the right drawer would be completely hidden.
+     *
+     * Explanation:
+     * - dividerLocation == width of left component.
+     * - In fully collapsed state, left component should occupy basically the full width.
+     *
+     * Fallback logic:
+     * Return 0 if innerSplit is not yet laid out (width == 0 or null insets).
+     */
     // NOTE: Alternatively calculate innerSplit.getMaximumDividerLocation() + innerSplit.getRightComponent().getMinimumSize().getWidth
     private int getMaxLoc() {
+        if (innerSplit == null) {
+            return 0;
+        }
+
         return innerSplit.getWidth()
                 - innerSplit.getDividerSize()
                 - innerSplit.getInsets().right;
