@@ -65,15 +65,13 @@ public class MainWindow {
 
     public void initUI() {
 
-        // 1. Lade gespeicherten Zustand NUR um Start-Defaults für Cache zu haben
-        //    (Wir stellen NICHTS am UI wieder her!)
+        // 1. Zustand laden
         UiState persisted = uiStateService.getUiState();
         UiState.WindowState winState   = persisted.getMainWindow();
         UiState.DrawerState leftState  = persisted.getLeftDrawer();
         UiState.DrawerState rightState = persisted.getRightDrawer();
 
-        // Cached "last known good" Werte (Fallback für Persist am Ende)
-        // Wenn da Müll drinsteht (< MIN_DRAWER_WIDTH), clampen wir hier direkt nach oben.
+        // Cache vorbereiten
         this.savedOuterDividerLocation = leftState.getWidth();
         if (this.savedOuterDividerLocation < MIN_DRAWER_WIDTH) {
             this.savedOuterDividerLocation = MIN_DRAWER_WIDTH;
@@ -84,16 +82,14 @@ public class MainWindow {
             this.savedInnerDividerLocation = MIN_DRAWER_WIDTH;
         }
 
-        // Sichtbarkeitsflags initialisieren (nur als Ausgangspunkt für Persist am Ende)
         this.leftDrawerVisible  = leftState.isVisible();
         this.rightDrawerVisible = rightState.isVisible();
 
-        // 2. Baue JFrame
+        // 2. Frame bauen
         frame = new JFrame("Web Test Recorder & Runner");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
 
-        // Stelle Fenstergröße / Position wieder her (das darfst du weiter nutzen, ist unkritisch)
         if (winState.isMaximized()) {
             frame.setBounds(
                     winState.getX(),
@@ -111,17 +107,16 @@ public class MainWindow {
             );
         }
 
-        // Menüleiste (Commands müssen vorher registriert sein)
+        // Commands, Menü, Toolbar
         registerCommands();
         registerShortcuts();
         JMenuBar mb = MenuTreeBuilder.buildMenuBar();
         frame.setJMenuBar(mb);
 
-        // Toolbar oben
         ActionToolbar toolbar = new ActionToolbar();
         frame.add(toolbar, BorderLayout.NORTH);
 
-        // Center-Aufbau
+        // 3. Center-Aufbau (Split Panes etc.)
         outerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         outerSplit.setOneTouchExpandable(true);
 
@@ -139,16 +134,9 @@ public class MainWindow {
 
         outerSplit.setRightComponent(innerSplit);
 
-        // WIR STELLEN HIER NICHT MEHR DEN ALTEN STATE WIEDER HER.
-        // Wir nehmen nur Default-Startpositionen, damit die UI überhaupt sinnvoll aussieht.
-        //
-        // outerSplit steuert Breite des linken Drawers:
+        // Erst mal irgendwas Sinnvolles setzen, damit es nicht wild blinkt.
         outerSplit.setDividerLocation(savedOuterDividerLocation);
-        // innerSplit steuert Breite des MainPanels (nicht direkt die Breite des rechten Drawers):
         innerSplit.setDividerLocation(savedInnerDividerLocation);
-
-        // Listener installieren, NACHDEM die Splits existieren
-        installSplitListeners();
 
         frame.add(outerSplit, BorderLayout.CENTER);
 
@@ -157,15 +145,25 @@ public class MainWindow {
         statusBar = new StatusBar(userCombo);
         frame.add(statusBar, BorderLayout.SOUTH);
 
-        // Browser starten NACH Statusbar
+        // Browser erst nach Statusbar, wie gehabt
         initBrowser();
 
-        // WindowListener zum Persistieren beim Exit
+        // Frame anzeigen, Layout ausführen lassen
+        frame.setVisible(true);
+        frame.validate(); // Stelle sicher, dass innerSplit Größen hat
+
+        // 4. Jetzt gespeicherten Drawer-Zustand wirklich anwenden
+        restoreLeftDrawerFromState();
+        restoreRightDrawerFromState();
+
+        // 5. Listener installieren (erst NACH restore!)
+        installSplitListeners();
+
+        // 6. WindowListener für Persist beim Exit
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
 
-                // 1. Fensterzustand sichern
                 boolean maximized = (frame.getExtendedState() & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH;
                 int x = frame.getX();
                 int y = frame.getY();
@@ -173,39 +171,32 @@ public class MainWindow {
                 int h = frame.getHeight();
                 uiStateService.updateMainWindowState(x, y, w, h, maximized);
 
-                // 2. Sichtbarkeit "jetzt gerade" berechnen
-                // LEFT:
-                // left drawer gilt als sichtbar, wenn dividerLocation >= MIN_DRAWER_WIDTH
+                // Sichtbarkeit Links
                 int currentLeftLoc = (outerSplit != null) ? outerSplit.getDividerLocation() : savedOuterDividerLocation;
                 boolean currentLeftVisible = currentLeftLoc >= MIN_DRAWER_WIDTH;
 
-                // RIGHT:
-                // Bei innerSplit bedeutet dividerLocation = Breite vom linken Bereich (MainPanel).
-                // Rechter Drawer ist "sichtbar", wenn MainPanel nicht alles frisst.
+                // Sichtbarkeit Rechts (Pixel-Logik)
                 int currentRightLoc = (innerSplit != null) ? innerSplit.getDividerLocation() : savedInnerDividerLocation;
-                int maxLoc = (innerSplit != null) ? innerSplit.getWidth()
+                int maxLoc = (innerSplit != null)
+                        ? innerSplit.getWidth()
                         - innerSplit.getDividerSize()
                         - innerSplit.getInsets().right
                         : -1;
 
                 boolean currentRightVisible = false;
                 if (maxLoc > 0) {
-                    // MainPanel-Breite = currentRightLoc.
-                    // Wenn MainPanel >= MIN_DRAWER_WIDTH, dann ist rechter Drawer überhaupt im Bild
                     currentRightVisible = currentRightLoc <= (maxLoc - MIN_DRAWER_WIDTH);
                 }
 
-                // 3. Letzte sinnvolle Breite updaten, aber nur wenn Schwellwert erfüllt ist
-                // LEFT:
+                // Letzte sinnvolle Breite updaten
                 if (currentLeftLoc >= MIN_DRAWER_WIDTH) {
                     savedOuterDividerLocation = currentLeftLoc;
                 }
-                // RIGHT:
                 if (maxLoc > 0 && currentRightLoc <= (maxLoc - MIN_DRAWER_WIDTH)) {
                     savedInnerDividerLocation = currentRightLoc;
                 }
 
-                // 4. Jetzt Persist schreiben
+                // Persist
                 uiStateService.updateLeftDrawerState(
                         currentLeftVisible,
                         savedOuterDividerLocation
@@ -216,17 +207,99 @@ public class MainWindow {
                         savedInnerDividerLocation
                 );
 
-                // Flush ui.json
                 uiStateService.persist();
 
-                // 5. Browser runterfahren
                 statusBar.setMessage("🛑 Browser wird beendet…");
                 browserService.terminateBrowser();
             }
         });
-
-        frame.setVisible(true);
     }
+
+    /**
+     * Restore left drawer exactly like a manual toggle sequence would.
+     *
+     * Rule:
+     * - Wenn persisted.visible == true:
+     *      Stelle Divider auf savedOuterDividerLocation (mindestens MIN_DRAWER_WIDTH),
+     *      und lass ihn offen.
+     * - Wenn persisted.visible == false:
+     *      Merke savedOuterDividerLocation (aus Persist), klapp ihn zu (Divider = 0).
+     *
+     * Diese Methode muss NACH frame.validate() laufen,
+     * weil outerSplit erst dann korrekte Größen kennt.
+     */
+    private void restoreLeftDrawerFromState() {
+        if (outerSplit == null) {
+            return;
+        }
+
+        // clamp safety
+        if (savedOuterDividerLocation < MIN_DRAWER_WIDTH) {
+            savedOuterDividerLocation = MIN_DRAWER_WIDTH;
+        }
+
+        if (leftDrawerVisible) {
+            // offen starten
+            outerSplit.setDividerLocation(savedOuterDividerLocation);
+        } else {
+            // zu starten
+            outerSplit.setDividerLocation(0);
+        }
+    }
+
+    /**
+     * Restore right drawer state using the exact same geometry rules
+     * as toggleRightDrawer() und windowClosing().
+     *
+     * Rule:
+     * - Wenn persisted.visible == true:
+     *      DividerLocation = savedInnerDividerLocation (geclamped),
+     *      also rechter Drawer sichtbar.
+     *
+     * - Wenn persisted.visible == false:
+     *      Divider ganz nach rechts fahren (komplett eingeklappt),
+     *      aber savedInnerDividerLocation NICHT verlieren
+     *      (das haben wir ja schon aus Persist gelesen).
+     *
+     * Diese Methode MUSS laufen, nachdem innerSplit gemessen wurde
+     * (also nach frame.setVisible(true); frame.validate();).
+     */
+    private void restoreRightDrawerFromState() {
+        if (innerSplit == null) {
+            return;
+        }
+
+        // berechne "voll eingeklappt"-Position (rechter Drawer verschwunden)
+        int fullCollapsePos = innerSplit.getWidth()
+                - innerSplit.getDividerSize()
+                - innerSplit.getInsets().right;
+
+        // falls wegen Layout (noch) nichts Sinnvolles drinsteht:
+        if (fullCollapsePos < 0) {
+            fullCollapsePos = 0;
+        }
+
+        // clamp savedInnerDividerLocation jetzt anhand der echten Breite
+        int restoreLoc = savedInnerDividerLocation;
+        if (restoreLoc <= 0) {
+            restoreLoc = Math.max(0, fullCollapsePos - 300); // Fallback analog Toggle
+        }
+        if (restoreLoc >= fullCollapsePos) {
+            restoreLoc = Math.max(0, fullCollapsePos - 300);
+        }
+        if (restoreLoc > (fullCollapsePos - MIN_DRAWER_WIDTH)) {
+            restoreLoc = Math.max(0, fullCollapsePos - MIN_DRAWER_WIDTH);
+        }
+
+        if (rightDrawerVisible) {
+            // Drawer soll offen starten -> Divider dahin setzen
+            innerSplit.setDividerLocation(restoreLoc);
+        } else {
+            // Drawer soll zu starten -> Divider ganz nach rechts
+            innerSplit.setDividerLocation(fullCollapsePos);
+        }
+    }
+
 
     /**
      * Install observers on both split panes.
