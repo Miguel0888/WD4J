@@ -183,7 +183,10 @@ public class MainWindow {
                 // Bei innerSplit bedeutet dividerLocation = Breite vom linken Bereich (MainPanel).
                 // Rechter Drawer ist "sichtbar", wenn MainPanel nicht alles frisst.
                 int currentRightLoc = (innerSplit != null) ? innerSplit.getDividerLocation() : savedInnerDividerLocation;
-                int maxLoc          = (innerSplit != null) ? innerSplit.getMaximumDividerLocation() : -1;
+                int maxLoc = (innerSplit != null) ? innerSplit.getWidth()
+                        - innerSplit.getDividerSize()
+                        - innerSplit.getInsets().right
+                        : -1;
 
                 boolean currentRightVisible = false;
                 if (maxLoc > 0) {
