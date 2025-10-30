@@ -22,34 +22,41 @@ import java.beans.PropertyChangeListener;
 import java.util.Optional;
 
 /**
- * TestToolUI with dynamic ActionToolbar and drawers.
+ * Main application window.
  *
  * Responsibility of this class:
  * - Build Swing UI
  * - Bind UI events
- * - Ask UiStateService to restore and persist state
+ * - Track drawer state (position + visibility)
+ * - Persist that state on exit
+ *
+ * IMPORTANT:
+ * Do not restore drawer layout at startup.
+ * Only observe and persist on shutdown.
  */
 public class MainWindow {
 
-    // Drawer is considered "visible/open" only if width >= MIN_DRAWER_WIDTH
+    // Consider drawer "visible/open" only if width >= MIN_DRAWER_WIDTH (in px)
     private static final int MIN_DRAWER_WIDTH = 50;
 
     private final BrowserServiceImpl browserService = BrowserServiceImpl.getInstance();
     private final CommandRegistryImpl commandRegistry = CommandRegistryImpl.getInstance();
 
-    // Persistenter UI State (Use-Case-Service)
+    // Persistenter UI State (Writer am Ende, Reader nur für Start-Defaults der Cache-Werte)
     private final UiStateService uiStateService = new UiStateService(new FileUiStateRepository());
 
     private JFrame frame;
     private final JTabbedPane tabbedPane = new JTabbedPane();
 
-    // Drawer / SplitPane Layout
-    private JSplitPane outerSplit;
-    private JSplitPane innerSplit;
+    // SplitPane-Layout
+    private JSplitPane outerSplit; // [LeftDrawer | innerSplit]
+    private JSplitPane innerSplit; // [MainPanel  | RightDrawer]
+
+    // Live-Flags, die wir beim Exit persistieren
     private boolean leftDrawerVisible  = true;
     private boolean rightDrawerVisible = true;
 
-    // last known good divider position when drawer is open
+    // Letzter "guter" Divider-Wert (nicht < MIN_DRAWER_WIDTH)
     private int savedOuterDividerLocation = 200;  // default for left drawer
     private int savedInnerDividerLocation = 900;  // default for right drawer
 
@@ -57,24 +64,36 @@ public class MainWindow {
     private UserSelectionCombo userCombo;
 
     public void initUI() {
-        // 1. Lade gespeicherten Zustand aus UiStateService
+
+        // 1. Lade gespeicherten Zustand NUR um Start-Defaults für Cache zu haben
+        //    (Wir stellen NICHTS am UI wieder her!)
         UiState persisted = uiStateService.getUiState();
-        UiState.WindowState winState = persisted.getMainWindow();
-        UiState.DrawerState leftState = persisted.getLeftDrawer();
+        UiState.WindowState winState   = persisted.getMainWindow();
+        UiState.DrawerState leftState  = persisted.getLeftDrawer();
         UiState.DrawerState rightState = persisted.getRightDrawer();
 
-        // Übernehme in-memory Defaults aus Persistenz in die lokalen Felder
-        this.leftDrawerVisible = leftState.isVisible();
-        this.rightDrawerVisible = rightState.isVisible();
+        // Cached "last known good" Werte (Fallback für Persist am Ende)
+        // Wenn da Müll drinsteht (< MIN_DRAWER_WIDTH), clampen wir hier direkt nach oben.
         this.savedOuterDividerLocation = leftState.getWidth();
+        if (this.savedOuterDividerLocation < MIN_DRAWER_WIDTH) {
+            this.savedOuterDividerLocation = MIN_DRAWER_WIDTH;
+        }
+
         this.savedInnerDividerLocation = rightState.getWidth();
+        if (this.savedInnerDividerLocation < MIN_DRAWER_WIDTH) {
+            this.savedInnerDividerLocation = MIN_DRAWER_WIDTH;
+        }
+
+        // Sichtbarkeitsflags initialisieren (nur als Ausgangspunkt für Persist am Ende)
+        this.leftDrawerVisible  = leftState.isVisible();
+        this.rightDrawerVisible = rightState.isVisible();
 
         // 2. Baue JFrame
         frame = new JFrame("Web Test Recorder & Runner");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
 
-        // Stelle Fenstergröße / Position wieder her
+        // Stelle Fenstergröße / Position wieder her (das darfst du weiter nutzen, ist unkritisch)
         if (winState.isMaximized()) {
             frame.setBounds(
                     winState.getX(),
@@ -92,7 +111,7 @@ public class MainWindow {
             );
         }
 
-        // Menüleiste
+        // Menüleiste (Commands müssen vorher registriert sein)
         registerCommands();
         registerShortcuts();
         JMenuBar mb = MenuTreeBuilder.buildMenuBar();
@@ -102,7 +121,7 @@ public class MainWindow {
         ActionToolbar toolbar = new ActionToolbar();
         frame.add(toolbar, BorderLayout.NORTH);
 
-        // Center-Aufbau (Split Panes etc.)
+        // Center-Aufbau
         outerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         outerSplit.setOneTouchExpandable(true);
 
@@ -120,16 +139,15 @@ public class MainWindow {
 
         outerSplit.setRightComponent(innerSplit);
 
-        // Stelle Divider-Positionen wieder her (raw)
+        // WIR STELLEN HIER NICHT MEHR DEN ALTEN STATE WIEDER HER.
+        // Wir nehmen nur Default-Startpositionen, damit die UI überhaupt sinnvoll aussieht.
+        //
+        // outerSplit steuert Breite des linken Drawers:
         outerSplit.setDividerLocation(savedOuterDividerLocation);
+        // innerSplit steuert Breite des MainPanels (nicht direkt die Breite des rechten Drawers):
         innerSplit.setDividerLocation(savedInnerDividerLocation);
 
-        // Stelle Sichtbarkeit / eingeklappt-sein wieder her
-        applyInitialLeftDrawerVisibility();
-        applyInitialRightDrawerVisibility();
-
-        // Installiere Listener, die die "last good width" aktuell halten,
-        // damit Toggle nach einem "start hidden" trotzdem weiß, wohin er wieder aufklappen soll.
+        // Listener installieren, NACHDEM die Splits existieren
         installSplitListeners();
 
         frame.add(outerSplit, BorderLayout.CENTER);
@@ -147,57 +165,58 @@ public class MainWindow {
             @Override
             public void windowClosing(WindowEvent e) {
 
-                // 1. Sammle aktuellen Fensterzustand
+                // 1. Fensterzustand sichern
                 boolean maximized = (frame.getExtendedState() & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH;
                 int x = frame.getX();
                 int y = frame.getY();
                 int w = frame.getWidth();
                 int h = frame.getHeight();
-
                 uiStateService.updateMainWindowState(x, y, w, h, maximized);
 
-                // 2. Sammle aktuellen Drawer-Zustand
-                int leftWidthToPersist;
-                if (outerSplit != null) {
-                    if (leftDrawerVisible) {
-                        int currentLoc = outerSplit.getDividerLocation();
-                        // Update last good width if drawer currently open with usable width
-                        if (currentLoc >= MIN_DRAWER_WIDTH) {
-                            savedOuterDividerLocation = currentLoc;
-                        }
-                        leftWidthToPersist = savedOuterDividerLocation;
-                    } else {
-                        // Drawer zu -> nicht 0/max persistieren, sondern last good width
-                        leftWidthToPersist = savedOuterDividerLocation;
-                    }
-                } else {
-                    leftWidthToPersist = savedOuterDividerLocation;
+                // 2. Sichtbarkeit "jetzt gerade" berechnen
+                // LEFT:
+                // left drawer gilt als sichtbar, wenn dividerLocation >= MIN_DRAWER_WIDTH
+                int currentLeftLoc = (outerSplit != null) ? outerSplit.getDividerLocation() : savedOuterDividerLocation;
+                boolean currentLeftVisible = currentLeftLoc >= MIN_DRAWER_WIDTH;
+
+                // RIGHT:
+                // Bei innerSplit bedeutet dividerLocation = Breite vom linken Bereich (MainPanel).
+                // Rechter Drawer ist "sichtbar", wenn MainPanel nicht alles frisst.
+                int currentRightLoc = (innerSplit != null) ? innerSplit.getDividerLocation() : savedInnerDividerLocation;
+                int maxLoc          = (innerSplit != null) ? innerSplit.getMaximumDividerLocation() : -1;
+
+                boolean currentRightVisible = false;
+                if (maxLoc > 0) {
+                    // MainPanel-Breite = currentRightLoc.
+                    // Wenn MainPanel >= MIN_DRAWER_WIDTH, dann ist rechter Drawer überhaupt im Bild
+                    currentRightVisible = currentRightLoc <= (maxLoc - MIN_DRAWER_WIDTH);
                 }
 
-                int rightWidthToPersist;
-                if (innerSplit != null) {
-                    int maxLoc = innerSplit.getMaximumDividerLocation();
-                    if (rightDrawerVisible) {
-                        int currentLoc = innerSplit.getDividerLocation();
-                        // Update last good width if drawer currently open with usable width
-                        if (currentLoc <= (maxLoc - MIN_DRAWER_WIDTH)) {
-                            savedInnerDividerLocation = currentLoc;
-                        }
-                        rightWidthToPersist = savedInnerDividerLocation;
-                    } else {
-                        rightWidthToPersist = savedInnerDividerLocation;
-                    }
-                } else {
-                    rightWidthToPersist = savedInnerDividerLocation;
+                // 3. Letzte sinnvolle Breite updaten, aber nur wenn Schwellwert erfüllt ist
+                // LEFT:
+                if (currentLeftLoc >= MIN_DRAWER_WIDTH) {
+                    savedOuterDividerLocation = currentLeftLoc;
+                }
+                // RIGHT:
+                if (maxLoc > 0 && currentRightLoc <= (maxLoc - MIN_DRAWER_WIDTH)) {
+                    savedInnerDividerLocation = currentRightLoc;
                 }
 
-                // 3. Persistiere UI State ins Repository
-                uiStateService.updateLeftDrawerState(leftDrawerVisible, leftWidthToPersist);
-                uiStateService.updateRightDrawerState(rightDrawerVisible, rightWidthToPersist);
+                // 4. Jetzt Persist schreiben
+                uiStateService.updateLeftDrawerState(
+                        currentLeftVisible,
+                        savedOuterDividerLocation
+                );
 
+                uiStateService.updateRightDrawerState(
+                        currentRightVisible,
+                        savedInnerDividerLocation
+                );
+
+                // Flush ui.json
                 uiStateService.persist();
 
-                // 4. Fahre Browser sauber herunter
+                // 5. Browser runterfahren
                 statusBar.setMessage("🛑 Browser wird beendet…");
                 browserService.terminateBrowser();
             }
@@ -207,136 +226,61 @@ public class MainWindow {
     }
 
     /**
-     * Restore left drawer visibility.
+     * Install observers on both split panes.
      *
-     * Problem in der alten Version:
-     * - Wenn der Drawer als "eingeklappt" gespeichert war, wurde hier
-     *   savedOuterDividerLocation mit 0 überschrieben.
-     *   Danach wusste toggleLeftDrawer() nicht mehr wohin aufklappen.
-     *
-     * Fix:
-     * - Do not overwrite savedOuterDividerLocation when starting hidden.
-     * - Only write savedOuterDividerLocation if we actually see a valid width (>= MIN_DRAWER_WIDTH).
-     */
-    private void applyInitialLeftDrawerVisibility() {
-        if (outerSplit == null) {
-            return;
-        }
-
-        Component leftComp = outerSplit.getLeftComponent();
-        if (leftComp == null) {
-            return;
-        }
-
-        if (!leftDrawerVisible) {
-            // Drawer soll versteckt starten.
-            // IMPORTANT: Do not clobber savedOuterDividerLocation with 0 here.
-            // Keep last good width for future expand.
-            int currentLoc = outerSplit.getDividerLocation();
-            if (currentLoc >= MIN_DRAWER_WIDTH) {
-                // only update cache if this is a meaningful width
-                savedOuterDividerLocation = currentLoc;
-            }
-
-            leftComp.setVisible(false);
-            outerSplit.setDividerLocation(0);
-        } else {
-            // Drawer soll sichtbar starten.
-            // Stelle gespeicherte Breite wieder her, aber clamp auf MIN_DRAWER_WIDTH.
-            if (savedOuterDividerLocation < MIN_DRAWER_WIDTH) {
-                savedOuterDividerLocation = MIN_DRAWER_WIDTH;
-            }
-
-            leftComp.setVisible(true);
-            outerSplit.setDividerLocation(savedOuterDividerLocation);
-        }
-    }
-
-    /**
-     * Restore right drawer visibility.
-     *
-     * Gleicher Fix wie links: beim Start im eingeklappten Zustand wird
-     * savedInnerDividerLocation NICHT mehr kaputtgeschrieben.
-     */
-    private void applyInitialRightDrawerVisibility() {
-        if (innerSplit == null) {
-            return;
-        }
-
-        Component rightComp = innerSplit.getRightComponent();
-        if (rightComp == null) {
-            return;
-        }
-
-        int maxLoc = innerSplit.getMaximumDividerLocation();
-
-        if (!rightDrawerVisible) {
-            int currentLoc = innerSplit.getDividerLocation();
-            if (currentLoc <= (maxLoc - MIN_DRAWER_WIDTH)) {
-                // only update if current divider is actually giving us a visible width
-                savedInnerDividerLocation = currentLoc;
-            }
-
-            rightComp.setVisible(false);
-            innerSplit.setDividerLocation(maxLoc);
-        } else {
-            // Visible start
-            // Ensure savedInnerDividerLocation is sane (not maxLoc)
-            if (savedInnerDividerLocation <= 0 || savedInnerDividerLocation >= maxLoc) {
-                savedInnerDividerLocation = Math.max(0, maxLoc - 300); // fallback ~300px right pane
-            }
-
-            rightComp.setVisible(true);
-            innerSplit.setDividerLocation(savedInnerDividerLocation);
-        }
-    }
-
-    /**
-     * Install listeners that keep track of "last good width" while user drags.
-     *
-     * This is the missing puzzle piece to make the *first* toggle after
-     * "start hidden" work reliably:
-     *
-     * - Whenever the user drags a divider to a usable width (>= MIN_DRAWER_WIDTH
-     *   for left, or <= maxLoc-MIN_DRAWER_WIDTH for right), update the cached
-     *   saved*DividerLocation immediately.
-     *
-     * - When it is collapsed (width < MIN_DRAWER_WIDTH / at maxLoc), do not
-     *   update the saved*DividerLocation. This preserves the last meaningful width.
+     * Keep last known "good" divider location up to date while user drags.
+     * "Good" means:
+     * - left drawer: divider >= MIN_DRAWER_WIDTH
+     * - right drawer: main panel width leaves at least MIN_DRAWER_WIDTH room for right drawer
      */
     private void installSplitListeners() {
-        if (outerSplit != null) {
-            outerSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, new PropertyChangeListener() {
-                @Override
-                public void propertyChange(PropertyChangeEvent evt) {
-                    // Read current divider position
-                    int loc = outerSplit.getDividerLocation();
-                    Component leftComp = outerSplit.getLeftComponent();
 
-                    // Consider "open" only if component is visible AND divider is beyond threshold
-                    if (leftComp != null && leftComp.isVisible() && loc >= MIN_DRAWER_WIDTH) {
-                        // Update last good width for left drawer
-                        savedOuterDividerLocation = loc;
+        if (outerSplit != null) {
+            outerSplit.addPropertyChangeListener(
+                    JSplitPane.DIVIDER_LOCATION_PROPERTY,
+                    new PropertyChangeListener() {
+                        @Override
+                        public void propertyChange(PropertyChangeEvent evt) {
+                            // Read current divider position
+                            int loc = outerSplit.getDividerLocation();
+
+                            // Only accept if drawer is "open enough"
+                            if (loc >= MIN_DRAWER_WIDTH) {
+                                // remember last good width
+                                savedOuterDividerLocation = loc;
+                            }
+                            // else: ignore. keep previous good value
+                        }
                     }
-                }
-            });
+            );
         }
 
         if (innerSplit != null) {
-            innerSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, new PropertyChangeListener() {
-                @Override
-                public void propertyChange(PropertyChangeEvent evt) {
-                    int loc = innerSplit.getDividerLocation();
-                    int maxLoc = innerSplit.getMaximumDividerLocation();
-                    Component rightComp = innerSplit.getRightComponent();
+            innerSplit.addPropertyChangeListener(
+                    JSplitPane.DIVIDER_LOCATION_PROPERTY,
+                    new PropertyChangeListener() {
+                        @Override
+                        public void propertyChange(PropertyChangeEvent evt) {
 
-                    // Consider "open" only if component is visible AND divider is sufficiently left
-                    if (rightComp != null && rightComp.isVisible() && loc <= (maxLoc - MIN_DRAWER_WIDTH)) {
-                        // Update last good width for right drawer
-                        savedInnerDividerLocation = loc;
+                            int loc    = innerSplit.getDividerLocation();
+                            int maxLoc = innerSplit.getMaximumDividerLocation();
+
+                            // Für right drawer:
+                            // innerSplit.dividerLocation = Breite der linken Komponente (MainPanel)
+                            // Rechter Drawer hat "brauchbare" Breite,
+                            // wenn der Divider NICHT ganz rechts klebt.
+                            //
+                            // D. h. das MainPanel darf NICHT so breit sein,
+                            // dass rechts nix übrig bleibt.
+                            //
+                            // Also: akzeptiere loc nur, wenn rechts >= MIN_DRAWER_WIDTH Platz bleibt.
+                            if (maxLoc > 0 && loc <= (maxLoc - MIN_DRAWER_WIDTH)) {
+                                savedInnerDividerLocation = loc;
+                            }
+                            // else: ignore. keep previous good value.
+                        }
                     }
-                }
-            });
+            );
         }
     }
 
@@ -422,14 +366,24 @@ public class MainWindow {
         Optional<MenuCommand> toggleLeft = CommandRegistryImpl.getInstance().getById("view.toggleLeftDrawer");
         if (toggleLeft.isPresent()) {
             JMenuItem mi = new JMenuItem(toggleLeft.get().getLabel());
-            mi.addActionListener(ev -> toggleLeft.get().perform());
+            mi.addActionListener(new java.awt.event.ActionListener() {
+                @Override
+                public void actionPerformed(java.awt.event.ActionEvent ev) {
+                    toggleLeft.get().perform();
+                }
+            });
             view.add(mi);
         }
 
         Optional<MenuCommand> toggleRight = CommandRegistryImpl.getInstance().getById("view.toggleRightDrawer");
         if (toggleRight.isPresent()) {
             JMenuItem mi = new JMenuItem(toggleRight.get().getLabel());
-            mi.addActionListener(ev -> toggleRight.get().perform());
+            mi.addActionListener(new java.awt.event.ActionListener() {
+                @Override
+                public void actionPerformed(java.awt.event.ActionEvent ev) {
+                    toggleRight.get().perform();
+                }
+            });
             view.add(mi);
         }
 
@@ -437,50 +391,40 @@ public class MainWindow {
     }
 
     /**
-     * Toggle left drawer visibility and remember divider position in memory.
-     * Do not persist to disk immediately. Persist on exit only.
+     * Toggle left drawer.
      *
-     * Fix:
-     * - Use savedOuterDividerLocation captured by listener / startup.
-     * - When currently visible: collapse and mark invisible.
-     * - When currently hidden: expand using last good width (>= MIN_DRAWER_WIDTH).
+     * Rule:
+     * - If currently "visible enough" (divider >= MIN_DRAWER_WIDTH), collapse:
+     *   remember current divider as last good, then set divider to 0.
+     * - Else expand:
+     *   restore last good divider (savedOuterDividerLocation, clamped).
      */
     public void toggleLeftDrawer() {
         if (outerSplit == null) {
             return;
         }
 
-        Component leftComp = outerSplit.getLeftComponent();
-        if (leftComp == null) {
-            return;
-        }
-
         int currentLoc = outerSplit.getDividerLocation();
-        boolean actuallyVisible =
-                leftComp.isVisible() &&
-                        currentLoc >= MIN_DRAWER_WIDTH;
+        boolean currentlyVisible = currentLoc >= MIN_DRAWER_WIDTH;
 
-        if (actuallyVisible) {
-            // Save current width as last good width
+        if (currentlyVisible) {
+            // remember this width
             if (currentLoc >= MIN_DRAWER_WIDTH) {
                 savedOuterDividerLocation = currentLoc;
             }
 
-            // Hide component and move divider to 0
-            leftComp.setVisible(false);
+            // collapse
             outerSplit.setDividerLocation(0);
-
             leftDrawerVisible = false;
+
         } else {
-            // Show again using last good width
+            // expand using last known good width
             int restoreLoc = savedOuterDividerLocation;
             if (restoreLoc < MIN_DRAWER_WIDTH) {
                 restoreLoc = MIN_DRAWER_WIDTH;
             }
 
-            leftComp.setVisible(true);
             outerSplit.setDividerLocation(restoreLoc);
-
             leftDrawerVisible = true;
         }
 
@@ -489,49 +433,69 @@ public class MainWindow {
     }
 
     /**
-     * Toggle right drawer visibility and remember divider in memory.
-     * Do not persist to disk immediately. Persist on exit only.
+     * Toggle right drawer.
      *
-     * Fix symmetrical to left: we rely on savedInnerDividerLocation kept up to date by listener.
+     * Reminder for right side math:
+     * innerSplit dividerLocation == width of the LEFT component (mainPanel).
+     *
+     * We treat the right drawer as "visible" if the divider is NOT slammed
+     * all the way to the far right. Concretely: mainPanel width (loc) must
+     * leave at least MIN_DRAWER_WIDTH px for the right drawer.
+     *
+     * Collapse:
+     * - remember current divider if it's a good width for reopening
+     * - then shove divider all the way to maxLoc (mainPanel takes all space)
+     *
+     * Expand:
+     * - restore savedInnerDividerLocation (clamped so that right drawer
+     *   actually appears)
      */
     public void toggleRightDrawer() {
         if (innerSplit == null) {
             return;
         }
 
-        Component rightComp = innerSplit.getRightComponent();
-        if (rightComp == null) {
-            return;
-        }
-
         int maxLoc = innerSplit.getMaximumDividerLocation();
         int currentLoc = innerSplit.getDividerLocation();
 
-        boolean actuallyVisible =
-                rightComp.isVisible() &&
-                        currentLoc <= (maxLoc - MIN_DRAWER_WIDTH);
+        boolean currentlyVisible = false;
+        if (maxLoc > 0) {
+            currentlyVisible = (currentLoc <= (maxLoc - MIN_DRAWER_WIDTH));
+        }
 
-        if (actuallyVisible) {
-            // Save current divider location as last good width
-            if (currentLoc <= (maxLoc - MIN_DRAWER_WIDTH)) {
+        if (currentlyVisible) {
+            // remember this divider position as last "good" open size
+            if (maxLoc > 0 && currentLoc <= (maxLoc - MIN_DRAWER_WIDTH)) {
                 savedInnerDividerLocation = currentLoc;
             }
 
-            // Hide right drawer: push divider fully right and hide component
-            rightComp.setVisible(false);
-            innerSplit.setDividerLocation(maxLoc);
-
+            // collapse: push divider to maxLoc (right drawer invisible)
+            if (maxLoc > 0) {
+                innerSplit.setDividerLocation(maxLoc);
+            }
             rightDrawerVisible = false;
+
         } else {
-            // Expand right drawer using last good width
+            // expand using last known good value
             int restoreLoc = savedInnerDividerLocation;
-            if (restoreLoc <= 0 || restoreLoc >= maxLoc) {
-                restoreLoc = Math.max(0, maxLoc - 300); // fallback ~300px
+
+            // clamp restoreLoc so that right drawer really sichtbar wird,
+            // also NICHT maxLoc, und nicht so weit rechts, dass rechts 0px bleibt
+            if (maxLoc > 0) {
+                if (restoreLoc <= 0) {
+                    // fallback: ~300px Drawer
+                    restoreLoc = Math.max(0, maxLoc - 300);
+                }
+                if (restoreLoc >= maxLoc) {
+                    restoreLoc = Math.max(0, maxLoc - 300);
+                }
+                // UND: Stelle sicher, dass rechter Drawer >= MIN_DRAWER_WIDTH Platz hat
+                if (restoreLoc > (maxLoc - MIN_DRAWER_WIDTH)) {
+                    restoreLoc = Math.max(0, maxLoc - MIN_DRAWER_WIDTH);
+                }
             }
 
-            rightComp.setVisible(true);
             innerSplit.setDividerLocation(restoreLoc);
-
             rightDrawerVisible = true;
         }
 
@@ -545,7 +509,6 @@ public class MainWindow {
         }
     }
 
-    // Optional: eigener main() hier könnte bleiben, aber du hast schon einen Main in de.bund.zrb.Main
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
