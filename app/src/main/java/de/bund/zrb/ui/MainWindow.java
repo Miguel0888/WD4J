@@ -527,6 +527,7 @@ public class MainWindow {
             return;
         }
 
+        // NOTE: Alternatively calculate innerSplit.getMinimumDividerLocation() + innerSplit.getRightComponent().getMinimumSize()
         int maxLoc = innerSplit.getWidth()
                 - innerSplit.getDividerSize()
                 - innerSplit.getInsets().right;
