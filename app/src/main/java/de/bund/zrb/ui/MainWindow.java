@@ -265,22 +265,18 @@ public class MainWindow {
                         @Override
                         public void propertyChange(PropertyChangeEvent evt) {
 
-                            int loc    = innerSplit.getDividerLocation();
-                            int maxLoc = innerSplit.getMaximumDividerLocation();
+                            int loc = innerSplit.getDividerLocation();
 
-                            // Für right drawer:
-                            // innerSplit.dividerLocation = Breite der linken Komponente (MainPanel)
-                            // Rechter Drawer hat "brauchbare" Breite,
-                            // wenn der Divider NICHT ganz rechts klebt.
-                            //
-                            // D. h. das MainPanel darf NICHT so breit sein,
-                            // dass rechts nix übrig bleibt.
-                            //
-                            // Also: akzeptiere loc nur, wenn rechts >= MIN_DRAWER_WIDTH Platz bleibt.
-                            if (maxLoc > 0 && loc <= (maxLoc - MIN_DRAWER_WIDTH)) {
+                            // Berechne die reale "zugeklappt"-Position analog zu toggleRightDrawer()
+                            int fullCollapsePos = innerSplit.getWidth()
+                                    - innerSplit.getDividerSize()
+                                    - innerSplit.getInsets().right;
+
+                            // right drawer gilt als "offen genug", wenn rechts >= MIN_DRAWER_WIDTH Platz bleibt
+                            if (fullCollapsePos > 0 && loc <= (fullCollapsePos - MIN_DRAWER_WIDTH)) {
                                 savedInnerDividerLocation = loc;
                             }
-                            // else: ignore. keep previous good value.
+                            // else: ignore, behalte alten Wert
                         }
                     }
             );
