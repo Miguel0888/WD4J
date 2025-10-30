@@ -178,9 +178,7 @@ public class MainWindow {
                 // Sichtbarkeit Rechts (Pixel-Logik)
                 int currentRightLoc = (innerSplit != null) ? innerSplit.getDividerLocation() : savedInnerDividerLocation;
                 int maxLoc = (innerSplit != null)
-                        ? innerSplit.getWidth()
-                        - innerSplit.getDividerSize()
-                        - innerSplit.getInsets().right
+                        ? getMaxLoc()
                         : -1;
 
                 boolean currentRightVisible = false;
@@ -270,9 +268,7 @@ public class MainWindow {
         }
 
         // berechne "voll eingeklappt"-Position (rechter Drawer verschwunden)
-        int fullCollapsePos = innerSplit.getWidth()
-                - innerSplit.getDividerSize()
-                - innerSplit.getInsets().right;
+        int fullCollapsePos = getMaxLoc();
 
         // falls wegen Layout (noch) nichts Sinnvolles drinsteht:
         if (fullCollapsePos < 0) {
@@ -341,9 +337,7 @@ public class MainWindow {
                             int loc = innerSplit.getDividerLocation();
 
                             // Berechne die reale "zugeklappt"-Position analog zu toggleRightDrawer()
-                            int fullCollapsePos = innerSplit.getWidth()
-                                    - innerSplit.getDividerSize()
-                                    - innerSplit.getInsets().right;
+                            int fullCollapsePos = getMaxLoc();
 
                             // right drawer gilt als "offen genug", wenn rechts >= MIN_DRAWER_WIDTH Platz bleibt
                             if (fullCollapsePos > 0 && loc <= (fullCollapsePos - MIN_DRAWER_WIDTH)) {
@@ -527,10 +521,7 @@ public class MainWindow {
             return;
         }
 
-        // NOTE: Alternatively calculate innerSplit.getMaximumDividerLocation() + innerSplit.getRightComponent().getMinimumSize().getWidth
-        int maxLoc = innerSplit.getWidth()
-                - innerSplit.getDividerSize()
-                - innerSplit.getInsets().right;
+        int maxLoc = getMaxLoc();
         int currentLoc = innerSplit.getDividerLocation();
 
         boolean currentlyVisible = false;
@@ -576,6 +567,13 @@ public class MainWindow {
 
         frame.revalidate();
         frame.repaint();
+    }
+
+    // NOTE: Alternatively calculate innerSplit.getMaximumDividerLocation() + innerSplit.getRightComponent().getMinimumSize().getWidth
+    private int getMaxLoc() {
+        return innerSplit.getWidth()
+                - innerSplit.getDividerSize()
+                - innerSplit.getInsets().right;
     }
 
     public void setStatus(String text) {
