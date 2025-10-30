@@ -208,63 +208,42 @@ public class MainWindow {
             return;
         }
 
-        Component leftComp = outerSplit.getLeftComponent();
-        if (leftComp == null) {
-            return;
-        }
-
         if (!leftDrawerVisible) {
-            // Drawer soll beim Start versteckt sein.
-            // WICHTIG: savedOuterDividerLocation NICHT überschreiben!
-            // Use savedOuterDividerLocation as "letzte sinnvolle Breite", aber wir zeigen sie jetzt nicht.
-            leftComp.setVisible(false);
+            // Drawer war versteckt → Divider auf 0 und Komponente ausblenden
+            savedOuterDividerLocation = outerSplit.getDividerLocation();
             outerSplit.setDividerLocation(0);
+
+            if (outerSplit.getLeftComponent() != null) {
+                outerSplit.getLeftComponent().setVisible(false);
+            }
         } else {
-            // Drawer soll beim Start sichtbar sein.
-            leftComp.setVisible(true);
-
-            int restoreLoc = (savedOuterDividerLocation > 0)
-                    ? savedOuterDividerLocation
-                    : 200; // Fallback
-
-            outerSplit.setDividerLocation(restoreLoc);
+            // Drawer war sichtbar → Stelle gespeicherte Position her
+            if (outerSplit.getLeftComponent() != null) {
+                outerSplit.getLeftComponent().setVisible(true);
+            }
+            outerSplit.setDividerLocation(savedOuterDividerLocation);
         }
     }
-
 
     private void applyInitialRightDrawerVisibility() {
         if (innerSplit == null) {
             return;
         }
 
-        Component rightComp = innerSplit.getRightComponent();
-        if (rightComp == null) {
-            return;
-        }
-
-        int maxLoc = innerSplit.getMaximumDividerLocation();
-
         if (!rightDrawerVisible) {
-            // Drawer soll beim Start versteckt sein.
-            // WICHTIG: savedInnerDividerLocation NICHT überschreiben!
-            rightComp.setVisible(false);
-            innerSplit.setDividerLocation(maxLoc);
-        } else {
-            // Drawer soll beim Start sichtbar sein.
-            rightComp.setVisible(true);
+            savedInnerDividerLocation = innerSplit.getDividerLocation();
+            innerSplit.setDividerLocation(innerSplit.getMaximumDividerLocation());
 
-            int restoreLoc;
-            if (savedInnerDividerLocation > 0 && savedInnerDividerLocation < maxLoc) {
-                restoreLoc = savedInnerDividerLocation;
-            } else {
-                // Fallback: ~300px Breite rechts
-                restoreLoc = Math.max(0, maxLoc - 300);
+            if (innerSplit.getRightComponent() != null) {
+                innerSplit.getRightComponent().setVisible(false);
             }
-
-            innerSplit.setDividerLocation(restoreLoc);
+        } else {
+            if (innerSplit.getRightComponent() != null) {
+                innerSplit.getRightComponent().setVisible(true);
+            }
+            innerSplit.setDividerLocation(savedInnerDividerLocation);
         }
     }
-
 
     private void initBrowser() {
         BrowserConfig config = new BrowserConfig();
