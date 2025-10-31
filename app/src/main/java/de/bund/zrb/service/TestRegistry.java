@@ -86,8 +86,8 @@ public class TestRegistry {
     public void load() {
         SettingsService ss = SettingsService.getInstance();
 
-        // 1) Neues Format probieren (DTO mit RootNode)
-        {
+        // === 1) Neues Format versuchen ==========================
+        try {
             Type dtoType = new TypeToken<TestFileDTO>() {}.getType();
             TestFileDTO dto = ss.load("tests.json", dtoType);
             if (dto != null && dto.getRoot() != null) {
@@ -97,18 +97,17 @@ public class TestRegistry {
                 repairTreeIdsAndParents(this.root);
                 return;
             }
+        } catch (Exception ignore) {
+            // swallow: Datei war wohl nicht im neuen Format
         }
 
-        // 2) Altes Format probieren (Liste von Suites)
-        {
+        // === 2) Altes Format versuchen (List<TestSuite>) ========
+        try {
             Type legacyType = new TypeToken<List<TestSuite>>() {}.getType();
             List<TestSuite> loadedSuites = ss.load("tests.json", legacyType);
             if (loadedSuites != null) {
-                RootNode newRoot = new RootNode(); // bekommt im Ctor eigentlich schon 'ne UUID
-                // RootNode hat vermutlich eine Mutable-Liste testSuites. Wir hängen hier einfach an:
+                RootNode newRoot = new RootNode();
                 if (newRoot.getTestSuites() == null) {
-                    // NOTE: falls RootNode.testSuites null wäre (sollte eigentlich nie null sein),
-                    // initialisieren wir es über Reflection.
                     forceInitListIfNull(newRoot, "testSuites");
                 }
                 newRoot.getTestSuites().addAll(loadedSuites);
@@ -119,9 +118,11 @@ public class TestRegistry {
                 this.root = newRoot;
                 return;
             }
+        } catch (Exception ignore) {
+            // swallow: Datei vielleicht leer/kaputt
         }
 
-        // 3) nichts geladen -> leeren Default-Root behalten
+        // === 3) Kein Glück: leeren Root anlegen =================
         ensureRootId(this.root);
     }
 

@@ -211,6 +211,9 @@ public class MainWindow {
                 browserService.terminateBrowser();
             }
         });
+
+        // Convert old format to new one automatically:
+//        de.bund.zrb.service.TestRegistry.getInstance().save();
     }
 
     /**
