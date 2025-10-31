@@ -359,76 +359,141 @@ public class TestTreeController {
      * Neuer TestCase NACH dem gegebenen Case in derselben Suite.
      */
     public void createNewCase(TestNode caseNode) {
-        if (caseNode == null || !(caseNode.getModelRef() instanceof TestCase)) return;
+        // Sicherheitscheck: wir erlauben "neuen Case" nur, wenn ein Case angeklickt wurde
+        if (caseNode == null || !(caseNode.getModelRef() instanceof TestCase)) {
+            return;
+        }
 
-        String name = JOptionPane.showInputDialog(testTree,
-                "Name des neuen TestCase:", "Neuer TestCase", JOptionPane.PLAIN_MESSAGE);
-        if (name == null || name.trim().isEmpty()) return;
+        // Name abfragen
+        String name = JOptionPane.showInputDialog(
+                testTree,
+                "Name des neuen TestCase:",
+                "Neuer TestCase",
+                JOptionPane.PLAIN_MESSAGE
+        );
+        if (name == null || name.trim().isEmpty()) {
+            return;
+        }
+        String trimmedName = name.trim();
 
-        TestCase oldCase = (TestCase) caseNode.getModelRef();
+        // Modell holen
+        TestRegistry reg = TestRegistry.getInstance();
+        RootNode rootModel = reg.getRoot();
 
+        // Die Suite finden, in der der angeklickte Case liegt
         TestNode suiteNode = (TestNode) caseNode.getParent();
-        if (suiteNode == null || !(suiteNode.getModelRef() instanceof TestSuite)) return;
+        if (suiteNode == null || !(suiteNode.getModelRef() instanceof TestSuite)) {
+            return;
+        }
+        TestSuite suiteModel = (TestSuite) suiteNode.getModelRef();
 
-        TestSuite suite = (TestSuite) suiteNode.getModelRef();
+        List<TestCase> cases = suiteModel.getTestCases();
+        if (cases == null) {
+            // sollte eigentlich nie null sein, aber wir sind defensiv
+            // falls du KEIN setTestCases() hast, dann hast du sie hoffentlich final initialisiert im POJO :)
+            // Wenn du DOCH ein setTestCases(...) hast, kannst du's hier auf new ArrayList<>() setzen.
+        }
 
-        TestCase newCase = new TestCase(name.trim(), new ArrayList<TestAction>());
-        // IDs setzen
-        newCase.setId(UUID.randomUUID().toString());
-        newCase.setParentId(suite.getId());
+        // Neuen Case bauen
+        TestCase newCase = new TestCase(trimmedName, new ArrayList<TestAction>());
+        newCase.setId(newUuid());
+        newCase.setParentId(suiteModel.getId());
 
-        List<TestCase> cases = suite.getTestCases();
-        int idx = cases.indexOf(oldCase);
-        if (idx < 0) idx = cases.size() - 1;
-        cases.add(idx + 1, newCase);
+        // Einfüge-Index bestimmen: hinter dem aktuell angeklickten Case
+        TestCase clickedCaseModel = (TestCase) caseNode.getModelRef();
+        int insertIdx = cases.indexOf(clickedCaseModel);
+        if (insertIdx < 0) {
+            insertIdx = cases.size() - 1;
+        }
+        insertIdx = insertIdx + 1;
+        if (insertIdx < 0 || insertIdx > cases.size()) {
+            insertIdx = cases.size();
+        }
 
-        // UI einfügen
-        TestNode newCaseNode = new TestNode(newCase.getName(), newCase);
-        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
-        model.insertNodeInto(newCaseNode, suiteNode, idx + 1);
-        testTree.expandPath(new TreePath(suiteNode.getPath()));
+        cases.add(insertIdx, newCase);
 
-        TestRegistry.getInstance().save();
+        // Speichern
+        reg.save();
+
+        // UI neu aufbauen
+        refreshTestTree();
+
+        // neuen Case selektieren
+        selectNodeByModelRef(newCase);
     }
 
     /**
      * Neuer Schritt nach gegebenem Schritt im gleichen Case.
      */
     public void createNewStep(TestNode stepNode) {
-        if (stepNode == null || !(stepNode.getModelRef() instanceof TestAction)) return;
+        if (stepNode == null || !(stepNode.getModelRef() instanceof TestAction)) {
+            return;
+        }
 
+        // Actiontyp über Dialog erfragen (gleich wie vorher)
         Window owner = SwingUtilities.getWindowAncestor(testTree);
-        ActionPickerDialog dlg = new ActionPickerDialog(owner, "Neuer Step", "click");
+        ActionPickerDialog dlg = new ActionPickerDialog(owner, "Neuer Schritt", "click");
         dlg.setVisible(true);
-        if (!dlg.isConfirmed()) return;
+        if (!dlg.isConfirmed()) {
+            return;
+        }
 
         String actionName = dlg.getChosenAction();
-        if (actionName.length() == 0) return;
+        if (actionName == null || actionName.length() == 0) {
+            return;
+        }
 
-        TestAction oldAction = (TestAction) stepNode.getModelRef();
+        // Modell holen
+        TestRegistry reg = TestRegistry.getInstance();
 
+        // Den Case finden, unter dem der Step hängt
         TestNode caseNode = (TestNode) stepNode.getParent();
-        if (caseNode == null || !(caseNode.getModelRef() instanceof TestCase)) return;
+        if (caseNode == null || !(caseNode.getModelRef() instanceof TestCase)) {
+            return;
+        }
+        TestCase caseModel = (TestCase) caseNode.getModelRef();
 
-        TestCase testCase = (TestCase) caseNode.getModelRef();
+        List<TestAction> steps = caseModel.getWhen();
+        if (steps == null) {
+            // defensive fallback (sollte eigentlich initialisiert sein)
+            // wenn du setWhen(List<TestAction>) hast, dann könntest du hier neu setzen.
+            // sonst lassen wir es und hängen einfach an ein temporäres Objekt? Lieber nicht,
+            // also im Idealfall ist steps != null.
+            steps = new ArrayList<>();
+            // wenn du einen Setter hast: caseModel.setWhen(steps);
+        }
 
-        TestAction newAction = new TestAction(actionName);
-        // IDs setzen
-        newAction.setId(UUID.randomUUID().toString());
-        newAction.setParentId(testCase.getId());
+        TestAction clickedAction = (TestAction) stepNode.getModelRef();
+
+        // neue Action bauen
+        TestAction newAction = new TestAction();
+        newAction.setId(newUuid());
+        newAction.setParentId(caseModel.getId());
+        newAction.setAction(actionName);
         newAction.setType(TestAction.ActionType.WHEN);
+        newAction.setTimeout(30000); // default wie bisher
+        // rest (user, locator, etc.) lassen wir leer/0 erst mal
 
-        List<TestAction> actions = testCase.getWhen();
-        int idx = actions.indexOf(oldAction);
-        if (idx < 0) idx = actions.size() - 1;
-        actions.add(idx + 1, newAction);
+        // Einfügeposition bestimmen (hinter geklicktem Step)
+        int insertIdx = steps.indexOf(clickedAction);
+        if (insertIdx < 0) {
+            insertIdx = steps.size() - 1;
+        }
+        insertIdx = insertIdx + 1;
+        if (insertIdx < 0 || insertIdx > steps.size()) {
+            insertIdx = steps.size();
+        }
 
-        TestNode newStepNode = new TestNode(renderActionLabel(newAction), newAction);
-        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
-        model.insertNodeInto(newStepNode, caseNode, idx + 1);
-        testTree.expandPath(new TreePath(caseNode.getPath()));
+        steps.add(insertIdx, newAction);
 
-        TestRegistry.getInstance().save();
+        // Speichern
+        reg.save();
+
+        // UI refreshen
+        refreshTestTree();
+
+        // neu eingefügten Step selektieren
+        selectNodeByModelRef(newAction);
     }
 
     /** Hilfsfunktion für UUIDs, damit's lesbarer ist. */
@@ -527,53 +592,79 @@ public class TestTreeController {
 
     public void renameNode() {
         TestNode selected = getSelectedNode();
-        if (selected == null || selected.getParent() == null) return; // Root nicht umbenennen
+        if (selected == null || selected.getParent() == null) {
+            // Root nicht umbenennen
+            return;
+        }
 
         Object ref = selected.getModelRef();
+        TestRegistry reg = TestRegistry.getInstance();
 
         if (ref instanceof TestSuite) {
             TestSuite suite = (TestSuite) ref;
-            String current = selected.toString();
-            String name = JOptionPane.showInputDialog(testTree, "Neuer Name:", current);
-            if (name == null || name.trim().isEmpty()) return;
-            String trimmed = name.trim();
-            suite.setName(trimmed);
-            selected.setUserObject(trimmed);
-            ((DefaultTreeModel) testTree.getModel()).nodeChanged(selected);
-            TestRegistry.getInstance().save();
+            String current = safeName(suite.getName());
+            String name = JOptionPane.showInputDialog(
+                    testTree,
+                    "Neuer Name:",
+                    current
+            );
+            if (name == null || name.trim().isEmpty()) {
+                return;
+            }
+            suite.setName(name.trim());
+
+            reg.save();
+            refreshTestTree();
+            selectNodeByModelRef(suite);
             return;
         }
 
         if (ref instanceof TestCase) {
             TestCase tc = (TestCase) ref;
-            String current = selected.toString();
-            String name = JOptionPane.showInputDialog(testTree, "Neuer Name:", current);
-            if (name == null || name.trim().isEmpty()) return;
-            String trimmed = name.trim();
-            tc.setName(trimmed);
-            selected.setUserObject(trimmed);
-            ((DefaultTreeModel) testTree.getModel()).nodeChanged(selected);
-            TestRegistry.getInstance().save();
+            String current = safeName(tc.getName());
+            String name = JOptionPane.showInputDialog(
+                    testTree,
+                    "Neuer Name:",
+                    current
+            );
+            if (name == null || name.trim().isEmpty()) {
+                return;
+            }
+            tc.setName(name.trim());
+
+            reg.save();
+            refreshTestTree();
+            selectNodeByModelRef(tc);
             return;
         }
 
         if (ref instanceof TestAction) {
             TestAction a = (TestAction) ref;
+
+            // alter Dialog wie gehabt
             Window owner = SwingUtilities.getWindowAncestor(testTree);
-            ActionPickerDialog dlg = new ActionPickerDialog(owner, "Step umbenennen (Action)", a.getAction());
+            ActionPickerDialog dlg = new ActionPickerDialog(owner,
+                    "Step umbenennen (Action)",
+                    a.getAction());
             dlg.setVisible(true);
-            if (!dlg.isConfirmed()) return;
+            if (!dlg.isConfirmed()) {
+                return;
+            }
 
             String newAction = dlg.getChosenAction();
-            if (newAction.length() == 0) return;
+            if (newAction == null || newAction.length() == 0) {
+                return;
+            }
 
             a.setAction(newAction);
 
-            selected.setUserObject(renderActionLabel(a));
-            ((DefaultTreeModel) testTree.getModel()).nodeChanged(selected);
-            TestRegistry.getInstance().save();
+            reg.save();
+            refreshTestTree();
+            selectNodeByModelRef(a);
             return;
         }
+
+        // Fallback: nichts tun
     }
 
     public void deleteNode() {
