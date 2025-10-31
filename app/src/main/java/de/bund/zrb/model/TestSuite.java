@@ -31,9 +31,13 @@ public class TestSuite {
     private final List<ThenExpectation> then = new ArrayList<>();
     private final List<TestCase> testCases = new ArrayList<>();
 
-    // NEU:
-    private final List<ScopeVariableEntry> beforeEachVars   = new ArrayList<>();
-    private final List<ScopeTemplateEntry> templates        = new ArrayList<>();
+    // Suite-spezifische Scopes:
+    // - beforeAll: Variablen, die EINMAL vor der Suite evaluiert werden
+    // - beforeEach: Variablen, die VOR JEDEM TestCase evaluiert werden
+    // - templates: Funktionszeiger (lazy), die später im When dereferenziert werden
+    private final List<GivenCondition> beforeAll = new ArrayList<>();
+    private final List<GivenCondition> beforeEach = new ArrayList<>();
+    private final List<GivenCondition> templates = new ArrayList<>();
 
     public TestSuite() {
         // leer für Gson
@@ -62,8 +66,16 @@ public class TestSuite {
     public List<ThenExpectation> getThen() { return then; }
     public List<TestCase> getTestCases() { return testCases; }
 
-    // NEU Getter:
-    public List<ScopeVariableEntry> getBeforeEachVars() { return beforeEachVars; }
-    public List<ScopeTemplateEntry> getTemplates() { return templates; }
+    public List<GivenCondition> getBeforeAll() {
+        return beforeAll;
+    }
+
+    public List<GivenCondition> getBeforeEach() {
+        return beforeEach;
+    }
+
+    public List<GivenCondition> getTemplates() {
+        return templates;
+    }
 }
 

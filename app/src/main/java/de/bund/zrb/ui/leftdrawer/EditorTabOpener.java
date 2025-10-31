@@ -6,6 +6,7 @@ import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.giveneditor.RootScopeEditorTab;
+import de.bund.zrb.ui.giveneditor.SuiteScopeEditorTab;
 import de.bund.zrb.ui.tabs.ClosableTabHeader;
 
 import javax.swing.*;
@@ -55,7 +56,7 @@ public class EditorTabOpener {
         }
 
         // ---- TestSuite Tab ----
-        if (ref instanceof TestSuite) {
+        if (ref instanceof TestSuite) if (ref instanceof TestSuite) {
             TestSuite suite = (TestSuite) ref;
             String tabTitle = "Suite: " + safe(suite.getName());
 
@@ -65,19 +66,18 @@ public class EditorTabOpener {
                 return;
             }
 
-            JPanel placeholder = new JPanel(new BorderLayout());
-            placeholder.add(new JLabel("Suite-Editor TODO für: " + safe(suite.getName())),
-                    BorderLayout.CENTER);
+            SuiteScopeEditorTab panel = new SuiteScopeEditorTab(suite);
 
-            editorTabs.addTab(tabTitle, placeholder);
-            int newIdx = editorTabs.indexOfComponent(placeholder);
+            editorTabs.addTab(tabTitle, panel);
+            int newIdx = editorTabs.indexOfComponent(panel);
 
             editorTabs.setTabComponentAt(newIdx,
-                    new ClosableTabHeader(editorTabs, placeholder, tabTitle));
+                    new ClosableTabHeader(editorTabs, panel, tabTitle));
 
             editorTabs.setSelectedIndex(newIdx);
             return;
         }
+
 
         // ---- TestCase Tab ----
         if (ref instanceof TestCase) {
