@@ -18,6 +18,9 @@ import java.util.UUID;
  */
 public class TestRegistry {
 
+    @Deprecated
+    private boolean loadedFromLegacy = false;
+
     private static final TestRegistry INSTANCE = new TestRegistry();
 
     // unsere neue Wahrheit
@@ -34,6 +37,11 @@ public class TestRegistry {
     // -------------------------------------------------
     // Public API
     // -------------------------------------------------
+
+    @Deprecated
+    public boolean wasLoadedFromLegacy() {
+        return loadedFromLegacy;
+    }
 
     /** Neues API: komplette Root-Struktur holen. */
     public RootNode getRoot() {
@@ -116,6 +124,7 @@ public class TestRegistry {
                 repairTreeIdsAndParents(newRoot);
 
                 this.root = newRoot;
+                loadedFromLegacy = true;
                 return;
             }
         } catch (Exception ignore) {

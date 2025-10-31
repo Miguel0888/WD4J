@@ -2,6 +2,7 @@ package de.bund.zrb;
 
 import de.bund.zrb.service.RecorderEventBridge;
 import de.bund.zrb.service.SettingsService;
+import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.ui.MainWindow;
 
 import javax.swing.SwingUtilities;
@@ -15,8 +16,21 @@ public class Main {
         // Start UI on EDT
         SwingUtilities.invokeLater(new Runnable() {
             @Override public void run() {
+                convertLegacyTestFile();
+
                 new MainWindow().initUI();
             }
         });
+    }
+
+    @Deprecated
+    private static void convertLegacyTestFile() {
+        TestRegistry reg = TestRegistry.getInstance();
+
+        if (reg.wasLoadedFromLegacy()) {
+            // Nur wenn wir wirklich ein altes Array migriert haben:
+            reg.save();
+            System.out.println("tests.json auf neues Format migriert.");
+        }
     }
 }
