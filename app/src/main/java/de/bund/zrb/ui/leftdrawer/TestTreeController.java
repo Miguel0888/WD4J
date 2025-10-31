@@ -963,187 +963,88 @@ public class TestTreeController {
         model.nodeChanged(node);
     }
 
-    /** Suite duplizieren: Cases tief (Actions neu), Insert direkt hinter geklickter Suite, Name unique "copy of …". */
-    public void duplicateSuiteAfter(TestNode clickedSuite) {
-        if (clickedSuite == null || !(clickedSuite.getModelRef() instanceof TestSuite)) return;
+    public void duplicateSuiteAfter(TestNode clickedSuiteNode) {
+        if (clickedSuiteNode == null) return;
+        Object r = clickedSuiteNode.getModelRef();
+        if (!(r instanceof TestSuite)) return;
 
+        TestSuite originalSuite = (TestSuite) r;
         TestRegistry reg = TestRegistry.getInstance();
         RootNode rootModel = reg.getRoot();
 
-        TestSuite src = (TestSuite) clickedSuite.getModelRef();
+        // 1. Deep Clone
+        TestSuite clone = cloneSuiteDeepForDuplicate(originalSuite, rootModel);
 
-        // Basisname vorbereiten
-        String baseName = "copy of " + safeName(src.getName());
-        String uniqueName = uniqueSuiteName(baseName);
+        // 2. Direkt nach original einfügen
+        insertSuiteCopyAfter(originalSuite, clone, rootModel);
 
-        // Neue Suite anlegen
-        TestSuite copy = new TestSuite(uniqueName, new ArrayList<TestCase>());
-        copy.setId(UUID.randomUUID().toString());
-        copy.setParentId(rootModel.getId());
-        copy.setDescription(src.getDescription()); // Beschreibung mitnehmen
-
-        // Alle Cases tief klonen
-        for (TestCase c : src.getTestCases()) {
-            TestCase clonedCase = cloneCaseDeep(c, false /* wir geben Namen unten unique */);
-
-            // jetzt parentId für den geklonten Case setzen
-            clonedCase.setParentId(copy.getId());
-
-            // Actions im geklonten Case müssen auch die parentId kennen:
-            if (clonedCase.getWhen() != null) {
-                for (TestAction a : clonedCase.getWhen()) {
-                    a.setParentId(clonedCase.getId());
-                    if (a.getType() == null) {
-                        a.setType(TestAction.ActionType.WHEN);
-                    }
-                }
-            }
-
-            // Namen in der Suite eindeutig machen
-            clonedCase.setName(uniqueCaseName(copy, clonedCase.getName()));
-
-            copy.getTestCases().add(clonedCase);
-        }
-
-        // In der Root-Liste direkt hinter die Original-Suite hängen
-        List<TestSuite> suites = rootModel.getTestSuites();
-        int insertIndex = suites.indexOf(src) + 1;
-        if (insertIndex <= 0 || insertIndex > suites.size()) {
-            insertIndex = suites.size();
-        }
-        suites.add(insertIndex, copy);
-
-        // UI-Knoten bauen
-        TestNode rootUiNode = (TestNode) ((DefaultTreeModel) testTree.getModel()).getRoot();
-        // clickedSuite.getParent() ist eigentlich rootUiNode, aber wir gehen defensiv:
-        TestNode parentUiNode = (clickedSuite.getParent() instanceof TestNode)
-                ? (TestNode) clickedSuite.getParent()
-                : rootUiNode;
-
-        TestNode newSuiteNode = new TestNode(copy.getName(), copy);
-
-        // Child-Nodes (Cases + Actions) direkt mit reinbauen, damit UI-Kopie vollständig ist
-        for (TestCase tc : copy.getTestCases()) {
-            TestNode caseNode = new TestNode(tc.getName(), tc);
-            if (tc.getWhen() != null) {
-                for (TestAction a : tc.getWhen()) {
-                    TestNode stepNode = new TestNode(renderActionLabel(a), a);
-                    caseNode.add(stepNode);
-                }
-            }
-            newSuiteNode.add(caseNode);
-        }
-
-        // In Swing-Baum einfügen
-        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
-        int uiInsertPos = parentUiNode.getIndex(clickedSuite) + 1;
-        if (uiInsertPos < 0) {
-            uiInsertPos = parentUiNode.getChildCount();
-        }
-        model.insertNodeInto(newSuiteNode, parentUiNode, uiInsertPos);
-
-        // speichern & neuen Knoten selektieren
+        // 3. persist + UI refresh
         reg.save();
-        selectNode(newSuiteNode);
+        refreshTestTree();
+
+        // 4. neu selektieren
+        selectNodeByModelRef(clone);
     }
 
-    /** Case duplizieren: Actions tief, Given/Then flach, Name "copy of …" unique in Suite. */
-    public void duplicateCaseAfter(TestNode clickedCase) {
-        if (clickedCase == null || !(clickedCase.getModelRef() instanceof TestCase)) return;
+    public void duplicateCaseAfter(TestNode clickedCaseNode) {
+        if (clickedCaseNode == null) return;
 
-        // Suite-Knoten im UI besorgen
-        DefaultMutableTreeNode suiteNode = (DefaultMutableTreeNode) clickedCase.getParent();
-        Object suiteRef = (suiteNode instanceof TestNode) ? ((TestNode) suiteNode).getModelRef() : null;
-        if (!(suiteRef instanceof TestSuite)) return;
+        Object r = clickedCaseNode.getModelRef();
+        if (!(r instanceof TestCase)) return;
+        TestCase originalCase = (TestCase) r;
 
-        TestSuite suite = (TestSuite) suiteRef;
-        TestCase src = (TestCase) clickedCase.getModelRef();
+        // parent Suite ermitteln (aus Tree & Model)
+        TestNode parentNode = (TestNode) clickedCaseNode.getParent();
+        if (parentNode == null) return;
+        Object parentRef = parentNode.getModelRef();
+        if (!(parentRef instanceof TestSuite)) return;
+        TestSuite parentSuite = (TestSuite) parentRef;
 
-        // Deep Clone erstellen
-        TestCase copy = cloneCaseDeep(src, true /* prefixedName -> "copy of ..." */);
+        // 1. Deep Clone
+        TestCase clone = cloneCaseDeepForDuplicate(originalCase, parentSuite.getId());
 
-        // Parent und UUIDs finalisieren
-        copy.setParentId(suite.getId());
+        // Name eindeutig innerhalb dieser Suite machen
+        clone.setName(uniqueCaseName(parentSuite, clone.getName()));
 
-        // Actions in dem geklonten Case müssen nochmal Parent setzen
-        if (copy.getWhen() != null) {
-            for (TestAction a : copy.getWhen()) {
-                a.setParentId(copy.getId()); // copy.getId() wurde in cloneCaseDeep vergeben
-                if (a.getType() == null) {
-                    a.setType(TestAction.ActionType.WHEN);
-                }
-            }
-        }
+        // 2. Direkt nach Original einfügen
+        insertCaseCopyAfter(originalCase, clone, parentSuite);
 
-        // Name eindeutig in dieser Suite machen
-        copy.setName(uniqueCaseName(suite, copy.getName()));
+        // 3. persist + UI refresh
+        TestRegistry reg = TestRegistry.getInstance();
+        reg.save();
+        refreshTestTree();
 
-        // Modell: direkt hinter src einfügen
-        List<TestCase> cases = suite.getTestCases();
-        int insertIndex = suiteNode.getIndex(clickedCase) + 1;
-        if (insertIndex < 0) {
-            insertIndex = cases.size();
-        }
-        cases.add(insertIndex, copy);
-
-        // UI-Knoten bauen
-        TestNode newCaseNode = new TestNode(copy.getName(), copy);
-        if (copy.getWhen() != null) {
-            for (TestAction a : copy.getWhen()) {
-                TestNode stepNode = new TestNode(renderActionLabel(a), a);
-                newCaseNode.add(stepNode);
-            }
-        }
-
-        // Im Swing-Baum einfügen
-        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
-        model.insertNodeInto(newCaseNode, suiteNode, insertIndex);
-        testTree.expandPath(new TreePath(suiteNode.getPath()));
-
-        // speichern & neuen Knoten selektieren
-        TestRegistry.getInstance().save();
-        selectNode(newCaseNode);
+        // 4. neu selektieren
+        selectNodeByModelRef(clone);
     }
 
-    /** Step duplizieren: shallow copy (alle bekannten Felder); Insert direkt dahinter. */
-    public void duplicateActionAfter(TestNode clickedAction) {
-        if (clickedAction == null || !(clickedAction.getModelRef() instanceof TestAction)) return;
+    public void duplicateActionAfter(TestNode clickedActionNode) {
+        if (clickedActionNode == null) return;
 
-        // Case-Knoten holen
-        DefaultMutableTreeNode caseNode = (DefaultMutableTreeNode) clickedAction.getParent();
-        Object caseRef = (caseNode instanceof TestNode) ? ((TestNode) caseNode).getModelRef() : null;
-        if (!(caseRef instanceof TestCase)) return;
+        Object r = clickedActionNode.getModelRef();
+        if (!(r instanceof TestAction)) return;
+        TestAction originalAction = (TestAction) r;
 
-        TestCase tc = (TestCase) caseRef;
-        TestAction src = (TestAction) clickedAction.getModelRef();
+        // parent Case ermitteln
+        TestNode parentNode = (TestNode) clickedActionNode.getParent();
+        if (parentNode == null) return;
+        Object parentRef = parentNode.getModelRef();
+        if (!(parentRef instanceof TestCase)) return;
+        TestCase parentCase = (TestCase) parentRef;
 
-        // Shallow Clone der Action
-        TestAction copy = cloneActionShallow(src, true /* tryPrefixName */);
-        // Parent setzen
-        copy.setParentId(tc.getId());
-        if (copy.getType() == null) {
-            copy.setType(TestAction.ActionType.WHEN);
-        }
+        // 1. Clone shallow mit neuer ID
+        TestAction clone = cloneActionShallowForDuplicate(originalAction, parentCase.getId());
 
-        // Modell einfügen direkt hinter src
-        List<TestAction> steps = tc.getWhen();
-        int insertIndex = caseNode.getIndex(clickedAction) + 1;
-        if (insertIndex < 0) {
-            insertIndex = steps.size();
-        }
-        steps.add(insertIndex, copy);
+        // 2. Direkt nach Original einfügen
+        insertActionCopyAfter(originalAction, clone, parentCase);
 
-        // neuen UI-Knoten bauen
-        TestNode newStepNode = new TestNode(renderActionLabel(copy), copy);
+        // 3. persist + UI refresh
+        TestRegistry reg = TestRegistry.getInstance();
+        reg.save();
+        refreshTestTree();
 
-        // Im Swing-Baum einfügen
-        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
-        model.insertNodeInto(newStepNode, caseNode, insertIndex);
-        testTree.expandPath(new TreePath(caseNode.getPath()));
-
-        // speichern & neuen Node selektieren
-        TestRegistry.getInstance().save();
-        selectNode(newStepNode);
+        // 4. neu selektieren
+        selectNodeByModelRef(clone);
     }
 
     /**
@@ -1197,6 +1098,136 @@ public class TestTreeController {
         model.setRoot(uiRoot);
         model.reload();
     }
+
+    private TestAction cloneActionShallowForDuplicate(TestAction src, String newParentCaseId) {
+        if (src == null) return null;
+
+        TestAction copy = new TestAction();
+        copy.setId(UUID.randomUUID().toString());
+        copy.setParentId(newParentCaseId);
+
+        // Metadaten
+        copy.setUser(src.getUser());
+        copy.setType(src.getType() != null ? src.getType() : TestAction.ActionType.WHEN);
+        copy.setSelected(false); // du kannst auch src.getSelected() kopieren, aber "false" ist meistens sinnvoller
+
+        // Playback-Infos
+        copy.setAction(src.getAction());
+        copy.setSelectedSelector(src.getSelectedSelector());
+        copy.setLocatorType(src.getLocatorType());
+        copy.setTimeout(src.getTimeout());
+        copy.setValue(src.getValue());
+
+        // Locator-Hints etc.
+        copy.setLocators(new LinkedHashMap<>(src.getLocators()));
+        copy.setExtractedValues(new LinkedHashMap<>(src.getExtractedValues()));
+        copy.setExtractedAttributes(new LinkedHashMap<>(src.getExtractedAttributes()));
+        copy.setExtractedTestIds(new LinkedHashMap<>(src.getExtractedTestIds()));
+        copy.setExtractedAriaRoles(new LinkedHashMap<>(src.getExtractedAriaRoles()));
+        copy.setRaw(src.getRaw());
+        copy.setText(src.getText());
+        copy.setRole(src.getRole());
+        copy.setLabel(src.getLabel());
+
+        return copy;
+    }
+
+    private TestCase cloneCaseDeepForDuplicate(TestCase original, String newParentSuiteId) {
+        if (original == null) return null;
+
+        TestCase copy = new TestCase();
+        copy.setId(UUID.randomUUID().toString());
+        copy.setParentId(newParentSuiteId);
+
+        // Name eindeutiger machen ("copy of <name>")
+        String baseName = safeName(original.getName());
+        copy.setName("copy of " + baseName);
+
+        // shallow copy Given / Then (du hattest vorher addAll gemacht, das übernehmen wir)
+        copy.getGiven().addAll(original.getGiven());
+        copy.getThen().addAll(original.getThen());
+
+        // When-Actions deep klonen (jede Action neu inkl. neuer ID)
+        for (TestAction step : original.getWhen()) {
+            TestAction clonedStep = cloneActionShallowForDuplicate(step, copy.getId());
+            copy.getWhen().add(clonedStep);
+        }
+
+        return copy;
+    }
+
+    private TestSuite cloneSuiteDeepForDuplicate(TestSuite original, RootNode rootModel) {
+        if (original == null) return null;
+
+        TestSuite copy = new TestSuite();
+        copy.setId(UUID.randomUUID().toString());
+        copy.setParentId(rootModel.getId());
+
+        // Name eindeutiger machen
+        String baseName = safeName(original.getName());
+        copy.setName(uniqueSuiteName("copy of " + baseName));
+
+        // description shallow kopieren
+        copy.setDescription(original.getDescription());
+
+        // suite-level Given/Then (shallow übernehmen wie gehabt)
+        copy.getGiven().addAll(original.getGiven());
+        copy.getThen().addAll(original.getThen());
+
+        // Cases tief kopieren
+        for (TestCase srcCase : original.getTestCases()) {
+            TestCase caseCopy = cloneCaseDeepForDuplicate(srcCase, copy.getId());
+
+            // in der Suite muss der Name pro Suite eindeutig sein
+            caseCopy.setName(uniqueCaseName(copy, caseCopy.getName()));
+
+            copy.getTestCases().add(caseCopy);
+        }
+
+        return copy;
+    }
+
+    private void insertSuiteCopyAfter(TestSuite originalSuite,
+                                      TestSuite newSuite,
+                                      RootNode rootModel) {
+
+        List<TestSuite> suites = rootModel.getTestSuites();
+        int insertIndex = suites.indexOf(originalSuite);
+        if (insertIndex < 0) {
+            // falls aus irgendeinem Grund nicht gefunden -> häng ans Ende
+            suites.add(newSuite);
+        } else {
+            suites.add(insertIndex + 1, newSuite);
+        }
+    }
+
+    private void insertCaseCopyAfter(TestCase originalCase,
+                                     TestCase newCase,
+                                     TestSuite parentSuite) {
+
+        List<TestCase> cases = parentSuite.getTestCases();
+        int insertIndex = cases.indexOf(originalCase);
+        if (insertIndex < 0) {
+            cases.add(newCase);
+        } else {
+            cases.add(insertIndex + 1, newCase);
+        }
+    }
+
+    private void insertActionCopyAfter(TestAction originalAction,
+                                       TestAction newAction,
+                                       TestCase parentCase) {
+
+        List<TestAction> steps = parentCase.getWhen();
+        int insertIndex = steps.indexOf(originalAction);
+        if (insertIndex < 0) {
+            steps.add(newAction);
+        } else {
+            steps.add(insertIndex + 1, newAction);
+        }
+    }
+
+
 
 
 }
