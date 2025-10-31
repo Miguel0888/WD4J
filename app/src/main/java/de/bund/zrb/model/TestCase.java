@@ -40,4 +40,8 @@ public class TestCase {
     public List<GivenCondition> getGiven() { return given; }
     public List<TestAction> getWhen() { return when; }
     public List<ThenExpectation> getThen() { return then; }
+
+    public void setId(String id) {
+        this.id = id;
+    }
 }

@@ -40,7 +40,7 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
         // --- Build test tree and populate ---
         testTree = TestTreeController.buildTestTree();
         testCtrl = new TestTreeController(testTree);
-        testCtrl.refreshTestSuites(null);
+        testCtrl.refreshTestTree();
 
         // Enable DnD and custom renderer for tests (keep existing behavior)
         testTree.setDragEnabled(true);
@@ -112,7 +112,7 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
         // Refresh tests on save event (existing behavior)
         ApplicationEventBus.getInstance().subscribe(event -> {
             if (event instanceof TestSuiteSavedEvent) {
-                testCtrl.refreshTestSuites((String) event.getPayload());
+                testCtrl.refreshTestTree();
             }
             // Note: if you later emit a PreconditionSavedEvent, hook precondCtrl.refreshPreconditions() here similarly.
         });
@@ -120,7 +120,7 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
         // Refresh on new Precond Events
         ApplicationEventBus.getInstance().subscribe(event -> {
             if (event instanceof TestSuiteSavedEvent) {
-                testCtrl.refreshTestSuites((String) event.getPayload());
+                testCtrl.refreshTestTree();
             }
             if (event instanceof de.bund.zrb.event.PreconditionSavedEvent) {
                 precondCtrl.refreshPreconditions();
