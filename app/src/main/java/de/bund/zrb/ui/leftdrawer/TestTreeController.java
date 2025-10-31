@@ -1065,22 +1065,22 @@ public class TestTreeController {
      * Dazu setzen wir die neuen/alten Felder (Status, modelRef) wie gehabt.
      */
     public void refreshTestTree() {
-        // Hole aktuelle Daten aus Registry
-        TestRegistry reg = TestRegistry.getInstance();
-        RootNode rootModel = reg.getRoot();
+        // Hole das echte Modell
+        RootNode rootModel = TestRegistry.getInstance().getRoot();
 
-        // UI-Wurzel (sichtbarer Knoten oben im Tree)
-        TestNode uiRoot = new TestNode("Testsuites"); // dieser hat KEIN modelRef
+        // Baue einen UI-Node für Root und hänge das RootModel dran
+        TestNode uiRoot = new TestNode("Testsuites", rootModel);
 
-        // Für jede Suite im RootModel UI-Knoten bauen
-        for (TestSuite suite : rootModel.getTestSuites()) {
+        // Darunter: alle Suites als Kinder
+        List<TestSuite> suites = rootModel.getTestSuites();
+        for (TestSuite suite : suites) {
             TestNode suiteNode = new TestNode(suite.getName(), suite);
 
-            // Für jeden Case einen Child-Knoten
+            // Cases drunter
             for (TestCase testCase : suite.getTestCases()) {
                 TestNode caseNode = new TestNode(testCase.getName(), testCase);
 
-                // Für jede Action (WHEN-Step) darunter wieder einen Knoten
+                // Actions drunter
                 for (TestAction action : testCase.getWhen()) {
                     String label = renderActionLabel(action);
                     TestNode stepNode = new TestNode(label, action);
@@ -1093,10 +1093,12 @@ public class TestTreeController {
             uiRoot.add(suiteNode);
         }
 
-        // Das gebaute UI-Root jetzt ins echte Swing-TreeModel hängen
         DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
         model.setRoot(uiRoot);
         model.reload();
+
+        // optional: Root aufgeklappt lassen, Komfort
+        testTree.expandPath(new TreePath(uiRoot.getPath()));
     }
 
     private TestAction cloneActionShallowForDuplicate(TestAction src, String newParentCaseId) {

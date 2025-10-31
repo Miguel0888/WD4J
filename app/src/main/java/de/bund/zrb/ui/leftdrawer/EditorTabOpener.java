@@ -1,86 +1,121 @@
 package de.bund.zrb.ui.leftdrawer;
 
-import de.bund.zrb.model.GivenCondition;
-import de.bund.zrb.model.TestAction;
-import de.bund.zrb.model.TestCase;
+import de.bund.zrb.model.RootNode;
 import de.bund.zrb.model.TestSuite;
+import de.bund.zrb.model.TestCase;
+import de.bund.zrb.model.TestAction;
 import de.bund.zrb.ui.TestNode;
-import de.bund.zrb.ui.tabs.ActionEditorTab;
-import de.bund.zrb.ui.tabs.CaseEditorTab;
-import de.bund.zrb.ui.tabs.SuiteEditorTab;
-import de.bund.zrb.ui.tabs.UIHelper;
+import de.bund.zrb.ui.giveneditor.RootScopeEditorTab;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.Collections;
-import java.util.List;
 
-/**
- * Open editor tabs for suite/case/action.
- *
- * Intent:
- * - Keep left drawer navigation simple: clicking a node opens the appropriate editor tab in the main tabbed pane.
- *
- * Important:
- * - For TestAction nodes we now need to provide the list of GivenCondition objects
- *   from the parent TestCase, so the ActionEditorTab can populate the Value-dropdown
- *   with expressions from all Givens.
- *
- * Fallback:
- * - If something is malformed (no parent TestCase), we still open ActionEditorTab
- *   with an empty Given list, so the UI doesn't break.
- */
-public final class EditorTabOpener {
+public class EditorTabOpener {
 
-    private EditorTabOpener() {}
+    /**
+     * Öffnet/aktiviert den passenden Editor-Tab für die angeklickte Node.
+     *
+     * @param parent irgendeine Component aus dem UI (für JOptionPane etc.)
+     * @param editorTabs das zentrale TabbedPane aus MainWindow (deine Mitte)
+     * @param node der geklickte TestNode aus dem linken Baum
+     */
+    public static void openEditorTab(Component parent,
+                                     JTabbedPane editorTabs,
+                                     TestNode node) {
 
-    public static void openEditorTab(Component drawer, TestNode node) {
+        if (node == null || editorTabs == null) return;
         Object ref = node.getModelRef();
-        JComponent tab = null;
-        String title = node.toString();
+        if (ref == null) return;
 
+        // 1. RootNode -> RootScopeEditorTab
+        if (ref instanceof RootNode) {
+            RootNode rn = (RootNode) ref;
+            String tabTitle = "Root Scope";
+
+            int idx = findTabByTitle(editorTabs, tabTitle);
+            if (idx >= 0) {
+                editorTabs.setSelectedIndex(idx);
+                return;
+            }
+
+            RootScopeEditorTab panel = new RootScopeEditorTab(rn);
+            editorTabs.addTab(tabTitle, panel);
+            editorTabs.setSelectedComponent(panel);
+            return;
+        }
+
+        // 2. TestSuite -> (SuiteScopeEditorTab kommt später)
+        if (ref instanceof TestSuite) {
+            TestSuite suite = (TestSuite) ref;
+            String tabTitle = "Suite: " + safe(suite.getName());
+
+            int idx = findTabByTitle(editorTabs, tabTitle);
+            if (idx >= 0) {
+                editorTabs.setSelectedIndex(idx);
+                return;
+            }
+
+            // Platzhalter bis wir SuiteScopeEditorTab bauen
+            JPanel placeholder = new JPanel(new BorderLayout());
+            placeholder.add(new JLabel("Suite-Editor TODO für: " + safe(suite.getName())), BorderLayout.CENTER);
+
+            editorTabs.addTab(tabTitle, placeholder);
+            editorTabs.setSelectedComponent(placeholder);
+            return;
+        }
+
+        // 3. TestCase -> (CaseScopeEditorTab kommt später)
+        if (ref instanceof TestCase) {
+            TestCase tc = (TestCase) ref;
+            String tabTitle = "Case: " + safe(tc.getName());
+
+            int idx = findTabByTitle(editorTabs, tabTitle);
+            if (idx >= 0) {
+                editorTabs.setSelectedIndex(idx);
+                return;
+            }
+
+            JPanel placeholder = new JPanel(new BorderLayout());
+            placeholder.add(new JLabel("Case-Editor TODO für: " + safe(tc.getName())), BorderLayout.CENTER);
+
+            editorTabs.addTab(tabTitle, placeholder);
+            editorTabs.setSelectedComponent(placeholder);
+            return;
+        }
+
+        // 4. TestAction -> ActionEditorTab (später ersetzen durch deine echte ActionEditorTab-Logik)
         if (ref instanceof TestAction) {
             TestAction action = (TestAction) ref;
+            String tabTitle = "Action: " + safe(action.getAction());
 
-            // Versuche den umgebenden TestCase über den Parent-Knoten zu finden
-            List<GivenCondition> givensForThisAction = Collections.<GivenCondition>emptyList();
-
-            TestNode parentNode = (TestNode) node.getParent();
-            if (parentNode != null) {
-                Object parentRef = parentNode.getModelRef();
-                if (parentRef instanceof TestCase) {
-                    TestCase tc = (TestCase) parentRef;
-                    givensForThisAction = tc.getGiven(); // echte Givens des TestCase
-                }
+            int idx = findTabByTitle(editorTabs, tabTitle);
+            if (idx >= 0) {
+                editorTabs.setSelectedIndex(idx);
+                return;
             }
 
-            // Erzeuge ActionEditorTab mit Action + Givens
-            tab = new ActionEditorTab(action, givensForThisAction);
+            JPanel placeholder = new JPanel(new BorderLayout());
+            placeholder.add(new JLabel("Action Editor TODO für: " + safe(action.getAction())), BorderLayout.CENTER);
 
-        } else if (ref instanceof TestCase) {
-            TestNode parent = (TestNode) node.getParent();
-            Object suiteRef = (parent != null) ? parent.getModelRef() : null;
-
-            if (suiteRef instanceof TestSuite) {
-                tab = new CaseEditorTab((TestSuite) suiteRef, (TestCase) ref);
-            } else {
-                // Fallback für Fälle ohne saubere Suite-Verankerung
-                tab = new CaseEditorTab(null, (TestCase) ref);
-            }
-
-        } else if (ref instanceof TestSuite) {
-            tab = new SuiteEditorTab((TestSuite) ref);
+            editorTabs.addTab(tabTitle, placeholder);
+            editorTabs.setSelectedComponent(placeholder);
+            return;
         }
 
-        if (tab != null) {
-            Component parentWindow = SwingUtilities.getWindowAncestor(drawer);
-            if (parentWindow instanceof JFrame) {
-                JTabbedPane tabbedPane = UIHelper.findTabbedPane((JFrame) parentWindow);
-                if (tabbedPane != null) {
-                    tabbedPane.addTab(title, tab);
-                    tabbedPane.setSelectedComponent(tab);
-                }
+        JOptionPane.showMessageDialog(parent,
+                "Kein Editor für Typ: " + ref.getClass().getSimpleName());
+    }
+
+    private static int findTabByTitle(JTabbedPane tabs, String wanted) {
+        for (int i = 0; i < tabs.getTabCount(); i++) {
+            if (wanted.equals(tabs.getTitleAt(i))) {
+                return i;
             }
         }
+        return -1;
+    }
+
+    private static String safe(String s) {
+        return (s == null || s.trim().isEmpty()) ? "(unnamed)" : s.trim();
     }
 }

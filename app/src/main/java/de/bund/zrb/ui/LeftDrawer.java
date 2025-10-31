@@ -34,8 +34,12 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
     private final TestTreeController testCtrl;
     private final PrecondTreeController precondCtrl;
 
-    public LeftDrawer() {
+    // Referenz auf das zentrale Editor-Tab-Pane (aus MainWindow)
+    private final JTabbedPane mainEditorTabs;
+
+    public LeftDrawer(JTabbedPane mainEditorTabs) {
         super(new BorderLayout());
+        this.mainEditorTabs = mainEditorTabs; // merken für Doppelklick-Open
 
         // --- Build test tree and populate ---
         testTree = TestTreeController.buildTestTree();
@@ -55,7 +59,8 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
                     TreePath path = testTree.getPathForLocation(e.getX(), e.getY());
                     if (path != null) {
                         TestNode node = (TestNode) path.getLastPathComponent();
-                        EditorTabOpener.openEditorTab(LeftDrawer.this, node);
+                        // >> HIER: mainEditorTabs reinreichen
+                        EditorTabOpener.openEditorTab(LeftDrawer.this, mainEditorTabs, node);
                     }
                 }
             }
@@ -79,7 +84,7 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
                         TestNode node = (TestNode) path.getLastPathComponent();
                         Object ref = node.getModelRef();
                         if (ref instanceof TestAction) {
-                            EditorTabOpener.openEditorTab(LeftDrawer.this, node);
+                            EditorTabOpener.openEditorTab(LeftDrawer.this, mainEditorTabs, node);
                         }
                     }
                 }

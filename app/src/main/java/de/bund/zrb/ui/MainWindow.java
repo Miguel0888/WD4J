@@ -47,6 +47,7 @@ public class MainWindow {
 
     private JFrame frame;
     private final JTabbedPane tabbedPane = new JTabbedPane();
+    private static JTabbedPane rightEditorTabsRef;
 
     // SplitPane-Layout
     private JSplitPane outerSplit; // [LeftDrawer | innerSplit]
@@ -62,6 +63,11 @@ public class MainWindow {
 
     private StatusBar statusBar;
     private UserSelectionCombo userCombo;
+
+    public static JTabbedPane findRightEditorTabbedPane(Component anyDescendant) {
+        // EINFACH: gib die static-Ref zurück.
+        return rightEditorTabsRef;
+    }
 
     public void initUI() {
 
@@ -120,7 +126,7 @@ public class MainWindow {
         outerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         outerSplit.setOneTouchExpandable(true);
 
-        LeftDrawer leftDrawer = new LeftDrawer();
+        LeftDrawer leftDrawer = new LeftDrawer(tabbedPane);
         outerSplit.setLeftComponent(leftDrawer);
 
         innerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
