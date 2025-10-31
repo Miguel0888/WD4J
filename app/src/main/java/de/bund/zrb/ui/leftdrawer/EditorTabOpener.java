@@ -5,6 +5,7 @@ import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.ui.TestNode;
+import de.bund.zrb.ui.giveneditor.CaseScopeEditorTab;
 import de.bund.zrb.ui.giveneditor.RootScopeEditorTab;
 import de.bund.zrb.ui.giveneditor.SuiteScopeEditorTab;
 import de.bund.zrb.ui.tabs.ClosableTabHeader;
@@ -78,11 +79,10 @@ public class EditorTabOpener {
             return;
         }
 
-
         // ---- TestCase Tab ----
-        if (ref instanceof TestCase) {
-            TestCase tc = (TestCase) ref;
-            String tabTitle = "Case: " + safe(tc.getName());
+        if (ref instanceof TestCase) if (ref instanceof TestCase) {
+            TestCase testCase = (TestCase) ref;
+            String tabTitle = "Case: " + safe(testCase.getName());
 
             int idx = findTabByTitle(editorTabs, tabTitle);
             if (idx >= 0) {
@@ -90,15 +90,13 @@ public class EditorTabOpener {
                 return;
             }
 
-            JPanel placeholder = new JPanel(new BorderLayout());
-            placeholder.add(new JLabel("Case-Editor TODO für: " + safe(tc.getName())),
-                    BorderLayout.CENTER);
+            CaseScopeEditorTab panel = new CaseScopeEditorTab(testCase);
 
-            editorTabs.addTab(tabTitle, placeholder);
-            int newIdx = editorTabs.indexOfComponent(placeholder);
+            editorTabs.addTab(tabTitle, panel);
+            int newIdx = editorTabs.indexOfComponent(panel);
 
             editorTabs.setTabComponentAt(newIdx,
-                    new ClosableTabHeader(editorTabs, placeholder, tabTitle));
+                    new ClosableTabHeader(editorTabs, panel, tabTitle));
 
             editorTabs.setSelectedIndex(newIdx);
             return;

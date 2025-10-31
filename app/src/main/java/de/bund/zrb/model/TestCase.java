@@ -14,10 +14,11 @@ public class TestCase {
     private final List<TestAction> when = new ArrayList<>();
     private final List<ThenExpectation> then = new ArrayList<>();
 
-    // NEU:
-    // Case hat nur EIN "Before"-Scope:
-    private final List<ScopeVariableEntry> beforeVars      = new ArrayList<>();
-    private final List<ScopeTemplateEntry> templates       = new ArrayList<>();
+    // Case-spezifische Scopes:
+    // - beforeCase: Variablen, die VOR diesem Case evaluiert werden
+    // - templates : Funktionszeiger (lazy), die nur in diesem Case verfügbar sind
+    private final List<GivenCondition> beforeCase = new ArrayList<>();
+    private final List<GivenCondition> templates = new ArrayList<>();
 
     public TestCase() {}
 
@@ -41,8 +42,12 @@ public class TestCase {
     public List<TestAction> getWhen() { return when; }
     public List<ThenExpectation> getThen() { return then; }
 
-    // NEU Getter:
-    public List<ScopeVariableEntry> getBeforeVars() { return beforeVars; }
-    public List<ScopeTemplateEntry> getTemplates() { return templates; }
+    public List<GivenCondition> getBeforeCase() {
+        return beforeCase;
+    }
+
+    public List<GivenCondition> getTemplates() {
+        return templates;
+    }
 }
 
