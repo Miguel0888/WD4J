@@ -2,7 +2,6 @@ package de.bund.zrb.model;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 public class RootNode {
 
@@ -12,9 +11,9 @@ public class RootNode {
     private List<TestSuite> testSuites = new ArrayList<>();
 
     // NEU:
-    private final List<ScopeVariableEntry> beforeAllVars   = new ArrayList<>();
-    private final List<ScopeVariableEntry> beforeEachVars  = new ArrayList<>();
-    private final List<ScopeTemplateEntry> templates       = new ArrayList<>();
+    private final List<GivenCondition> beforeAllVars   = new ArrayList<>();
+    private final List<GivenCondition> beforeEachVars  = new ArrayList<>();
+    private final List<GivenCondition> templates       = new ArrayList<>();
 
     public RootNode() {
         this.id = java.util.UUID.randomUUID().toString();
@@ -29,8 +28,9 @@ public class RootNode {
     }
 
     // NEU Getter
-    public List<ScopeVariableEntry> getBeforeAllVars() { return beforeAllVars; }
-    public List<ScopeVariableEntry> getBeforeEachVars() { return beforeEachVars; }
-    public List<ScopeTemplateEntry> getTemplates() { return templates; }
+    public List<GivenCondition> getBeforeAll() { return beforeAllVars; }
+    public List<GivenCondition> getBeforeEach() { return beforeEachVars; }
+    public List<GivenCondition> getTemplates() { return templates; }
+
 }
 

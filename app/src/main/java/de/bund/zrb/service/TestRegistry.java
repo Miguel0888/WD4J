@@ -70,7 +70,10 @@ public class TestRegistry {
      * {
      *   "root": {
      *      "id": "...",
-     *      "testSuites": [ ... ]
+     *      "testSuites": [ ... ],
+     *      "beforeAllVars": [...],
+     *      "beforeEachVars": [...],
+     *      "templates": [...]
      *   }
      * }
      */
@@ -90,6 +93,7 @@ public class TestRegistry {
      * Danach:
      * - UUIDs vergeben falls fehlend
      * - parentId-Kette reparieren
+     * - fehlende Collections initialisieren (Root.beforeAllVars etc.)
      */
     public void load() {
         SettingsService ss = SettingsService.getInstance();
@@ -106,7 +110,7 @@ public class TestRegistry {
                 return;
             }
         } catch (Exception ignore) {
-            // swallow: Datei war wohl nicht im neuen Format
+            // Datei evtl. noch im alten Format
         }
 
         // === 2) Altes Format versuchen (List<TestSuite>) ========
@@ -115,6 +119,8 @@ public class TestRegistry {
             List<TestSuite> loadedSuites = ss.load("tests.json", legacyType);
             if (loadedSuites != null) {
                 RootNode newRoot = new RootNode();
+
+                // safety init für testSuites
                 if (newRoot.getTestSuites() == null) {
                     forceInitListIfNull(newRoot, "testSuites");
                 }
@@ -128,46 +134,56 @@ public class TestRegistry {
                 return;
             }
         } catch (Exception ignore) {
-            // swallow: Datei vielleicht leer/kaputt
+            // Datei vielleicht leer/kaputt
         }
 
         // === 3) Kein Glück: leeren Root anlegen =================
         ensureRootId(this.root);
+        repairTreeIdsAndParents(this.root);
     }
 
     // -------------------------------------------------
-    // interne Helfer
+    // Hilfsfunktionen für ID/Parent-Konsistenz
     // -------------------------------------------------
 
     /**
-     * Stelle sicher, dass Root eine ID hat.
-     * Falls Gson den No-Arg-Konstruktor aufgerufen hat und dabei id nicht gesetzt hat,
-     * forcieren wir hier eine UUID.
+     * Stelle sicher, dass Root eine ID hat
+     * und dass seine Collections nicht null sind.
      */
     private void ensureRootId(RootNode r) {
         if (r == null) return;
+
         if (isBlank(r.getId())) {
-            // versuchen erst setter, dann Reflexion
             setFieldViaReflection(r, "id", UUID.randomUUID().toString());
         }
-        // zusätzlich sicherstellen, dass die Suite-Liste nicht null ist
+
+        // Root-Listen absichern:
         if (r.getTestSuites() == null) {
             forceInitListIfNull(r, "testSuites");
         }
+
+        // unsere neuen Scopes am Root
+        forceInitListIfNull(r, "beforeAllVars");
+        forceInitListIfNull(r, "beforeEachVars");
+        forceInitListIfNull(r, "templates");
     }
 
     /**
      * Läuft den kompletten Baum runter und stellt Konsistenz her:
      *
      * - RootNode.id != null
+     * - Root hat beforeAllVars/beforeEachVars/templates-Listen != null
      * - Jede Suite:
      *      - id != null
      *      - parentId = root.id
      *      - testCases != null
+     *      - given / then != null (legacy Felder)
+     *      - beforeAll / beforeEach / templates != null (neue Felder)
      * - Jeder TestCase:
      *      - id != null
      *      - parentId = suite.id
-     *      - when != null
+     *      - when / given / then != null
+     *      - beforeCase / templates != null (neue Felder auf Case-Ebene)
      * - Jede TestAction:
      *      - id != null
      *      - parentId = case.id
@@ -180,7 +196,6 @@ public class TestRegistry {
 
         List<TestSuite> suites = r.getTestSuites();
         if (suites == null) {
-            // NOTE: falls RootNode.testSuites null war, initialisieren
             forceInitListIfNull(r, "testSuites");
             suites = r.getTestSuites();
         }
@@ -188,7 +203,7 @@ public class TestRegistry {
         for (TestSuite suite : suites) {
             if (suite == null) continue;
 
-            // Suite-ID sicherstellen
+            // Suite-ID
             if (isBlank(suite.getId())) {
                 setFieldViaReflection(suite, "id", UUID.randomUUID().toString());
             }
@@ -198,24 +213,21 @@ public class TestRegistry {
                 suite.setParentId(r.getId());
             }
 
-            // sicherstellen, dass ihre Child-Listen nicht null sind
-            if (suite.getTestCases() == null) {
-                // NOTE: es gibt keinen setTestCases(), also Liste notfalls per Reflexion initialisieren
-                forceInitListIfNull(suite, "testCases");
-            }
-            if (suite.getGiven() == null) {
-                forceInitListIfNull(suite, "given");
-            }
-            if (suite.getThen() == null) {
-                forceInitListIfNull(suite, "then");
-            }
+            // Listen der Suite absichern
+            forceInitListIfNull(suite, "testCases");
+            forceInitListIfNull(suite, "given");
+            forceInitListIfNull(suite, "then");
 
-            // Fälle durchgehen
+            // NEU: Scopes der Suite
+            forceInitListIfNull(suite, "beforeAll");
+            forceInitListIfNull(suite, "beforeEach");
+            forceInitListIfNull(suite, "templates");
+
             List<TestCase> cases = suite.getTestCases();
             for (TestCase tc : cases) {
                 if (tc == null) continue;
 
-                // Case-ID sicherstellen
+                // Case-ID
                 if (isBlank(tc.getId())) {
                     setFieldViaReflection(tc, "id", UUID.randomUUID().toString());
                 }
@@ -225,23 +237,20 @@ public class TestRegistry {
                     tc.setParentId(suite.getId());
                 }
 
-                // Null-Listen im Case absichern
-                if (tc.getWhen() == null) {
-                    forceInitListIfNull(tc, "when");
-                }
-                if (tc.getGiven() == null) {
-                    forceInitListIfNull(tc, "given");
-                }
-                if (tc.getThen() == null) {
-                    forceInitListIfNull(tc, "then");
-                }
+                // "alte" Case-Listen absichern
+                forceInitListIfNull(tc, "when");
+                forceInitListIfNull(tc, "given");
+                forceInitListIfNull(tc, "then");
 
-                // Actions durchgehen
+                // NEU: Case-Scope-Listen absichern
+                forceInitListIfNull(tc, "beforeCase");
+                forceInitListIfNull(tc, "templates");
+
                 List<TestAction> steps = tc.getWhen();
                 for (TestAction a : steps) {
                     if (a == null) continue;
 
-                    // Action-ID sicherstellen
+                    // Action-ID
                     if (isBlank(a.getId())) {
                         setFieldViaReflection(a, "id", UUID.randomUUID().toString());
                     }
@@ -251,7 +260,7 @@ public class TestRegistry {
                         a.setParentId(tc.getId());
                     }
 
-                    // ActionType absichern (default WHEN)
+                    // ActionType absichern
                     if (a.getType() == null) {
                         a.setType(TestAction.ActionType.WHEN);
                     }
@@ -265,13 +274,10 @@ public class TestRegistry {
     }
 
     /**
-     * Hilfsfunktion:
-     *  - Falls eine List-Property null ist (z.B. weil aus altem JSON ohne dieses Feld kam),
-     *    erzeugen wir eine neue ArrayList<>().
-     *  - Wir machen das über Reflection, weil TestSuite/TestCase absichtlich
-     *    keinen öffentlichen Setter für diese Collections haben.
+     * Falls eine List-Property null ist (z.B. alter JSON-Stand),
+     * initialisieren wir sie per Reflection mit einer neuen ArrayList().
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     private void forceInitListIfNull(Object bean, String fieldName) {
         if (bean == null) return;
         try {
@@ -279,40 +285,77 @@ public class TestRegistry {
             f.setAccessible(true);
             Object current = f.get(bean);
             if (current == null) {
-                // frische Liste reinschreiben
                 f.set(bean, new ArrayList());
             }
         } catch (Exception ignore) {
-            // Worst case: Liste bleibt null. Code oben prüft dann ggf. mit != null weiter.
+            // worst case: bleibt halt null
         }
     }
 
     /**
-     * Generische Helper-Methode zum Setzen einfacher Felder (id, etc.).
-     * Versucht zuerst einen Setter (setId / setParentId ...).
-     * Wenn's keinen Setter gibt, schreibt per Reflection ins Feld.
+     * Generische Helper-Methode zum Setzen einfacher Felder (id, parentId, ...).
+     * Versucht zuerst einen Setter, dann direkten Fieldzugriff.
      */
     private void setFieldViaReflection(Object bean, String fieldName, String value) {
         if (bean == null || value == null) return;
         try {
             // 1. Setter probieren
-            String setterName = "set" +
-                    Character.toUpperCase(fieldName.charAt(0)) +
-                    fieldName.substring(1);
+            String setterName =
+                    "set" +
+                            Character.toUpperCase(fieldName.charAt(0)) +
+                            fieldName.substring(1);
             try {
                 java.lang.reflect.Method m = bean.getClass().getMethod(setterName, String.class);
                 m.invoke(bean, value);
                 return;
             } catch (NoSuchMethodException ignore) {
-                // Kein passender Setter -> direkter Fieldzugriff
+                // kein Setter, dann direkt ins Feld
             }
 
-            // 2. Direkt ins Feld schreiben
             java.lang.reflect.Field f = bean.getClass().getDeclaredField(fieldName);
             f.setAccessible(true);
             f.set(bean, value);
         } catch (Exception ignore) {
-            // Wenn wir es gar nicht setzen können, leben wir halt damit.
+            // wenn wir's gar nicht setzen können, leben wir damit
         }
+    }
+
+    // -------------------------------------------------
+    // Lookup-Helfer (werden wir gleich für GivenLookupService brauchen)
+    // -------------------------------------------------
+
+    /**
+     * Suche eine Suite anhand ihrer ID.
+     * Returns null, wenn keine gefunden.
+     */
+    public TestSuite findSuiteById(String suiteId) {
+        if (isBlank(suiteId)) return null;
+        if (root == null || root.getTestSuites() == null) return null;
+
+        for (TestSuite s : root.getTestSuites()) {
+            if (s != null && suiteId.equals(s.getId())) {
+                return s;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Suche einen Case anhand seiner ID.
+     * Returns null, wenn nicht gefunden.
+     */
+    public TestCase findCaseById(String caseId) {
+        if (isBlank(caseId)) return null;
+        if (root == null || root.getTestSuites() == null) return null;
+
+        for (TestSuite s : root.getTestSuites()) {
+            if (s == null || s.getTestCases() == null) continue;
+            for (TestCase tc : s.getTestCases()) {
+                if (tc != null && caseId.equals(tc.getId())) {
+                    return tc;
+                }
+            }
+        }
+        return null;
     }
 }
