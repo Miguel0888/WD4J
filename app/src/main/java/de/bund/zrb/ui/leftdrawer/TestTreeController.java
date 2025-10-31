@@ -668,40 +668,104 @@ public class TestTreeController {
     }
 
     public void deleteNode() {
-        TestNode selected = (TestNode) testTree.getLastSelectedPathComponent();
-        if (selected == null || selected.getParent() == null) return;
+        TestNode selectedNode = getSelectedNode();
+        if (selectedNode == null) {
+            return;
+        }
+        // Root darf nicht gelöscht werden
+        if (selectedNode.getParent() == null) {
+            return;
+        }
 
-        Object currentObj = selected.getModelRef();
-        Object parentObj = ((TestNode) selected.getParent()).getModelRef();
+        Object ref = selectedNode.getModelRef();
+        TestNode parentNode = (TestNode) selectedNode.getParent();
+        Object parentRef = (parentNode != null ? parentNode.getModelRef() : null);
 
         TestRegistry reg = TestRegistry.getInstance();
+        RootNode rootModel = reg.getRoot();
 
-        if (currentObj instanceof TestSuite) {
-            // direkt aus root entfernen
-            reg.getRoot().getTestSuites().remove(currentObj);
+        // Sicherheitsabfrage wie bisher (optional, aber nett)
+        if (!confirmDelete(ref)) {
+            return;
+        }
 
-        } else if (currentObj instanceof TestCase && parentObj instanceof TestSuite) {
-            ((TestSuite) parentObj).getTestCases().remove(currentObj);
+        boolean changed = false;
 
-        } else if (parentObj instanceof TestCase) {
-            TestCase testCase = (TestCase) parentObj;
-
-            if (currentObj instanceof TestAction) {
-                testCase.getWhen().remove(currentObj);
-
-            } else if (currentObj instanceof GivenCondition) {
-                testCase.getGiven().remove(currentObj);
-
-            } else if (currentObj instanceof ThenExpectation) {
-                testCase.getThen().remove(currentObj);
+        // ================= Suite löschen =================
+        if (ref instanceof TestSuite) {
+            TestSuite suiteModel = (TestSuite) ref;
+            // aus root entfernen
+            List<TestSuite> suites = rootModel.getTestSuites();
+            if (suites != null) {
+                changed = suites.remove(suiteModel) || changed;
             }
         }
 
-        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
-        model.removeNodeFromParent(selected);
-        model.nodeStructureChanged((TestNode) selected.getParent());
+        // ================= Case löschen =================
+        else if (ref instanceof TestCase && parentRef instanceof TestSuite) {
+            TestCase tcModel = (TestCase) ref;
+            TestSuite suiteModel = (TestSuite) parentRef;
 
-        reg.save();
+            List<TestCase> cases = suiteModel.getTestCases();
+            if (cases != null) {
+                changed = cases.remove(tcModel) || changed;
+            }
+        }
+
+        // ================= Action löschen =================
+        else if (ref instanceof TestAction && parentRef instanceof TestCase) {
+            TestAction actionModel = (TestAction) ref;
+            TestCase tcModel = (TestCase) parentRef;
+
+            List<TestAction> steps = tcModel.getWhen();
+            if (steps != null) {
+                changed = steps.remove(actionModel) || changed;
+            }
+        }
+
+        // (GivenCondition / ThenExpectation würdest du später analog behandeln.
+        //  Aktuell sind die nicht mehr einzeln als Tree-Knoten sichtbar,
+        //  also lassen wir sie raus.)
+
+        if (changed) {
+            // persistieren
+            reg.save();
+        }
+
+        // UI neu aufbauen
+        refreshTestTree();
+
+        // Fallback-Selektionslogik:
+        // versuch den Parent im neu aufgebauten Tree zu selektieren
+        if (parentRef != null) {
+            selectNodeByModelRef(parentRef);
+        }
+    }
+
+    /**
+     * Kleine Confirm-Box. Du kannst sie weglassen, wenn es dich nervt.
+     * Wenn du später "Silent Delete" willst: gib einfach immer true zurück.
+     */
+    private boolean confirmDelete(Object ref) {
+        String what;
+        if (ref instanceof TestSuite) {
+            what = "diese Testsuite";
+        } else if (ref instanceof TestCase) {
+            what = "diesen TestCase";
+        } else if (ref instanceof TestAction) {
+            what = "diesen Schritt";
+        } else {
+            what = "dieses Element";
+        }
+
+        int opt = JOptionPane.showConfirmDialog(
+                testTree,
+                "Wirklich " + what + " löschen?",
+                "Löschen bestätigen",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+        return opt == JOptionPane.YES_OPTION;
     }
 
     // ========================= Misc / UI Helpers =========================
