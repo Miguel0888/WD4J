@@ -7,31 +7,30 @@ import java.util.UUID;
 public class RootNode {
 
     private String id;
-    private List<TestSuite> testSuites = new ArrayList<TestSuite>();
+
+    // existiert schon:
+    private List<TestSuite> testSuites = new ArrayList<>();
+
+    // NEU:
+    private final List<ScopeVariableEntry> beforeAllVars   = new ArrayList<>();
+    private final List<ScopeVariableEntry> beforeEachVars  = new ArrayList<>();
+    private final List<ScopeTemplateEntry> templates       = new ArrayList<>();
 
     public RootNode() {
-        this.id = UUID.randomUUID().toString();
+        this.id = java.util.UUID.randomUUID().toString();
     }
 
-    public RootNode(String id) {
-        this.id = (id != null ? id : UUID.randomUUID().toString());
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; } // für Gson / Migration
+
+    public List<TestSuite> getTestSuites() { return testSuites; }
+    public void setTestSuites(List<TestSuite> testSuites) {
+        this.testSuites = (testSuites != null) ? testSuites : new ArrayList<TestSuite>();
     }
 
-    public String getId() {
-        return id;
-    }
-
-    public List<TestSuite> getTestSuites() {
-        return testSuites;
-    }
-
-    public void setTestSuites(List<TestSuite> suites) {
-        this.testSuites = (suites != null ? suites : new ArrayList<TestSuite>());
-    }
-
-    public void addSuite(TestSuite suite) {
-        if (suite != null) {
-            testSuites.add(suite);
-        }
-    }
+    // NEU Getter
+    public List<ScopeVariableEntry> getBeforeAllVars() { return beforeAllVars; }
+    public List<ScopeVariableEntry> getBeforeEachVars() { return beforeEachVars; }
+    public List<ScopeTemplateEntry> getTemplates() { return templates; }
 }
+
