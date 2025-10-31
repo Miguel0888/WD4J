@@ -431,63 +431,96 @@ public class TestTreeController {
         TestRegistry.getInstance().save();
     }
 
-    /**
-     * Neue Testsuite nach der geklickten Suite (oder ans Ende der Root).
-     */
-    public void createNewSuiteAfter(TestNode clickedSuite) {
-        String name = JOptionPane.showInputDialog(testTree,
-                "Name der neuen Testsuite:", "Neue Testsuite",
-                JOptionPane.PLAIN_MESSAGE);
-        if (name == null || name.trim().isEmpty()) return;
+    /** Hilfsfunktion für UUIDs, damit's lesbarer ist. */
+    private String newUuid() {
+        return java.util.UUID.randomUUID().toString();
+    }
 
+    /**
+     * Neue Suite hinter (oder am Ende von Root) einfügen.
+     * Modell ändern, speichern, dann Tree neu rendern.
+     */
+    public void createNewSuiteAfter(TestNode clickedSuiteNode) {
+        // 1. Name erfragen
+        String name = JOptionPane.showInputDialog(
+                testTree,
+                "Name der neuen Testsuite:",
+                "Neue Testsuite",
+                JOptionPane.PLAIN_MESSAGE
+        );
+        if (name == null || name.trim().isEmpty()) {
+            return;
+        }
+        String trimmedName = name.trim();
+
+        // 2. Modell holen
         TestRegistry reg = TestRegistry.getInstance();
         RootNode rootModel = reg.getRoot();
-
-        TestNode parentNode;
-        int insertIndex;
-        List<TestSuite> suiteList = rootModel.getTestSuites();
-
-        if (clickedSuite != null && clickedSuite.getModelRef() instanceof TestSuite) {
-            TestSuite oldSuite = (TestSuite) clickedSuite.getModelRef();
-            int oldPos = suiteList.indexOf(oldSuite);
-            if (oldPos < 0) oldPos = suiteList.size() - 1;
-            int newPos = oldPos + 1;
-
-            TestSuite newSuite = new TestSuite(name.trim(), new ArrayList<TestCase>());
-            // IDs setzen
-            newSuite.setId(UUID.randomUUID().toString());
-            newSuite.setParentId(rootModel.getId());
-
-            suiteList.add(newPos, newSuite);
-
-            parentNode = (TestNode) clickedSuite.getParent();
-            if (parentNode == null) parentNode = (TestNode) testTree.getModel().getRoot();
-
-            insertIndex = parentNode.getIndex(clickedSuite) + 1;
-
-            TestNode newSuiteNode = new TestNode(newSuite.getName(), newSuite);
-            DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
-            model.insertNodeInto(newSuiteNode, parentNode, insertIndex);
-            testTree.expandPath(new TreePath(parentNode.getPath()));
-
-        } else {
-            // Kein konkreter Suite-Knoten angeklickt:
-            TestSuite newSuite = new TestSuite(name.trim(), new ArrayList<TestCase>());
-            newSuite.setId(UUID.randomUUID().toString());
-            newSuite.setParentId(rootModel.getId());
-
-            suiteList.add(newSuite);
-
-            parentNode = (TestNode) testTree.getModel().getRoot();
-            insertIndex = parentNode.getChildCount();
-
-            TestNode newSuiteNode = new TestNode(newSuite.getName(), newSuite);
-            DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
-            model.insertNodeInto(newSuiteNode, parentNode, insertIndex);
-            testTree.expandPath(new TreePath(parentNode.getPath()));
+        java.util.List<TestSuite> suites = rootModel.getTestSuites();
+        if (suites == null) {
+            // sollte durch repair nie null sein, aber wir sichern uns doppelt
+            suites = new java.util.ArrayList<>();
+            rootModel.setTestSuites(suites);
         }
 
+        // 3. Neue Suite aufbauen (UUID, parentId, etc.)
+        TestSuite newSuite = new TestSuite(trimmedName, new java.util.ArrayList<TestCase>());
+        newSuite.setId(newUuid());
+        newSuite.setParentId(rootModel.getId());
+        newSuite.setDescription(""); // erstmal leer
+
+        // 4. Einfüge-Index bestimmen
+        int insertIndex = suites.size(); // default: ans Ende
+        if (clickedSuiteNode != null && clickedSuiteNode.getModelRef() instanceof TestSuite) {
+            TestSuite clickedSuite = (TestSuite) clickedSuiteNode.getModelRef();
+            int idx = suites.indexOf(clickedSuite);
+            if (idx >= 0) {
+                insertIndex = idx + 1;
+            }
+        }
+
+        // 5. Suite einhängen
+        suites.add(insertIndex, newSuite);
+
+        // 6. Speichern
         reg.save();
+
+        // 7. UI komplett neu rendern
+        refreshTestTree();
+
+        // 8. (Optional) neue Suite direkt selektieren
+        selectNodeByModelRef(newSuite);
+    }
+
+    /**
+     * Komfort: versucht nach refreshTestTree() den Knoten zu selektieren,
+     * der dieses Modellobjekt trägt.
+     */
+    private void selectNodeByModelRef(Object targetRef) {
+        DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
+        Object rootObj = model.getRoot();
+        if (!(rootObj instanceof TestNode)) return;
+        TestNode rootNode = (TestNode) rootObj;
+
+        TestNode match = findNodeByRefRecursive(rootNode, targetRef);
+        if (match != null) {
+            selectNode(match);
+        }
+    }
+
+    private TestNode findNodeByRefRecursive(TestNode current, Object target) {
+        if (current.getModelRef() == target) {
+            return current;
+        }
+        for (int i = 0; i < current.getChildCount(); i++) {
+            Object child = current.getChildAt(i);
+            if (child instanceof TestNode) {
+                TestNode tn = (TestNode) child;
+                TestNode found = findNodeByRefRecursive(tn, target);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     // ========================= Rename / Delete =========================
