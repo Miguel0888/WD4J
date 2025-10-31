@@ -6,6 +6,7 @@ import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.giveneditor.RootScopeEditorTab;
+import de.bund.zrb.ui.tabs.ClosableTabHeader;
 
 import javax.swing.*;
 import java.awt.*;
@@ -15,9 +16,9 @@ public class EditorTabOpener {
     /**
      * Öffnet/aktiviert den passenden Editor-Tab für die angeklickte Node.
      *
-     * @param parent irgendeine Component aus dem UI (für JOptionPane etc.)
-     * @param editorTabs das zentrale TabbedPane aus MainWindow (deine Mitte)
-     * @param node der geklickte TestNode aus dem linken Baum
+     * @param parent      irgendeine Component aus dem UI (für JOptionPane etc.)
+     * @param editorTabs  das zentrale TabbedPane aus MainWindow (deine Mitte)
+     * @param node        der geklickte TestNode aus dem linken Baum
      */
     public static void openEditorTab(Component parent,
                                      JTabbedPane editorTabs,
@@ -27,7 +28,7 @@ public class EditorTabOpener {
         Object ref = node.getModelRef();
         if (ref == null) return;
 
-        // 1. RootNode -> RootScopeEditorTab
+        // ---- RootNode Tab ----
         if (ref instanceof RootNode) {
             RootNode rn = (RootNode) ref;
             String tabTitle = "Root Scope";
@@ -39,12 +40,21 @@ public class EditorTabOpener {
             }
 
             RootScopeEditorTab panel = new RootScopeEditorTab(rn);
+
+            // Tab hinzufügen
             editorTabs.addTab(tabTitle, panel);
-            editorTabs.setSelectedComponent(panel);
+            int newIdx = editorTabs.indexOfComponent(panel);
+
+            // Header mit rotem X dranbauen
+            editorTabs.setTabComponentAt(newIdx,
+                    new ClosableTabHeader(editorTabs, panel, tabTitle));
+
+            // Tab aktivieren
+            editorTabs.setSelectedIndex(newIdx);
             return;
         }
 
-        // 2. TestSuite -> (SuiteScopeEditorTab kommt später)
+        // ---- TestSuite Tab ----
         if (ref instanceof TestSuite) {
             TestSuite suite = (TestSuite) ref;
             String tabTitle = "Suite: " + safe(suite.getName());
@@ -55,16 +65,21 @@ public class EditorTabOpener {
                 return;
             }
 
-            // Platzhalter bis wir SuiteScopeEditorTab bauen
             JPanel placeholder = new JPanel(new BorderLayout());
-            placeholder.add(new JLabel("Suite-Editor TODO für: " + safe(suite.getName())), BorderLayout.CENTER);
+            placeholder.add(new JLabel("Suite-Editor TODO für: " + safe(suite.getName())),
+                    BorderLayout.CENTER);
 
             editorTabs.addTab(tabTitle, placeholder);
-            editorTabs.setSelectedComponent(placeholder);
+            int newIdx = editorTabs.indexOfComponent(placeholder);
+
+            editorTabs.setTabComponentAt(newIdx,
+                    new ClosableTabHeader(editorTabs, placeholder, tabTitle));
+
+            editorTabs.setSelectedIndex(newIdx);
             return;
         }
 
-        // 3. TestCase -> (CaseScopeEditorTab kommt später)
+        // ---- TestCase Tab ----
         if (ref instanceof TestCase) {
             TestCase tc = (TestCase) ref;
             String tabTitle = "Case: " + safe(tc.getName());
@@ -76,14 +91,20 @@ public class EditorTabOpener {
             }
 
             JPanel placeholder = new JPanel(new BorderLayout());
-            placeholder.add(new JLabel("Case-Editor TODO für: " + safe(tc.getName())), BorderLayout.CENTER);
+            placeholder.add(new JLabel("Case-Editor TODO für: " + safe(tc.getName())),
+                    BorderLayout.CENTER);
 
             editorTabs.addTab(tabTitle, placeholder);
-            editorTabs.setSelectedComponent(placeholder);
+            int newIdx = editorTabs.indexOfComponent(placeholder);
+
+            editorTabs.setTabComponentAt(newIdx,
+                    new ClosableTabHeader(editorTabs, placeholder, tabTitle));
+
+            editorTabs.setSelectedIndex(newIdx);
             return;
         }
 
-        // 4. TestAction -> ActionEditorTab (später ersetzen durch deine echte ActionEditorTab-Logik)
+        // ---- TestAction Tab ----
         if (ref instanceof TestAction) {
             TestAction action = (TestAction) ref;
             String tabTitle = "Action: " + safe(action.getAction());
@@ -95,15 +116,24 @@ public class EditorTabOpener {
             }
 
             JPanel placeholder = new JPanel(new BorderLayout());
-            placeholder.add(new JLabel("Action Editor TODO für: " + safe(action.getAction())), BorderLayout.CENTER);
+            placeholder.add(new JLabel("Action Editor TODO für: " + safe(action.getAction())),
+                    BorderLayout.CENTER);
 
             editorTabs.addTab(tabTitle, placeholder);
-            editorTabs.setSelectedComponent(placeholder);
+            int newIdx = editorTabs.indexOfComponent(placeholder);
+
+            editorTabs.setTabComponentAt(newIdx,
+                    new ClosableTabHeader(editorTabs, placeholder, tabTitle));
+
+            editorTabs.setSelectedIndex(newIdx);
             return;
         }
 
-        JOptionPane.showMessageDialog(parent,
-                "Kein Editor für Typ: " + ref.getClass().getSimpleName());
+        // Fallback
+        JOptionPane.showMessageDialog(
+                parent,
+                "Kein Editor für Typ: " + ref.getClass().getSimpleName()
+        );
     }
 
     private static int findTabByTitle(JTabbedPane tabs, String wanted) {
