@@ -2,6 +2,7 @@ package de.bund.zrb.ui.giveneditor;
 
 import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.TestCase;
+import de.bund.zrb.service.TestRegistry;
 
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
@@ -12,10 +13,10 @@ import java.util.List;
  * Editor für den Case-Scope.
  *
  * Tabs:
- *  - Before     (Variablen, die vor diesem TestCase laufen)
- *  - Templates  (Funktionszeiger/lazy für diesen TestCase)
+ *  - Before     (Variablen, die vor diesem Case evaluiert werden)
+ *  - Templates  (Funktionszeiger/lazy für diesen Case)
  *
- * Noch ohne Persist-Knopf. Speichern ans Repo machen wir im nächsten Schritt.
+ * Speichern-Button oben rechts + in jeder Tabellen-Toolbar.
  */
 public class CaseScopeEditorTab extends JPanel {
 
@@ -26,29 +27,46 @@ public class CaseScopeEditorTab extends JPanel {
         super(new BorderLayout());
         this.testCase = testCase;
 
-        // --- Header oben: Case-Name ---
+        // ===== Header mit Titel + Speichern =====
         JPanel header = new JPanel(new BorderLayout());
+
+        JPanel textBlock = new JPanel(new BorderLayout());
         JLabel title = new JLabel("Case-Scope: " + safe(testCase.getName()), SwingConstants.LEFT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
 
+        // TestCase hat (noch) keine description -> leeres TextArea
         JTextArea desc = new JTextArea();
         desc.setLineWrap(true);
         desc.setWrapStyleWord(true);
         desc.setEditable(false);
         desc.setOpaque(false);
-
-        // Hinweis:
-        // TestCase hat bei dir aktuell kein description-Feld.
-        // Wir lassen das TextArea leer (künftige Erweiterung möglich).
         desc.setText("");
 
-        header.add(title, BorderLayout.NORTH);
-        header.add(desc, BorderLayout.CENTER);
-        header.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+        textBlock.add(title, BorderLayout.NORTH);
+        textBlock.add(desc, BorderLayout.CENTER);
+        textBlock.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+
+        JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton saveBtn = new JButton("💾 Speichern");
+        saveBtn.setToolTipText("Änderungen dieses TestCase in tests.json schreiben");
+        saveBtn.addActionListener(e -> {
+            TestRegistry.getInstance().save();
+            JOptionPane.showMessageDialog(
+                    CaseScopeEditorTab.this,
+                    "Gespeichert.",
+                    "Info",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+        savePanel.add(saveBtn);
+        savePanel.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+
+        header.add(textBlock, BorderLayout.CENTER);
+        header.add(savePanel, BorderLayout.EAST);
 
         add(header, BorderLayout.NORTH);
 
-        // --- unsere zwei Tabs ---
+        // ===== Inhalt-Tabs (Before, Templates) =====
         innerTabs.addTab("Before",    buildTablePanel(testCase.getBeforeCase(), "Before"));
         innerTabs.addTab("Templates", buildTablePanel(testCase.getTemplates(),  "Templates"));
 
@@ -61,14 +79,13 @@ public class CaseScopeEditorTab extends JPanel {
         GivenTableModel model = new GivenTableModel(data);
         JTable table = new JTable(model);
 
-        // Toolbar (+ / –)
+        // Toolbar mit + / – / 💾
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
 
         JButton addBtn = new JButton("+");
         addBtn.setToolTipText(scopeName + " Eintrag hinzufügen");
         addBtn.addActionListener(e -> {
-            // neue Default-Zeile einfügen
             data.add(new GivenCondition(
                     "preconditionRef",
                     "name=<neu>&expressionRaw="
@@ -86,8 +103,22 @@ public class CaseScopeEditorTab extends JPanel {
             }
         });
 
+        JButton saveBtn = new JButton("💾");
+        saveBtn.setToolTipText("Speichern");
+        saveBtn.addActionListener(e -> {
+            TestRegistry.getInstance().save();
+            JOptionPane.showMessageDialog(
+                    CaseScopeEditorTab.this,
+                    "Gespeichert.",
+                    "Info",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+
         bar.add(addBtn);
         bar.add(delBtn);
+        bar.addSeparator();
+        bar.add(saveBtn);
 
         panel.add(bar, BorderLayout.NORTH);
         panel.add(new JScrollPane(table), BorderLayout.CENTER);
@@ -100,9 +131,12 @@ public class CaseScopeEditorTab extends JPanel {
     }
 
     /**
-     * TableModel für Name/Expression.
-     * Gleiche Logik wie in SuiteScopeEditorTab.GivenTableModel,
-     * aber hier nochmal eigenständig eingebettet, damit diese Klasse standalone kompilierbar ist.
+     * Gleiches TableModel wie in SuiteScopeEditorTab.
+     * Spalten:
+     * - Name          (Identifier/Variablenname)
+     * - Expression    (z.B. {{otp({{username}})}} )
+     *
+     * Wir speichern weiter im vorhandenen GivenCondition.value key/value-Format.
      */
     private static class GivenTableModel extends AbstractTableModel {
 
@@ -135,11 +169,9 @@ public class CaseScopeEditorTab extends JPanel {
             java.util.Map<String,String> map = parseValueMap(gc.getValue());
 
             if (columnIndex == 0) {
-                // Name
                 return map.getOrDefault("name", "");
             }
             if (columnIndex == 1) {
-                // Expression
                 return map.getOrDefault("expressionRaw", "");
             }
             return "";
@@ -164,11 +196,9 @@ public class CaseScopeEditorTab extends JPanel {
             }
 
             gc.setValue(serializeValueMap(map));
-
             fireTableCellUpdated(rowIndex, columnIndex);
         }
 
-        // copy von deiner parse/serialize Logik aus GivenConditionEditorTab
         private java.util.Map<String,String> parseValueMap(String raw) {
             java.util.Map<String,String> result = new java.util.LinkedHashMap<>();
             if (raw != null && raw.contains("=")) {

@@ -2,6 +2,7 @@ package de.bund.zrb.ui.giveneditor;
 
 import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.TestSuite;
+import de.bund.zrb.service.TestRegistry;
 
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
@@ -12,12 +13,12 @@ import java.util.List;
  * Editor für den Suite-Scope.
  *
  * Tabs:
- *  - BeforeAll   (Variablen, einmalig vor Suite)
- *  - BeforeEach  (Variablen, vor jedem Case)
- *  - Templates   (Funktionszeiger/lazy)
+ *  - BeforeAll
+ *  - BeforeEach
+ *  - Templates
  *
- * Aktuell: Nur Anzeige/Bearbeiten in Tabellenform.
- * Persistierung passiert später in Step "Speichern beim Edit".
+ * Oben rechts: Speichern-Button, der aktuell einfach TestRegistry.save() aufruft.
+ * Die Tabellen haben + und – zum Hinzufügen/Entfernen.
  */
 public class SuiteScopeEditorTab extends JPanel {
 
@@ -28,8 +29,11 @@ public class SuiteScopeEditorTab extends JPanel {
         super(new BorderLayout());
         this.suite = suite;
 
-        // Oben Suite-Name/Description zur Orientierung
+        // ===== Header (Titel, Description, Save Button) =====
         JPanel header = new JPanel(new BorderLayout());
+
+        // linker Block mit Titel + Beschreibung
+        JPanel textBlock = new JPanel(new BorderLayout());
         JLabel title = new JLabel("Suite-Scope: " + safe(suite.getName()), SwingConstants.LEFT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
 
@@ -40,16 +44,36 @@ public class SuiteScopeEditorTab extends JPanel {
         desc.setOpaque(false);
         desc.setText(safe(suite.getDescription()));
 
-        header.add(title, BorderLayout.NORTH);
-        header.add(desc, BorderLayout.CENTER);
-        header.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+        textBlock.add(title, BorderLayout.NORTH);
+        textBlock.add(desc, BorderLayout.CENTER);
+
+        textBlock.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+        // rechter Block mit Save-Button
+        JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton saveBtn = new JButton("💾 Speichern");
+        saveBtn.setToolTipText("Änderungen dieser Suite in tests.json schreiben");
+        saveBtn.addActionListener(e -> {
+            TestRegistry.getInstance().save();
+            JOptionPane.showMessageDialog(
+                    SuiteScopeEditorTab.this,
+                    "Gespeichert.",
+                    "Info",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+        savePanel.add(saveBtn);
+        savePanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+        header.add(textBlock, BorderLayout.CENTER);
+        header.add(savePanel, BorderLayout.EAST);
 
         add(header, BorderLayout.NORTH);
 
-        // Tabellen-Tabs anlegen
-        innerTabs.addTab("BeforeAll",  buildTablePanel(suite.getBeforeAll(),  "BeforeAll"));
-        innerTabs.addTab("BeforeEach", buildTablePanel(suite.getBeforeEach(), "BeforeEach"));
-        innerTabs.addTab("Templates",  buildTablePanel(suite.getTemplates(),  "Templates"));
+        // ===== Inhalt-Tabs (BeforeAll, BeforeEach, Templates) =====
+        innerTabs.addTab("BeforeAll",   buildTablePanel(suite.getBeforeAll(),   "BeforeAll"));
+        innerTabs.addTab("BeforeEach",  buildTablePanel(suite.getBeforeEach(),  "BeforeEach"));
+        innerTabs.addTab("Templates",   buildTablePanel(suite.getTemplates(),   "Templates"));
 
         add(innerTabs, BorderLayout.CENTER);
     }
@@ -60,17 +84,15 @@ public class SuiteScopeEditorTab extends JPanel {
         GivenTableModel model = new GivenTableModel(data);
         JTable table = new JTable(model);
 
-        // simple toolbar oben: Add/Delete (noch ohne echte Logik save/persist)
+        // Toolbar über der Tabelle
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
 
         JButton addBtn = new JButton("+");
-        addBtn.setToolTipText(scopeName + " Variable/Template hinzufügen");
+        addBtn.setToolTipText(scopeName + " Eintrag hinzufügen");
         addBtn.addActionListener(e -> {
-            // naive Default-Zeile
             data.add(new GivenCondition(
-                    "preconditionRef", // type lassen wir erstmal wie gehabt,
-                    // später unterscheiden wir var vs template
+                    "preconditionRef",
                     "name=<neu>&expressionRaw="
             ));
             model.fireTableDataChanged();
@@ -86,8 +108,22 @@ public class SuiteScopeEditorTab extends JPanel {
             }
         });
 
+        JButton saveBtn = new JButton("💾");
+        saveBtn.setToolTipText("Speichern");
+        saveBtn.addActionListener(e -> {
+            TestRegistry.getInstance().save();
+            JOptionPane.showMessageDialog(
+                    SuiteScopeEditorTab.this,
+                    "Gespeichert.",
+                    "Info",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+
         bar.add(addBtn);
         bar.add(delBtn);
+        bar.addSeparator();
+        bar.add(saveBtn);
 
         panel.add(bar, BorderLayout.NORTH);
         panel.add(new JScrollPane(table), BorderLayout.CENTER);
@@ -100,15 +136,8 @@ public class SuiteScopeEditorTab extends JPanel {
     }
 
     /**
-     * Sehr einfaches TableModel:
-     * - Spalte 0: Name (aus GivenCondition.value -> key "name")
-     * - Spalte 1: Expression (aus GivenCondition.value -> key "expressionRaw")
-     *
-     * Wir gehen davon aus, dass GivenCondition aktuell "type" + "value" hat,
-     * wobei value so gespeichert ist, wie in deinem Code ("key1=...&key2=...").
-     *
-     * Für jetzt: wir parsen/serialisieren ganz primitiv genauso wie dein
-     * GivenConditionEditorTab.parseValueMap()/serializeValueMap().
+     * TableModel für Name/Expression. Identische Logik wie zuvor,
+     * plus direkte Bearbeitung (editable true).
      */
     private static class GivenTableModel extends AbstractTableModel {
 
@@ -125,7 +154,7 @@ public class SuiteScopeEditorTab extends JPanel {
 
         @Override
         public int getColumnCount() {
-            return 2; // Name, Expression
+            return 2; // Name | Expression
         }
 
         @Override
@@ -141,11 +170,9 @@ public class SuiteScopeEditorTab extends JPanel {
             java.util.Map<String,String> map = parseValueMap(gc.getValue());
 
             if (columnIndex == 0) {
-                // "Name"
                 return map.getOrDefault("name", "");
             }
             if (columnIndex == 1) {
-                // "Expression"
                 return map.getOrDefault("expressionRaw", "");
             }
             return "";
@@ -153,7 +180,7 @@ public class SuiteScopeEditorTab extends JPanel {
 
         @Override
         public boolean isCellEditable(int rowIndex, int columnIndex) {
-            return true; // direkt editierbar
+            return true;
         }
 
         @Override
@@ -170,11 +197,8 @@ public class SuiteScopeEditorTab extends JPanel {
             }
 
             gc.setValue(serializeValueMap(map));
-
             fireTableCellUpdated(rowIndex, columnIndex);
         }
-
-        // --- copy of your tiny helper logic ---
 
         private java.util.Map<String,String> parseValueMap(String raw) {
             java.util.Map<String,String> result = new java.util.LinkedHashMap<>();

@@ -2,49 +2,77 @@ package de.bund.zrb.ui.tabs;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 /**
- * Kleiner Tab-Header mit Titel-Label + rotem [x]-Button.
+ * Tab-Header mit Titel-Label + rotem X-Button zum Schließen.
  *
- * editorTabs: das JTabbedPane, in dem der Tab steckt
- * component:  das Panel, das in diesem Tab als Content angezeigt wird
- * title:      Text, der angezeigt werden soll
+ * Neu:
+ * - Rechtsklick auf den Header öffnet ein Popup-Menü
+ *   mit Eintrag "Tab schließen", der das Gleiche macht wie das rote X.
  */
 public class ClosableTabHeader extends JPanel {
 
-    public ClosableTabHeader(final JTabbedPane editorTabs,
-                             final Component component,
-                             String title) {
+    private final JTabbedPane parentTabbedPane;
+    private final Component tabComponent;
+    private final JLabel titleLabel;
+    private final JButton closeButton;
 
-        super(new FlowLayout(FlowLayout.LEFT, 4, 0));
+    public ClosableTabHeader(JTabbedPane parentTabbedPane,
+                             Component tabComponent,
+                             String titleText) {
+        super(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        this.parentTabbedPane = parentTabbedPane;
+        this.tabComponent = tabComponent;
 
         setOpaque(false);
 
-        JLabel lbl = new JLabel(title);
-        lbl.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 4));
+        titleLabel = new JLabel(titleText);
+        closeButton = new JButton("✕");
+        closeButton.setForeground(Color.RED);
+        closeButton.setBorderPainted(false);
+        closeButton.setContentAreaFilled(false);
+        closeButton.setOpaque(false);
+        closeButton.setFocusable(false);
+        closeButton.setMargin(new Insets(0,4,0,4));
 
-        JButton closeBtn = new JButton("✕"); // kleines X
-        closeBtn.setMargin(new Insets(0, 4, 0, 4));
-        closeBtn.setBorder(BorderFactory.createLineBorder(Color.RED));
-        closeBtn.setForeground(Color.RED);
-        closeBtn.setBackground(Color.WHITE);
-        closeBtn.setOpaque(true);
-        closeBtn.setFocusable(false);
-        closeBtn.setToolTipText("Tab schließen");
+        closeButton.setToolTipText("Tab schließen");
+        closeButton.addActionListener(e -> closeTab());
 
-        closeBtn.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                int idx = editorTabs.indexOfComponent(component);
-                if (idx >= 0) {
-                    editorTabs.removeTabAt(idx);
+        add(titleLabel);
+        add(closeButton);
+
+        // Rechtsklick-Menü
+        JPopupMenu popup = new JPopupMenu();
+        JMenuItem closeItem = new JMenuItem("Tab schließen");
+        closeItem.addActionListener(e -> closeTab());
+        popup.add(closeItem);
+
+        MouseAdapter popupTrigger = new MouseAdapter() {
+            private void maybeShowPopup(MouseEvent e) {
+                if (e.isPopupTrigger()) {
+                    popup.show(ClosableTabHeader.this, e.getX(), e.getY());
                 }
             }
-        });
+            @Override public void mousePressed(MouseEvent e) { maybeShowPopup(e); }
+            @Override public void mouseReleased(MouseEvent e) { maybeShowPopup(e); }
+        };
 
-        add(lbl);
-        add(closeBtn);
+        // Popup sowohl auf dem ganzen Header als auch auf dem Label/Button aktivieren
+        this.addMouseListener(popupTrigger);
+        titleLabel.addMouseListener(popupTrigger);
+        closeButton.addMouseListener(popupTrigger);
+    }
+
+    private void closeTab() {
+        int idx = parentTabbedPane.indexOfComponent(tabComponent);
+        if (idx >= 0) {
+            parentTabbedPane.removeTabAt(idx);
+        }
+    }
+
+    public void setTitle(String newTitle) {
+        titleLabel.setText(newTitle);
     }
 }
