@@ -163,8 +163,9 @@ public class TestPlayerService {
         SuiteLog caseLog = new SuiteLog(testCase.getName());
         logger.append(caseLog);                           // <— Überschrift sofort anzeigen
 
+        // ToDo: Fix Preconditions
         // GIVEN (Case) – einzeln streamen
-        executeGivenList(testCase.getBefore(), caseLog, "Given");
+//        executeGivenList(testCase.getBefore(), caseLog, "Given");
 
         // WHEN (Kinder) – rekursiv streamen
         executeChildren(node, caseLog);
@@ -190,7 +191,8 @@ public class TestPlayerService {
         SuiteLog suiteLog = new SuiteLog(node.toString());
         logger.append(suiteLog);                           // <— Header sofort
 
-        executeGivenList(suite.getGiven(), suiteLog, "Suite-Given");
+        // ToDo: Fix Preconditions
+//        executeGivenList(suite.getGiven(), suiteLog, "Suite-Given");
         executeChildren(node, suiteLog);
 
         drawerRef.updateSuiteStatus(node);

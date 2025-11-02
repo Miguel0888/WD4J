@@ -32,8 +32,6 @@ import java.util.TreeSet;
 public class ActionEditorTab extends AbstractEditorTab<TestAction> {
 
     private final TestAction action;
-    @SuppressWarnings("unused")
-    private final List<GivenCondition> givensForThisAction; // wir behalten das Feld falls du es später brauchst
 
     // UI Felder, damit wir sie im Save-Handler benutzen können
     private JComboBox<String> actionBox;
@@ -44,13 +42,9 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
     private JComboBox<String> userBox;
     private JTextField timeoutField;
 
-    public ActionEditorTab(final TestAction action,
-                           final List<GivenCondition> givensForThisAction) {
+    public ActionEditorTab(final TestAction action) {
         super("Action Editor", action);
         this.action = action;
-        this.givensForThisAction = (givensForThisAction != null)
-                ? givensForThisAction
-                : java.util.Collections.<GivenCondition>emptyList();
 
         setLayout(new BorderLayout());
 
@@ -82,7 +76,6 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
         formPanel.add(new JLabel("Value:"));
 
         JPanel valuePanel = new JPanel(new BorderLayout(4, 0));
-
         valueField = new JTextField();
         valueField.setEditable(false);
         valuePanel.add(valueField, BorderLayout.CENTER);
@@ -92,18 +85,36 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
 
         formPanel.add(valuePanel);
 
-        // Scope-Daten sammeln (Variablen & Templates aus Case/Suite/Root,
-        // inklusive Shadowing)
+        // ScopeData jetzt direkt holen
         GivenLookupService.ScopeData scopeData =
                 new GivenLookupService().collectScopeForAction(action);
         scopeCombo.setScopeData(scopeData);
 
-        // Vorbelegung aus action.getValue()
-        // z.B. "{{username}}"    -> preselectName "username"
-        // z.B. "{{otpCode()}}"   -> preselectName "*otpCode"
-        // (wir unterscheiden "①" hier noch nicht sauber zurück)
+        // Vorbelegung für valueField aus action.getValue()
         String initialTemplate = (action.getValue() != null) ? action.getValue().trim() : "";
-        valueField.setText(initialTemplate); // zeige Rohwert erst mal an
+        valueField.setText(initialTemplate);
+
+        String preselectName = deriveScopeNameFromTemplate(initialTemplate);
+        if (preselectName != null && preselectName.length() > 0) {
+            scopeCombo.setInitialChoiceWithoutEvent(preselectName);
+        }
+
+        scopeCombo.addSelectionListener(name -> {
+            if (name == null || name.trim().isEmpty()) {
+                return;
+            }
+            String template;
+            if (name.startsWith("*")) {
+                // Template -> {{fnName()}}
+                String fn = name.substring(1).trim();
+                template = "{{" + fn + "()}}";
+            } else {
+                // Variable -> {{varName}}
+                template = "{{" + name.trim() + "}}";
+            }
+            valueField.setText(template);
+            action.setValue(template);
+        });
 
         String preselectName = deriveScopeNameFromTemplate(initialTemplate);
         if (preselectName != null && preselectName.length() > 0) {

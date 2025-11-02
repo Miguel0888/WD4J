@@ -70,23 +70,20 @@ public class ScopeReferenceComboBox extends JPanel {
         chosenName = null;
         displayField.setText("");
 
-        if (data == null) {
-            return;
-        }
+        if (data != null) {
+            // 1. Variablen-Namen in Einfüge-Reihenfolge
+            for (String varName : data.variables.keySet()) {
+                if (varName != null && varName.trim().length() > 0) {
+                    listModel.addElement(varName.trim());
+                }
+            }
 
-        // normale Variablen
-        for (String varName : data.beforeEachNames) {
-            addIfNotPresent(varName);
-        }
-
-        // einmalige Variablen (BeforeAll)
-        for (String varName : data.beforeAllNames) {
-            addIfNotPresent("①" + varName);
-        }
-
-        // Templates
-        for (String tmplName : data.templateNames) {
-            addIfNotPresent("*" + tmplName);
+            // 2. Templates (mit "*")
+            for (String tmplName : data.templates.keySet()) {
+                if (tmplName != null && tmplName.trim().length() > 0) {
+                    listModel.addElement("*" + tmplName.trim());
+                }
+            }
         }
     }
 

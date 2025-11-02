@@ -90,11 +90,7 @@ public class EditorTabOpener {
         if (ref instanceof TestAction) {
             TestAction action = (TestAction) ref;
 
-            // Givens/Sichtbarkeit zusammentragen
-            List<GivenCondition> givensForThisAction = collectRelevantGivens(action);
-
-            // Echten ActionEditorTab aufmachen
-            ActionEditorTab panel = new ActionEditorTab(action, givensForThisAction);
+            ActionEditorTab panel = new ActionEditorTab(action);
 
             String tabTitle = "Action: " + safe(action.getAction()) + " (#" + (actionCounter++) + ")";
             editorTabs.addTab(tabTitle, panel);

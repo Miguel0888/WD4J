@@ -13,8 +13,8 @@ public class TestCase {
     private final List<TestAction> when = new ArrayList<>();
     private final List<ThenExpectation> then = new ArrayList<>();
 
-    private final List<GivenCondition> before = new ArrayList<>();
-    private final List<GivenCondition> templates = new ArrayList<>();
+    private final java.util.Map<String,String> before    = new java.util.LinkedHashMap<>();
+    private final java.util.Map<String,String> templates = new java.util.LinkedHashMap<>();
 
     public TestCase() {}
 
@@ -34,12 +34,10 @@ public class TestCase {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
-    public List<GivenCondition> getBefore() { return before; }
     public List<TestAction> getWhen() { return when; }
     public List<ThenExpectation> getThen() { return then; }
 
-    public List<GivenCondition> getTemplates() {
-        return templates;
-    }
+    public java.util.Map<String,String> getBefore()    { return before; }
+    public java.util.Map<String,String> getTemplates() { return templates; }
 }
 
