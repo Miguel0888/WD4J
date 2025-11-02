@@ -1,7 +1,7 @@
 package de.bund.zrb.service;
 
 import com.microsoft.playwright.Page;
-import de.bund.zrb.model.GivenCondition;
+import de.bund.zrb.model.Precondtion;
 
 import java.util.Map;
 
@@ -9,7 +9,7 @@ public class GivenConditionExecutor {
 
     private final BrowserServiceImpl browserService = BrowserServiceImpl.getInstance();
 
-    public void apply(String username, GivenCondition given) {
+    public void apply(String username, Precondtion given) {
         Page page = browserService.getActivePage(username);
         if (page == null) {
             System.err.println("⚠️ Kein aktives Browserfenster für Benutzer: " + username);

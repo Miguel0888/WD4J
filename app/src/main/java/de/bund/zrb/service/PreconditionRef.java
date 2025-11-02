@@ -1,6 +1,6 @@
 package de.bund.zrb.service;
 
-import de.bund.zrb.model.GivenCondition;
+import de.bund.zrb.model.Precondtion;
 
 import java.util.Map;
 
@@ -16,11 +16,11 @@ public final class PreconditionRef {
     private PreconditionRef() {}
 
     /** Create a GivenCondition that references a precondition by id. */
-    public static GivenCondition ref(String preconditionId) {
+    public static Precondtion ref(String preconditionId) {
         if (preconditionId == null || preconditionId.trim().isEmpty()) {
             throw new IllegalArgumentException("preconditionId must not be empty");
         }
-        GivenCondition g = new GivenCondition();
+        Precondtion g = new Precondtion();
         g.setType(TYPE);
         // Use the existing value/parameterMap convention in your project:
         // store as key=value so getParameterMap() can read it
@@ -29,7 +29,7 @@ public final class PreconditionRef {
     }
 
     /** Extract the referenced precondition id from a GivenCondition; return null if not a ref. */
-    public static String extractRefId(GivenCondition g) {
+    public static String extractRefId(Precondtion g) {
         if (g == null || !TYPE.equals(g.getType())) return null;
         Map<String, Object> map = g.getParameterMap();
         if (map == null) return null;

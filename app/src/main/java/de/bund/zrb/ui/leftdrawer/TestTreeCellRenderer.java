@@ -1,6 +1,6 @@
 package de.bund.zrb.ui.leftdrawer;
 
-import de.bund.zrb.model.GivenCondition;
+import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
@@ -179,7 +179,7 @@ public class TestTreeCellRenderer extends DefaultTreeCellRenderer {
         Object m = node.getModelRef();
         if (m instanceof TestSuite) return NodeKind.SUITE;
         if (m instanceof TestCase)  return NodeKind.CASE;
-        if (m instanceof GivenCondition) return NodeKind.GIVEN;
+        if (m instanceof Precondtion) return NodeKind.GIVEN;
         if (m instanceof TestAction) return NodeKind.WHEN;
         // if (m instanceof ThenExpectation) return NodeKind.THEN; // einkommentieren, wenn vorhanden
         // Heuristik: Text beginnt mit "THEN"?

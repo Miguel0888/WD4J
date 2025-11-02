@@ -1,6 +1,6 @@
 package de.bund.zrb.ui.giveneditor;
 
-import de.bund.zrb.model.GivenCondition;
+import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.TestRegistry;
 
@@ -78,7 +78,7 @@ public class SuiteScopeEditorTab extends JPanel {
         add(innerTabs, BorderLayout.CENTER);
     }
 
-    private JPanel buildTablePanel(List<GivenCondition> data, String scopeName) {
+    private JPanel buildTablePanel(List<Precondtion> data, String scopeName) {
         JPanel panel = new JPanel(new BorderLayout());
 
         GivenTableModel model = new GivenTableModel(data);
@@ -91,7 +91,7 @@ public class SuiteScopeEditorTab extends JPanel {
         JButton addBtn = new JButton("+");
         addBtn.setToolTipText(scopeName + " Eintrag hinzufügen");
         addBtn.addActionListener(e -> {
-            data.add(new GivenCondition(
+            data.add(new Precondtion(
                     "preconditionRef",
                     "name=<neu>&expressionRaw="
             ));
@@ -141,9 +141,9 @@ public class SuiteScopeEditorTab extends JPanel {
      */
     private static class GivenTableModel extends AbstractTableModel {
 
-        private final List<GivenCondition> rows;
+        private final List<Precondtion> rows;
 
-        public GivenTableModel(List<GivenCondition> rows) {
+        public GivenTableModel(List<Precondtion> rows) {
             this.rows = rows;
         }
 
@@ -166,7 +166,7 @@ public class SuiteScopeEditorTab extends JPanel {
 
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
-            GivenCondition gc = rows.get(rowIndex);
+            Precondtion gc = rows.get(rowIndex);
             java.util.Map<String,String> map = parseValueMap(gc.getValue());
 
             if (columnIndex == 0) {
@@ -185,7 +185,7 @@ public class SuiteScopeEditorTab extends JPanel {
 
         @Override
         public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
-            GivenCondition gc = rows.get(rowIndex);
+            Precondtion gc = rows.get(rowIndex);
             java.util.Map<String,String> map = parseValueMap(gc.getValue());
 
             String val = (aValue == null) ? "" : String.valueOf(aValue);

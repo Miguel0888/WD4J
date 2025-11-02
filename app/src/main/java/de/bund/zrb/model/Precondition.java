@@ -12,11 +12,11 @@ public class Precondition {
 
     private String id;                    // UUID string
     private String name;                  // Human-readable name
-    private List<GivenCondition> given;   // May contain precond-ref items; no self-reference
+    private List<Precondtion> given;   // May contain precond-ref items; no self-reference
     private List<TestAction> actions;     // When-steps of the precondition
 
     public Precondition() {
-        this.given = new ArrayList<GivenCondition>();
+        this.given = new ArrayList<Precondtion>();
         this.actions = new ArrayList<TestAction>();
     }
 
@@ -36,10 +36,10 @@ public class Precondition {
 
     public void setName(String name) { this.name = name; }
 
-    public List<GivenCondition> getGiven() { return given; }
+    public List<Precondtion> getGiven() { return given; }
 
-    public void setGiven(List<GivenCondition> given) {
-        this.given = (given != null) ? given : new ArrayList<GivenCondition>();
+    public void setGiven(List<Precondtion> given) {
+        this.given = (given != null) ? given : new ArrayList<Precondtion>();
     }
 
     public List<TestAction> getActions() { return actions; }

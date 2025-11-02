@@ -3,7 +3,7 @@ package de.bund.zrb.service;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import de.bund.zrb.PageImpl;
-import de.bund.zrb.model.GivenCondition;
+import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
@@ -223,13 +223,13 @@ public class TestPlayerService {
         return out;
     }
 
-    private List<LogComponent> executeGivenList(List<GivenCondition> givens, SuiteLog parentLog, String label) {
+    private List<LogComponent> executeGivenList(List<Precondtion> givens, SuiteLog parentLog, String label) {
         List<LogComponent> out = new ArrayList<LogComponent>();
         if (givens == null || givens.isEmpty()) return out;
 
         for (int i = 0; i < givens.size(); i++) {
 
-            GivenCondition given = givens.get(i);
+            Precondtion given = givens.get(i);
 
             String logText;
             if (TYPE_PRECONDITION_REF.equals(given.getType())) {
@@ -554,7 +554,7 @@ public class TestPlayerService {
         return sb.toString();
     }
 
-    private String inferUsername(GivenCondition given) {
+    private String inferUsername(Precondtion given) {
         // 1) Explizit im Given gesetzt?
         Object u = (given.getParameterMap() != null) ? given.getParameterMap().get("username") : null;
         if (u instanceof String && !((String) u).isEmpty()) {

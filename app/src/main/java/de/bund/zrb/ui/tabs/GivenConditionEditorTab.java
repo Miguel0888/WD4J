@@ -1,6 +1,6 @@
 package de.bund.zrb.ui.tabs;
 
-import de.bund.zrb.model.GivenCondition;
+import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.Precondition;
 import de.bund.zrb.service.PreconditionRegistry;
 import de.bund.zrb.service.UserRegistry;
@@ -12,20 +12,15 @@ import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.text.Document;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeCellRenderer;
-import javax.swing.tree.DefaultTreeModel;
-import javax.swing.tree.TreeModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Editor für ein einzelnes GivenCondition.
@@ -47,7 +42,7 @@ public class GivenConditionEditorTab extends JPanel {
     private static final String TYPE_PRECONDITION_REF = "preconditionRef";
 
     // ----- Model -----
-    private final GivenCondition condition;
+    private final Precondtion condition;
 
     // ----- Header oben -----
     private final JComboBox<String> userBox;
@@ -70,7 +65,7 @@ public class GivenConditionEditorTab extends JPanel {
     private JSplitPane mainSplitPane; // erster Splitter (Expression vs. AST + Variablen)
     private JSplitPane previewSplitPane; // zweiter Splitter (AST vs. Variablen)
 
-    public GivenConditionEditorTab(GivenCondition condition) {
+    public GivenConditionEditorTab(Precondtion condition) {
         this.condition = condition;
 
         setLayout(new BorderLayout(10, 10));

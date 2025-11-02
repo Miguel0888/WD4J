@@ -140,8 +140,8 @@ public class EditorTabOpener {
      *      - root.getTemplates()
      *    (root.getBeforeAll() NICHT)
      */
-    private static List<GivenCondition> collectRelevantGivens(TestAction action) {
-        List<GivenCondition> result = new ArrayList<GivenCondition>();
+    private static List<Precondtion> collectRelevantGivens(TestAction action) {
+        List<Precondtion> result = new ArrayList<Precondtion>();
         if (action == null) return result;
 
         TestRegistry repo = TestRegistry.getInstance();
@@ -173,7 +173,7 @@ public class EditorTabOpener {
         return result;
     }
 
-    private static void safeAddAll(List<GivenCondition> out, List<GivenCondition> in) {
+    private static void safeAddAll(List<Precondtion> out, List<Precondtion> in) {
         if (in == null) return;
         out.addAll(in);
     }
@@ -183,13 +183,13 @@ public class EditorTabOpener {
      * Wir greifen defensiv per Reflection zu, ohne den Case zu zwingen ein Interface zu ändern.
      */
     @SuppressWarnings("unchecked")
-    private static List<GivenCondition> callGetTemplatesIfExists(TestCase tc) {
+    private static List<Precondtion> callGetTemplatesIfExists(TestCase tc) {
         if (tc == null) return null;
         try {
             java.lang.reflect.Method m = tc.getClass().getMethod("getTemplates");
             Object v = m.invoke(tc);
             if (v instanceof List<?>) {
-                return (List<GivenCondition>) v;
+                return (List<Precondtion>) v;
             }
         } catch (Exception ignore) {
             // Case hat (noch) keine Templates -> null zurück

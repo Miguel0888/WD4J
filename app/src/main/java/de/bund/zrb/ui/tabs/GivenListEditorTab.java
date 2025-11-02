@@ -1,14 +1,12 @@
 package de.bund.zrb.ui.tabs;
 
-import de.bund.zrb.model.GivenCondition;
+import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.Precondition;
 import de.bund.zrb.service.PreconditionRegistry;
 import de.bund.zrb.service.TestRegistry;
-import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.dialogs.GivenChoiceDialog;
 
 import javax.swing.*;
-import javax.swing.event.ListSelectionEvent;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
@@ -25,16 +23,16 @@ public class GivenListEditorTab extends JPanel {
 
     private static final String TYPE_PRECONDITION_REF = "preconditionRef"; // agreed convention
 
-    private final List<GivenCondition> model; // the live list from suite/case
-    private final DefaultListModel<GivenCondition> listModel = new DefaultListModel<GivenCondition>();
-    private final JList<GivenCondition> list;
+    private final List<Precondtion> model; // the live list from suite/case
+    private final DefaultListModel<Precondtion> listModel = new DefaultListModel<Precondtion>();
+    private final JList<Precondtion> list;
 
-    public GivenListEditorTab(List<GivenCondition> givenList) {
+    public GivenListEditorTab(List<Precondtion> givenList) {
         super(new BorderLayout(10, 10));
-        this.model = (givenList != null) ? givenList : new ArrayList<GivenCondition>();
+        this.model = (givenList != null) ? givenList : new ArrayList<Precondtion>();
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        list = new JList<GivenCondition>(listModel);
+        list = new JList<Precondtion>(listModel);
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setCellRenderer(new GivenCellRenderer());
 
@@ -120,7 +118,7 @@ public class GivenListEditorTab extends JPanel {
         // We only support picking an existing Precondition (or none).
         // So we always create a GivenCondition of type "preconditionRef".
 
-        GivenCondition gc = new GivenCondition();
+        Precondtion gc = new Precondtion();
         gc.setType("preconditionRef"); // or TYPE_PRECONDITION_REF constant
         gc.setValue("id=" + idOrType); // idOrType is the UUID (or "" if user chose the empty entry)
 
@@ -134,7 +132,7 @@ public class GivenListEditorTab extends JPanel {
     }
 
     private void onEdit() {
-        GivenCondition sel = list.getSelectedValue();
+        Precondtion sel = list.getSelectedValue();
         if (sel == null) return;
 
         if (TYPE_PRECONDITION_REF.equals(sel.getType())) {
@@ -158,7 +156,7 @@ public class GivenListEditorTab extends JPanel {
     }
 
     private void onDelete() {
-        GivenCondition sel = list.getSelectedValue();
+        Precondtion sel = list.getSelectedValue();
         if (sel == null) return;
         int idx = list.getSelectedIndex();
         model.remove(sel);
@@ -177,8 +175,8 @@ public class GivenListEditorTab extends JPanel {
         if (nidx < 0 || nidx >= listModel.size()) return;
 
         // Swap in model
-        GivenCondition a = model.get(idx);
-        GivenCondition b = model.get(nidx);
+        Precondtion a = model.get(idx);
+        Precondtion b = model.get(nidx);
         model.set(idx, b);
         model.set(nidx, a);
 
@@ -192,7 +190,7 @@ public class GivenListEditorTab extends JPanel {
 
     // -------------------- Helpers --------------------
 
-    private void openEditorFor(GivenCondition given) {
+    private void openEditorFor(Precondtion given) {
         // Find a top-level tabbed pane and open GivenConditionEditorTab
         Component parent = SwingUtilities.getWindowAncestor(this);
         if (parent instanceof JFrame) {
@@ -221,8 +219,8 @@ public class GivenListEditorTab extends JPanel {
         public Component getListCellRendererComponent(JList<?> list, Object value, int index,
                                                       boolean isSelected, boolean cellHasFocus) {
             JLabel c = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-            if (value instanceof GivenCondition) {
-                GivenCondition gc = (GivenCondition) value;
+            if (value instanceof Precondtion) {
+                Precondtion gc = (Precondtion) value;
                 if ("preconditionRef".equals(gc.getType())) {
                     String id = "";
                     String v = gc.getValue();

@@ -1,6 +1,5 @@
 package de.bund.zrb.ui.tabs;
 
-import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.UserRegistry;
@@ -12,7 +11,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 

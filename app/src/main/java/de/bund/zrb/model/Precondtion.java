@@ -4,12 +4,12 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class GivenCondition {
+public class Precondtion {
     private String type;
     private String value;
 
-    public GivenCondition() {}
-    public GivenCondition(String type, String value) {
+    public Precondtion() {}
+    public Precondtion(String type, String value) {
         this.type = type;
         this.value = value;
     }
