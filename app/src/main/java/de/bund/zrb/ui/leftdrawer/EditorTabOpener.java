@@ -1,13 +1,13 @@
 package de.bund.zrb.ui.leftdrawer;
 
 import de.bund.zrb.model.*;
-import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.giveneditor.CaseScopeEditorTab;
 import de.bund.zrb.ui.giveneditor.RootScopeEditorTab;
 import de.bund.zrb.ui.giveneditor.SuiteScopeEditorTab;
 import de.bund.zrb.ui.tabs.ActionEditorTab;
 import de.bund.zrb.ui.tabs.ClosableTabHeader;
+import de.bund.zrb.service.TestRegistry;
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,20 +17,11 @@ import java.util.List;
 /**
  * Öffnet Editor-Tabs in der zentralen Mitte (editorTabs).
  *
- * Verhalten:
- *  - Root / Suite / Case:
- *      Falls Tab mit gleichem Titel schon offen ist -> aktiviere ihn.
- *      Sonst neu öffnen.
- *
- *  - Action:
- *      IMMER ein neuer Tab.
- *      Titel "Action: <actionName> (#<laufendeNummer>)", damit jeder eindeutig ist.
- *
- *  Wichtig: Für Action verwenden wir den echten ActionEditorTab.
+ * - Root / Suite / Case Tabs werden per Titel reused.
+ * - Action Tabs werden NIE reused (immer neuer Tab mit #Counter).
  */
 public class EditorTabOpener {
 
-    // nur für laufende durchnummerierung der Action-Tabs
     private static int actionCounter = 1;
 
     public static void openEditorTab(Component parent,
@@ -41,19 +32,16 @@ public class EditorTabOpener {
         Object ref = node.getModelRef();
         if (ref == null) return;
 
-        // ---- RootNode Tab ----
+        // Root
         if (ref instanceof RootNode) {
             RootNode rn = (RootNode) ref;
             String tabTitle = "Root Scope";
-
             int idx = findTabByTitle(editorTabs, tabTitle);
             if (idx >= 0) {
                 editorTabs.setSelectedIndex(idx);
                 return;
             }
-
             RootScopeEditorTab panel = new RootScopeEditorTab(rn);
-
             editorTabs.addTab(tabTitle, panel);
             int newIdx = editorTabs.indexOfComponent(panel);
             editorTabs.setTabComponentAt(newIdx,
@@ -62,19 +50,16 @@ public class EditorTabOpener {
             return;
         }
 
-        // ---- TestSuite Tab ----
+        // Suite
         if (ref instanceof TestSuite) {
             TestSuite suite = (TestSuite) ref;
             String tabTitle = "Suite: " + safe(suite.getName());
-
             int idx = findTabByTitle(editorTabs, tabTitle);
             if (idx >= 0) {
                 editorTabs.setSelectedIndex(idx);
                 return;
             }
-
             SuiteScopeEditorTab panel = new SuiteScopeEditorTab(suite);
-
             editorTabs.addTab(tabTitle, panel);
             int newIdx = editorTabs.indexOfComponent(panel);
             editorTabs.setTabComponentAt(newIdx,
@@ -83,19 +68,16 @@ public class EditorTabOpener {
             return;
         }
 
-        // ---- TestCase Tab ----
+        // Case
         if (ref instanceof TestCase) {
             TestCase testCase = (TestCase) ref;
             String tabTitle = "Case: " + safe(testCase.getName());
-
             int idx = findTabByTitle(editorTabs, tabTitle);
             if (idx >= 0) {
                 editorTabs.setSelectedIndex(idx);
                 return;
             }
-
             CaseScopeEditorTab panel = new CaseScopeEditorTab(testCase);
-
             editorTabs.addTab(tabTitle, panel);
             int newIdx = editorTabs.indexOfComponent(panel);
             editorTabs.setTabComponentAt(newIdx,
@@ -104,19 +86,17 @@ public class EditorTabOpener {
             return;
         }
 
-        // ---- TestAction Tab ----
+        // Action
         if (ref instanceof TestAction) {
             TestAction action = (TestAction) ref;
 
-            // 1. Givens für diese Action sammeln
+            // Givens/Sichtbarkeit zusammentragen
             List<GivenCondition> givensForThisAction = collectRelevantGivens(action);
 
-            // 2. Deinen bestehenden ActionEditorTab verwenden
+            // Echten ActionEditorTab aufmachen
             ActionEditorTab panel = new ActionEditorTab(action, givensForThisAction);
 
-            // eindeutiger Titel (KEIN reuse!)
             String tabTitle = "Action: " + safe(action.getAction()) + " (#" + (actionCounter++) + ")";
-
             editorTabs.addTab(tabTitle, panel);
             int newIdx = editorTabs.indexOfComponent(panel);
             editorTabs.setTabComponentAt(newIdx,
@@ -125,17 +105,13 @@ public class EditorTabOpener {
             return;
         }
 
-        // ---- Fallback ----
+        // Fallback
         JOptionPane.showMessageDialog(
                 parent,
                 "Kein Editor für Typ: " + ref.getClass().getSimpleName()
         );
     }
 
-    /**
-     * Sucht den ersten Tab, dessen Title genau "wanted" entspricht.
-     * Für Root / Suite / Case nutzen wir das weiter wie gehabt.
-     */
     private static int findTabByTitle(JTabbedPane tabs, String wanted) {
         for (int i = 0; i < tabs.getTabCount(); i++) {
             if (wanted.equals(tabs.getTitleAt(i))) {
@@ -150,17 +126,23 @@ public class EditorTabOpener {
     }
 
     /**
-     * Ausgehend von einer Action holen wir uns die Givens,
-     * die dein alter ActionEditorTab erwartet (givensForThisAction).
+     * Sammle alle relevanten Givens für die Action.
      *
-     * Wir sammeln:
-     *  - alle beforeEach-Variablen hoch bis Suite/Root
-     *  - plus Templates (Case/Suite/Root)
-     *  - plus alles was der konkrete Case als Given / BeforeEach / Templates hat
+     * Fachlogik jetzt KORREKT:
+     *  - Case:
+     *      - case.getGiven()
+     *      - case.getTemplates() (falls vorhanden)
+     *    (KEIN beforeEach auf Case-Ebene!)
      *
-     * -> Das gleicht der späteren Sichtbarkeit im Lauf.
+     *  - Suite:
+     *      - suite.getBeforeEach()
+     *      - suite.getTemplates()
+     *    (suite.getBeforeAll() wird NICHT für Auswahl benutzt)
      *
-     * Für jetzt: wir bauen das mit Hilfe der Registry und parentId-Kette.
+     *  - Root:
+     *      - root.getBeforeEach()
+     *      - root.getTemplates()
+     *    (root.getBeforeAll() NICHT)
      */
     private static List<GivenCondition> collectRelevantGivens(TestAction action) {
         List<GivenCondition> result = new ArrayList<GivenCondition>();
@@ -168,47 +150,28 @@ public class EditorTabOpener {
 
         TestRegistry repo = TestRegistry.getInstance();
 
-        // Wir gehen vom Action-ParentCase hoch
+        // von der Action hoch zum Case
         TestCase tc = repo.findCaseById(action.getParentId());
         if (tc != null) {
-            // Case-spezifische Givens:
+            // Case-eigene Givens
             safeAddAll(result, tc.getGiven());
-            safeAddAll(result, tc.getBeforeEach());
-            safeAddAll(result, tc.getTemplates());
 
-            // Suite
+            // Case-Templates (falls vorhanden)
+            safeAddAll(result, callGetTemplatesIfExists(tc));
+
+            // dann Suite
             TestSuite suite = repo.findSuiteById(tc.getParentId());
             if (suite != null) {
                 safeAddAll(result, suite.getBeforeEach());
                 safeAddAll(result, suite.getTemplates());
-                // suite.getBeforeAll() lassen wir ebenfalls drin,
-                // denn dein alter EditorTab kennt aktuell noch keine Unterscheidung
-                safeAddAll(result, suite.getBeforeAll());
+            }
+        }
 
-                // Root
-                RootNode root = repo.getRoot();
-                if (root != null) {
-                    safeAddAll(result, root.getBeforeEach());
-                    safeAddAll(result, root.getTemplates());
-                    safeAddAll(result, root.getBeforeAll());
-                }
-            } else {
-                // Kein Suite gefunden -> trotzdem Root berücksichtigen
-                RootNode root = repo.getRoot();
-                if (root != null) {
-                    safeAddAll(result, root.getBeforeEach());
-                    safeAddAll(result, root.getTemplates());
-                    safeAddAll(result, root.getBeforeAll());
-                }
-            }
-        } else {
-            // Fallback: keine Case-ID -> nur Root
-            RootNode root = repo.getRoot();
-            if (root != null) {
-                safeAddAll(result, root.getBeforeEach());
-                safeAddAll(result, root.getTemplates());
-                safeAddAll(result, root.getBeforeAll());
-            }
+        // Root immer noch oben drauf
+        RootNode root = repo.getRoot();
+        if (root != null) {
+            safeAddAll(result, root.getBeforeEach());
+            safeAddAll(result, root.getTemplates());
         }
 
         return result;
@@ -217,5 +180,24 @@ public class EditorTabOpener {
     private static void safeAddAll(List<GivenCondition> out, List<GivenCondition> in) {
         if (in == null) return;
         out.addAll(in);
+    }
+
+    /**
+     * Case.getTemplates() ist evtl. vorhanden, evtl. nicht.
+     * Wir greifen defensiv per Reflection zu, ohne den Case zu zwingen ein Interface zu ändern.
+     */
+    @SuppressWarnings("unchecked")
+    private static List<GivenCondition> callGetTemplatesIfExists(TestCase tc) {
+        if (tc == null) return null;
+        try {
+            java.lang.reflect.Method m = tc.getClass().getMethod("getTemplates");
+            Object v = m.invoke(tc);
+            if (v instanceof List<?>) {
+                return (List<GivenCondition>) v;
+            }
+        } catch (Exception ignore) {
+            // Case hat (noch) keine Templates -> null zurück
+        }
+        return null;
     }
 }

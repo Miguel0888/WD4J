@@ -12,99 +12,104 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.*;
-import java.util.List;
 
 /**
- * Edit a single TestAction.
+ * Editiert eine einzelne TestAction.
  *
- * Neu:
- * - Statt ExpressionTreeComboBox (AST) nutzen wir ScopeReferenceComboBox.
- * - Die Combo zeigt Variablen- und Template-Namen aus dem Scope.
- *   * username            -> "{{username}}"
- *   * *otpCode            -> "{{otpCode()}}"
+ * Value-Handling (neu):
+ * - Rechts neben "Value:" sitzt ein ScopeReferenceComboBox.
+ * - Die Combo zeigt Variablen (username, belegNr, ...) und Templates (*otpCode, *fooBar).
+ * - Auswahl setzt ein Template in der Form "{{username}}" oder "{{otpCode()}}".
  *
- * Speichern schreibt:
- *   - action.setValue(<aktuelles Template aus dem Value-Feld>)
- *   - action.setLocatorType(...)
- *   - action.setSelectedSelector(...)
- *   - action.setUser(...)
- *   - action.setTimeout(...)
- *   - TestRegistry.save()
+ * Beim Öffnen:
+ * - Wir lesen action.getValue() (falls vorhanden).
+ *   - "{{username}}"   -> Vorbelegung "username"
+ *   - "{{otpCode()}}"  -> Vorbelegung "*otpCode"
+ * - Dieses Label setzen wir per scopeCombo.setInitialChoiceWithoutEvent(...)
+ *   UND schreiben es (unverändert) ins valueField.
  *
- * Alles andere (LocatorType-Handling etc.) bleibt wie gehabt.
+ * Speichern:
+ * - Schreibt alle Felder zurück ins Action-Objekt und ruft TestRegistry.save().
  */
 public class ActionEditorTab extends JPanel {
 
     private final TestAction action;
-    private final List<GivenCondition> givens;
+    private final java.util.List<GivenCondition> givens;
 
-    // UI Felder
     private final JComboBox<String> actionBox;
     private final JComboBox<String> locatorBox;
     private final JComboBox<String> selectorBox;
     private final JComboBox<String> userBox;
     private final JTextField timeoutField;
 
-    // Neues Value-UI:
-    // - scopeCombo: Auswahl aus Scope
-    // - valueField: zeigt resultierendes Template ({{username}} / {{otpCode()}})
     private final ScopeReferenceComboBox scopeCombo;
     private final JTextField valueField;
 
     public ActionEditorTab(final TestAction action,
-                           final List<GivenCondition> givensForThisAction) {
+                           final java.util.List<GivenCondition> givensForThisAction) {
         super(new BorderLayout());
         this.action = action;
         this.givens = (givensForThisAction != null)
                 ? givensForThisAction
-                : Collections.<GivenCondition>emptyList();
+                : java.util.Collections.<GivenCondition>emptyList();
 
-        // ---------- Panel-Layout ----------
         JPanel formPanel = new JPanel(new GridLayout(0, 2, 8, 8));
         formPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         add(formPanel, BorderLayout.NORTH);
 
-        // ---------- Bekannte Actions ----------
-        Set<String> knownActions = new TreeSet<String>(Arrays.asList(
+        // -------------------- bekannte Actions --------------------
+        java.util.Set<String> knownActions = new java.util.TreeSet<String>(Arrays.asList(
                 "click", "input", "fill", "type", "press",
                 "select", "check", "radio",
                 "navigate", "wait", "screenshot"
         ));
 
-        // ---------- LocatorTypes ----------
-        Set<String> locatorTypes = new TreeSet<String>();
+        // -------------------- LocatorTypes ------------------------
+        java.util.Set<String> locatorTypes = new java.util.TreeSet<String>();
         for (LocatorType t : LocatorType.values()) {
             locatorTypes.add(t.getKey());
         }
 
-        // ---------- Action ----------
+        // -------------------- Action ------------------------------
         formPanel.add(new JLabel("Action:"));
         actionBox = new JComboBox<String>(knownActions.toArray(new String[0]));
         actionBox.setEditable(true);
         actionBox.setSelectedItem(action.getAction());
         formPanel.add(actionBox);
 
-        // ---------- Value ----------
+        // -------------------- Value -------------------------------
         formPanel.add(new JLabel("Value:"));
 
-        // Container für Value: Textfeld + Combo
         JPanel valuePanel = new JPanel(new BorderLayout(4, 0));
 
         valueField = new JTextField();
         valueField.setEditable(false);
-        valueField.setText(action.getValue() != null ? action.getValue() : "");
+        // wir setzen den Text gleich unten nach dem Scope-Setup
         valuePanel.add(valueField, BorderLayout.CENTER);
 
         scopeCombo = new ScopeReferenceComboBox();
         valuePanel.add(scopeCombo, BorderLayout.EAST);
 
-        // ScopeData aus LookupService aufbauen (Variables/Templates)
+        formPanel.add(valuePanel);
+
+        // Scope-Daten sammeln (Variablen & Templates)
         GivenLookupService.ScopeData scopeData =
                 new GivenLookupService().collectScopeForAction(action);
         scopeCombo.setScopeData(scopeData);
 
-        // Wenn der User in der Combo etwas auswählt,
-        // setzen wir daraus das Template in valueField UND ins Action-Objekt.
+        // Vorbelegung aus action.getValue()
+        // z.B. "{{username}}"    -> chosenName = "username"
+        // z.B. "{{otpCode()}}"   -> chosenName = "*otpCode"
+        String initialTemplate = (action.getValue() != null) ? action.getValue().trim() : "";
+        valueField.setText(initialTemplate); // zeig erst mal Rohwert
+
+        String preselectName = deriveScopeNameFromTemplate(initialTemplate);
+        if (preselectName != null && preselectName.length() > 0) {
+            // UI anzeigen lassen, ohne Event zu feuern
+            scopeCombo.setInitialChoiceWithoutEvent(preselectName);
+        }
+
+        // Wenn der User jetzt in der Combo was auswählt -> Value neu setzen
         scopeCombo.addSelectionListener(new ScopeReferenceComboBox.SelectionListener() {
             @Override
             public void onSelected(String name) {
@@ -113,11 +118,11 @@ public class ActionEditorTab extends JPanel {
                 }
                 String template;
                 if (name.startsWith("*")) {
-                    // Template-Funktion -> "*otpCode" => "{{otpCode()}}"
+                    // "*otpCode" -> "{{otpCode()}}"
                     String fn = name.substring(1).trim();
                     template = "{{" + fn + "()}}";
                 } else {
-                    // normale Variable -> "username" => "{{username}}"
+                    // "username" -> "{{username}}"
                     template = "{{" + name.trim() + "}}";
                 }
                 valueField.setText(template);
@@ -125,9 +130,7 @@ public class ActionEditorTab extends JPanel {
             }
         });
 
-        formPanel.add(valuePanel);
-
-        // ---------- Locator Type ----------
+        // -------------------- Locator Type ------------------------
         formPanel.add(new JLabel("Locator Type:"));
         locatorBox = new JComboBox<String>(locatorTypes.toArray(new String[0]));
         locatorBox.setEditable(true);
@@ -136,7 +139,7 @@ public class ActionEditorTab extends JPanel {
         locatorBox.setSelectedItem(initialTypeKey);
         formPanel.add(locatorBox);
 
-        // ---------- Selector ----------
+        // -------------------- Selector ----------------------------
         formPanel.add(new JLabel("Selector:"));
         selectorBox = new JComboBox<String>();
         selectorBox.setEditable(true);
@@ -145,28 +148,27 @@ public class ActionEditorTab extends JPanel {
         selectorBox.setSelectedItem(action.getSelectedSelector());
         formPanel.add(selectorBox);
 
-        // ---------- User ----------
+        // -------------------- User --------------------------------
         formPanel.add(new JLabel("User:"));
-        String[] users = UserRegistry.getInstance().getAll().stream()
+        String[] users = de.bund.zrb.service.UserRegistry.getInstance().getAll().stream()
                 .map(UserRegistry.User::getUsername)
                 .toArray(String[]::new);
         userBox = new JComboBox<String>(users);
         userBox.setSelectedItem(action.getUser());
         formPanel.add(userBox);
 
-        // ---------- Timeout ----------
+        // -------------------- Timeout -----------------------------
         formPanel.add(new JLabel("Timeout (ms):"));
         timeoutField = new JTextField(String.valueOf(action.getTimeout()));
         formPanel.add(timeoutField);
 
-        // ---------- Interaktion Locator <-> Selector ----------
+        // -------------------- Locator/Selector-Interaktion --------
         locatorBox.addActionListener(new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String typeKey = stringValue(locatorBox.getSelectedItem());
                 populateSelectorBoxForType(action, selectorBox, typeKey);
 
-                // Wenn der aktuelle Selector nicht passt, setz auf ersten Kandidaten
                 String currentSel = stringValue(selectorBox.getEditor().getItem());
                 if (!isSelectorValidForType(typeKey, currentSel)) {
                     if (selectorBox.getItemCount() > 0) {
@@ -178,19 +180,16 @@ public class ActionEditorTab extends JPanel {
             }
         });
 
-        // ---------- Save-Button unten rechts ----------
+        // -------------------- Speichern ---------------------------
         JButton saveButton = new JButton("Speichern");
         saveButton.addActionListener(new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
 
-                // Action-Type
+                // Action (click/fill/...)
                 action.setAction(stringValue(actionBox.getSelectedItem()));
 
-                // Value
-                // Wir nehmen einfach den aktuellen Inhalt des valueField.
-                // Der wurde entweder initial aus action.getValue() gesetzt
-                // oder durch scopeCombo.onSelected(...) aktualisiert.
+                // Value aus valueField (ist schon Template-String wie "{{username}}")
                 action.setValue(valueField.getText());
 
                 // LocatorType
@@ -218,10 +217,10 @@ public class ActionEditorTab extends JPanel {
                 try {
                     action.setTimeout(Integer.parseInt(timeoutField.getText().trim()));
                 } catch (NumberFormatException ignored) {
-                    // wenn Mist eingegeben wurde, behalten wir den alten Wert
+                    // invalid -> alten Wert behalten
                 }
 
-                // Persistieren
+                // Persist
                 TestRegistry.getInstance().save();
 
                 JOptionPane.showMessageDialog(
@@ -236,9 +235,48 @@ public class ActionEditorTab extends JPanel {
         add(southPanel, BorderLayout.SOUTH);
     }
 
-    // ==============================
-    // Helper wie in deiner Version
-    // ==============================
+    // -------------------------------------------------
+    // Hilfslogik: Template -> ScopeName
+    // -------------------------------------------------
+
+    /**
+     * Wandelt ein gespeichertes Template wie "{{username}}" oder "{{otpCode()}}"
+     * zurück in einen Eintrag für die Combo:
+     *
+     * "{{username}}"   -> "username"
+     * "{{otpCode()}}"  -> "*otpCode"
+     *
+     * Wenn's nicht passt, return null.
+     */
+    private String deriveScopeNameFromTemplate(String template) {
+        if (template == null) {
+            return null;
+        }
+        String t = template.trim();
+        if (!t.startsWith("{{") || !t.endsWith("}}")) {
+            return null;
+        }
+        // Innenleben rausholen
+        String inner = t.substring(2, t.length() - 2).trim(); // z.B. username  oder otpCode()
+
+        // Funktion?  foo() -> "*foo"
+        if (inner.endsWith("()")) {
+            String fn = inner.substring(0, inner.length() - 2).trim();
+            if (fn.length() > 0) {
+                return "*" + fn;
+            }
+        }
+
+        // sonst Variable
+        if (inner.length() > 0) {
+            return inner;
+        }
+        return null;
+    }
+
+    // -------------------------------------------------
+    // Restliche Helper (unverändert aus deiner Logik)
+    // -------------------------------------------------
 
     private String resolveInitialTypeKey(TestAction action) {
         if (action.getLocatorType() != null) {
@@ -250,7 +288,7 @@ public class ActionEditorTab extends JPanel {
             String s = sel.trim();
             if (looksLikeXpath(s)) return LocatorType.XPATH.getKey();
             if (s.startsWith("#")) return LocatorType.ID.getKey();
-            return LocatorType.CSS.getKey(); // fallback
+            return LocatorType.CSS.getKey();
         }
 
         if (hasLocator(action, "role"))        return LocatorType.ROLE.getKey();

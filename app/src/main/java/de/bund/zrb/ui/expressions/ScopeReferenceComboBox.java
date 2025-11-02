@@ -23,10 +23,9 @@ import java.util.List;
  * Auswahl:
  *  - Doppelklick oder ENTER auf der Liste bestätigt und schließt.
  *
- * Verwenden im ActionEditorTab:
- *  - combo.setScopeData(scopeDataFromLookup);
- *  - combo.addSelectionListener(name -> { ... });
- *  - combo.getChosenName();
+ * Zusätzlich:
+ *  - setInitialChoiceWithoutEvent("username") erlaubt uns,
+ *    beim Öffnen schon was anzuzeigen, ohne Listener zu triggern.
  */
 public class ScopeReferenceComboBox extends JPanel {
 
@@ -40,7 +39,7 @@ public class ScopeReferenceComboBox extends JPanel {
     private final JList<String> list;
     private final DefaultListModel<String> listModel;
 
-    private String chosenName;
+    private String chosenName; // "username" oder "*otpCode"
     private final List<SelectionListener> listeners = new ArrayList<SelectionListener>();
 
     public ScopeReferenceComboBox() {
@@ -71,8 +70,8 @@ public class ScopeReferenceComboBox extends JPanel {
     }
 
     /**
-     * Übergib neue ScopeData (Variablen + Templates).
-     * Wir bauen daraus das Listenmodell neu auf.
+     * Neu befüllen der Liste.
+     * Danach ist noch nichts ausgewählt.
      */
     public void setScopeData(GivenLookupService.ScopeData data) {
         listModel.clear();
@@ -98,6 +97,24 @@ public class ScopeReferenceComboBox extends JPanel {
                 }
             }
         }
+    }
+
+    /**
+     * Damit der Aufrufer (z.B. ActionEditorTab) einen bereits gespeicherten Wert
+     * im Feld anzeigen kann, ohne ein "onSelected"-Event auszulösen.
+     *
+     * Beispiel:
+     *   action.getValue() == "{{username}}"
+     *   -> extrahieren wir "username"
+     *   -> scopeCombo.setInitialChoiceWithoutEvent("username")
+     *
+     *   action.getValue() == "{{otpCode()}}"
+     *   -> extrahieren wir "*otpCode"
+     *   -> scopeCombo.setInitialChoiceWithoutEvent("*otpCode")
+     */
+    public void setInitialChoiceWithoutEvent(String displayName) {
+        chosenName = displayName;
+        displayField.setText(displayName != null ? displayName : "");
     }
 
     public void addSelectionListener(SelectionListener l) {
@@ -150,19 +167,13 @@ public class ScopeReferenceComboBox extends JPanel {
             }
         });
 
-        // Wenn das Textfeld den Fokus verliert -> Popup bleibt erstmal, ist okay.
-        displayField.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent e) {
-                // UX-Feinschliff wäre möglich.
-            }
-        });
+        // optionaler UX-Kram bei Focusverlust etc. könnte hier hin
     }
 
     private void showPopup() {
         popup.show(this, 0, this.getHeight());
 
-        // fürs schnelle ENTER schon mal was auswählen
+        // für schnelles ENTER: wenn nichts selektiert -> erste Zeile vorselektieren
         if (list.getModel().getSize() > 0 && list.getSelectedIndex() < 0) {
             list.setSelectedIndex(0);
         }
@@ -173,10 +184,6 @@ public class ScopeReferenceComboBox extends JPanel {
         popup.setVisible(false);
     }
 
-    /**
-     * Holt den aktuell selektierten Eintrag aus der Liste,
-     * übernimmt ihn als chosenName und feuert Listener.
-     */
     private void confirmCurrentSelection() {
         String sel = list.getSelectedValue();
         if (sel != null) {
