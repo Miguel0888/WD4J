@@ -7,14 +7,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Dropdown-artige Komponente für die Auswahl einer Scope-Referenz.
+ * UI-"Dropdown" für Variablen-/Template-Referenzen.
  *
- * Darstellung:
- *  - normale Variablen (from beforeEach / case.given): "username"
- *  - einmalige Variablen (from beforeAll):            "①sessionId"
- *  - Templates (lazy):                                "*otpCode"
+ * Anzeigeprinzip:
+ *   username
+ *   belegnummer
+ *   ①globalSessionId      (BeforeAll -> läuft nur einmal)
+ *   *otpCode              (Template -> lazy im WHEN)
  *
- * Wir speichern genau den sichtbaren String (inkl. Präfix) als chosenName.
+ * chosenName speichert GENAU den sichtbaren Namen inkl. Präfix.
  */
 public class ScopeReferenceComboBox extends JPanel {
 
@@ -28,8 +29,8 @@ public class ScopeReferenceComboBox extends JPanel {
     private final JList<String> list;
     private final DefaultListModel<String> listModel;
 
-    private String chosenName;
-    private final List<SelectionListener> listeners = new ArrayList<>();
+    private String chosenName; // inkl. Präfix falls vorhanden
+    private final List<SelectionListener> listeners = new ArrayList<SelectionListener>();
 
     public ScopeReferenceComboBox() {
         super(new BorderLayout());
@@ -41,8 +42,8 @@ public class ScopeReferenceComboBox extends JPanel {
         dropButton.setMargin(new Insets(0, 4, 0, 4));
         dropButton.setFocusable(false);
 
-        listModel = new DefaultListModel<>();
-        list = new JList<>(listModel);
+        listModel = new DefaultListModel<String>();
+        list = new JList<String>(listModel);
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         JScrollPane scroll = new JScrollPane(list);
@@ -59,11 +60,15 @@ public class ScopeReferenceComboBox extends JPanel {
     }
 
     /**
-     * Füllt die Liste anhand der gelieferten ScopeData.
+     * ScopeData -> baue Liste.
+     *
      * Reihenfolge:
-     *  1. beforeEachNames  (ohne Präfix)
-     *  2. beforeAllNames   (mit Präfix ①)
-     *  3. templateNames    (mit Präfix *)
+     *   (1) beforeEachVars (kein Präfix)
+     *   (2) beforeAllVars  (mit "①")
+     *   (3) templates      (mit "*")
+     *
+     * Shadowing war schon vorher in GivenLookupService erledigt,
+     * wir bekommen hier also die "gewinnt schon"-Namen.
      */
     public void setScopeData(GivenLookupService.ScopeData data) {
         listModel.clear();
@@ -74,37 +79,31 @@ public class ScopeReferenceComboBox extends JPanel {
             return;
         }
 
-        // normale Variablen
+        // 1. normale Variablen aus beforeEach
         for (String varName : data.beforeEachNames) {
-            addIfNotPresent(varName);
+            addIfNotPresent(listModel, varName);
         }
 
-        // einmalige Variablen (BeforeAll)
+        // 2. beforeAll-Variablen mit Präfix "①"
         for (String varName : data.beforeAllNames) {
-            addIfNotPresent("①" + varName);
+            String decorated = "①" + varName;
+            addIfNotPresent(listModel, decorated);
         }
 
-        // Templates
+        // 3. Templates mit Präfix "*"
         for (String tmplName : data.templateNames) {
-            addIfNotPresent("*" + tmplName);
+            String decorated = "*" + tmplName;
+            addIfNotPresent(listModel, decorated);
         }
     }
 
-    /**
-     * Wird vom ActionEditorTab genutzt, um beim Öffnen die bereits gespeicherte
-     * Auswahl wieder sichtbar zu machen, OHNE als neue Auswahl zu feuern.
-     *
-     * Beispiel:
-     *  - Action.value == "{{username}}"          -> preselectName = "username"
-     *  - Action.value == "{{otpCode()}}"         -> preselectName = "*otpCode"
-     *  - Action.value == "{{sessionId}}" die aus beforeAll stammt -> "①sessionId"
-     *
-     * Wichtig: Du baust preselectName vorher selbst (deriveScopeNameFromTemplate).
-     */
-    public void setInitialChoiceWithoutEvent(String preselectName) {
-        if (preselectName == null) return;
-        chosenName = preselectName;
-        displayField.setText(preselectName);
+    private void addIfNotPresent(DefaultListModel<String> model, String value) {
+        for (int i = 0; i < model.size(); i++) {
+            if (value.equals(model.get(i))) {
+                return;
+            }
+        }
+        model.addElement(value);
     }
 
     public void addSelectionListener(SelectionListener l) {
@@ -113,22 +112,43 @@ public class ScopeReferenceComboBox extends JPanel {
         }
     }
 
+    /**
+     * Gibt den gewählten Wert zurück, inkl. evtl. Präfix.
+     * Also z.B. "username", "①globalSessionId" oder "*otpCode".
+     */
     public String getChosenName() {
         return chosenName;
+    }
+
+    /**
+     * Falls wir eine Action erneut öffnen, können wir dem User den
+     * alten gespeicherten Namen anzeigen (statt leerer Box).
+     * Das hier kannst du aus ActionEditorTab aufrufen.
+     */
+    public void presetSelection(String previousNameWithPrefix) {
+        chosenName = previousNameWithPrefix;
+        displayField.setText(previousNameWithPrefix != null ? previousNameWithPrefix : "");
     }
 
     private void fireSelection(String nameWithPrefix) {
         chosenName = nameWithPrefix;
         displayField.setText(nameWithPrefix != null ? nameWithPrefix : "");
 
-        for (SelectionListener l : listeners) {
-            l.onSelected(nameWithPrefix);
+        for (int i = 0; i < listeners.size(); i++) {
+            listeners.get(i).onSelected(nameWithPrefix);
         }
     }
 
     private void wireInteractions() {
-        dropButton.addActionListener(e -> showPopup());
+        // Button klappt Popup auf
+        dropButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                showPopup();
+            }
+        });
 
+        // ENTER bestätigt Auswahl
         list.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -140,6 +160,7 @@ public class ScopeReferenceComboBox extends JPanel {
             }
         });
 
+        // Doppelklick bestätigt Auswahl
         list.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -153,6 +174,7 @@ public class ScopeReferenceComboBox extends JPanel {
     private void showPopup() {
         popup.show(this, 0, this.getHeight());
 
+        // Für schnelles ENTER direkt was auswählen
         if (list.getModel().getSize() > 0 && list.getSelectedIndex() < 0) {
             list.setSelectedIndex(0);
         }
@@ -169,14 +191,5 @@ public class ScopeReferenceComboBox extends JPanel {
             fireSelection(sel);
         }
         hidePopup();
-    }
-
-    private void addIfNotPresent(String value) {
-        for (int i = 0; i < listModel.size(); i++) {
-            if (value.equals(listModel.get(i))) {
-                return;
-            }
-        }
-        listModel.addElement(value);
     }
 }
