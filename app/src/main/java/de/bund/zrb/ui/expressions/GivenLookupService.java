@@ -7,173 +7,160 @@ import de.bund.zrb.model.TestCase;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.TestRegistry;
 
-import java.util.*;
+import java.util.LinkedHashSet;
+import java.util.List;
 
 /**
- * Liefert alle im Scope sichtbaren Namen für eine TestAction.
+ * Baut die Liste möglicher Scope-Referenzen (Variablen / Templates),
+ * die in der Value-Combobox einer Action angezeigt werden.
  *
- * Wir unterscheiden drei Kategorien:
- *  - beforeEach-Variablen   (werden ohne Präfix angezeigt)
- *  - beforeAll-Variablen    (werden mit Präfix "①" angezeigt)
- *  - templates              (werden mit Präfix "*" angezeigt)
+ * Ergebnis:
+ *  - variables: normale Variablen (werden beim Lauf vorher evaluiert)
+ *  - templates: Funktionszeiger (werden lazy zur Laufzeit ausgewertet), mit *-Prefix in der UI
  *
- * Shadowing-Regeln:
- * - Case überschreibt Suite überschreibt Root.
- *   (D.h. wenn Root "username" hat und Suite auch "username", gewinnt Suite.)
+ * Wichtig:
+ * - beforeAll NICHT zur Auswahl anbieten,
+ *   weil beforeAll-Variablen einmalig am Teststart evaluiert werden
+ *   und nicht für jede Action neu.
  *
- * Technische Annahmen am Modell:
- * - RootNode:
- *      getBeforeAll()    -> List<GivenCondition>
- *      getBeforeEach()   -> List<GivenCondition>
- *      getTemplates()    -> List<GivenCondition>
- * - TestSuite:
- *      getBeforeAll(), getBeforeEach(), getTemplates()
- * - TestCase:
- *      getBeforeEach(), getTemplates()
- *   (TestCase hat KEIN beforeAll und das ist beabsichtigt.)
- *
- * Jede GivenCondition speichert Name/Expression in gc.getValue()
- * als "name=<NAME>&expressionRaw=<EXPR>" (wie von dir etabliert).
- *
- * Für Arbeitspaket 1 interessiert uns nur der "name"-Teil.
+ * - Case hat ggf. keine beforeEach -> also nicht aufrufen wenn's das nicht gibt.
  */
 public class GivenLookupService {
 
-    private final TestRegistry repo;
-
-    public GivenLookupService(TestRegistry repo) {
-        this.repo = repo;
+    public static class ScopeData {
+        public final LinkedHashSet<String> variables = new LinkedHashSet<String>();
+        public final LinkedHashSet<String> templates = new LinkedHashSet<String>();
     }
 
-    /**
-     * Hole die ScopeData für eine konkrete Action.
-     * Falls irgendwas fehlt, liefern wir leere Sets zurück, kein Crash.
-     */
-    public ScopeData buildScopeDataForAction(TestAction action) {
-        if (action == null) {
-            return new ScopeData();
-        }
+    public ScopeData collectScopeForAction(TestAction action) {
+        ScopeData out = new ScopeData();
+        if (action == null) return out;
 
-        // 1. Chain auflösen: Action -> Case -> Suite -> Root
-        TestCase theCase = repo.findCaseById(action.getParentId());
-        TestSuite theSuite = null;
-        if (theCase != null) {
-            theSuite = repo.findSuiteById(theCase.getParentId());
-        }
-        RootNode root = repo.getRoot();
+        TestRegistry repo = TestRegistry.getInstance();
 
-        // 2. Namen sammeln (Maps zum Shadowing nutzen)
-        //    Wir bauen drei Maps: beforeEachVars, beforeAllVars, templates
-        //
-        //    Wir laufen VON ROOT NACH OBEN (Root -> Suite -> Case),
-        //    damit weiter oben (Case) die Werte überschreibt.
+        // Parent Case
+        TestCase tc = repo.findCaseById(action.getParentId());
+        if (tc != null) {
+            collectFromCase(tc, out);
 
-        Map<String, GivenCondition> beforeEachVars = new LinkedHashMap<String, GivenCondition>();
-        Map<String, GivenCondition> beforeAllVars  = new LinkedHashMap<String, GivenCondition>();
-        Map<String, GivenCondition> templates      = new LinkedHashMap<String, GivenCondition>();
-
-        // --- Root einbringen
-        if (root != null) {
-            mergeListIntoMap(root.getBeforeEach(), beforeEachVars);
-            mergeListIntoMap(root.getBeforeAll(),  beforeAllVars);
-            mergeListIntoMap(root.getTemplates(),  templates);
-        }
-
-        // --- Suite einbringen
-        if (theSuite != null) {
-            mergeListIntoMap(theSuite.getBeforeEach(), beforeEachVars);
-            mergeListIntoMap(theSuite.getBeforeAll(),  beforeAllVars);
-            mergeListIntoMap(theSuite.getTemplates(),  templates);
-        }
-
-        // --- Case einbringen
-        if (theCase != null) {
-            // Case hat KEIN beforeAll by design.
-            mergeListIntoMap(safeList(theCase.getBeforeEach()), beforeEachVars);
-            mergeListIntoMap(safeList(theCase.getTemplates()),  templates);
-        }
-
-        // 3. Extrahiere nur die Namen (Schlüssel "name=" in der Value-Map der GivenCondition)
-        //    und schreibe sie in ScopeData
-        ScopeData data = new ScopeData();
-
-        // BeforeEachVars -> normale Variablen (ohne Präfix)
-        for (Map.Entry<String, GivenCondition> e : beforeEachVars.entrySet()) {
-            data.beforeEachNames.add(e.getKey()); // z.B. "username"
-        }
-
-        // BeforeAllVars -> Variablen, aber mit Präfix "①"
-        for (Map.Entry<String, GivenCondition> e : beforeAllVars.entrySet()) {
-            data.beforeAllNames.add(e.getKey()); // wir präfixen erst im UI
-        }
-
-        // Templates -> Funktionszeiger, UI bekommt später "*" davor
-        for (Map.Entry<String, GivenCondition> e : templates.entrySet()) {
-            data.templateNames.add(e.getKey()); // z.B. "otpCode"
-        }
-
-        return data;
-    }
-
-    /**
-     * Hilfsfunktion: GivenCondition-Liste in die Map mergen.
-     * - extrahiert den "name" aus gc.getValue()
-     * - überschreibt vorhandene Keys (Shadowing).
-     */
-    private void mergeListIntoMap(List<GivenCondition> list,
-                                  Map<String, GivenCondition> target) {
-        if (list == null) return;
-        for (GivenCondition gc : list) {
-            if (gc == null) continue;
-            String name = extractName(gc);
-            if (name == null || name.trim().isEmpty()) continue;
-            target.put(name.trim(), gc); // überschreibt absichtlich
-        }
-    }
-
-    /**
-     * Extrahiere "name=..." aus gc.getValue().
-     */
-    private String extractName(GivenCondition gc) {
-        Map<String,String> map = parseValueMap(gc.getValue());
-        return map.get("name");
-    }
-
-    private List<GivenCondition> safeList(List<GivenCondition> in) {
-        return (in != null) ? in : new ArrayList<GivenCondition>();
-    }
-
-    /**
-     * key=value&key=value Parser (wie in deiner SuiteScopeEditorTab.GivenTableModel).
-     * Wir brauchen hier nur "name", also keep it simple.
-     */
-    private Map<String,String> parseValueMap(String raw) {
-        Map<String,String> result = new LinkedHashMap<String,String>();
-        if (raw == null || raw.trim().isEmpty()) {
-            return result;
-        }
-        String[] pairs = raw.split("&");
-        for (int i = 0; i < pairs.length; i++) {
-            String[] kv = pairs[i].split("=", 2);
-            if (kv.length == 2) {
-                result.put(kv[0], kv[1]);
+            // Suite
+            TestSuite suite = repo.findSuiteById(tc.getParentId());
+            if (suite != null) {
+                collectFromSuite(suite, out);
             }
         }
-        return result;
+
+        // Root IMMER am Ende
+        RootNode root = repo.getRoot();
+        if (root != null) {
+            collectFromRoot(root, out);
+        }
+
+        return out;
+    }
+
+    private void collectFromCase(TestCase tc, ScopeData out) {
+        if (tc == null) return;
+
+        // Case-level "Given" -> behandeln wir als Variablen-Quelle
+        addVariablesFromList(out, tc.getGiven());
+
+        // Case-level templates (falls vorhanden)
+        if (hasMethodTemplates(tc)) {
+            addTemplatesFromList(out, getTemplates(tc));
+        }
+
+        // KEIN beforeEach hier aufrufen, weil es das auf Case-Ebene bei dir nicht gibt.
+    }
+
+    private void collectFromSuite(TestSuite suite, ScopeData out) {
+        if (suite == null) return;
+
+        // Suite.beforeEach -> Variablen
+        addVariablesFromList(out, suite.getBeforeEach());
+
+        // Suite.templates -> Templates
+        addTemplatesFromList(out, suite.getTemplates());
+
+        // Suite.beforeAll NICHT anbieten -> absichtlich weggelassen
+    }
+
+    private void collectFromRoot(RootNode root, ScopeData out) {
+        if (root == null) return;
+
+        // Root.beforeEach -> Variablen
+        addVariablesFromList(out, root.getBeforeEach());
+
+        // Root.templates -> Templates
+        addTemplatesFromList(out, root.getTemplates());
+
+        // Root.beforeAll NICHT anbieten
+    }
+
+    private void addVariablesFromList(ScopeData out, List<GivenCondition> list) {
+        if (list == null) return;
+        for (GivenCondition gc : list) {
+            String n = extractName(gc);
+            if (notBlank(n)) {
+                out.variables.add(n);
+            }
+        }
+    }
+
+    private void addTemplatesFromList(ScopeData out, List<GivenCondition> list) {
+        if (list == null) return;
+        for (GivenCondition gc : list) {
+            String n = extractName(gc);
+            if (notBlank(n)) {
+                out.templates.add(n);
+            }
+        }
     }
 
     /**
-     * Das geben wir an die UI weiter.
-     * NICHT die Expressions selbst, nur die Namen.
-     *
-     * Wir unterscheiden:
-     *  - beforeEachNames  ("username", "belegnummer", ...)
-     *  - beforeAllNames   ("globalSessionId", ...)
-     *  - templateNames    ("otpCode", "wrapText", ...)
+     * Holt den "name" aus dem GivenCondition.value String:
+     *   name=username&expressionRaw={{user.name}}
      */
-    public static class ScopeData {
-        public final LinkedHashSet<String> beforeEachNames = new LinkedHashSet<String>();
-        public final LinkedHashSet<String> beforeAllNames  = new LinkedHashSet<String>();
-        public final LinkedHashSet<String> templateNames   = new LinkedHashSet<String>();
+    private String extractName(GivenCondition gc) {
+        if (gc == null) return null;
+        String raw = gc.getValue();
+        if (raw == null) return null;
+
+        String[] pairs = raw.split("&");
+        for (String p : pairs) {
+            String[] kv = p.split("=", 2);
+            if (kv.length == 2 && "name".equals(kv[0])) {
+                return kv[1];
+            }
+        }
+        return null;
+    }
+
+    private boolean notBlank(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
+    // --- Kleine Reflection-Helfer, falls TestCase.getTemplates() (etc.) noch nicht existiert ---
+
+    private boolean hasMethodTemplates(Object bean) {
+        try {
+            bean.getClass().getMethod("getTemplates");
+            return true;
+        } catch (NoSuchMethodException ex) {
+            return false;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<GivenCondition> getTemplates(Object bean) {
+        try {
+            java.lang.reflect.Method m = bean.getClass().getMethod("getTemplates");
+            Object v = m.invoke(bean);
+            if (v instanceof List<?>) {
+                return (List<GivenCondition>) v;
+            }
+        } catch (Exception ignore) {
+        }
+        return null;
     }
 }
