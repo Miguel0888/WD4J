@@ -114,7 +114,6 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
             action.setValue(template);
         });
 
-        String preselectName = deriveScopeNameFromTemplate(initialTemplate);
         if (preselectName != null && preselectName.length() > 0) {
             scopeCombo.setInitialChoiceWithoutEvent(preselectName);
         }

@@ -325,9 +325,9 @@ public class TestTreeController {
     private de.bund.zrb.model.Precondition buildPreconditionFromCase(TestCase src, String name) {
         de.bund.zrb.model.Precondition p = PreconditionFactory.newPrecondition(name);
 
-        if (src.getBefore() != null) {
-            p.getGiven().addAll(src.getBefore());
-        }
+        // KEINE Scopes kopieren (src.getBefore(), src.getTemplates(), etc.)
+        // Nur ausführbare Schritte übernehmen.
+
         if (src.getWhen() != null) {
             for (TestAction a : src.getWhen()) {
                 p.getActions().add(cloneActionShallow(a, false));
@@ -339,9 +339,9 @@ public class TestTreeController {
     private de.bund.zrb.model.Precondition buildPreconditionFromSuite(TestSuite src, String name) {
         de.bund.zrb.model.Precondition p = PreconditionFactory.newPrecondition(name);
 
-        if (src.getGiven() != null) {
-            p.getGiven().addAll(src.getGiven());
-        }
+        // KEINE suite.getGiven() mehr kopieren.
+        // Wir sammeln nur die Actions aller Cases, in Reihenfolge.
+
         if (src.getTestCases() != null) {
             for (TestCase c : src.getTestCases()) {
                 if (c.getWhen() == null) continue;
@@ -850,34 +850,6 @@ public class TestTreeController {
         return selected;
     }
 
-    public TestCase cloneCaseDeep(TestCase src, boolean prefixedName) {
-        String base = safeName(src.getName());
-        String name = prefixedName ? "copy of " + base : base;
-
-        // Actions tief klonen
-        List<TestAction> newWhen = new ArrayList<TestAction>();
-        if (src.getWhen() != null) {
-            for (TestAction a : src.getWhen()) {
-                TestAction clone = cloneActionShallow(a, false);
-                newWhen.add(clone);
-            }
-        }
-
-        TestCase copy = new TestCase(name, newWhen);
-
-        // IDs für den Clone: wir setzen erst später parentId korrekt, wenn wir ihn einer Suite hinzufügen.
-        copy.setId(UUID.randomUUID().toString());
-
-        if (src.getBefore() != null) {
-            copy.getBefore().addAll(src.getBefore());
-        }
-        if (src.getThen() != null) {
-            copy.getThen().addAll(src.getThen());
-        }
-
-        return copy;
-    }
-
     public TestAction cloneActionShallow(TestAction src, boolean tryPrefixName) {
         TestAction a = new TestAction();
         a.setId(UUID.randomUUID().toString());
@@ -1141,15 +1113,23 @@ public class TestTreeController {
         copy.setId(UUID.randomUUID().toString());
         copy.setParentId(newParentSuiteId);
 
-        // Name eindeutiger machen ("copy of <name>")
+        // Name eindeutiger machen
         String baseName = safeName(original.getName());
         copy.setName("copy of " + baseName);
 
-        // shallow copy Given / Then (du hattest vorher addAll gemacht, das übernehmen wir)
-        copy.getBefore().addAll(original.getBefore());
-        copy.getThen().addAll(original.getThen());
+        // BEFORE (Scope-Variablen) ist jetzt Map<String,String>
+        // => tief kopieren (neue Map, gleiche Keys/Werte)
+        if (original.getBefore() != null) {
+            copy.getBefore().putAll(original.getBefore());
+        }
 
-        // When-Actions deep klonen (jede Action neu inkl. neuer ID)
+        // THEN-Schritte: das hängt davon ab, was deine Then-Struktur ist
+        // Wenn Then noch eine List<ThenExpectation> ist, wie vorher:
+        if (original.getThen() != null) {
+            copy.getThen().addAll(original.getThen());
+        }
+
+        // WHEN Actions: jede Action klonen mit neuer ID/parentId
         for (TestAction step : original.getWhen()) {
             TestAction clonedStep = cloneActionShallowForDuplicate(step, copy.getId());
             copy.getWhen().add(clonedStep);
@@ -1169,11 +1149,23 @@ public class TestTreeController {
         String baseName = safeName(original.getName());
         copy.setName(uniqueSuiteName("copy of " + baseName));
 
-        // description shallow kopieren
+        // description übernehmen
         copy.setDescription(original.getDescription());
 
-        // suite-level Given/Then (shallow übernehmen wie gehabt)
-        copy.getGiven().addAll(original.getGiven());
+        // suite.getGiven() / suite.getBeforeEach() / suite.getTemplates() …
+        // Diese Bereiche sind jetzt Maps.
+        // Wir klonen die Maps deep (putAll), NICHT alls List<GivenCondition>.
+        if (original.getBeforeAll() != null) {
+            copy.getBeforeAll().putAll(original.getBeforeAll());
+        }
+        if (original.getBeforeEach() != null) {
+            copy.getBeforeEach().putAll(original.getBeforeEach());
+        }
+        if (original.getTemplates() != null) {
+            copy.getTemplates().putAll(original.getTemplates());
+        }
+
+        // Then-Expectations (wenn noch vorhanden als Liste)
         copy.getThen().addAll(original.getThen());
 
         // Cases tief kopieren
