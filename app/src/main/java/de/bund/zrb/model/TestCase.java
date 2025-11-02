@@ -49,5 +49,10 @@ public class TestCase {
     public List<GivenCondition> getTemplates() {
         return templates;
     }
+
+    @Deprecated // ToDo: Remove!
+    public List<GivenCondition> getBeforeEach() {
+        return null;
+    }
 }
 

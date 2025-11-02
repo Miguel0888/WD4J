@@ -3,62 +3,62 @@ package de.bund.zrb.ui.expressions;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
- * Eine Dropdown-ähnliche Komponente für die Auswahl von
- * Scope-Referenzen (Variablen und Templates), die in einem WHEN verwendet
- * werden dürfen.
+ * Eine "ComboBox-artige" Komponente, aber mit eigener JList in einem Popup.
  *
- * UI-Verhalten:
- *  - Nicht-editierbares Textfeld zeigt die aktuelle Auswahl (z. B. "username" oder "*otpCode").
- *  - Rechts daneben ein kleiner ▼-Button.
- *  - Beim Klick auf den Button geht ein Popup mit einer JList<String> auf.
- *  - Doppelklick oder ENTER auf der Liste bestätigt die Auswahl.
+ * Anzeige:
+ *  - TextField (nicht editierbar) mit aktuell gewähltem Eintrag
+ *  - kleiner Button "▼" zum Aufklappen
  *
- * Datenmodell:
- *  - setScopeData(..) bekommt eine ScopeData (Variablennamen + Templatenamen).
- *    Wir bauen daraus ein DefaultListModel<String>:
- *      erst normale Variablen (unverändert),
- *      dann Templates mit führendem "*".
+ * Popup:
+ *  - JList<String> mit allen möglichen Referenzen.
+ *    Reihenfolge:
+ *      1. Variablen   (z.B. username)
+ *      2. Templates   (als *otpCode, *wrapText, ...)
  *
- * Verwendung:
- *   ScopeReferenceComboBox combo = new ScopeReferenceComboBox();
- *   combo.setScopeData(givenLookup.collectScopeFor(testCaseOrWhatever));
- *   container.add(combo, ...);
+ * Auswahl:
+ *  - Doppelklick oder ENTER auf der Liste bestätigt und schließt.
  *
- *   // Später (z.B. beim Speichern der Action):
- *   String refName = combo.getChosenName();
- *   // -> z.B. in TestAction.value übernehmen
+ * Verwenden im ActionEditorTab:
+ *  - combo.setScopeData(scopeDataFromLookup);
+ *  - combo.addSelectionListener(name -> { ... });
+ *  - combo.getChosenName();
  */
 public class ScopeReferenceComboBox extends JPanel {
+
+    public interface SelectionListener {
+        void onSelected(String name);
+    }
 
     private final JTextField displayField;
     private final JButton dropButton;
     private final JPopupMenu popup;
-    private final JList<String> list; // einfache Liste mit Namen und *Namen
+    private final JList<String> list;
+    private final DefaultListModel<String> listModel;
 
-    private String chosenName; // z. B. "username" oder "*otpCode"
+    private String chosenName;
+    private final List<SelectionListener> listeners = new ArrayList<SelectionListener>();
 
     public ScopeReferenceComboBox() {
         super(new BorderLayout());
 
-        // Nicht-editierbares "Anzeige"-Feld
         displayField = new JTextField();
         displayField.setEditable(false);
 
-        // Kleiner Button mit "▼"
         dropButton = new JButton("▼");
         dropButton.setMargin(new Insets(0, 4, 0, 4));
         dropButton.setFocusable(false);
 
-        // Liste + Scrollpane für das Popup
-        list = new JList<String>(new DefaultListModel<String>());
+        listModel = new DefaultListModel<String>();
+        list = new JList<String>(listModel);
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         JScrollPane scroll = new JScrollPane(list);
-        scroll.setPreferredSize(new Dimension(200, 160));
+        scroll.setPreferredSize(new Dimension(200, 150));
 
         popup = new JPopupMenu();
         popup.setLayout(new BorderLayout());
@@ -71,66 +71,56 @@ public class ScopeReferenceComboBox extends JPanel {
     }
 
     /**
-     * Übergib die aktuell sichtbaren Scope-Namen.
-     * Reihenfolge laut Anforderung:
-     *   1. "normale" Variablen (BeforeEach usw.) ohne Stern
-     *   2. Templates mit führendem "*"
-     *
-     * Wir legen sie in ein DefaultListModel<String>, das wir in der JList anzeigen.
-     *
-     * Hinweis:
-     *  - Die Datenquelle "ScopeData" ist erstmal ein einfaches DTO mit zwei Sets.
-     *    Du kannst sie später durch den echten GivenLookupService füllen.
+     * Übergib neue ScopeData (Variablen + Templates).
+     * Wir bauen daraus das Listenmodell neu auf.
      */
-    public void setScopeData(ScopeData data) {
-        DefaultListModel<String> model = new DefaultListModel<String>();
+    public void setScopeData(GivenLookupService.ScopeData data) {
+        listModel.clear();
+        chosenName = null;
+        displayField.setText("");
 
         if (data != null) {
-            // 1) Variablen ohne Stern, sortiert für deterministische Anzeige
-            java.util.List<String> varsSorted = new ArrayList<String>(data.variables);
-            java.util.Collections.sort(varsSorted, String.CASE_INSENSITIVE_ORDER);
-            for (String v : varsSorted) {
-                if (v != null && v.trim().length() > 0) {
-                    model.addElement(v.trim());
+            // 1. Variablen
+            Iterator<String> itVars = data.variables.iterator();
+            while (itVars.hasNext()) {
+                String varName = itVars.next();
+                if (varName != null && varName.trim().length() > 0) {
+                    listModel.addElement(varName.trim());
                 }
             }
 
-            // 2) Templates mit führendem '*', ebenfalls sortiert
-            java.util.List<String> tmplSorted = new ArrayList<String>(data.templates);
-            java.util.Collections.sort(tmplSorted, String.CASE_INSENSITIVE_ORDER);
-            for (String t : tmplSorted) {
-                if (t != null && t.trim().length() > 0) {
-                    model.addElement("*" + t.trim());
+            // 2. Templates (mit führendem "*")
+            Iterator<String> itTmpl = data.templates.iterator();
+            while (itTmpl.hasNext()) {
+                String tName = itTmpl.next();
+                if (tName != null && tName.trim().length() > 0) {
+                    listModel.addElement("*" + tName.trim());
                 }
             }
         }
-
-        list.setModel(model);
     }
 
-    /**
-     * Liefert den aktuell gewählten Namen zurück.
-     * Kann z. B. "username" oder "*otpCode" sein.
-     *
-     * Wenn der User noch nichts ausgewählt hat, kann das null sein.
-     */
+    public void addSelectionListener(SelectionListener l) {
+        if (l != null) {
+            listeners.add(l);
+        }
+    }
+
     public String getChosenName() {
         return chosenName;
     }
 
-    /**
-     * Optionaler Helfer: von außen eine Vorauswahl setzen (z. B. vorhandener Wert aus TestAction.value)
-     */
-    public void setChosenName(String name) {
-        this.chosenName = name;
+    private void fireSelection(String name) {
+        chosenName = name;
         displayField.setText(name != null ? name : "");
+
+        for (int i = 0; i < listeners.size(); i++) {
+            listeners.get(i).onSelected(name);
+        }
     }
 
-    // --------------------------------------------------------------------
-    // interne Interaktion (Popup öffnen, Item bestätigen, etc.)
-    // --------------------------------------------------------------------
     private void wireInteractions() {
-        // Popup öffnen/schließen per Button
+        // Button klappt Popup auf
         dropButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -138,52 +128,44 @@ public class ScopeReferenceComboBox extends JPanel {
             }
         });
 
-        // ENTER in der Liste = Auswahl übernehmen
+        // ENTER bestätigt Auswahl
         list.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
                 if (KeyEvent.VK_ENTER == e.getKeyCode()) {
-                    acceptSelection();
+                    confirmCurrentSelection();
                 } else if (KeyEvent.VK_ESCAPE == e.getKeyCode()) {
                     hidePopup();
                 }
             }
         });
 
-        // Doppelklick in der Liste = Auswahl übernehmen
+        // Doppelklick bestätigt Auswahl
         list.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (SwingUtilities.isLeftMouseButton(e) && e.getClickCount() == 2) {
-                    acceptSelection();
+                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
+                    confirmCurrentSelection();
                 }
             }
         });
 
-        // Falls Fokus verloren geht, Popup einfach schließen.
-        // (Ist optional. Ohne das bleibt das Popup offen, ist aber okay.)
-        list.addFocusListener(new FocusAdapter() {
+        // Wenn das Textfeld den Fokus verliert -> Popup bleibt erstmal, ist okay.
+        displayField.addFocusListener(new FocusAdapter() {
             @Override
             public void focusLost(FocusEvent e) {
-                // wir schließen nur, wenn das Popup noch offen ist
-                // und der Fokus wirklich ganz woanders hingeht.
-                // Das ist eher UX-Kosmetik, nicht zwingend.
-                if (popup.isVisible()) {
-                    // popup.setVisible(false);  // wenn du willst, auskommentieren
-                }
+                // UX-Feinschliff wäre möglich.
             }
         });
     }
 
     private void showPopup() {
-        // Popup direkt unter diese Komponente platzieren
         popup.show(this, 0, this.getHeight());
 
-        // ersten Eintrag vorauswählen für schnell Enter
+        // fürs schnelle ENTER schon mal was auswählen
         if (list.getModel().getSize() > 0 && list.getSelectedIndex() < 0) {
             list.setSelectedIndex(0);
         }
-
         list.requestFocusInWindow();
     }
 
@@ -192,47 +174,14 @@ public class ScopeReferenceComboBox extends JPanel {
     }
 
     /**
-     * Übernimmt das aktuell in der Liste selektierte Element als chosenName.
-     * Aktualisiert displayField und schließt das Popup.
+     * Holt den aktuell selektierten Eintrag aus der Liste,
+     * übernimmt ihn als chosenName und feuert Listener.
      */
-    private void acceptSelection() {
+    private void confirmCurrentSelection() {
         String sel = list.getSelectedValue();
         if (sel != null) {
-            chosenName = sel;
-            displayField.setText(sel);
+            fireSelection(sel);
         }
         hidePopup();
-    }
-
-    // --------------------------------------------------------------------
-    // DTO-Klasse ScopeData
-    // --------------------------------------------------------------------
-    /**
-     * Mini-DTO für setScopeData().
-     *
-     * variables = alle sichtbaren "normalen" Namen, z. B. aus BeforeEach eines Cases,
-     *             aus BeforeEach einer Suite, aus BeforeEach des Roots.
-     *
-     * templates = alle sichtbaren Template-Namen (lazy Funktionen),
-     *             z. B. Templates-Liste Case, Suite, Root.
-     *
-     * BeforeAll-Werte gehören NICHT in dieses Dropdown (laut Anforderung),
-     * deswegen tauchen sie hier gar nicht erst auf.
-     */
-    public static class ScopeData {
-        public final Set<String> variables = new LinkedHashSet<String>();
-        public final Set<String> templates = new LinkedHashSet<String>();
-
-        public ScopeData() {
-        }
-
-        public ScopeData(Collection<String> vars, Collection<String> tmpls) {
-            if (vars != null) {
-                variables.addAll(vars);
-            }
-            if (tmpls != null) {
-                templates.addAll(tmpls);
-            }
-        }
     }
 }
