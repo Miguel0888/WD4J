@@ -113,7 +113,7 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
     private void reloadList() {
         stepListModel.clear();
         TestCase testCase = getModel();
-        for (GivenCondition g : testCase.getGiven()) {
+        for (GivenCondition g : testCase.getBefore()) {
             stepListModel.addElement(g);
         }
         for (TestAction w : testCase.getWhen()) {
@@ -130,7 +130,7 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
      */
     private void addStep(Object step) {
         if (step instanceof GivenCondition) {
-            getModel().getGiven().add((GivenCondition) step);
+            getModel().getBefore().add((GivenCondition) step);
         } else if (step instanceof TestAction) {
             getModel().getWhen().add((TestAction) step);
         } else if (step instanceof ThenExpectation) {
@@ -153,7 +153,7 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
             Object step = stepListModel.get(index);
 
             if (step instanceof GivenCondition) {
-                getModel().getGiven().remove(step);
+                getModel().getBefore().remove(step);
             } else if (step instanceof TestAction) {
                 getModel().getWhen().remove(step);
             } else if (step instanceof ThenExpectation) {
@@ -189,7 +189,7 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
         stepList.setSelectedIndex(index + direction);
 
         if (current instanceof GivenCondition) {
-            List<GivenCondition> list = getModel().getGiven();
+            List<GivenCondition> list = getModel().getBefore();
             list.remove(current);
             list.add(index + direction, (GivenCondition) current);
         } else if (current instanceof TestAction) {
@@ -228,7 +228,7 @@ public class CaseEditorTab extends AbstractEditorTab<TestCase> {
             TestAction ta = (TestAction) selected;
 
             // >>> WICHTIGER TEIL: hier geben wir die Givens dieses TestCase mit
-            List<GivenCondition> givensForThisCase = getModel().getGiven();
+            List<GivenCondition> givensForThisCase = getModel().getBefore();
 
             detailPanel.add(
                     new ActionEditorTab(ta, givensForThisCase),

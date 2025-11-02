@@ -154,7 +154,7 @@ public class EditorTabOpener {
         TestCase tc = repo.findCaseById(action.getParentId());
         if (tc != null) {
             // Case-eigene Givens
-            safeAddAll(result, tc.getGiven());
+            safeAddAll(result, tc.getBefore());
 
             // Case-Templates (falls vorhanden)
             safeAddAll(result, callGetTemplatesIfExists(tc));

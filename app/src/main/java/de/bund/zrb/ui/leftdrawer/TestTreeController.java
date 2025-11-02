@@ -325,8 +325,8 @@ public class TestTreeController {
     private de.bund.zrb.model.Precondition buildPreconditionFromCase(TestCase src, String name) {
         de.bund.zrb.model.Precondition p = PreconditionFactory.newPrecondition(name);
 
-        if (src.getGiven() != null) {
-            p.getGiven().addAll(src.getGiven());
+        if (src.getBefore() != null) {
+            p.getGiven().addAll(src.getBefore());
         }
         if (src.getWhen() != null) {
             for (TestAction a : src.getWhen()) {
@@ -868,8 +868,8 @@ public class TestTreeController {
         // IDs für den Clone: wir setzen erst später parentId korrekt, wenn wir ihn einer Suite hinzufügen.
         copy.setId(UUID.randomUUID().toString());
 
-        if (src.getGiven() != null) {
-            copy.getGiven().addAll(src.getGiven());
+        if (src.getBefore() != null) {
+            copy.getBefore().addAll(src.getBefore());
         }
         if (src.getThen() != null) {
             copy.getThen().addAll(src.getThen());
@@ -1146,7 +1146,7 @@ public class TestTreeController {
         copy.setName("copy of " + baseName);
 
         // shallow copy Given / Then (du hattest vorher addAll gemacht, das übernehmen wir)
-        copy.getGiven().addAll(original.getGiven());
+        copy.getBefore().addAll(original.getBefore());
         copy.getThen().addAll(original.getThen());
 
         // When-Actions deep klonen (jede Action neu inkl. neuer ID)

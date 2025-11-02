@@ -11,7 +11,6 @@ import de.bund.zrb.runtime.*;
 import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.TestPlayerUi;
 import de.bund.zrb.ui.components.log.*;
-import de.bund.zrb.util.GrowlNotificationPopupUtil;
 import de.bund.zrb.video.OverlayBridge;
 
 import javax.swing.*;
@@ -165,7 +164,7 @@ public class TestPlayerService {
         logger.append(caseLog);                           // <— Überschrift sofort anzeigen
 
         // GIVEN (Case) – einzeln streamen
-        executeGivenList(testCase.getGiven(), caseLog, "Given");
+        executeGivenList(testCase.getBefore(), caseLog, "Given");
 
         // WHEN (Kinder) – rekursiv streamen
         executeChildren(node, caseLog);

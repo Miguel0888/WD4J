@@ -67,7 +67,7 @@ public class CaseScopeEditorTab extends JPanel {
         add(header, BorderLayout.NORTH);
 
         // ===== Inhalt-Tabs (Before, Templates) =====
-        innerTabs.addTab("Before",    buildTablePanel(testCase.getBeforeCase(), "Before"));
+        innerTabs.addTab("Before",    buildTablePanel(testCase.getBefore(), "Before"));
         innerTabs.addTab("Templates", buildTablePanel(testCase.getTemplates(),  "Templates"));
 
         add(innerTabs, BorderLayout.CENTER);
