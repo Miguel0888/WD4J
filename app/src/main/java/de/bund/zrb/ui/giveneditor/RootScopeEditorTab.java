@@ -1,98 +1,244 @@
 package de.bund.zrb.ui.giveneditor;
 
+import de.bund.zrb.model.GivenCondition;
 import de.bund.zrb.model.RootNode;
 import de.bund.zrb.service.TestRegistry;
 
 import javax.swing.*;
+import javax.swing.table.AbstractTableModel;
 import java.awt.*;
+import java.util.List;
 
 /**
- * Editor-UI für den globalen Root-Scope.
+ * Editor für den globalen Root-Scope.
  *
  * Tabs:
- *  - BeforeAll   : Variablen, die EINMAL ganz am Anfang evaluiert werden.
- *                  -> landen in root.getBeforeAll(), tauchen NICHT im When-Dropdown auf.
+ *  - BeforeAll
+ *  - BeforeEach
+ *  - Templates
  *
- *  - BeforeEach  : Variablen, die vor jedem Case (bzw. jeder Suite/jedem Case)
- *                  evaluiert werden.
- *                  -> landen in root.getBeforeEach(), tauchen im When-Dropdown als normale Namen auf.
+ * Rechts oben ein Speichern-Button (schreibt tests.json über TestRegistry.save()).
+ * Jede Tabelle hat + und – zum Hinzufügen/Entfernen und kann inline editiert werden.
  *
- *  - Templates   : Funktionszeiger (lazy ausgewertet in WHEN-Schritten per *name).
- *                  -> landen in root.getTemplates(), tauchen im When-Dropdown mit führendem * auf.
+ * Semantik:
+ *  - BeforeAll (root.getBeforeAll()):
+ *        Variablen, die EINMAL ganz am Anfang evaluiert werden.
+ *        -> landen nicht im Dropdown der WHEN-Values
  *
- * Alle Änderungen werden in-memory am RootNode vorgenommen und bei "Speichern"
- * über TestRegistry.persistiert.
+ *  - BeforeEach (root.getBeforeEach()):
+ *        Variablen, die vor jedem TestCase evaluiert werden.
+ *        -> tauchen im Dropdown der WHEN-Values als normale Namen auf
+ *
+ *  - Templates (root.getTemplates()):
+ *        Funktionszeiger (lazy ausgewertet in WHEN).
+ *        -> tauchen im Dropdown mit führendem * auf
  */
 public class RootScopeEditorTab extends JPanel {
 
     private final RootNode root;
+    private final JTabbedPane innerTabs = new JTabbedPane();
 
     public RootScopeEditorTab(RootNode root) {
         super(new BorderLayout());
         this.root = root;
-        buildUI();
+
+        // ===== Header (Titel, Info, Save Button) =====
+        JPanel header = new JPanel(new BorderLayout());
+
+        JPanel textBlock = new JPanel(new BorderLayout());
+        JLabel title = new JLabel("Globaler Scope (Root)", SwingConstants.LEFT);
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
+
+        JTextArea desc = new JTextArea();
+        desc.setLineWrap(true);
+        desc.setWrapStyleWord(true);
+        desc.setEditable(false);
+        desc.setOpaque(false);
+        desc.setText(
+                "BeforeAll: Variablen, die genau einmal vor allen Tests ausgewertet werden.\n" +
+                        "BeforeEach: Variablen, die vor jedem TestCase neu ausgewertet werden.\n" +
+                        "Templates: Funktionszeiger (werden lazy in WHEN mit *name aufgelöst)."
+        );
+
+        textBlock.add(title, BorderLayout.NORTH);
+        textBlock.add(desc, BorderLayout.CENTER);
+        textBlock.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+        JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton saveBtn = new JButton("💾 Speichern");
+        saveBtn.setToolTipText("Änderungen global speichern (tests.json aktualisieren)");
+        saveBtn.addActionListener(e -> {
+            TestRegistry.getInstance().save();
+            JOptionPane.showMessageDialog(
+                    RootScopeEditorTab.this,
+                    "Gespeichert.",
+                    "Info",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+        savePanel.add(saveBtn);
+        savePanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+        header.add(textBlock, BorderLayout.CENTER);
+        header.add(savePanel, BorderLayout.EAST);
+        add(header, BorderLayout.NORTH);
+
+        // ===== Inhalt-Tabs (BeforeAll, BeforeEach, Templates) =====
+        innerTabs.addTab("BeforeAll",   buildTablePanel(root.getBeforeAll(),   "BeforeAll"));
+        innerTabs.addTab("BeforeEach",  buildTablePanel(root.getBeforeEach(),  "BeforeEach"));
+        innerTabs.addTab("Templates",   buildTablePanel(root.getTemplates(),   "Templates"));
+
+        add(innerTabs, BorderLayout.CENTER);
     }
 
-    private void buildUI() {
-        // gemeinsamer Save-Callback
-        final Runnable saveFn = new Runnable() {
-            @Override
-            public void run() {
-                // einfach das komplette Modell persistieren
-                TestRegistry.getInstance().save();
+    private JPanel buildTablePanel(List<GivenCondition> data, String scopeName) {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        GivenTableModel model = new GivenTableModel(data);
+        JTable table = new JTable(model);
+
+        // Toolbar über der Tabelle: [+] [–] [💾]
+        JToolBar bar = new JToolBar();
+        bar.setFloatable(false);
+
+        JButton addBtn = new JButton("+");
+        addBtn.setToolTipText(scopeName + " Eintrag hinzufügen");
+        addBtn.addActionListener(e -> {
+            // Neuer Default-Eintrag
+            data.add(new GivenCondition(
+                    "preconditionRef",
+                    "name=<neu>&expressionRaw="
+            ));
+            model.fireTableDataChanged();
+        });
+
+        JButton delBtn = new JButton("–");
+        delBtn.setToolTipText("Ausgewählte Zeile löschen");
+        delBtn.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row >= 0 && row < data.size()) {
+                data.remove(row);
+                model.fireTableDataChanged();
             }
-        };
+        });
 
-        // Panels für die drei Scopes des Root
-        ScopeTablePanel beforeAllPanel = new ScopeTablePanel(
-                ScopeTablePanel.Mode.MODE_VARIABLES,
-                root.getBeforeAll(),   // Variablen, einmalig
-                null,
-                saveFn
-        );
+        JButton saveBtn = new JButton("💾");
+        saveBtn.setToolTipText("Speichern");
+        saveBtn.addActionListener(e -> {
+            TestRegistry.getInstance().save();
+            JOptionPane.showMessageDialog(
+                    RootScopeEditorTab.this,
+                    "Gespeichert.",
+                    "Info",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
 
-        ScopeTablePanel beforeEachPanel = new ScopeTablePanel(
-                ScopeTablePanel.Mode.MODE_VARIABLES,
-                root.getBeforeEach(),  // Variablen vor jedem Case
-                null,
-                saveFn
-        );
+        bar.add(addBtn);
+        bar.add(delBtn);
+        bar.addSeparator();
+        bar.add(saveBtn);
 
-        ScopeTablePanel templatesPanel = new ScopeTablePanel(
-                ScopeTablePanel.Mode.MODE_TEMPLATES,
-                null,
-                root.getTemplates(),   // Funktionszeiger (lazy)
-                saveFn
-        );
+        panel.add(bar, BorderLayout.NORTH);
+        panel.add(new JScrollPane(table), BorderLayout.CENTER);
 
-        // TabbedPane für die drei Bereiche
-        JTabbedPane tabs = new JTabbedPane();
-        tabs.addTab("BeforeAll", beforeAllPanel);
-        tabs.addTab("BeforeEach", beforeEachPanel);
-        tabs.addTab("Templates", templatesPanel);
+        return panel;
+    }
 
-        // Hinweistext oben
-        JTextArea info = new JTextArea(
-                "Globaler Scope (Root):\n" +
-                        "- BeforeAll: Variablen, die genau einmal vor dem gesamten Lauf evaluiert werden. " +
-                        "(Nicht im When-Dropdown.)\n" +
-                        "- BeforeEach: Variablen, die vor jedem TestCase evaluiert werden. " +
-                        "(Diese Namen tauchen im When-Dropdown normal auf.)\n" +
-                        "- Templates: Funktionszeiger (lazy ausgewertet in WHEN), " +
-                        "werden im When-Dropdown mit *prefix angezeigt.\n" +
-                        "\n" +
-                        "In jeder Tabelle kannst du Einträge hinzufügen ( + ), " +
-                        "markierte Einträge entfernen ( - ) und einzelne Zeilen speichern.\n" +
-                        "Der Speichern-Knopf ruft intern TestRegistry.save() auf."
-        );
-        info.setEditable(false);
-        info.setWrapStyleWord(true);
-        info.setLineWrap(true);
-        info.setBackground(getBackground());
-        info.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+    /**
+     * TableModel für Name/Expression.
+     * Identisch zur SuiteScopeEditorTab inner class, nur hier nochmal eingefügt
+     * damit RootScopeEditorTab allein kompilierbar ist.
+     *
+     * Wir encodieren/decodieren GivenCondition.value immer noch als
+     * "key=value&key2=value2", wie du's vorher hattest.
+     *
+     * Wichtig: Wir erwarten in der Map mindestens:
+     *  - name
+     *  - expressionRaw
+     */
+    private static class GivenTableModel extends AbstractTableModel {
 
-        setLayout(new BorderLayout());
-        add(info, BorderLayout.NORTH);
-        add(tabs, BorderLayout.CENTER);
+        private final List<GivenCondition> rows;
+
+        public GivenTableModel(List<GivenCondition> rows) {
+            this.rows = rows;
+        }
+
+        @Override
+        public int getRowCount() {
+            return rows.size();
+        }
+
+        @Override
+        public int getColumnCount() {
+            return 2; // Name | Expression
+        }
+
+        @Override
+        public String getColumnName(int column) {
+            if (column == 0) return "Name";
+            if (column == 1) return "Expression";
+            return super.getColumnName(column);
+        }
+
+        @Override
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            GivenCondition gc = rows.get(rowIndex);
+            java.util.Map<String,String> map = parseValueMap(gc.getValue());
+
+            if (columnIndex == 0) {
+                return map.getOrDefault("name", "");
+            }
+            if (columnIndex == 1) {
+                return map.getOrDefault("expressionRaw", "");
+            }
+            return "";
+        }
+
+        @Override
+        public boolean isCellEditable(int rowIndex, int columnIndex) {
+            return true;
+        }
+
+        @Override
+        public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
+            GivenCondition gc = rows.get(rowIndex);
+            java.util.Map<String,String> map = parseValueMap(gc.getValue());
+
+            String val = (aValue == null) ? "" : String.valueOf(aValue);
+
+            if (columnIndex == 0) {
+                map.put("name", val);
+            } else if (columnIndex == 1) {
+                map.put("expressionRaw", val);
+            }
+
+            gc.setValue(serializeValueMap(map));
+            fireTableCellUpdated(rowIndex, columnIndex);
+        }
+
+        private java.util.Map<String,String> parseValueMap(String raw) {
+            java.util.Map<String,String> result = new java.util.LinkedHashMap<>();
+            if (raw != null && raw.contains("=")) {
+                String[] pairs = raw.split("&");
+                for (String pair : pairs) {
+                    String[] kv = pair.split("=", 2);
+                    if (kv.length == 2) {
+                        result.put(kv[0], kv[1]);
+                    }
+                }
+            }
+            return result;
+        }
+
+        private String serializeValueMap(java.util.Map<String,String> map) {
+            StringBuilder sb = new StringBuilder();
+            for (java.util.Map.Entry<String,String> e : map.entrySet()) {
+                if (sb.length() > 0) sb.append("&");
+                sb.append(e.getKey()).append("=").append(e.getValue());
+            }
+            return sb.toString();
+        }
     }
 }

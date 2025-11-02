@@ -153,16 +153,18 @@ public class TestRegistry {
     private void ensureRootId(RootNode r) {
         if (r == null) return;
 
-        if (isBlank(r.getId())) {
-            setFieldViaReflection(r, "id", UUID.randomUUID().toString());
+        if (r.getId() == null || r.getId().trim().isEmpty()) {
+            setFieldViaReflection(r, "id", java.util.UUID.randomUUID().toString());
         }
 
-        // Root-Listen absichern:
+        // testSuites-Liste absichern
         if (r.getTestSuites() == null) {
             forceInitListIfNull(r, "testSuites");
         }
 
-        // unsere neuen Scopes am Root
+        // Die drei Scope-Listen sind bei dir final + new ArrayList<>(),
+        // also eigentlich nie null. Falls Gson sie aber per Reflection
+        // überschrieben hat und null gesetzt hat, fangen wir es trotzdem ab:
         forceInitListIfNull(r, "beforeAllVars");
         forceInitListIfNull(r, "beforeEachVars");
         forceInitListIfNull(r, "templates");
