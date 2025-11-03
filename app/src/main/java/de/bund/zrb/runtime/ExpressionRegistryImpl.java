@@ -38,8 +38,8 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
     }
 
     @Override
-    public synchronized List<String> getKeys() {
-        return new ArrayList<>(expressions.keySet());
+    public synchronized Set<String> getKeys() {
+        return expressions.keySet();
     }
 
     @Override

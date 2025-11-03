@@ -1,7 +1,7 @@
 package de.bund.zrb.runtime;
 
-import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Provide a registry of named expression functions.
@@ -21,7 +21,7 @@ public interface ExpressionRegistry {
     /**
      * Return all known function keys.
      */
-    List<String> getKeys();
+    Set<String> getKeys();
 
     /**
      * Return the raw code/definition for a given key if available.
