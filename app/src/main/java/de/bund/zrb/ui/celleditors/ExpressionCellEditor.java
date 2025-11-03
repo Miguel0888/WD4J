@@ -357,53 +357,94 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             int parenClose;
         }
 
-        /** Finde den umgebenden {{fn(...)}}-Block für 'pos'. */
+        /** Finde den umgebenden {{fn(...)}}-Block für 'pos' per balanciertem Scan. */
         private Bounds findFnBoundsAt(Document doc, int pos) {
             try {
-                String all = doc.getText(0, doc.getLength());
-                int openIdx = lastIndexOf(all, "{{", pos);
-                if (openIdx < 0) return null;
-                int closeIdx = all.indexOf("}}", openIdx + 2);
-                if (closeIdx < 0 || pos < openIdx || pos > closeIdx) return null;
+                String s = doc.getText(0, doc.getLength());
+                final int N = s.length();
 
-                int parenOpen = all.indexOf('(', openIdx + 2);
-                if (parenOpen < 0 || parenOpen > closeIdx) return null;
-                int parenClose = all.indexOf(')', parenOpen + 1);
-                if (parenClose < 0 || parenClose > closeIdx) return null;
+                // --- 1) Passendes öffnendes "{{" LINKS von pos finden (balanciert) ---
+                int openIdx = -1;
+                int count = 0; // Anzahl offener "}}" die wir noch "ausgleichen" müssen
+                int i = Math.min(Math.max(pos - 1, 0), N - 1);
+
+                while (i >= 0) {
+                    // prüfe auf "}}"
+                    if (i - 1 >= 0 && s.charAt(i - 1) == '}' && s.charAt(i) == '}') {
+                        count++;           // ein Close gesehen
+                        i -= 2;
+                        continue;
+                    }
+                    // prüfe auf "{{"
+                    if (i - 1 >= 0 && s.charAt(i - 1) == '{' && s.charAt(i) == '{') {
+                        if (count == 0) {  // dies ist die öffnende Klammer unseres Blocks
+                            openIdx = i - 1;
+                            break;
+                        }
+                        count--;           // ein Close ausgleichen
+                        i -= 2;
+                        continue;
+                    }
+                    i--;
+                }
+                if (openIdx < 0) return null;
+
+                // --- 2) Zugehöriges schließendes "}}" RECHTS via Depth zählen ---
+                int depth = 1; // wir stehen direkt hinter "{{"
+                int closeIdx = -1;
+                i = openIdx + 2;
+                while (i < N - 1) {
+                    // "{{"?
+                    if (s.charAt(i) == '{' && s.charAt(i + 1) == '{') {
+                        depth++;
+                        i += 2;
+                        continue;
+                    }
+                    // "}}"?
+                    if (s.charAt(i) == '}' && s.charAt(i + 1) == '}') {
+                        depth--;
+                        if (depth == 0) {
+                            closeIdx = i;
+                            break;
+                        }
+                        i += 2;
+                        continue;
+                    }
+                    i++;
+                }
+                if (closeIdx < 0) return null;
+
+                // --- 3) Parameterklammern innerhalb des gefundenen Blocks ---
+                int parenOpen  = s.indexOf('(', openIdx + 2);
+                if (parenOpen  < 0 || parenOpen  >= closeIdx) return null;
+                int parenClose = s.indexOf(')', parenOpen + 1);
+                if (parenClose < 0 || parenClose >= closeIdx) return null;
 
                 Bounds b = new Bounds();
-                b.text = all;
-                b.blockOpen = openIdx;
+                b.text       = s;
+                b.blockOpen  = openIdx;
                 b.blockClose = closeIdx;
-                b.parenOpen = parenOpen;
+                b.parenOpen  = parenOpen;
                 b.parenClose = parenClose;
                 return b;
+
             } catch (BadLocationException e) {
                 return null;
             }
         }
 
-        /**
-         * Bestimme ausschließlich per Left-Scan, ob vor 'pos' (innerhalb der selben fn)
-         * bereits ein Argument existiert. Regeln:
-         * - Scanne von pos-1 rückwärts bis '('
-         * - Überspringe Whitespace
-         * - Wenn erstes gefundenes Zeichen '(' → erster Parameter
-         * - Sonst (egal was) → weiterer Parameter
-         */
+        /** True, wenn zwischen '(' und pos nur Whitespace liegt → erster Parameter. */
         private boolean isFirstParamPosition(Bounds b, int pos, Document doc) {
             int i = pos - 1;
             int min = b.parenOpen + 1;
             try {
                 while (i >= min) {
                     char ch = doc.getText(i, 1).charAt(0);
-                    if (isWs(ch)) { i--; continue; }
-                    return ch == '('; // nur wenn direkt '(' links → erster
+                    if (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r') { i--; continue; }
+                    return false; // es steht schon etwas vor dem Cursor → weiterer Parameter
                 }
-            } catch (BadLocationException ignored) {
-            }
-            // Nur Whitespace zwischen '(' und pos → erster
-            return true;
+            } catch (BadLocationException ignored) { }
+            return true; // nur Whitespace zwischen '(' und Cursor
         }
 
         private boolean isWs(char ch) {
