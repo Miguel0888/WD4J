@@ -17,16 +17,6 @@ import java.util.function.Supplier;
 
 import static org.fife.ui.autocomplete.Util.startsWithIgnoreCase;
 
-/**
- * RSyntaxTextArea-based TableCellEditor with context-aware AutoCompletion for {{ ... }}.
- * - Java 8 compatible
- * - Variables: plain
- * - Functions: bold, insert only "(" (so auto-popup opens immediately for args)
- * - Regex presets: italic
- * - Descriptions via DescribedItem for functions/regex
- * - No snippets with ${cursor}
- * - 3-line editor height
- */
 public class ExpressionCellEditor extends javax.swing.AbstractCellEditor implements TableCellEditor {
 
     private final RSyntaxTextArea textArea = new RSyntaxTextArea(6, 40);
@@ -57,22 +47,21 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
         provider = new ContextualProvider(this.variableNamesSupplier, this.functionItemsSupplier, this.regexItemsSupplier);
 
-        // Auto-Activation inkl. '{', '(' und ';' – damit direkt nach "{{" und "(" die Liste aufpoppt
+        // Auto-Activation inkl. '{', '(' und ';'
         provider.setAutoActivationRules(true, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_{(;*");
 
         autoCompletion = new AutoCompletion(provider);
         autoCompletion.setAutoActivationEnabled(true);
         autoCompletion.setAutoActivationDelay(120);
-        autoCompletion.setParameterAssistanceEnabled(false); // wir nutzen kein Param-Template
+        // WICHTIG: aktiviert getInsertionInfo(...) von FunctionCompletion
+        autoCompletion.setParameterAssistanceEnabled(true);
         autoCompletion.setTriggerKey(KeyStroke.getKeyStroke("control SPACE"));
-        autoCompletion.setAutoCompleteSingleChoices(false); // nie sofort einfügen
+        autoCompletion.setAutoCompleteSingleChoices(false);
         autoCompletion.setShowDescWindow(true);
         autoCompletion.install(textArea);
 
         installEnterBehavior(textArea);
     }
-
-    // ----- UI setup -----
 
     private static void configureEditorArea(RSyntaxTextArea ta) {
         ta.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVA);
@@ -109,7 +98,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         });
     }
 
-    // ----- Provider mit Kontext + eigenem Styling -----
+    // ---------- Provider mit Kontext + Klammer-Definition ----------
 
     private static final class ContextualProvider extends DefaultCompletionProvider {
         private final Supplier<List<String>> variableNamesSupplier;
@@ -124,11 +113,16 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             this.regexItemsSupplier = regexItemsSupplier;
         }
 
+        // >>> Diese drei Overrides sorgen dafür, dass FunctionCompletion "name()" erzeugt (kein Leerzeichen!)
+        @Override public char   getParameterListStart()       { return '('; }
+        @Override public String getParameterListSeparator()   { return "; "; }
+        @Override public char   getParameterListEnd()         { return ')'; }
+
         @Override
         public String getAlreadyEnteredText(JTextComponent comp) {
             Block b = findActiveBlock(comp);
             if (!b.active) return "";
-            return safeScanIdentifierPrefix(b.body, b.cursorInBody); // robust gegen leere Präfixe
+            return safeScanIdentifierPrefix(b.body, b.cursorInBody);
         }
 
         @Override
@@ -137,7 +131,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             List out = new ArrayList();
             Block b = findActiveBlock(comp);
             if (!b.active) {
-                return out; // außerhalb von {{...}} → nichts automatisch vorschlagen
+                return out;
             }
 
             String prefix = safeScanIdentifierPrefix(b.body, b.cursorInBody);
@@ -148,9 +142,8 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             } else if (kind == Kind.ARGUMENT) {
                 addVariableCompletions(out, prefix);
                 addRegexCompletions(out, prefix);
-            } else { // VARIABLE oder Fallback
+            } else {
                 addVariableCompletions(out, prefix);
-                // optional Template-Marker *fn (fett in Liste)
                 Map<String, DescribedItem> fmap = functionItemsSupplier.get();
                 List<String> fnNames = sortedKeys(fmap.keySet());
                 for (int i = 0; i < fnNames.size(); i++) {
@@ -163,8 +156,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             return out;
         }
 
-        // ---- Completions ----
-
         private void addFunctionCompletions(List out, String prefix) {
             Map<String, DescribedItem> map = functionItemsSupplier.get();
             List<String> names = sortedKeys(map.keySet());
@@ -174,7 +165,8 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 String desc = null;
                 DescribedItem di = map.get(fn);
                 if (di != null) desc = di.getDescription();
-                out.add(new InsertOpeningParenFunction(this, fn, desc));
+                // Fett anzeigen, Einfügen: name() mit Caret nach '('
+                out.add(new BoldFunctionCompletionInsertInside(this, fn, desc));
             }
         }
 
@@ -207,8 +199,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             return list;
         }
 
-        // ---- Kontext-Erkennung ----
-
         private Kind determineKind(String body, int caret) {
             String left = body.substring(0, Math.min(caret, body.length()));
             if (insideQuotes(left)) return Kind.NONE;
@@ -216,11 +206,11 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             int firstOpenParen = indexOfTopLevel(left, '(');
             if (firstOpenParen < 0) {
                 String trimmed = left.trim();
-                if (trimmed.length() == 0) return Kind.FUNCTION_NAME;        // direkt nach "{{"
-                if (!trimmed.contains(" ") && !trimmed.contains("}")) return Kind.FUNCTION_NAME; // Wortanfang
+                if (trimmed.length() == 0) return Kind.FUNCTION_NAME;
+                if (!trimmed.contains(" ") && !trimmed.contains("}")) return Kind.FUNCTION_NAME;
                 return Kind.VARIABLE;
             }
-            return Kind.ARGUMENT; // nach '('
+            return Kind.ARGUMENT;
         }
 
         private boolean insideQuotes(String s) {
@@ -243,8 +233,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             }
             return -1;
         }
-
-        // ---- Aktiven {{...}}-Block + Präfix bestimmen ----
 
         private Block findActiveBlock(JTextComponent comp) {
             try {
@@ -280,9 +268,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
 
         private String safeScanIdentifierPrefix(String text, int caretInText) {
-            if (text == null || text.length() == 0 || caretInText <= 0) {
-                return "";
-            }
+            if (text == null || text.length() == 0 || caretInText <= 0) return "";
             int i = Math.min(caretInText, text.length()) - 1;
             StringBuilder sb = new StringBuilder();
             while (i >= 0) {
@@ -298,9 +284,8 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
     }
 
-    // ----- Styled completion items -----
+    // ---------- Styled completion items ----------
 
-    /** Plain/italic/bold label via HTML; description in summary window. */
     private static final class StyledBasicCompletion extends BasicCompletion {
         enum Style { PLAIN, ITALIC, BOLD }
         private final Style style;
@@ -340,14 +325,13 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
     }
 
     /**
-     * Function completion that displays bold label and inserts only "("
-     * (so auto-activation triggers argument suggestions immediately).
+     * Fügt "name()" ein und platziert den Caret direkt nach '('.
      */
-    private static final class InsertOpeningParenFunction extends FunctionCompletion {
+    private static final class BoldFunctionCompletionInsertInside extends FunctionCompletion {
         private final String name;
 
-        InsertOpeningParenFunction(CompletionProvider provider, String functionName, String description) {
-            super(provider, functionName, null /* no return type */);
+        BoldFunctionCompletionInsertInside(CompletionProvider provider, String functionName, String description) {
+            super(provider, functionName, null);
             this.name = functionName;
             if (description != null && description.length() > 0) {
                 setShortDescription(description);
@@ -361,29 +345,30 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
         @Override
         public ParameterizedCompletionInsertionInfo getInsertionInfo(JTextComponent tc, boolean replaceTabsWithSpaces) {
-            // Insert only "(" and place caret after it. Auto-activation includes '(' so popup opens.
+            // FunctionCompletion fügt "name" ein; der Provider liefert '(' + ')' → "name()".
+            // Hier setzen wir NACH dem Insert den Caret auf die Position nach '('.
             ParameterizedCompletionInsertionInfo info = new ParameterizedCompletionInsertionInfo();
 
-            String insert = "(";
+            // Wir lassen die Library die Klammern erzeugen, positionieren aber den Caret:
             int dot = tc.getCaretPosition();
-
+            // Nach der Funktionsbezeichnung fügt AutoCompletion "(" ein, also Caret auf dot+1
+            // (AutoCompletion setzt den TextToInsert selbst zusammen – wir steuern nur die Caret-Range)
             Position maxPos = null;
             try {
-                maxPos = tc.getDocument().createPosition(dot + insert.length());
+                maxPos = tc.getDocument().createPosition(dot + 2); // ")“ ist an dot+2, sicherer Range-Anker
             } catch (BadLocationException ble) {
                 // ignore
             }
-            info.setCaretRange(dot + insert.length(), maxPos);
-            info.setTextToInsert(insert);
-            info.setDefaultEndOffs(dot + insert.length());
-            info.addReplacementLocation(dot + insert.length(), dot + insert.length());
-            info.setInitialSelection(dot + insert.length(), dot + insert.length());
-
+            // Caret genau hinter '('
+            info.setCaretRange(dot + 1, maxPos);
+            info.setDefaultEndOffs(dot + 1);
+            info.addReplacementLocation(dot + 1, dot + 1);
+            info.setInitialSelection(dot + 1, dot + 1);
             return info;
         }
     }
 
-    // ----- Helpers -----
+    // ---------- helpers ----------
 
     private static final class Block {
         final boolean active;
@@ -397,7 +382,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
     private enum Kind { FUNCTION_NAME, ARGUMENT, VARIABLE, NONE }
 
-    // ----- TableCellEditor -----
+    // ---------- TableCellEditor ----------
 
     @Override
     public Component getTableCellEditorComponent(JTable table, Object value,
