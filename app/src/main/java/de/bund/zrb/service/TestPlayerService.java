@@ -3,10 +3,7 @@ package de.bund.zrb.service;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import de.bund.zrb.PageImpl;
-import de.bund.zrb.model.Precondtion;
-import de.bund.zrb.model.TestAction;
-import de.bund.zrb.model.TestCase;
-import de.bund.zrb.model.TestSuite;
+import de.bund.zrb.model.*;
 import de.bund.zrb.runtime.*;
 import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.TestPlayerUi;
@@ -20,6 +17,7 @@ import java.nio.file.Paths;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static de.bund.zrb.service.ActivityService.doWithSettling;
 import static java.lang.Thread.sleep;
@@ -155,6 +153,7 @@ public class TestPlayerService {
     private LogComponent executeTestCaseNode(TestNode node, TestCase testCase) {
         // Neue Case-Variablen beginnen
         runtimeCtx.enterCase();
+        initCaseSymbols(node, testCase);
 
         // Subtitle = TestCase-Name
         String sub = (testCase.getName() != null) ? testCase.getName().trim() : "";
@@ -177,9 +176,35 @@ public class TestPlayerService {
         return caseLog; // Rückgabe optional, wird nicht mehr am Ende appended
     }
 
+    private void initCaseSymbols(TestNode node, TestCase testCase) {
+        // hole Root / Suite
+        TestSuite parentSuite = (TestSuite) ((TestNode) node.getParent()).getModelRef();
+        RootNode rootModel = TestRegistry.getInstance().getRoot();
+
+        // 1. Root.beforeEach -> eval -> caseVars
+        runtimeCtx.fillCaseVarsFromMap(
+                evaluateExpressionMapNow(rootModel.getBeforeEach(), runtimeCtx)
+        );
+
+        // 2. Suite.beforeEach -> eval -> caseVars (überschreibt ggf.)
+        runtimeCtx.fillCaseVarsFromMap(
+                evaluateExpressionMapNow(parentSuite.getBeforeEach(), runtimeCtx)
+        );
+
+        // 3. Case.before -> eval -> caseVars (überschreibt ggf. nochmal)
+        runtimeCtx.fillCaseVarsFromMap(
+                evaluateExpressionMapNow(testCase.getBefore(), runtimeCtx)
+        );
+
+        // 4. Templates: root/suite wurden schon bei Suite gesetzt,
+        //    hier kommen case-spezifische Templates oben drauf:
+        runtimeCtx.fillCaseTemplatesFromMap(testCase.getTemplates());
+    }
+
     private LogComponent executeSuiteNode(TestNode node, TestSuite suite) {
         // Beginne neue Suite → Variablen-Kontext für Suite + Case zurücksetzen
         runtimeCtx.enterSuite();
+        initSuiteSymbols(suite);
 
         // Caption = Suite-Description (oder Name), Subtitle leer
         String cap = (suite.getDescription() != null && !suite.getDescription().trim().isEmpty())
@@ -197,6 +222,34 @@ public class TestPlayerService {
 
         drawerRef.updateSuiteStatus(node);
         return suiteLog;
+    }
+
+    private void initSuiteSymbols(TestSuite suite) {
+        // 1. Root.beforeAll nur das erste Mal wirklich setzen?
+        //    Für jetzt: wir machen es jedes Mal, aber NUR wenn rootVars noch leer sind:
+        RootNode rootModel = TestRegistry.getInstance().getRoot();
+        if (runtimeCtx.buildCaseScope().lookupVar("___rootInitMarker") == null) {
+            // Root.beforeAll auswerten und in rootVars legen
+            Map<String,String> evaluated = evaluateExpressionMapNow(
+                    rootModel.getBeforeAll(),
+                    runtimeCtx);
+            runtimeCtx.fillRootVarsFromMap(evaluated);
+
+            // Root.templates merken
+            runtimeCtx.fillRootTemplatesFromMap(rootModel.getTemplates());
+
+            // Marker setzen, damit wir Root.beforeAll nicht mehrfach machen
+            runtimeCtx.setRootVar("___rootInitMarker", "done");
+        }
+
+        // 2. Suite.beforeAll auswerten und in suiteVars legen
+        Map<String,String> suiteAllEval = evaluateExpressionMapNow(
+                suite.getBeforeAll(),
+                runtimeCtx);
+        runtimeCtx.fillSuiteVarsFromMap(suiteAllEval);
+
+        // 3. Suite.templates auch merken
+        runtimeCtx.fillSuiteTemplatesFromMap(suite.getTemplates());
     }
 
     private LogComponent executeGenericContainerNode(TestNode node) {
@@ -770,6 +823,51 @@ public class TestPlayerService {
         return "default";
     }
 
+
+    /**
+     * Nimmt eine Map<String,String> mit Expressions, wertet jede Expression JETZT aus
+     * (unter Verwendung der aktuell bekannten Variablen/Funktionen im runtimeCtx),
+     * und gibt eine neue Map<String,String> mit konkreten Strings zurück.
+     *
+     * Beispiel:
+     *   src = { "username" -> "{{otp()}}", "session" -> "{{username}}-123" }
+     *
+     * Reihenfolge:
+     *  - wir iterieren in Einfügereihenfolge.
+     *  - nach JEDEM Eintrag schreiben wir den neu berechneten Wert sofort in caseVars(!),
+     *    damit der nächste Key in derselben Map auf den gerade erzeugten Wert referenzieren kann.
+     *
+     * Warum caseVars? Weil wir "innerhalb dieser Stufe" Shadowing wollen.
+     * Für Root.beforeAll oder Suite.beforeAll rufst du danach fillRootVarsFromMap/fillSuiteVarsFromMap
+     * und überschreibst damit eh die Ebene, wo der Wert hingehört.
+     */
+    private Map<String,String> evaluateExpressionMapNow(
+            Map<String,String> src,
+            RuntimeVariableContext ctx
+    ) {
+        java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<>();
+        if (src == null) return out;
+
+        for (java.util.Map.Entry<String,String> e : src.entrySet()) {
+            String key = e.getKey();
+            String exprText = e.getValue();
+
+            // aktuelle Sicht bauen (inkl. ALLEM was wir bisher schon gesetzt haben)
+            ValueScope currentScope = ctx.buildCaseScope();
+
+            String resolved = ActionRuntimeEvaluator.evaluateActionValue(exprText, currentScope);
+            if (resolved == null) resolved = "";
+
+            out.put(key, resolved);
+
+            // ganz wichtiger Trick:
+            // Wir legen den frisch berechneten Wert SOFORT oben in den Case-Kontext,
+            // damit weitere Keys in DERSELBEN Map auf ihn zugreifen können, wenn sie danach kommen.
+            ctx.setCaseVar(key, resolved);
+        }
+
+        return out;
+    }
 
 
 

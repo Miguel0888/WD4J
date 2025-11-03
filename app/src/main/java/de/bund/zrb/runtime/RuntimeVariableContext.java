@@ -1,108 +1,169 @@
 package de.bund.zrb.runtime;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * Hold the hierarchical runtime variables during playback.
+ * RuntimeVariableContext = Symboltabelle für den laufenden Testrun.
  *
- * Intent:
- *  - Keep variables for root, for current suite, and for current test case.
- *  - Allow setting variables at each level.
- *  - Expose ValueScopes for evaluation.
+ * Hält 3 Ebenen:
+ *   - rootVars / rootTemplates: gelten für den ganzen Lauf
+ *   - suiteVars / suiteTemplates: gelten innerhalb der aktuellen Suite
+ *   - caseVars / caseTemplates: gelten innerhalb des aktuellen Cases
  *
- * Design:
- *  rootScope <- parent of suiteScope <- parent of caseScope
+ * Shadowing-Regel:
+ *   Case überschreibt Suite überschreibt Root.
  *
- * Usage:
- *  RuntimeVariableContext ctx = new RuntimeVariableContext(ExpressionRegistryImpl.getInstance());
- *  ctx.setRootVar("env", "INT");
- *  ctx.enterSuite();
- *  ctx.setSuiteVar("mandant", "4711");
- *  ctx.enterCase();
- *  ctx.setCaseVar("username", "alice");
- *  ValueScope scope = ctx.buildCaseScope();
- *  // eval with scope...
+ * Lebenszyklus:
+ *   - Beim Start einer neuen Suite: enterSuite()
+ *       -> löscht suiteVars/suiteTemplates
+ *       -> löscht caseVars/caseTemplates (neue Suite = neuer Case-Kontext)
+ *
+ *   - Beim Start eines neuen Case: enterCase()
+ *       -> löscht caseVars/caseTemplates
+ *
+ * Befüllen:
+ *   - Wenn BeforeAll/BeforeEach/Before ausgewertet ist und
+ *     "username" -> "alice42" rauskommt,
+ *     dann runtimeCtx.setCaseVar("username", "alice42") o.ä.
+ *
+ * ValueScope:
+ *   - buildCaseScope() gibt ein Snapshot-Objekt zurück,
+ *     das für eine Action gilt.
+ *
+ * Zusätzlich: reference auf ExpressionRegistry (für Function Calls).
  */
 public class RuntimeVariableContext {
 
-    private final ExpressionRegistry registry;
+    private final ExpressionRegistry exprRegistry;
 
-    private final Map<String, String> rootVars  = new LinkedHashMap<String, String>();
-    private final Map<String, String> suiteVars = new LinkedHashMap<String, String>();
-    private final Map<String, String> caseVars  = new LinkedHashMap<String, String>();
+    // --- Root-Ebene (bleibt über gesamten Run erhalten) ---
+    private final Map<String,String> rootVars        = new LinkedHashMap<>();
+    private final Map<String,String> rootTemplates   = new LinkedHashMap<>();
 
-    public RuntimeVariableContext(ExpressionRegistry registry) {
-        this.registry = registry;
+    // --- Aktuelle Suite-Ebene ---
+    private final Map<String,String> suiteVars       = new LinkedHashMap<>();
+    private final Map<String,String> suiteTemplates  = new LinkedHashMap<>();
+
+    // --- Aktuelle Case-Ebene ---
+    private final Map<String,String> caseVars        = new LinkedHashMap<>();
+    private final Map<String,String> caseTemplates   = new LinkedHashMap<>();
+
+    public RuntimeVariableContext(ExpressionRegistry exprRegistry) {
+        this.exprRegistry = exprRegistry;
     }
 
-    // ---- lifecycle ----------------------------------------------------------
+    // -------------------------------------------------------
+    // Lifecycle Hooks
+    // -------------------------------------------------------
 
-    /**
-     * Reset suiteVars and caseVars.
-     * Call when starting a new suite.
-     */
+    /** Neue Suite beginnt -> Suite-spezifische Maps leeren, Case auch leeren. */
     public void enterSuite() {
         suiteVars.clear();
-        caseVars.clear();
+        suiteTemplates.clear();
+        enterCase(); // ein frischer Suite-Start impliziert auch ein frischer Case-Kontext
     }
 
-    /**
-     * Reset caseVars only.
-     * Call when starting a new test case.
-     */
+    /** Neuer Case beginnt -> Case-spezifische Maps leeren. */
     public void enterCase() {
         caseVars.clear();
+        caseTemplates.clear();
     }
 
-    // ---- setters ------------------------------------------------------------
+    // -------------------------------------------------------
+    // Setters fürs Befüllen der Symboltabellen
+    // -------------------------------------------------------
 
-    /** Set a root/global variable (lives across whole run). */
-    public void setRootVar(String name, String value) {
-        if (name != null && value != null) {
-            rootVars.put(name, value);
-        }
+    public void setRootVar(String key, String value) {
+        if (key != null) rootVars.put(key, value != null ? value : "");
     }
 
-    /** Set a suite-level variable (for current suite). */
-    public void setSuiteVar(String name, String value) {
-        if (name != null && value != null) {
-            suiteVars.put(name, value);
-        }
+    public void setSuiteVar(String key, String value) {
+        if (key != null) suiteVars.put(key, value != null ? value : "");
     }
 
-    /** Set a case-level variable (for current test case). */
-    public void setCaseVar(String name, String value) {
-        if (name != null && value != null) {
-            caseVars.put(name, value);
-        }
+    public void setCaseVar(String key, String value) {
+        if (key != null) caseVars.put(key, value != null ? value : "");
     }
 
-    // ---- scope building -----------------------------------------------------
+    public void setRootTemplate(String key, String templateExpr) {
+        if (key != null) rootTemplates.put(key, templateExpr != null ? templateExpr : "");
+    }
+
+    public void setSuiteTemplate(String key, String templateExpr) {
+        if (key != null) suiteTemplates.put(key, templateExpr != null ? templateExpr : "");
+    }
+
+    public void setCaseTemplate(String key, String templateExpr) {
+        if (key != null) caseTemplates.put(key, templateExpr != null ? templateExpr : "");
+    }
 
     /**
-     * Build a ValueScope chain: case -> suite -> root.
-     * This is what the ActionRuntimeEvaluator should use.
+     * Bulk-Fill Helfer: wenn du schon Maps<String,String> hast.
+     * Beispiel: du hast suite.getBeforeEach() ausgewertet zu Map<name,wert>
+     * -> call fillSuiteVarsFromMap(...)
      */
-    public ValueScope buildCaseScope() {
-        // root
-        ValueScope rootScope = new ValueScope(registry, null);
-        putAllIntoScope(rootScope, rootVars);
-
-        // suite
-        ValueScope suiteScope = new ValueScope(registry, rootScope);
-        putAllIntoScope(suiteScope, suiteVars);
-
-        // case
-        ValueScope caseScope = new ValueScope(registry, suiteScope);
-        putAllIntoScope(caseScope, caseVars);
-
-        return caseScope;
+    public void fillRootVarsFromMap(Map<String,String> m) {
+        if (m == null) return;
+        for (Map.Entry<String,String> e : m.entrySet()) {
+            setRootVar(e.getKey(), e.getValue());
+        }
     }
 
-    private void putAllIntoScope(ValueScope scope, Map<String,String> vars) {
-        for (Map.Entry<String,String> e : vars.entrySet()) {
-            scope.putVariable(e.getKey(), e.getValue());
+    public void fillSuiteVarsFromMap(Map<String,String> m) {
+        if (m == null) return;
+        for (Map.Entry<String,String> e : m.entrySet()) {
+            setSuiteVar(e.getKey(), e.getValue());
         }
+    }
+
+    public void fillCaseVarsFromMap(Map<String,String> m) {
+        if (m == null) return;
+        for (Map.Entry<String,String> e : m.entrySet()) {
+            setCaseVar(e.getKey(), e.getValue());
+        }
+    }
+
+    public void fillRootTemplatesFromMap(Map<String,String> m) {
+        if (m == null) return;
+        for (Map.Entry<String,String> e : m.entrySet()) {
+            setRootTemplate(e.getKey(), e.getValue());
+        }
+    }
+
+    public void fillSuiteTemplatesFromMap(Map<String,String> m) {
+        if (m == null) return;
+        for (Map.Entry<String,String> e : m.entrySet()) {
+            setSuiteTemplate(e.getKey(), e.getValue());
+        }
+    }
+
+    public void fillCaseTemplatesFromMap(Map<String,String> m) {
+        if (m == null) return;
+        for (Map.Entry<String,String> e : m.entrySet()) {
+            setCaseTemplate(e.getKey(), e.getValue());
+        }
+    }
+
+    // -------------------------------------------------------
+    // Zugriff, den TestPlayerService braucht
+    // -------------------------------------------------------
+
+    /**
+     * Build the "effective" scope for a WHEN-Step in the aktuellen Case.
+     * Shadowing-Regel:
+     *   - caseVars zuerst, dann suiteVars, dann rootVars
+     *   - caseTemplates zuerst, dann suiteTemplates, dann rootTemplates
+     *
+     * Außerdem geben wir exprRegistry mit, weil Templates später Funktionen
+     * aufrufen müssen.
+     */
+    public ValueScope buildCaseScope() {
+        return new ValueScope(
+                rootVars, suiteVars, caseVars,
+                rootTemplates, suiteTemplates, caseTemplates,
+                exprRegistry
+        );
     }
 }

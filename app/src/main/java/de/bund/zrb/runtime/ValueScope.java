@@ -1,83 +1,82 @@
 package de.bund.zrb.runtime;
 
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
- * Hold runtime data for expression evaluation.
+ * Read-only Sicht auf die aktuell gültigen Variablen & Templates.
  *
- * Intent:
- *  - Resolve variables like {{username}} to concrete values.
- *  - Call functions like {{OTP(...)}} through ExpressionRegistry.
- *  - Support hierarchical lookup: caseScope -> suiteScope -> rootScope.
- *
- * Usage pattern:
- *  ValueScope root = new ValueScope(exprRegistry, null);
- *  root.putVariable("env", "INT");
- *
- *  ValueScope suite = new ValueScope(exprRegistry, root);
- *  suite.putVariable("mandant", "4711");
- *
- *  ValueScope tc = new ValueScope(exprRegistry, suite);
- *  tc.putVariable("username", "alice");
- *
- *  // later: evaluator.resolveVariable("username") returns "alice"
- *  // fallback walks up to parents if missing here.
+ * Wird pro Action neu gebaut (über runtimeCtx.buildCaseScope()).
  */
 public class ValueScope {
 
-    private final Map<String, String> variables = new LinkedHashMap<String, String>();
-    private final ExpressionRegistry expressionRegistry;
-    private final ValueScope parent;
+    private final Map<String,String> rootVars;
+    private final Map<String,String> suiteVars;
+    private final Map<String,String> caseVars;
 
-    public ValueScope(ExpressionRegistry registry, ValueScope parent) {
-        this.expressionRegistry = registry;
-        this.parent = parent;
+    private final Map<String,String> rootTemplates;
+    private final Map<String,String> suiteTemplates;
+    private final Map<String,String> caseTemplates;
+
+    private final ExpressionRegistry exprRegistry;
+
+    public ValueScope(
+            Map<String,String> rootVars,
+            Map<String,String> suiteVars,
+            Map<String,String> caseVars,
+            Map<String,String> rootTemplates,
+            Map<String,String> suiteTemplates,
+            Map<String,String> caseTemplates,
+            ExpressionRegistry exprRegistry
+    ) {
+        this.rootVars        = rootVars;
+        this.suiteVars       = suiteVars;
+        this.caseVars        = caseVars;
+        this.rootTemplates   = rootTemplates;
+        this.suiteTemplates  = suiteTemplates;
+        this.caseTemplates   = caseTemplates;
+        this.exprRegistry    = exprRegistry;
     }
 
     /**
-     * Register / override a variable in this scope.
+     * Shadowing Lookup für normale Variablenwerte.
      */
-    public void putVariable(String name, String value) {
-        if (name != null && value != null) {
-            variables.put(name, value);
+    public String lookupVar(String name) {
+        if (name == null) return null;
+        if (caseVars != null && caseVars.containsKey(name)) {
+            return caseVars.get(name);
         }
-    }
-
-    /**
-     * Resolve variable by walking this scope upwards.
-     * Return null if not found anywhere.
-     */
-    public String resolveVariable(String name) {
-        if (name == null) {
-            return null;
+        if (suiteVars != null && suiteVars.containsKey(name)) {
+            return suiteVars.get(name);
         }
-        if (variables.containsKey(name)) {
-            return variables.get(name);
-        }
-        if (parent != null) {
-            return parent.resolveVariable(name);
+        if (rootVars != null && rootVars.containsKey(name)) {
+            return rootVars.get(name);
         }
         return null;
     }
 
     /**
-     * Call a function like OTP(...) via ExpressionRegistry.
-     * All args are already evaluated to plain strings.
-     *
-     * Return null if call fails.
+     * Shadowing Lookup für Templates.
+     * Templates sind faule Ausdrücke wie "{{otp()}}".
      */
-    public String callFunction(String functionName, List<String> evaluatedArgs) {
-        if (expressionRegistry == null) {
-            return null;
+    public String lookupTemplate(String name) {
+        if (name == null) return null;
+        if (caseTemplates != null && caseTemplates.containsKey(name)) {
+            return caseTemplates.get(name);
         }
-        try {
-            // ExpressionRegistry.evaluate(String key, List<String> params)
-            return expressionRegistry.evaluate(functionName, evaluatedArgs);
-        } catch (Exception ex) {
-            // Fail soft. Return null on error.
-            return null;
+        if (suiteTemplates != null && suiteTemplates.containsKey(name)) {
+            return suiteTemplates.get(name);
         }
+        if (rootTemplates != null && rootTemplates.containsKey(name)) {
+            return rootTemplates.get(name);
+        }
+        return null;
+    }
+
+    /**
+     * Zugriff auf deine Function-Registry (ExpressionRegistryImpl).
+     * Die brauchen wir für Funktionsaufrufe otp(), wrap(), etc.
+     */
+    public ExpressionRegistry getExpressionRegistry() {
+        return exprRegistry;
     }
 }
