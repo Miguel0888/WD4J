@@ -2,10 +2,15 @@
 package de.bund.zrb.ui.celleditors;
 
 import de.bund.zrb.runtime.ExpressionRegistryImpl;
-import org.fife.ui.autocomplete.*;
+import org.fife.ui.autocomplete.AutoCompletion;
+import org.fife.ui.autocomplete.BasicCompletion;
+import org.fife.ui.autocomplete.Completion;
+import org.fife.ui.autocomplete.DefaultCompletionProvider;
+import org.fife.ui.autocomplete.FunctionCompletion;
+import org.fife.ui.autocomplete.ParameterizedCompletion;
+import org.fife.ui.autocomplete.ShorthandCompletion;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
-import org.fife.ui.rtextarea.RTextScrollPane;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -14,7 +19,7 @@ import javax.swing.JTable;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.table.TableCellEditor;
-import javax.swing.text.JTextComponent; // <-- wichtig: richtiger Import
+import javax.swing.text.JTextComponent;
 import java.awt.Component;
 import java.awt.Toolkit;
 import java.util.ArrayList;
@@ -23,34 +28,29 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Provide an RSyntaxTextArea with AutoComplete for expressions.
- * Keep Java 8 compatibility.
+ * Provide an RSyntaxTextArea with AutoComplete for expressions using {{ }} and functions().
+ * Keep Java 8 compatibility and return the text area directly as editor component.
  */
 public class ExpressionCellEditor extends javax.swing.AbstractCellEditor implements TableCellEditor {
 
     private final RSyntaxTextArea textArea = new RSyntaxTextArea(6, 40);
-    private final RTextScrollPane scroller = new RTextScrollPane(textArea);
-
     private final AutoCompletion autoCompletion;
     private final DynamicCompletionProvider provider;
 
-    // Suppliers for variable and regex names (can be no-op)
     private final Supplier<List<String>> variableNamesSupplier;
     private final Supplier<List<String>> regexNamesSupplier;
 
     public ExpressionCellEditor(Supplier<List<String>> variableNamesSupplier,
                                 Supplier<List<String>> regexNamesSupplier) {
-
         this.variableNamesSupplier = variableNamesSupplier != null ? variableNamesSupplier : new Supplier<List<String>>() {
-            @Override public List<String> get() { return Collections.<String>emptyList(); }
+            @Override public List<String> get() { return java.util.Collections.<String>emptyList(); }
         };
         this.regexNamesSupplier = regexNamesSupplier != null ? regexNamesSupplier : new Supplier<List<String>>() {
-            @Override public List<String> get() { return Collections.<String>emptyList(); }
+            @Override public List<String> get() { return java.util.Collections.<String>emptyList(); }
         };
 
         configureEditorArea(textArea);
 
-        // Build provider with static + dynamic completions
         provider = new DynamicCompletionProvider(this.variableNamesSupplier, this.regexNamesSupplier);
         provider.setAutoActivationRules(true, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_");
         fillFunctionCompletions(provider);
@@ -68,9 +68,9 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
     // ----- UI setup -----
 
     private static void configureEditorArea(RSyntaxTextArea ta) {
-        // Configure the text area for Java-like editing features
+        // Configure base editor
         ta.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVA);
-        ta.setCodeFoldingEnabled(true);
+        ta.setCodeFoldingEnabled(false);
         ta.setBracketMatchingEnabled(true);
         ta.setAnimateBracketMatching(true);
         ta.setAutoIndentEnabled(true);
@@ -78,10 +78,15 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         ta.setTabSize(2);
         ta.setLineWrap(true);
         ta.setWrapStyleWord(false);
+
+        // Force a comfortable 3-line height
+        ta.setRows(3);
+        int lineH = ta.getFontMetrics(ta.getFont()).getHeight();
+        ta.setPreferredSize(new java.awt.Dimension(0, 3 * lineH + 8));
     }
 
     private static void installEnterBehavior(final RSyntaxTextArea ta) {
-        // Press Enter -> end editing; Shift+Enter -> newline; Ctrl+Enter -> newline
+        // Press Enter -> end editing; Shift+Enter or Ctrl/Cmd+Enter -> newline
         final InputMap im = ta.getInputMap();
         final ActionMap am = ta.getActionMap();
 
@@ -97,14 +102,9 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 if (ctrlOrCmd || shift) {
                     ta.replaceSelection("\n");
                 } else {
-                    // Finish editing via Swing cell editor contract
-                    Component c = ta;
-                    while (c != null && !(c instanceof javax.swing.CellEditor)) {
-                        c = c.getParent();
-                    }
-                    // Fallback: just fire editing stopped on our editor
-                    // (CellEditor walk not strictly needed here)
-                    ta.transferFocus(); // give visual feedback
+                    // Commit edit through Swing's editing lifecycle
+                    ta.requestFocus(false);
+                    ta.transferFocus();
                 }
             }
         });
@@ -112,50 +112,38 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
     // ----- Static completions (functions + snippets) -----
 
-    // in ExpressionCellEditor
-
     private static void fillFunctionCompletions(DefaultCompletionProvider provider) {
-        // Provide functions from registry as parameterized completions
         List<String> functionNames = new ArrayList<String>(ExpressionRegistryImpl.getInstance().getKeys());
         Collections.sort(functionNames, String.CASE_INSENSITIVE_ORDER);
 
         for (String fn : functionNames) {
-            // Use FunctionCompletion and set parameters via setParams(...)
-            org.fife.ui.autocomplete.FunctionCompletion c =
-                    new org.fife.ui.autocomplete.FunctionCompletion(provider, fn, "String");
-
-            // Use setParams(List<Parameter>) instead of addParam(...)
-            c.setParams(createDummyParams()); // 3 dummy params for call tips
-
+            FunctionCompletion c = new FunctionCompletion(provider, fn, "String");
+            c.setParams(createDummyParams()); // Replace with real signature mapping if available
             c.setShortDescription("Funktion aus ExpressionRegistry");
             provider.addCompletion(c);
         }
     }
 
-    private static List<org.fife.ui.autocomplete.ParameterizedCompletion.Parameter> createDummyParams() {
-        List<org.fife.ui.autocomplete.ParameterizedCompletion.Parameter> params =
-                new ArrayList<org.fife.ui.autocomplete.ParameterizedCompletion.Parameter>(3);
-        params.add(new org.fife.ui.autocomplete.ParameterizedCompletion.Parameter("String", "p1"));
-        params.add(new org.fife.ui.autocomplete.ParameterizedCompletion.Parameter("String", "p2"));
-        params.add(new org.fife.ui.autocomplete.ParameterizedCompletion.Parameter("String", "p3"));
+    private static List<ParameterizedCompletion.Parameter> createDummyParams() {
+        List<ParameterizedCompletion.Parameter> params =
+                new ArrayList<ParameterizedCompletion.Parameter>(3);
+        params.add(new ParameterizedCompletion.Parameter("String", "p1"));
+        params.add(new ParameterizedCompletion.Parameter("String", "p2"));
+        params.add(new ParameterizedCompletion.Parameter("String", "p3"));
         return params;
     }
 
     private static void fillShorthandCompletions(DefaultCompletionProvider provider) {
-        // Insert snippet for a function call skeleton
         provider.addCompletion(new ShorthandCompletion(provider, "fn", "{{${cursor}}()}}", "Funktionsaufruf-Template"));
-        // Mustache variable wrapper
         provider.addCompletion(new ShorthandCompletion(provider, "{{", "{{${cursor}}}}", "Mustache-Variable"));
-        // Regex placeholder
         provider.addCompletion(new ShorthandCompletion(provider, "regex", "{{REGEX:${cursor}}}", "Regex-Platzhalter"));
     }
 
     // ----- Dynamic provider -----
 
     /**
-     * Extend DefaultCompletionProvider to inject dynamic completions
-     * (variables, regex presets) based on caret context while keeping
-     * the base behavior for registered completions.
+     * Extend DefaultCompletionProvider to inject dynamic completions (variables, regex presets)
+     * based on caret context while keeping the base behavior.
      */
     private static final class DynamicCompletionProvider extends DefaultCompletionProvider {
         private final Supplier<List<String>> variableNamesSupplier;
@@ -208,12 +196,11 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
     public Component getTableCellEditorComponent(JTable table, Object value,
                                                  boolean isSelected, int row, int column) {
         textArea.setText(value != null ? value.toString() : "");
+        textArea.selectAll();
         SwingUtilities.invokeLater(new Runnable() {
-            @Override public void run() {
-                textArea.requestFocusInWindow();
-            }
+            @Override public void run() { textArea.requestFocusInWindow(); }
         });
-        return scroller;
+        return textArea; // Return the text area directly (no scroll pane)
     }
 
     @Override

@@ -1,3 +1,4 @@
+// src/main/java/de/bund/zrb/ui/giveneditor/MapTableModel.java
 package de.bund.zrb.ui.giveneditor;
 
 import javax.swing.table.AbstractTableModel;
@@ -6,17 +7,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Ein 2-Spalten-TableModel für eine Map<String,String>.
- * Spalte 0 = Name (Key)
- * Spalte 1 = Expression (Value)
- *
- * Änderungen im TableModel spiegeln sich direkt in der Map.
+ * Two-column TableModel for Map<String,String>.
+ * Column 0 = Name (key), Column 1 = Expression (value).
+ * Write changes back to the map immediately.
  */
 public class MapTableModel extends AbstractTableModel {
 
     private final Map<String,String> backing;
-    // Wir halten eine sortierte/iterierbare Ansicht der Keys,
-    // damit JTable eine stabile Reihenfolge hat.
     private final List<String> keys;
 
     public MapTableModel(Map<String,String> backing) {
@@ -63,11 +60,9 @@ public class MapTableModel extends AbstractTableModel {
         String val = (aValue == null) ? "" : String.valueOf(aValue);
 
         if (columnIndex == 0) {
-            // Key (Name) wurde geändert -> wir müssen umbenennen
             String newKey = val.trim();
             if (newKey.length() == 0) {
-                // leeren Namen nicht zulassen -> ignoriere
-                return;
+                return; // Do not allow empty key
             }
             if (!newKey.equals(oldKey)) {
                 String oldValue = backing.remove(oldKey);
@@ -75,16 +70,13 @@ public class MapTableModel extends AbstractTableModel {
                 keys.set(rowIndex, newKey);
             }
         } else if (columnIndex == 1) {
-            // Expression geändert
             backing.put(oldKey, val);
         }
 
         fireTableRowsUpdated(rowIndex, rowIndex);
     }
 
-    /**
-     * Neue Zeile hinzufügen: legt "neu" als Key an, falls frei.
-     */
+    /** Add a new empty row with a unique "neu" key. */
     public void addEmptyRow() {
         String base = "neu";
         String cand = base;
@@ -99,9 +91,7 @@ public class MapTableModel extends AbstractTableModel {
         fireTableRowsInserted(newRow, newRow);
     }
 
-    /**
-     * Ausgewählte Zeile löschen.
-     */
+    /** Remove the row at index. */
     public void removeRow(int rowIndex) {
         if (rowIndex < 0 || rowIndex >= keys.size()) return;
         String k = keys.remove(rowIndex);
