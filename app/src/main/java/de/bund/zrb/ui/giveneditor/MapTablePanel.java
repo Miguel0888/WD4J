@@ -2,20 +2,14 @@
 package de.bund.zrb.ui.giveneditor;
 
 import de.bund.zrb.service.TestRegistry;
+import de.bund.zrb.ui.celleditors.DescribedItem;
 import de.bund.zrb.ui.celleditors.ExpressionCellEditor;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-/**
- * Panel hosting a JTable for Map<String,String> with Name | Expression columns.
- * Attach ExpressionCellEditor to column 1 and render it as 3-line monospaced text.
- */
 public class MapTablePanel extends JPanel {
 
     public MapTablePanel(final Map<String,String> backing, final String scopeName) {
@@ -38,17 +32,37 @@ public class MapTablePanel extends JPanel {
             table.getColumnModel().getColumn(1).setPreferredWidth(480);
         }
 
+        // ---- Suppliers verdrahten ----
+        // TODO: Hier echte Quellen einhängen:
+        //  - varSupplier: Liste aller Variablennamen
+        //  - fnSupplier:  Map<Funktionsname, DescribedItem> (getDescription() liefert Beschreibung)
+        //  - rxSupplier:  Map<RegexName, DescribedItem>     (getDescription() liefert Beschreibung)
+        java.util.function.Supplier<java.util.List<String>> varSupplier =
+                new java.util.function.Supplier<java.util.List<String>>() {
+                    @Override public java.util.List<String> get() {
+                        return java.util.Collections.<String>emptyList();
+                    }
+                };
+
+        java.util.function.Supplier<java.util.Map<String, DescribedItem>> fnSupplier =
+                new java.util.function.Supplier<java.util.Map<String, DescribedItem>>() {
+                    @Override public java.util.Map<String, DescribedItem> get() {
+                        return java.util.Collections.<String, DescribedItem>emptyMap();
+                    }
+                };
+
+        java.util.function.Supplier<java.util.Map<String, DescribedItem>> rxSupplier =
+                new java.util.function.Supplier<java.util.Map<String, DescribedItem>>() {
+                    @Override public java.util.Map<String, DescribedItem> get() {
+                        return java.util.Collections.<String, DescribedItem>emptyMap();
+                    }
+                };
+
         // Attach ExpressionCellEditor to Expression column (index 1)
-        java.util.function.Supplier<List<String>> varSupplier = new java.util.function.Supplier<List<String>>() {
-            @Override public List<String> get() { return Collections.<String>emptyList(); }
-        };
-        java.util.function.Supplier<List<String>> regexSupplier = new java.util.function.Supplier<List<String>>() {
-            @Override public List<String> get() { return Collections.<String>emptyList(); }
-        };
-        ExpressionCellEditor exprEditor = new ExpressionCellEditor(varSupplier, regexSupplier);
+        ExpressionCellEditor exprEditor = new ExpressionCellEditor(varSupplier, fnSupplier, rxSupplier);
         table.getColumnModel().getColumn(1).setCellEditor(exprEditor);
 
-        // Lightweight 3-line monospaced renderer (Option A)
+        // Lightweight 3-line monospaced renderer
         table.getColumnModel().getColumn(1).setCellRenderer(new MultiLineMonoRenderer());
 
         // Toolbar
@@ -113,10 +127,7 @@ public class MapTablePanel extends JPanel {
         add(new JScrollPane(table), BorderLayout.CENTER);
     }
 
-    /**
-     * Lightweight multi-line monospaced renderer to display ~3 lines.
-     * Do not install AutoCompletion here; keep it for the editor only.
-     */
+    /** Lightweight multi-line monospaced renderer to display ~3 lines. */
     static final class MultiLineMonoRenderer extends JTextArea implements TableCellRenderer {
         private final Font mono = new Font(Font.MONOSPACED, Font.PLAIN, 12);
 

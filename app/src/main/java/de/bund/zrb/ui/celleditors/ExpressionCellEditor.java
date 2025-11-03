@@ -1,7 +1,6 @@
 // src/main/java/de/bund/zrb/ui/celleditors/ExpressionCellEditor.java
 package de.bund.zrb.ui.celleditors;
 
-import de.bund.zrb.runtime.ExpressionRegistryImpl;
 import org.fife.ui.autocomplete.*;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
@@ -20,8 +19,10 @@ import static org.fife.ui.autocomplete.Util.startsWithIgnoreCase;
 /**
  * RSyntaxTextArea-based TableCellEditor with context-aware AutoCompletion for {{ ... }}.
  * - Java 8 compatible
- * - Shows dropdown (no auto-commit)
- * - Inserts functions as fn(arg) with '; ' as separator
+ * - Variables: plain
+ * - Functions: bold and insert as fn() (no params)
+ * - Regex presets: italic
+ * - Descriptions for functions/regex via DescribedItem
  * - 3-line editor height
  */
 public class ExpressionCellEditor extends javax.swing.AbstractCellEditor implements TableCellEditor {
@@ -30,29 +31,37 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
     private final AutoCompletion autoCompletion;
     private final ContextualProvider provider;
 
+    // Injected sources
     private final Supplier<List<String>> variableNamesSupplier;
-    private final Supplier<List<String>> regexNamesSupplier;
+    private final Supplier<Map<String, DescribedItem>> functionItemsSupplier;
+    private final Supplier<Map<String, DescribedItem>> regexItemsSupplier;
 
     public ExpressionCellEditor(Supplier<List<String>> variableNamesSupplier,
-                                Supplier<List<String>> regexNamesSupplier) {
+                                Supplier<Map<String, DescribedItem>> functionItemsSupplier,
+                                Supplier<Map<String, DescribedItem>> regexItemsSupplier) {
 
+        // Fallbacks to empty suppliers
         this.variableNamesSupplier = variableNamesSupplier != null
                 ? variableNamesSupplier
                 : new Supplier<List<String>>() { @Override public List<String> get() { return java.util.Collections.<String>emptyList(); } };
 
-        this.regexNamesSupplier = regexNamesSupplier != null
-                ? regexNamesSupplier
-                : new Supplier<List<String>>() { @Override public List<String> get() { return java.util.Collections.<String>emptyList(); } };
+        this.functionItemsSupplier = functionItemsSupplier != null
+                ? functionItemsSupplier
+                : new Supplier<Map<String, DescribedItem>>() { @Override public Map<String, DescribedItem> get() { return java.util.Collections.<String, DescribedItem>emptyMap(); } };
+
+        this.regexItemsSupplier = regexItemsSupplier != null
+                ? regexItemsSupplier
+                : new Supplier<Map<String, DescribedItem>>() { @Override public Map<String, DescribedItem> get() { return java.util.Collections.<String, DescribedItem>emptyMap(); } };
 
         configureEditorArea(textArea);
 
-        // Custom provider overriding parameter list chars
-        provider = new ContextualProvider(this.variableNamesSupplier, this.regexNamesSupplier);
+        // Custom provider: controls parameter list chars and builds styled items
+        provider = new ContextualProvider(this.variableNamesSupplier, this.functionItemsSupplier, this.regexItemsSupplier);
 
         // Auto-activation incl. '(' and ';'
         provider.setAutoActivationRules(true, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_({;*");
 
-        // a few generic snippets (selection happens contextually)
+        // a couple of neutral snippets (selection happens contextually)
         provider.addCompletion(new ShorthandCompletion(provider, "{{", "{{${cursor}}}}", "Mustache-Variable"));
         provider.addCompletion(new ShorthandCompletion(provider, "regex", "{{REGEX:${cursor}}}", "Regex-Platzhalter"));
 
@@ -61,7 +70,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         autoCompletion.setAutoActivationDelay(120);
         autoCompletion.setParameterAssistanceEnabled(true);
         autoCompletion.setTriggerKey(KeyStroke.getKeyStroke("control SPACE"));
-        autoCompletion.setAutoCompleteSingleChoices(false); // do not insert automatically
+        autoCompletion.setAutoCompleteSingleChoices(false); // show list, never auto-insert
         autoCompletion.setShowDescWindow(true);
         autoCompletion.install(textArea);
 
@@ -109,18 +118,21 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
     private static final class ContextualProvider extends DefaultCompletionProvider {
         private final Supplier<List<String>> variableNamesSupplier;
-        private final Supplier<List<String>> regexNamesSupplier;
+        private final Supplier<Map<String, DescribedItem>> functionItemsSupplier;
+        private final Supplier<Map<String, DescribedItem>> regexItemsSupplier;
 
         ContextualProvider(Supplier<List<String>> variableNamesSupplier,
-                           Supplier<List<String>> regexNamesSupplier) {
+                           Supplier<Map<String, DescribedItem>> functionItemsSupplier,
+                           Supplier<Map<String, DescribedItem>> regexItemsSupplier) {
             this.variableNamesSupplier = variableNamesSupplier;
-            this.regexNamesSupplier = regexNamesSupplier;
+            this.functionItemsSupplier = functionItemsSupplier;
+            this.regexItemsSupplier = regexItemsSupplier;
         }
 
-        // >>> Override parameter list characters to control insertion as fn(arg1; arg2)
-        @Override public char getParameterListStart()    { return '('; }
-        @Override public String getParameterListSeparator() { return "; "; }
-        @Override public char getParameterListEnd()      { return ')'; }
+        // Control insertion as fn() and use "; " separator for potential future multi-arg (UI expectation)
+        @Override public char getParameterListStart()         { return '('; }
+        @Override public String getParameterListSeparator()   { return "; "; }
+        @Override public char getParameterListEnd()           { return ')'; }
 
         @Override
         public String getAlreadyEnteredText(JTextComponent comp) {
@@ -142,72 +154,77 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             Kind kind = determineKind(b.body, b.cursorInBody);
 
             if (kind == Kind.FUNCTION_NAME) {
-                // function list (prefix-filtered)
-                List<String> fns = new ArrayList<String>(ExpressionRegistryImpl.getInstance().getKeys());
-                Collections.sort(fns, String.CASE_INSENSITIVE_ORDER);
-                for (int i = 0; i < fns.size(); i++) {
-                    String fn = fns.get(i);
-                    if (startsWithIgnoreCase(fn, prefix)) {
-                        out.add(buildFunctionCompletion(this, fn));
-                    }
-                }
+                addFunctionCompletions(out, prefix);
             } else if (kind == Kind.ARGUMENT) {
-                // variables + regex presets + optional {{...}} snippet
-                addVariables(out, prefix);
-                addRegexPresets(out, prefix);
+                addVariableCompletions(out, prefix);
+                addRegexCompletions(out, prefix);
                 if (prefix.length() == 0) {
                     out.add(new ShorthandCompletion(this, "{{", "{{${cursor}}}}", "Mustache-Variable"));
                 }
             } else { // VARIABLE or fallback
-                addVariables(out, prefix);
-                // optional template markers *fn
-                List<String> fns = new ArrayList<String>(ExpressionRegistryImpl.getInstance().getKeys());
-                Collections.sort(fns, String.CASE_INSENSITIVE_ORDER);
-                for (int i = 0; i < fns.size(); i++) {
-                    String marker = "*" + fns.get(i);
+                addVariableCompletions(out, prefix);
+                // Optional: template markers *fn (styled as bold too)
+                List<String> fnNames = sortedKeys(functionItemsSupplier.get().keySet());
+                for (int i = 0; i < fnNames.size(); i++) {
+                    String marker = "*" + fnNames.get(i);
                     if (startsWithIgnoreCase(marker, prefix)) {
-                        out.add(new BasicCompletion(this, marker, "Template", "Template-Funktion"));
+                        out.add(new StyledBasicCompletion(this, marker, null, StyledBasicCompletion.Style.BOLD));
                     }
                 }
             }
-
             return out;
         }
 
-        // -- Build completions --
+        // ---- Build styled completions ----
 
-        private Completion buildFunctionCompletion(CompletionProvider p, String fn) {
-            FunctionCompletion c = new FunctionCompletion(p, fn, "String");
-            // one dummy param so caret lands inside parentheses and calltip shows
-            List<ParameterizedCompletion.Parameter> params =
-                    new ArrayList<ParameterizedCompletion.Parameter>(1);
-            params.add(new ParameterizedCompletion.Parameter("String", "arg"));
-            c.setParams(params);
-            c.setShortDescription("Funktion aus ExpressionRegistry");
-            return c;
+        private void addFunctionCompletions(List out, String prefix) {
+            Map<String, DescribedItem> map = functionItemsSupplier.get();
+            List<String> names = sortedKeys(map.keySet());
+            for (int i = 0; i < names.size(); i++) {
+                String fn = names.get(i);
+                if (!startsWithIgnoreCase(fn, prefix)) continue;
+
+                String desc = null;
+                DescribedItem di = map.get(fn);
+                if (di != null) desc = di.getDescription();
+
+                // Bold in list + insert fn() (no params)
+                out.add(new BoldFunctionCompletion(this, fn, desc));
+            }
         }
 
-        private void addVariables(List out, String prefix) {
+        private void addRegexCompletions(List out, String prefix) {
+            Map<String, DescribedItem> map = regexItemsSupplier.get();
+            List<String> names = sortedKeys(map.keySet());
+            for (int i = 0; i < names.size(); i++) {
+                String rx = names.get(i);
+                if (!startsWithIgnoreCase(rx, prefix)) continue;
+
+                String desc = null;
+                DescribedItem di = map.get(rx);
+                if (di != null) desc = di.getDescription();
+
+                out.add(new StyledBasicCompletion(this, rx, desc, StyledBasicCompletion.Style.ITALIC));
+            }
+        }
+
+        private void addVariableCompletions(List out, String prefix) {
             List<String> vars = variableNamesSupplier.get();
             for (int i = 0; i < vars.size(); i++) {
                 String v = vars.get(i);
                 if (startsWithIgnoreCase(v, prefix)) {
-                    out.add(new BasicCompletion(this, v, "Variable", "Variable"));
+                    out.add(new StyledBasicCompletion(this, v, null, StyledBasicCompletion.Style.PLAIN));
                 }
             }
         }
 
-        private void addRegexPresets(List out, String prefix) {
-            List<String> rx = regexNamesSupplier.get();
-            for (int i = 0; i < rx.size(); i++) {
-                String r = rx.get(i);
-                if (startsWithIgnoreCase(r, prefix)) {
-                    out.add(new BasicCompletion(this, r, "Regex-Preset", "Vordefinierte Regex"));
-                }
-            }
+        private List<String> sortedKeys(java.util.Set<String> keys) {
+            List<String> list = new ArrayList<String>(keys);
+            Collections.sort(list, String.CASE_INSENSITIVE_ORDER);
+            return list;
         }
 
-        // -- Context detection (simple & robust) --
+        // ---- Context detection (simple & robust) ----
 
         private Kind determineKind(String body, int caret) {
             String left = body.substring(0, Math.min(caret, body.length()));
@@ -244,7 +261,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             return -1;
         }
 
-        // -- Active block + prefix scan --
+        // ---- Active block + prefix scan ----
 
         private Block findActiveBlock(JTextComponent comp) {
             try {
@@ -293,14 +310,83 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
     }
 
+    // ----- Styled completion types -----
+
+    /**
+     * Plain/italic/bold label in the completion list via HTML; description in summary window.
+     */
+    private static final class StyledBasicCompletion extends BasicCompletion {
+        enum Style { PLAIN, ITALIC, BOLD }
+
+        private final Style style;
+        private final String plainText;
+
+        StyledBasicCompletion(CompletionProvider provider, String replacementText, String description, Style style) {
+            super(provider, replacementText);
+            this.style = style;
+            this.plainText = replacementText;
+            if (description != null && description.length() > 0) {
+                setShortDescription(description);
+            }
+        }
+
+        @Override
+        public String getInputText() {
+            // Render with HTML to style in the list (DefaultListCellRenderer supports HTML)
+            if (style == Style.BOLD)   return "<html><b>" + escapeHtml(plainText) + "</b></html>";
+            if (style == Style.ITALIC) return "<html><i>" + escapeHtml(plainText) + "</i></html>";
+            return escapeHtml(plainText);
+        }
+
+        private String escapeHtml(String s) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < s.length(); i++) {
+                char c = s.charAt(i);
+                switch (c) {
+                    case '&': sb.append("&amp;"); break;
+                    case '<': sb.append("&lt;"); break;
+                    case '>': sb.append("&gt;"); break;
+                    case '"': sb.append("&quot;"); break;
+                    case '\'': sb.append("&#39;"); break;
+                    default: sb.append(c);
+                }
+            }
+            return sb.toString();
+        }
+    }
+
+    /**
+     * Function completion that displays bold label and inserts "name()".
+     * No parameters are added (your functions accept List<String>).
+     */
+    private static final class BoldFunctionCompletion extends FunctionCompletion {
+        private final String name;
+
+        BoldFunctionCompletion(CompletionProvider provider, String functionName, String description) {
+            super(provider, functionName, null /* no return type needed */);
+            this.name = functionName;
+            // Do NOT add any parameters: your functions expect List<String>
+            if (description != null && description.length() > 0) {
+                setShortDescription(description);
+            }
+        }
+
+        @Override
+        public String getInputText() {
+            return "<html><b>" + name + "</b></html>";
+        }
+
+        // leave insertion to FunctionCompletion + provider's parameter chars -> results in "name()"
+    }
+
+    // ----- Small helpers -----
+
     private static final class Block {
         final boolean active;
         final String body;
         final int cursorInBody;
         Block(boolean active, String body, int cursorInBody) {
-            this.active = active;
-            this.body = body;
-            this.cursorInBody = cursorInBody;
+            this.active = active; this.body = body; this.cursorInBody = cursorInBody;
         }
         static Block inactive() { return new Block(false, "", 0); }
     }
