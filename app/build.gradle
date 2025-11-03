@@ -15,6 +15,13 @@ test {
     useJUnitPlatform()
 }
 
+//def javaToolsJar = file("${System.getenv('JAVA_HOME')}/lib/tools.jar")
+def javaHome = System.properties['java.home']
+def javaToolsJar = file("$javaHome/../lib/tools.jar").canonicalFile
+if (!javaToolsJar.exists()) {
+    throw new GradleException("tools.jar nicht gefunden! Stelle sicher, dass JAVA_HOME auf ein Java 8 JDK zeigt.")
+}
+
 dependencies {
     implementation project(':playwright-adapter')
     implementation project(':playwright-java')
@@ -48,6 +55,9 @@ dependencies {
 
     // Pretty Print
     implementation 'com.google.googlejavaformat:google-java-format:1.7'
+
+    // tools.jar für JavaCompiler (nur Java 8, ab Java 9 JShell verwenden!)
+    implementation files(javaToolsJar)
 
     // JavaScript
     implementation 'com.fifesoft:rsyntaxtextarea:3.3.3'

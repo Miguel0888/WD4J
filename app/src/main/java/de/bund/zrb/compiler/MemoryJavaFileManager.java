@@ -1,7 +1,5 @@
 package de.bund.zrb.compiler;
 
-import de.bund.zrb.MemoryJavaFileObject;
-
 import javax.tools.FileObject;
 import javax.tools.ForwardingJavaFileManager;
 import javax.tools.JavaFileManager;

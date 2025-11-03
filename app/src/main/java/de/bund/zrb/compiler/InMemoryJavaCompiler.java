@@ -1,8 +1,6 @@
 package de.bund.zrb.compiler;
 
 import com.sun.tools.javac.api.JavacTool;
-import de.bund.zrb.JavaSourceFromString;
-import de.bund.zrb.MemoryJavaFileManager;
 
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;

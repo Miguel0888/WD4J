@@ -26,7 +26,7 @@ public final class ActionRuntimeEvaluator {
 
     private ActionRuntimeEvaluator() {}
 
-    public static String evaluateActionValue(String template, ValueScope scope) {
+    public static String evaluateActionValue(String template, ValueScope scope) throws Exception {
         if (template == null || template.trim().isEmpty()) {
             return "";
         }
@@ -44,7 +44,7 @@ public final class ActionRuntimeEvaluator {
         return eval(ast, scope);
     }
 
-    private static String eval(ResolvableExpression expr, ValueScope scope) {
+    private static String eval(ResolvableExpression expr, ValueScope scope) throws Exception {
         if (expr == null) return "";
 
         // LiteralExpression = normaler Textteil

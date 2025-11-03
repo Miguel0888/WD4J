@@ -47,7 +47,11 @@ public class FunctionExpression implements ResolvableExpression {
         }
 
         // Ask the registry to evaluate the function at runtime (lazy).
-        return registry.evaluate(functionName, resolvedArgs);
+        try {
+            return registry.evaluate(functionName, resolvedArgs);
+        } catch (Exception e) {
+            throw new UnresolvedSymbolException(e.getMessage()); // ToDo: Check this
+        }
     }
 
     public boolean isResolved(ResolutionContext context) {

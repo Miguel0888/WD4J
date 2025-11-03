@@ -1,189 +1,121 @@
+// de/bund/zrb/runtime/ExpressionRegistryImpl.java
 package de.bund.zrb.runtime;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import de.bund.zrb.compiler.InMemoryJavaCompiler;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.text.SimpleDateFormat;
 import java.util.*;
 
-/**
- * Provide a simple singleton-backed ExpressionRegistry.
- *
- * Intent:
- * - Keep function definitions in memory (Map<String,String>).
- * - Allow UI to edit them.
- * - Allow runtime to evaluate them by name.
- *
- * Note:
- * - This is a minimal, self-contained implementation to make the UI usable
- *   in isolation in your new project.
- * - Replace evaluate(...) with your domain logic if you already have
- *   a richer ExpressionRegistryImpl in the original codebase.
- */
 public class ExpressionRegistryImpl implements ExpressionRegistry {
 
-    private static final ExpressionRegistryImpl INSTANCE = new ExpressionRegistryImpl();
+    private static final String FILE_NAME = "expressions.json";
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Type MAP_TYPE = new TypeToken<Map<String, String>>() {}.getType();
 
-    // Persist to a file under user.home by default for simplicity
-    private static final String REGISTRY_FILENAME = ".expressions-registry.json";
+    private static ExpressionRegistryImpl instance;
 
-    private final Map<String, String> codeByKey = new LinkedHashMap<String, String>();
-    private final Gson gson = new Gson();
+    private final Map<String, String> expressions = new LinkedHashMap<>();
+    private final File file;
+    private final InMemoryJavaCompiler compiler = new InMemoryJavaCompiler();
 
     private ExpressionRegistryImpl() {
-        loadFromDisk();
-        ensureSampleFunctions();
+        this.file = new File(getSettingsFolder(), FILE_NAME);
+        reload();
     }
 
-    public static ExpressionRegistryImpl getInstance() {
-        return INSTANCE;
+    public static synchronized ExpressionRegistryImpl getInstance() {
+        if (instance == null) {
+            instance = new ExpressionRegistryImpl();
+        }
+        return instance;
     }
 
+    @Override
     public synchronized List<String> getKeys() {
-        return new ArrayList<String>(codeByKey.keySet());
+        return new ArrayList<>(expressions.keySet());
     }
 
+    @Override
     public synchronized Optional<String> getCode(String key) {
-        if (!codeByKey.containsKey(key)) {
-            return Optional.empty();
-        }
-        return Optional.of(codeByKey.get(key));
+        return Optional.ofNullable(expressions.get(key));
     }
 
-    public synchronized void register(String key, String code) {
-        codeByKey.put(key, code != null ? code : "");
+    @Override
+    public synchronized void register(String key, String fullSourceCode) {
+        expressions.put(key, fullSourceCode != null ? fullSourceCode : "");
     }
 
+    @Override
     public synchronized void remove(String key) {
-        codeByKey.remove(key);
+        expressions.remove(key);
     }
 
-    /**
-     * Evaluate the named function.
-     *
-     * Important:
-     * - This method is the execution hook that FunctionExpression will call
-     *   at resolve-time in the workflow / cucumber step.
-     * - Do not precompute time-sensitive values (e.g. OTP) elsewhere.
-     *   Always compute here so it is lazy.
-     *
-     * Demo rules:
-     * - "otp": Generate a time-based one-time code string (dummy impl here).
-     * - Otherwise: Treat stored code as a template string that may refer to $1, $2, ...
-     *   Replace $N with params[N-1].
-     *
-     * In your real system you most likely already have more advanced logic
-     * (e.g. compiled Java / scripting). Plug it in here.
-     */
-    public synchronized String evaluate(String key, List<String> params) {
-        if ("otp".equals(key)) {
-            return generateOtp();
-        }
-
-        String code = codeByKey.get(key);
-        if (code == null) {
-            throw new IllegalArgumentException("Unknown function: " + key);
-        }
-
-        String resolved = code;
-        for (int i = 0; i < params.size(); i++) {
-            String token = "$" + (i + 1);
-            String value = params.get(i) != null ? params.get(i) : "";
-            resolved = resolved.replace(token, value);
-        }
-        return resolved;
-    }
-
-    /**
-     * Persist registry state as JSON on disk.
-     */
+    @Override
     public synchronized void save() {
-        try {
-            File file = getRegistryFile();
-            FileWriter fw = new FileWriter(file);
-            try {
-                gson.toJson(codeByKey, fw);
-            } finally {
-                fw.close();
-            }
-        } catch (Exception ex) {
-            // Do not throw here to keep UI responsive. Just log to stderr.
-            System.err.println("Failed to save ExpressionRegistry: " + ex.getMessage());
+        try (FileWriter writer = new FileWriter(file)) {
+            GSON.toJson(expressions, writer);
+        } catch (Exception e) {
+            System.err.println("⚠ Fehler beim Speichern der Expressions: " + e.getMessage());
         }
     }
 
-    /**
-     * Ensure there are some demo functions to make the UI meaningful on first start.
-     * Add otp() if missing so users can test lazy / time critical behavior immediately.
-     */
-    private void ensureSampleFunctions() {
-        if (!codeByKey.containsKey("otp")) {
-            // Store example "implementation code" (for display in the editor).
-            // Real generation happens in evaluate("otp", ...)
-            codeByKey.put("otp",
-                    "// Generate a one-time password (OTP)\n" +
-                            "// This code is evaluated lazily at runtime.\n" +
-                            "return otp();"
-            );
-        }
-        if (!codeByKey.containsKey("wrap")) {
-            codeByKey.put("wrap",
-                    "// Simple demo wrapper\n" +
-                            "// $1 will be replaced with first parameter, $2 with second.\n" +
-                            "return \"[\" + $1 + \"|\" + $2 + \"]\";"
-            );
-        }
-    }
-
-    private void loadFromDisk() {
-        try {
-            File file = getRegistryFile();
-            if (!file.exists()) {
-                return;
-            }
-            FileReader fr = new FileReader(file);
-            try {
-                Type mapType = new TypeToken<Map<String, String>>(){}.getType();
-                Map<String, String> loaded = gson.fromJson(fr, mapType);
+    @Override
+    public synchronized void reload() {
+        expressions.clear();
+        if (file.exists()) {
+            try (FileReader reader = new FileReader(file)) {
+                Map<String, String> loaded = GSON.fromJson(reader, MAP_TYPE);
                 if (loaded != null) {
-                    codeByKey.clear();
-                    codeByKey.putAll(loaded);
+                    expressions.putAll(loaded);
                 }
-            } finally {
-                fr.close();
+            } catch (Exception e) {
+                System.err.println("⚠ Fehler beim Laden der Expressions: " + e.getMessage());
             }
-        } catch (Exception ex) {
-            System.err.println("Failed to load ExpressionRegistry: " + ex.getMessage());
         }
     }
 
-    private File getRegistryFile() {
-        String home = System.getProperty("user.home", ".");
-        return new File(home, REGISTRY_FILENAME);
+    @Override
+    public synchronized String evaluate(String key, List<String> args) throws Exception {
+        String source = expressions.get(key);
+        if (source == null || source.trim().isEmpty()) {
+            throw new IllegalArgumentException("Kein Quelltext für Ausdruck: '" + key + "'");
+        }
+
+        String className = extractClassName(source, key);
+
+        // Wir erwarten eine Klasse, die java.util.function.Function implementiert.
+        Object instance = compiler.compile(className, source, java.util.function.Function.class);
+
+        Method apply = instance.getClass().getMethod("apply", Object.class);
+        Object result = apply.invoke(instance, args);
+
+        return String.valueOf(result);
     }
 
-    /**
-     * Generate a time-based one-time code.
-     * Replace this with your real TOTP/HOTP logic.
-     *
-     * Demo implementation:
-     * - Use current timestamp minute + simple hash to mimic "fresh each time".
-     */
-    private String generateOtp() {
-        long nowMillis = System.currentTimeMillis();
-        long window = nowMillis / 30_000L; // 30s window
-        int hash = (int)(window ^ (window >>> 32));
-        int normalized = Math.abs(hash % 1_000_000);
+    private File getSettingsFolder() {
+        // Passe das an deine Settings-Location an
+        // Falls du bereits SettingsService/SettingsHelper hast, binde das hier ein.
+        String home = System.getProperty("user.home", ".");
+        File dir = new File(home, ".wd4j"); // Beispielordner
+        if (!dir.exists()) dir.mkdirs();
+        return dir;
+    }
 
-        // Format as 6 digits with leading zeros
-        String formatted = String.format("%06d", normalized);
-
-        // Add debug-friendly timestamp info (for panel preview)
-        String ts = new SimpleDateFormat("HH:mm:ss").format(new Date(nowMillis));
-        return formatted + " (at " + ts + ")";
+    private String extractClassName(String source, String fallback) {
+        for (String line : source.split("\\R")) {
+            String t = line.trim();
+            if (t.startsWith("public class ")) {
+                String[] tokens = t.split("\\s+");
+                if (tokens.length >= 3) return tokens[2];
+            }
+        }
+        return "Expr_" + fallback.replaceAll("[^a-zA-Z0-9_$]", "_");
     }
 }

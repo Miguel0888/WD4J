@@ -778,7 +778,7 @@ public class TestPlayerService {
      * - Evaluate variables via ValueScope chain.
      * - Do this LAZY (right now, not beim Speichern).
      */
-    private String resolveActionValueAtRuntime(TestAction action, ValueScope scope) {
+    private String resolveActionValueAtRuntime(TestAction action, ValueScope scope) throws Exception {
         String template = action.getValue(); // z.B. "{{OTP({{username}})}}" oder "4711" oder "{{username}}"
         if (template == null) {
             return "";
@@ -844,7 +844,7 @@ public class TestPlayerService {
     private Map<String,String> evaluateExpressionMapNow(
             Map<String,String> src,
             RuntimeVariableContext ctx
-    ) {
+    ) throws Exception {
         java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<>();
         if (src == null) return out;
 

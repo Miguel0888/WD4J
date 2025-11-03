@@ -29,6 +29,8 @@ public interface ExpressionRegistry {
      */
     Optional<String> getCode(String key);
 
+    void reload();
+
     /**
      * Evaluate the given function using the provided parameters.
      * Return the computed result as String.
@@ -37,7 +39,7 @@ public interface ExpressionRegistry {
      * In your final system this should execute business logic
      * (e.g. generate OTP, wrap text, build regex).
      */
-    String evaluate(String key, List<String> params);
+    String evaluate(String key, java.util.List<String> params) throws Exception;
 
     /**
      * Register or update a function definition.
