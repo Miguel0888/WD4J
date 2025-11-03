@@ -18,12 +18,6 @@ import java.util.function.Supplier;
 
 import static org.fife.ui.autocomplete.Util.startsWithIgnoreCase;
 
-/**
- * UI → UseCase → Domain → Infra:
- * - UI (dieser Editor) zeigt immer AC-Popup und delegiert an Provider.
- * - Provider liefert Variablen, Funktionen, Regex.
- * - Custom AutoCompletion steuert Caret-Position nach Insert.
- */
 public class ExpressionCellEditor extends javax.swing.AbstractCellEditor implements TableCellEditor {
 
     private final RSyntaxTextArea textArea = new RSyntaxTextArea(6, 40);
@@ -56,11 +50,11 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         provider.setAutoActivationRules(true,
                 "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_({[\"';*}]) ");
 
-        // WICHTIG: Eigene AutoCompletion, die Caret nach dem Insert setzt
+        // Eigene AutoCompletion, die Replacement kontextsensitiv formatiert und Caret setzt
         autoCompletion = new CursorAutoCompletion(provider);
         autoCompletion.setAutoActivationEnabled(true);
         autoCompletion.setAutoActivationDelay(80);
-        autoCompletion.setParameterAssistanceEnabled(false); // vermeidet zusätzliches "()"
+        autoCompletion.setParameterAssistanceEnabled(false); // vermeide zusätzliches "()"
         autoCompletion.setTriggerKey(KeyStroke.getKeyStroke("control SPACE"));
         autoCompletion.setAutoCompleteSingleChoices(false);
         autoCompletion.setShowDescWindow(true);
@@ -141,7 +135,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             this.regexItemsSupplier = regexItemsSupplier;
         }
 
-        @Override public char   getParameterListStart()       { return '\0'; } // keine "("-Action
+        @Override public char   getParameterListStart()       { return '\0'; } // keine automatische "(" Action
         @Override public String getParameterListSeparator()   { return "; "; }
         @Override public char   getParameterListEnd()         { return ')'; }
 
@@ -183,6 +177,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
             String prefix = getAlreadyEnteredText(comp);
 
+            // Variablen
             List<String> vars = variableNamesSupplier.get();
             for (int i = 0; i < vars.size(); i++) {
                 String v = vars.get(i);
@@ -191,6 +186,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 }
             }
 
+            // Funktionen
             Map<String, DescribedItem> fmap = functionItemsSupplier.get();
             List<String> fnNames = sortedKeys(fmap.keySet());
             for (int i = 0; i < fnNames.size(); i++) {
@@ -201,6 +197,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 }
             }
 
+            // Regex
             Map<String, DescribedItem> rxmap = regexItemsSupplier.get();
             List<String> rxs = sortedKeys(rxmap.keySet());
             for (int i = 0; i < rxs.size(); i++) {
@@ -221,9 +218,9 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
     }
 
-    // ---------- Completions mit Einfügelogik ----------
+    // ---------- Completion-Typen ----------
 
-    /** Variable → immer {{name}} */
+    /** Variable → Standard ist {{name}}; Cursor/AutoCompletion entscheiden bei Bedarf Kontextformat */
     private static final class VariableCompletion extends BasicCompletion {
         private final String name;
         VariableCompletion(CompletionProvider provider, String variableName) {
@@ -232,6 +229,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
         @Override public String getInputText() { return escapeHtml(name); }
         @Override public String getReplacementText() { return "{{" + name + "}}"; }
+        String getVariableName() { return name; }
         private String escapeHtml(String s) {
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < s.length(); i++) {
@@ -249,7 +247,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
     }
 
-    /** Funktion → immer {{name()}} */
+    /** Funktion → immer {{name()}}; Caret nach '(' */
     private static final class FunctionCompletionWrapped extends FunctionCompletion {
         private final String fn;
         FunctionCompletionWrapped(CompletionProvider provider, String functionName, String description) {
@@ -279,7 +277,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
     }
 
-    /** Regex → immer "pattern" */
+    /** Regex → Standard ist "pattern"; Cursor/AutoCompletion entscheidet bei Bedarf Kontextformat */
     private static final class RegexCompletion extends BasicCompletion {
         private final String rx;
         RegexCompletion(CompletionProvider provider, String regexName, String description) {
@@ -288,6 +286,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
         @Override public String getInputText() { return "<html><i>" + escapeHtml(rx) + "</i></html>"; }
         @Override public String getReplacementText() { return "\"" + rx + "\""; }
+        String getPattern() { return rx; }
         private String escapeHtml(String s) {
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < s.length(); i++) {
@@ -306,8 +305,9 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
     }
 
     /**
-     * Custom AutoCompletion, die nach dem Einfügen ggf. den Caret zwischen '(' und ')' setzt.
-     * Verhindert doppeltes "()" ohne Parameter-Assistance.
+     * AutoCompletion mit:
+     *  - kontextsensitivem Replacement (Variablen/Regex in Funktionsargumenten → "…"; )
+     *  - Caret-Positionierung nach Funktionsinsert (nach '(')
      */
     private static class CursorAutoCompletion extends AutoCompletion {
 
@@ -316,12 +316,32 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
 
         @Override
+        protected String getReplacementText(Completion c, Document doc, int start, int len) {
+            // Entscheide kontextsensitiv
+            if (c instanceof VariableCompletion || c instanceof RegexCompletion) {
+                // Wenn Caret innerhalb einer Funktionsargumentliste (…( | )… ) steht, formatiere "…";
+                if (isInsideFunctionArgs(doc, start)) {
+                    if (c instanceof VariableCompletion) {
+                        VariableCompletion vc = (VariableCompletion) c;
+                        return "\"" + "{{" + vc.getVariableName() + "}}" + "\"; ";
+                    } else {
+                        RegexCompletion rc = (RegexCompletion) c;
+                        // rc liefert bereits "pattern" → ergänze ; und Leerzeichen
+                        String base = rc.getReplacementText();
+                        return base + "; ";
+                    }
+                }
+            }
+            // Default-Verhalten
+            return c.getReplacementText();
+        }
+
+        @Override
         protected void insertCompletion(Completion c, boolean typedParamListStartChar) {
-            // Kopie der Standardlogik, aber mit eigener Caret-Positionierung
+            // Standardinsert (mit unserem getReplacementText) + Caretsteuerung für Funktion
             JTextComponent textComp = getTextComponent();
             String alreadyEntered = c.getAlreadyEntered(textComp);
 
-            // Popup schließen, bevor wir Text einsetzen
             hideChildWindows();
 
             javax.swing.text.Caret caret = textComp.getCaret();
@@ -332,22 +352,50 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             Document doc = textComp.getDocument();
             String replacement = getReplacementText(c, doc, start, len);
 
-            // Ersetzen
             caret.setDot(start);
             caret.moveDot(dot);
             textComp.replaceSelection(replacement);
 
-            // Falls es unsere Funktion ist: Caret zwischen '(' und ')'
             if (c instanceof FunctionCompletionWrapped) {
                 FunctionCompletionWrapped fc = (FunctionCompletionWrapped) c;
-                // Replacement-Format: "{{" + fn + "()}}"
-                // Caret soll NACH '(' stehen, also index vor ')'
-                int caretPos = start + 2 + fc.getFunctionName().length() + 1; // 2 "{{" + len(fn) + 1 "("
+                int caretPos = start + 2 + fc.getFunctionName().length() + 1; // "{{" + fn + "("
                 caret.setDot(caretPos);
             }
-            else {
-                // Default: nichts weiter tun (keine Parameter-Assistance)
+        }
+
+        // --- Kontext-Detektion: Steht Einfügepunkt in {{fn(|)}} Argumentliste? ---
+        private boolean isInsideFunctionArgs(Document doc, int insertStart) {
+            try {
+                String all = doc.getText(0, doc.getLength());
+
+                // Finde das letzte "{{" vor insertStart
+                int openIdx = lastIndexOf(all, "{{", insertStart);
+                if (openIdx < 0) return false;
+
+                // Finde die nächste "}}" nach openIdx
+                int closeIdx = all.indexOf("}}", openIdx + 2);
+                if (closeIdx < 0) return false;
+
+                // Insert muss zwischen openIdx und closeIdx liegen
+                if (insertStart < openIdx || insertStart > closeIdx) return false;
+
+                // Innerhalb dieses Blocks muss eine '(' vor insertStart und eine ')' nach insertStart liegen
+                int parenOpen = all.indexOf('(', openIdx + 2);
+                if (parenOpen < 0 || parenOpen >= insertStart) return false;
+
+                int parenClose = all.indexOf(')', parenOpen + 1);
+                if (parenClose < 0 || parenClose < insertStart) return false;
+
+                return true;
+            } catch (BadLocationException e) {
+                return false;
             }
+        }
+
+        private int lastIndexOf(String s, String needle, int upto) {
+            int stop = Math.min(upto, s.length());
+            if (stop <= 0) return -1;
+            return s.lastIndexOf(needle, stop - 1);
         }
     }
 
