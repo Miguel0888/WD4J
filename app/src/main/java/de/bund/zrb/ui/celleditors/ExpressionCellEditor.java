@@ -49,7 +49,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         provider = new AlwaysOnProvider(this.variableNamesSupplier, this.functionItemsSupplier, this.regexItemsSupplier);
         provider.setAutoActivationRules(true, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_({[\"';*}]) ");
 
-        autoCompletion = new CursorAutoCompletion(provider);
+        autoCompletion = new TabbedAutoCompletion(provider, "Functions", "Variables", "Regex");
         autoCompletion.setAutoActivationEnabled(true);
         autoCompletion.setAutoActivationDelay(80);
         autoCompletion.setParameterAssistanceEnabled(false); // avoid library adding ()
@@ -482,4 +482,178 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
     public Object getCellEditorValue() {
         return textArea.getText();
     }
+
+    // --- Tabbed Popup Window ----------------------------------------------------
+    final class TabbedAutoCompletePopupWindow extends JWindow {
+
+        private final JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
+        private final JList<Object> fnList   = new JList<Object>();
+        private final JList<Object> varList  = new JList<Object>();
+        private final JList<Object> rxList   = new JList<Object>();
+
+        private final DefaultListModel<Object> fnModel  = new DefaultListModel<Object>();
+        private final DefaultListModel<Object> varModel = new DefaultListModel<Object>();
+        private final DefaultListModel<Object> rxModel  = new DefaultListModel<Object>();
+
+        private final AutoCompletion ac;
+
+        TabbedAutoCompletePopupWindow(Window owner, AutoCompletion ac,
+                                      String fnTitle, String varTitle, String rxTitle) {
+            super(owner);
+            this.ac = ac;
+
+            fnList.setModel(fnModel);
+            varList.setModel(varModel);
+            rxList.setModel(rxModel);
+
+            // Use AC’s renderer if one is set
+            ListCellRenderer<Object> r = ac.getListCellRenderer();
+            if (r != null) {
+                fnList.setCellRenderer(r);
+                varList.setCellRenderer(r);
+                rxList.setCellRenderer(r);
+            }
+
+            // Double-click or Enter -> insert selected completion
+            MouseAdapter dbl = new MouseAdapter() {
+                @Override public void mouseClicked(MouseEvent e) {
+                    if (e.getClickCount() == 2) insertSelected();
+                }
+            };
+            KeyAdapter enter = new KeyAdapter() {
+                @Override public void keyPressed(KeyEvent e) {
+                    if (e.getKeyCode() == KeyEvent.VK_ENTER) insertSelected();
+                    if (e.getKeyCode() == KeyEvent.VK_ESCAPE) setVisible(false);
+                }
+            };
+            fnList.addMouseListener(dbl); varList.addMouseListener(dbl); rxList.addMouseListener(dbl);
+            fnList.addKeyListener(enter); varList.addKeyListener(enter); rxList.addKeyListener(enter);
+
+            tabs.addTab(fnTitle,  new JScrollPane(fnList));
+            tabs.addTab(varTitle, new JScrollPane(varList));
+            tabs.addTab(rxTitle,  new JScrollPane(rxList));
+
+            getContentPane().setLayout(new BorderLayout());
+            getContentPane().add(tabs, BorderLayout.CENTER);
+
+            setSize(400, 260); // ähnlich Default
+        }
+
+        // Fill lists with categorized completions
+        void setCompletions(java.util.List<Completion> completions) {
+            fnModel.clear(); varModel.clear(); rxModel.clear();
+            for (int i = 0; i < completions.size(); i++) {
+                Completion c = completions.get(i);
+                if (c instanceof FunctionCompletion || c instanceof TemplateCompletion || c instanceof ParameterizedCompletion) {
+                    fnModel.addElement(c);
+                } else if (c instanceof BasicCompletion) {
+                    // Entscheide anhand deines Typs
+                    if (c.getClass().getSimpleName().contains("Variable")) varModel.addElement(c);
+                    else if (c.getClass().getSimpleName().contains("Regex")) rxModel.addElement(c);
+                    else varModel.addElement(c);
+                } else {
+                    varModel.addElement(c);
+                }
+            }
+            // Fokus dort hin, wo es Inhalte gibt
+            if (fnModel.size() > 0) tabs.setSelectedIndex(0);
+            else if (varModel.size() > 0) tabs.setSelectedIndex(1);
+            else tabs.setSelectedIndex(2);
+        }
+
+        // Determine screen location near caret
+        void setLocationRelativeToCaret(JTextComponent tc) throws BadLocationException {
+            Rectangle r = tc.modelToView(tc.getCaretPosition());
+            if (r == null) return;
+            Point p = new Point(r.x, r.y + r.height);
+            SwingUtilities.convertPointToScreen(p, tc);
+            setLocation(p);
+        }
+
+        // Expose currently selected completion
+        Completion getSelection() {
+            int idx = tabs.getSelectedIndex();
+            if (idx == 0) return (Completion) fnList.getSelectedValue();
+            if (idx == 1) return (Completion) varList.getSelectedValue();
+            return (Completion) rxList.getSelectedValue();
+        }
+
+        private void insertSelected() {
+            Completion c = getSelection();
+            if (c != null) {
+                setVisible(false);
+                ((TabbedAutoCompletion) ac).performInsertion(c); // -> öffentliche Brücke
+            }
+        }
+    }
+
+    // --- AutoCompletion mit Tabbed Popup ---------------------------------------
+    // --- AutoCompletion mit Tabbed Popup ---------------------------------------
+    final class TabbedAutoCompletion extends AutoCompletion {
+
+        private TabbedAutoCompletePopupWindow popup;
+        private final String fnTitle;
+        private final String varTitle;
+        private final String rxTitle;
+
+        TabbedAutoCompletion(CompletionProvider provider, String fnTitle, String varTitle, String rxTitle) {
+            super(provider);
+            this.fnTitle = fnTitle;
+            this.varTitle = varTitle;
+            this.rxTitle = rxTitle;
+            setAutoCompleteSingleChoices(false);
+            setShowDescWindow(false);
+        }
+
+        // Öffentliche Brücke für das Popup (ruft die protected Basismethode auf)
+        public void performInsertion(Completion c) {
+            super.insertCompletion(c);
+        }
+
+        @Override
+        public void install(JTextComponent c) {
+            super.install(c);
+            Window owner = SwingUtilities.getWindowAncestor(c);
+            if (owner == null) owner = JOptionPane.getRootFrame();
+            popup = new TabbedAutoCompletePopupWindow(owner, this, fnTitle, varTitle, rxTitle);
+        }
+
+        @Override
+        protected int refreshPopupWindow() {
+            JTextComponent tc = getTextComponent();
+            if (tc == null) return 0;
+
+            java.util.List<Completion> completions = getCompletionProvider().getCompletions(tc);
+            int count = completions == null ? 0 : completions.size();
+            if (count <= 0) {
+                hidePopupWindow();
+                return 0;
+            }
+
+            if (popup == null) {
+                Window owner = SwingUtilities.getWindowAncestor(tc);
+                if (owner == null) owner = JOptionPane.getRootFrame();
+                popup = new TabbedAutoCompletePopupWindow(owner, this, fnTitle, varTitle, rxTitle);
+            }
+
+            popup.setCompletions(completions);
+            try {
+                popup.setLocationRelativeToCaret(tc);
+            } catch (BadLocationException ignore) { }
+            popup.setVisible(true);
+            return 0; // nicht getLineOfCaret() benutzen (package-private)
+        }
+
+        @Override
+        protected boolean hidePopupWindow() {
+            if (popup != null && popup.isVisible()) {
+                popup.setVisible(false);
+                return true;
+            }
+            return false;
+        }
+    }
+
+
+
 }
