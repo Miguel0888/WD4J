@@ -17,6 +17,7 @@ import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Provide a UI panel to view, edit, register, remove and test expressions/functions
@@ -55,10 +56,10 @@ public class ExpressionEditorPanel extends JPanel {
 
         // Fill dropdown with known keys
         keyDropdown.addItem(""); // empty entry as "nothing selected"
-        List<String> keys = registry.getKeys();
-        for (int i = 0; i < keys.size(); i++) {
-            keyDropdown.addItem(keys.get(i));
+        for (String key : registry.getKeys()) {
+           keyDropdown.addItem(key);
         }
+
 
         // Configure editor area
         codeArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVA);
