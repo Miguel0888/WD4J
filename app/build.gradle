@@ -59,8 +59,13 @@ dependencies {
     // tools.jar für JavaCompiler (nur Java 8, ab Java 9 JShell verwenden!)
     implementation files(javaToolsJar)
 
-    // JavaScript
+    // Code-Editor
     implementation 'com.fifesoft:rsyntaxtextarea:3.3.3'
+    implementation 'com.fifesoft:autocomplete:3.3.1'   // Add-on für Code-Completion
+    // optional: vordefinierte Language-Supports (Java, JS, …)
+    // implementation 'com.fifesoft:languagesupport:3.3.3'
+
+    // JavaScript
     implementation 'org.graalvm.js:js:22.3.0'
 
     // JSON
