@@ -47,14 +47,12 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         configureEditorArea(textArea);
 
         provider = new AlwaysOnProvider(this.variableNamesSupplier, this.functionItemsSupplier, this.regexItemsSupplier);
-        provider.setAutoActivationRules(true,
-                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_({[\"';*}]) ");
+        provider.setAutoActivationRules(true, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_({[\"';*}]) ");
 
-        // Eigene AutoCompletion, die Replacement kontextsensitiv formatiert und Caret setzt
         autoCompletion = new CursorAutoCompletion(provider);
         autoCompletion.setAutoActivationEnabled(true);
         autoCompletion.setAutoActivationDelay(80);
-        autoCompletion.setParameterAssistanceEnabled(false); // vermeide zusätzliches "()"
+        autoCompletion.setParameterAssistanceEnabled(false); // avoid library adding ()
         autoCompletion.setTriggerKey(KeyStroke.getKeyStroke("control SPACE"));
         autoCompletion.setAutoCompleteSingleChoices(false);
         autoCompletion.setShowDescWindow(true);
@@ -86,7 +84,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         im.put(KeyStroke.getKeyStroke("ENTER"), "commit-or-newline");
         am.put("commit-or-newline", new AbstractAction() {
             @Override public void actionPerformed(java.awt.event.ActionEvent e) {
-                int menuMask = Toolkit.getDefaultToolkit().getMenuShortcutKeyMask(); // Java 8
+                int menuMask = Toolkit.getDefaultToolkit().getMenuShortcutKeyMask();
                 int mods = e != null ? e.getModifiers() : 0;
                 boolean ctrlOrCmd = (mods & menuMask) != 0;
                 boolean shift = (mods & java.awt.event.InputEvent.SHIFT_MASK) != 0;
@@ -101,25 +99,19 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
     private static void installAlwaysShowPopupHooks(final RSyntaxTextArea ta, final AutoCompletion ac) {
         ta.addFocusListener(new FocusAdapter() {
-            @Override public void focusGained(FocusEvent e) {
-                ac.doCompletion();
-            }
+            @Override public void focusGained(FocusEvent e) { ac.doCompletion(); }
         });
         ta.addCaretListener(new javax.swing.event.CaretListener() {
-            @Override public void caretUpdate(javax.swing.event.CaretEvent e) {
-                ac.doCompletion();
-            }
+            @Override public void caretUpdate(javax.swing.event.CaretEvent e) { ac.doCompletion(); }
         });
         ta.addKeyListener(new KeyAdapter() {
             @Override public void keyReleased(KeyEvent e) {
-                if (e.getKeyCode() != KeyEvent.VK_ESCAPE) {
-                    ac.doCompletion();
-                }
+                if (e.getKeyCode() != KeyEvent.VK_ESCAPE) ac.doCompletion();
             }
         });
     }
 
-    // ---------- Provider: liefert IMMER Variablen, Funktionen und Regex ----------
+    // ---------- Provider ----------
 
     private static final class AlwaysOnProvider extends DefaultCompletionProvider {
 
@@ -135,17 +127,15 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             this.regexItemsSupplier = regexItemsSupplier;
         }
 
-        @Override public char   getParameterListStart()       { return '\0'; } // keine automatische "(" Action
+        @Override public char   getParameterListStart()       { return '\0'; } // do not bind '('
         @Override public String getParameterListSeparator()   { return "; "; }
         @Override public char   getParameterListEnd()         { return ')'; }
 
-        @Override
-        protected boolean isValidChar(char ch) {
+        @Override protected boolean isValidChar(char ch) {
             return Character.isLetterOrDigit(ch) || ch == '_' || ch == '*' || ch == '"' || ch == '{' || ch == '}';
         }
 
-        @Override
-        public boolean isAutoActivateOkay(JTextComponent tc) { return true; }
+        @Override public boolean isAutoActivateOkay(JTextComponent tc) { return true; }
 
         @Override
         public String getAlreadyEnteredText(JTextComponent comp) {
@@ -160,9 +150,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                     if (Character.isLetterOrDigit(ch) || ch == '_' || ch == '*') {
                         sb.insert(0, ch);
                         i--;
-                    } else {
-                        break;
-                    }
+                    } else break;
                 }
                 return sb.toString();
             } catch (BadLocationException e) {
@@ -177,7 +165,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
             String prefix = getAlreadyEnteredText(comp);
 
-            // Variablen
             List<String> vars = variableNamesSupplier.get();
             for (int i = 0; i < vars.size(); i++) {
                 String v = vars.get(i);
@@ -186,7 +173,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 }
             }
 
-            // Funktionen
             Map<String, DescribedItem> fmap = functionItemsSupplier.get();
             List<String> fnNames = sortedKeys(fmap.keySet());
             for (int i = 0; i < fnNames.size(); i++) {
@@ -197,7 +183,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 }
             }
 
-            // Regex
             Map<String, DescribedItem> rxmap = regexItemsSupplier.get();
             List<String> rxs = sortedKeys(rxmap.keySet());
             for (int i = 0; i < rxs.size(); i++) {
@@ -220,7 +205,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
     // ---------- Completion-Typen ----------
 
-    /** Variable → Standard ist {{name}}; Cursor/AutoCompletion entscheiden bei Bedarf Kontextformat */
     private static final class VariableCompletion extends BasicCompletion {
         private final String name;
         VariableCompletion(CompletionProvider provider, String variableName) {
@@ -247,19 +231,16 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
     }
 
-    /** Funktion → immer {{name()}}; Caret nach '(' */
     private static final class FunctionCompletionWrapped extends FunctionCompletion {
         private final String fn;
         FunctionCompletionWrapped(CompletionProvider provider, String functionName, String description) {
             super(provider, functionName, null);
             this.fn = functionName;
-            if (description != null && description.length() > 0) {
-                setShortDescription(description);
-            }
+            if (description != null && description.length() > 0) setShortDescription(description);
         }
         @Override public String getInputText() { return "<html><b>" + escapeHtml(fn) + "</b></html>"; }
         @Override public String getReplacementText() { return "{{" + fn + "()}}"; }
-        String getFunctionName() { return fn; } // expose for caret calc
+        String getFunctionName() { return fn; }
         private String escapeHtml(String s) {
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < s.length(); i++) {
@@ -277,7 +258,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
     }
 
-    /** Regex → Standard ist "pattern"; Cursor/AutoCompletion entscheidet bei Bedarf Kontextformat */
     private static final class RegexCompletion extends BasicCompletion {
         private final String rx;
         RegexCompletion(CompletionProvider provider, String regexName, String description) {
@@ -304,92 +284,130 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
     }
 
-    /**
-     * AutoCompletion mit:
-     *  - kontextsensitivem Replacement (Variablen/Regex in Funktionsargumenten → "…"; )
-     *  - Caret-Positionierung nach Funktionsinsert (nach '(')
-     */
+    // ---------- AutoCompletion mit Kontext- und Last-Arg-Erkennung ----------
+
     private static class CursorAutoCompletion extends AutoCompletion {
 
-        CursorAutoCompletion(CompletionProvider provider) {
-            super(provider);
-        }
-
-        @Override
-        protected String getReplacementText(Completion c, Document doc, int start, int len) {
-            // Entscheide kontextsensitiv
-            if (c instanceof VariableCompletion || c instanceof RegexCompletion) {
-                // Wenn Caret innerhalb einer Funktionsargumentliste (…( | )… ) steht, formatiere "…";
-                if (isInsideFunctionArgs(doc, start)) {
-                    if (c instanceof VariableCompletion) {
-                        VariableCompletion vc = (VariableCompletion) c;
-                        return "\"" + "{{" + vc.getVariableName() + "}}" + "\"; ";
-                    } else {
-                        RegexCompletion rc = (RegexCompletion) c;
-                        // rc liefert bereits "pattern" → ergänze ; und Leerzeichen
-                        String base = rc.getReplacementText();
-                        return base + "; ";
-                    }
-                }
-            }
-            // Default-Verhalten
-            return c.getReplacementText();
-        }
+        CursorAutoCompletion(CompletionProvider provider) { super(provider); }
 
         @Override
         protected void insertCompletion(Completion c, boolean typedParamListStartChar) {
-            // Standardinsert (mit unserem getReplacementText) + Caretsteuerung für Funktion
-            JTextComponent textComp = getTextComponent();
-            String alreadyEntered = c.getAlreadyEntered(textComp);
+            JTextComponent tc = getTextComponent();
+            String alreadyEntered = c.getAlreadyEntered(tc);
 
             hideChildWindows();
 
-            javax.swing.text.Caret caret = textComp.getCaret();
+            javax.swing.text.Caret caret = tc.getCaret();
             int dot = caret.getDot();
             int len = alreadyEntered != null ? alreadyEntered.length() : 0;
             int start = dot - len;
 
-            Document doc = textComp.getDocument();
-            String replacement = getReplacementText(c, doc, start, len);
-
+            // Entferne evtl. bereits getippten Prefix
             caret.setDot(start);
             caret.moveDot(dot);
-            textComp.replaceSelection(replacement);
+            tc.replaceSelection("");
+            int pos = tc.getCaretPosition();
+
+            // Kontext: Variable/Regex innerhalb von {{fn( … )}} ?
+            if ((c instanceof VariableCompletion) || (c instanceof RegexCompletion)) {
+                Bounds b = findFnBoundsAt(tc.getDocument(), pos);
+                if (b != null && pos >= b.parenOpen + 1 && pos <= b.parenClose) {
+
+                    // Bestimme, ob erster oder weiterer Parameter (nur Links-Scan)
+                    boolean firstParam = isFirstParamPosition(b, pos, tc.getDocument());
+
+                    StringBuilder sb = new StringBuilder();
+                    if (!firstParam) {
+                        sb.append("; ");
+                    }
+
+                    if (c instanceof VariableCompletion) {
+                        VariableCompletion vc = (VariableCompletion) c;
+                        sb.append("\"{{").append(vc.getVariableName()).append("}}\"");
+                    } else {
+                        sb.append(((RegexCompletion) c).getReplacementText()); // already quoted
+                    }
+
+                    tc.replaceSelection(sb.toString());
+                    // Caret bleibt einfach hinter dem eingefügten Token
+                    return;
+                }
+            }
+
+            // Standardpfad: Funktionen und Variablen außerhalb der Argumentliste
+            Document doc = tc.getDocument();
+            String repl = c.getReplacementText();
+            tc.replaceSelection(repl);
 
             if (c instanceof FunctionCompletionWrapped) {
                 FunctionCompletionWrapped fc = (FunctionCompletionWrapped) c;
-                int caretPos = start + 2 + fc.getFunctionName().length() + 1; // "{{" + fn + "("
+                // Cursor nach '(' in {{fn(|)}}
+                int caretPos = start + 2 + fc.getFunctionName().length() + 1;
                 caret.setDot(caretPos);
             }
         }
 
-        // --- Kontext-Detektion: Steht Einfügepunkt in {{fn(|)}} Argumentliste? ---
-        private boolean isInsideFunctionArgs(Document doc, int insertStart) {
+        // ---- Helfer ------------------------------------------------------------
+
+        private static final class Bounds {
+            String text;
+            int blockOpen;
+            int blockClose;
+            int parenOpen;
+            int parenClose;
+        }
+
+        /** Finde den umgebenden {{fn(...)}}-Block für 'pos'. */
+        private Bounds findFnBoundsAt(Document doc, int pos) {
             try {
                 String all = doc.getText(0, doc.getLength());
-
-                // Finde das letzte "{{" vor insertStart
-                int openIdx = lastIndexOf(all, "{{", insertStart);
-                if (openIdx < 0) return false;
-
-                // Finde die nächste "}}" nach openIdx
+                int openIdx = lastIndexOf(all, "{{", pos);
+                if (openIdx < 0) return null;
                 int closeIdx = all.indexOf("}}", openIdx + 2);
-                if (closeIdx < 0) return false;
+                if (closeIdx < 0 || pos < openIdx || pos > closeIdx) return null;
 
-                // Insert muss zwischen openIdx und closeIdx liegen
-                if (insertStart < openIdx || insertStart > closeIdx) return false;
-
-                // Innerhalb dieses Blocks muss eine '(' vor insertStart und eine ')' nach insertStart liegen
                 int parenOpen = all.indexOf('(', openIdx + 2);
-                if (parenOpen < 0 || parenOpen >= insertStart) return false;
-
+                if (parenOpen < 0 || parenOpen > closeIdx) return null;
                 int parenClose = all.indexOf(')', parenOpen + 1);
-                if (parenClose < 0 || parenClose < insertStart) return false;
+                if (parenClose < 0 || parenClose > closeIdx) return null;
 
-                return true;
+                Bounds b = new Bounds();
+                b.text = all;
+                b.blockOpen = openIdx;
+                b.blockClose = closeIdx;
+                b.parenOpen = parenOpen;
+                b.parenClose = parenClose;
+                return b;
             } catch (BadLocationException e) {
-                return false;
+                return null;
             }
+        }
+
+        /**
+         * Bestimme ausschließlich per Left-Scan, ob vor 'pos' (innerhalb der selben fn)
+         * bereits ein Argument existiert. Regeln:
+         * - Scanne von pos-1 rückwärts bis '('
+         * - Überspringe Whitespace
+         * - Wenn erstes gefundenes Zeichen '(' → erster Parameter
+         * - Sonst (egal was) → weiterer Parameter
+         */
+        private boolean isFirstParamPosition(Bounds b, int pos, Document doc) {
+            int i = pos - 1;
+            int min = b.parenOpen + 1;
+            try {
+                while (i >= min) {
+                    char ch = doc.getText(i, 1).charAt(0);
+                    if (isWs(ch)) { i--; continue; }
+                    return ch == '('; // nur wenn direkt '(' links → erster
+                }
+            } catch (BadLocationException ignored) {
+            }
+            // Nur Whitespace zwischen '(' und pos → erster
+            return true;
+        }
+
+        private boolean isWs(char ch) {
+            return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
         }
 
         private int lastIndexOf(String s, String needle, int upto) {
@@ -398,6 +416,10 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             return s.lastIndexOf(needle, stop - 1);
         }
     }
+
+
+
+
 
     // ---------- TableCellEditor ----------
 
