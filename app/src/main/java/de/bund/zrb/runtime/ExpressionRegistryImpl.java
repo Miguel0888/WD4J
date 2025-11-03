@@ -5,6 +5,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import de.bund.zrb.compiler.InMemoryJavaCompiler;
+import de.bund.zrb.ui.settings.ExpressionExamples;
 
 import java.io.File;
 import java.io.FileReader;
@@ -78,29 +79,27 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
                 System.err.println("⚠ Fehler beim Laden der Expressions: " + e.getMessage());
             }
         }
+        ExpressionExamples.ensureExamplesRegistered(this);
     }
 
     @Override
     public synchronized String evaluate(String key, List<String> params) throws Exception {
-        String bodyOrClass = expressions.get(key);
-        if (bodyOrClass == null || bodyOrClass.trim().isEmpty()) {
+        String source = expressions.get(key);
+        if (source == null || source.trim().isEmpty()) {
             throw new IllegalArgumentException("Kein Quelltext für Ausdruck: '" + key + "'");
         }
 
-        String className;
-        String sourceToCompile;
-
-        if (looksLikeFullClass(bodyOrClass)) {
-            // Vollständige Klasse wurde gespeichert -> so lassen
-            className = extractClassName(bodyOrClass, key);
-            sourceToCompile = bodyOrClass;
-        } else {
-            // Nur Funktionsrumpf gespeichert -> wrappen
-            className = "Expr_" + toValidJavaIdentifier(key);
-            sourceToCompile = buildWrapperSource(className, bodyOrClass);
+        // Comment: Require users to provide a full class (see examples); avoid wrappers
+        if (!looksLikeFullClass(source)) {
+            throw new IllegalArgumentException(
+                    "Bitte vollständige Klasse im Stil der Beispiele angeben (implements Function<List<String>, String>)."
+            );
         }
 
-        Object instance = compiler.compile(className, sourceToCompile, java.util.function.Function.class);
+        String className = extractClassName(source, key);
+        Object instance = compiler.compile(className, source, java.util.function.Function.class);
+
+        // Comment: Type erasure makes apply(Object) the reflective signature
         java.lang.reflect.Method apply = instance.getClass().getMethod("apply", Object.class);
         Object result = apply.invoke(instance, params);
         return String.valueOf(result);
