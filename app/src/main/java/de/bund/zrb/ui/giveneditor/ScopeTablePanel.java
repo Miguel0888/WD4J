@@ -2,6 +2,7 @@ package de.bund.zrb.ui.giveneditor;
 
 import de.bund.zrb.model.ScopeTemplateEntry;
 import de.bund.zrb.model.ScopeVariableEntry;
+import de.bund.zrb.ui.celleditors.ExpressionCellEditor;
 
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
@@ -62,6 +63,8 @@ public class ScopeTablePanel extends JPanel {
         table = new JTable(tableModel);
         table.setFillsViewportHeight(true);
 
+        initAutocompletion();
+
         JScrollPane scroll = new JScrollPane(table);
 
         JButton addBtn = new JButton("+");
@@ -79,6 +82,20 @@ public class ScopeTablePanel extends JPanel {
 
         add(scroll, BorderLayout.CENTER);
         add(btnBar, BorderLayout.SOUTH);
+    }
+
+    private void initAutocompletion() {
+        // Inject suppliers (falls du (noch) keine Listen hast, liefere leere):
+        java.util.function.Supplier<List<String>> varSupplier = new java.util.function.Supplier<List<String>>() {
+            @Override public List<String> get() { return java.util.Collections.<String>emptyList(); }
+        };
+        java.util.function.Supplier<List<String>> regexSupplier = new java.util.function.Supplier<List<String>>() {
+            @Override public List<String> get() { return java.util.Collections.<String>emptyList(); }
+        };
+
+        // Use ExpressionCellEditor for column "Expression" (index 1)
+        ExpressionCellEditor exprEditor = new ExpressionCellEditor(varSupplier, regexSupplier);
+        table.getColumnModel().getColumn(1).setCellEditor(exprEditor);
     }
 
     private void onAdd() {
