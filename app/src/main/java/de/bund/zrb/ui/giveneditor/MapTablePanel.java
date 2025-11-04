@@ -116,14 +116,14 @@ public class MapTablePanel extends JPanel {
             // Neue Methode: Hole die Beschreibung für die Funktion
             private String getFunctionDescription(String functionName) {
                 // Beispiel: Hole die Beschreibung aus dem Built-in Catalog oder anderen Quellen
-                switch (functionName) {
-                    case "Date":
+                switch (functionName.toLowerCase()) {
+                    case "date":
                         return "Gibt das aktuelle Datum/Zeit zurück, optional formatiert.";
-                    case "Echo":
+                    case "echo":
                         return "Gibt den übergebenen String zurück.";
-                    case "Navigate":
+                    case "navigate":
                         return "Navigiert zum angegebenen URL.";
-                    case "Screenshot":
+                    case "screenshot":
                         return "Erstellt einen Screenshot der aktuellen Seite.";
                     // Füge hier beliebig weitere Funktionen mit Beschreibung hinzu
                     default:
