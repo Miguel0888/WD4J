@@ -349,7 +349,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
         // ---- Helfer ------------------------------------------------------------
 
-        private static final class Bounds {
+        static final class Bounds {
             String text;
             int blockOpen;
             int blockClose;
@@ -358,7 +358,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
 
         /** Finde den umgebenden {{fn(...)}}-Block für 'pos' per balanciertem Scan. */
-        private Bounds findFnBoundsAt(Document doc, int pos) {
+        Bounds findFnBoundsAt(Document doc, int pos) {
             try {
                 String s = doc.getText(0, doc.getLength());
                 final int N = s.length();
@@ -539,6 +539,12 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             setSize(400, 260); // ähnlich Default
         }
 
+        void selectTab(int index) {
+            if (index >= 0 && index < tabs.getTabCount()) {
+                tabs.setSelectedIndex(index);
+            }
+        }
+
         // Fill lists with categorized completions
         void setCompletions(java.util.List<Completion> completions) {
             fnModel.clear(); varModel.clear(); rxModel.clear();
@@ -588,8 +594,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
     }
 
     // --- AutoCompletion mit Tabbed Popup ---------------------------------------
-    // --- AutoCompletion mit Tabbed Popup ---------------------------------------
-    final class TabbedAutoCompletion extends AutoCompletion {
+    final class TabbedAutoCompletion extends CursorAutoCompletion {
 
         private TabbedAutoCompletePopupWindow popup;
         private final String fnTitle;
@@ -637,6 +642,19 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             }
 
             popup.setCompletions(completions);
+            // Decide default tab by context: if caret is inside fn(...), prefer Variables tab
+            boolean inArgs = false;
+            try {
+                int pos = tc.getCaretPosition();
+                Bounds b = findFnBoundsAt(tc.getDocument(), pos); // inherited from CursorAutoCompletion
+                inArgs = (b != null && pos >= b.parenOpen + 1 && pos <= b.parenClose);
+            } catch (Exception ignore) {
+                // keep default
+            }
+
+            // 0 = Functions, 1 = Variables, 2 = Regex
+            popup.selectTab(inArgs ? 1 : 0);
+
             try {
                 popup.setLocationRelativeToCaret(tc);
             } catch (BadLocationException ignore) { }
