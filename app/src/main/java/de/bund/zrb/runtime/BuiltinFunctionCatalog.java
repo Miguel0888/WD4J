@@ -4,7 +4,6 @@ import de.bund.zrb.expressions.builtins.EchoFunction;
 import de.bund.zrb.expressions.domain.ExpressionFunction;
 import de.bund.zrb.expressions.domain.FunctionMetadata;
 import de.bund.zrb.expressions.builtins.DateFunction;
-// import weitere Builtins hier
 
 import java.util.*;
 
