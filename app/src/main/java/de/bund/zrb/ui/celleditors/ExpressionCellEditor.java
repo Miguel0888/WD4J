@@ -205,48 +205,33 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
         // --- Reflection bridge to avoid changing your domain classes ---
 
-        /** Try to read a List<String> of parameter names from DescribedItem (directly or via getMetadata().getParameters()) */
+        /** Read parameter names from various shapes: List<String>, List<Pojo>, Pojo[], String[] */
         private List<String> extractParamNames(DescribedItem di) {
             if (di == null) return java.util.Collections.<String>emptyList();
             try {
-                // Case 1: di has method getParamNames(): List<String>
                 Method m = safeMethod(di.getClass(), "getParamNames");
                 if (m != null) {
                     Object val = m.invoke(di);
-                    if (val instanceof List) return castStringList(val);
+                    List<String> res = castStringList(val);
+                    if (!res.isEmpty()) return res;
                 }
-                // Case 2: di.getMetadata().getParameters(): returns Collection/Iterable of names
                 Method gm = safeMethod(di.getClass(), "getMetadata");
                 if (gm != null) {
                     Object meta = gm.invoke(di);
                     if (meta != null) {
-                        // FunctionMetadata#getParameters() -> List<String> or List<?> of objects with getName()
-                        Method gp = safeMethod(meta.getClass(), "getParameters");
-                        if (gp != null) {
-                            Object p = gp.invoke(meta);
-                            if (p instanceof List) {
-                                List list = (List) p;
-                                if (list.isEmpty()) return java.util.Collections.<String>emptyList();
-                                Object first = list.get(0);
-                                if (first instanceof String) {
-                                    return castStringList(list);
-                                } else {
-                                    // Try element.getName()
-                                    List<String> out = new ArrayList<String>(list.size());
-                                    for (int i = 0; i < list.size(); i++) {
-                                        Object elem = list.get(i);
-                                        String name = tryName(elem);
-                                        if (name != null) out.add(name);
-                                    }
-                                    return out;
-                                }
-                            }
-                        }
-                        // Fallback: FunctionMetadata might have getParamNames()
+                        // Prefer explicit getParamNames()
                         Method mpn = safeMethod(meta.getClass(), "getParamNames");
                         if (mpn != null) {
                             Object val = mpn.invoke(meta);
-                            if (val instanceof List) return castStringList(val);
+                            List<String> res = castStringList(val);
+                            if (!res.isEmpty()) return res;
+                        }
+                        // Generic getParameters()
+                        Method gp = safeMethod(meta.getClass(), "getParameters");
+                        if (gp != null) {
+                            Object p = gp.invoke(meta);
+                            List<String> names = asStringListOrPojoNames(p);
+                            if (!names.isEmpty()) return names;
                         }
                     }
                 }
@@ -254,50 +239,114 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             return java.util.Collections.<String>emptyList();
         }
 
-        /** Try to read a List<String> of parameter descriptions (optional). */
+        /** Read parameter descriptions: List<String>, List<Pojo>.getDescription(), Pojo[] */
         private List<String> extractParamDescs(DescribedItem di) {
-            if (di == null) return null;
+            if (di == null) return java.util.Collections.<String>emptyList();
             try {
-                // Case 1: di has getParamDescriptions(): List<String>
                 Method m = safeMethod(di.getClass(), "getParamDescriptions");
                 if (m != null) {
                     Object val = m.invoke(di);
-                    if (val instanceof List) return castStringList(val);
+                    List<String> res = castStringList(val);
+                    if (!res.isEmpty()) return res;
                 }
-                // Case 2: via metadata: each parameter object has getDescription()
                 Method gm = safeMethod(di.getClass(), "getMetadata");
                 if (gm != null) {
                     Object meta = gm.invoke(di);
                     if (meta != null) {
+                        Method mpd = safeMethod(meta.getClass(), "getParamDescriptions");
+                        if (mpd != null) {
+                            Object val = mpd.invoke(meta);
+                            List<String> res = castStringList(val);
+                            if (!res.isEmpty()) return res;
+                        }
                         Method gp = safeMethod(meta.getClass(), "getParameters");
                         if (gp != null) {
                             Object p = gp.invoke(meta);
-                            if (p instanceof List) {
-                                List list = (List) p;
-                                List<String> out = new ArrayList<String>(list.size());
-                                for (int i = 0; i < list.size(); i++) {
-                                    Object elem = list.get(i);
-                                    String d = tryDescription(elem);
-                                    out.add(d);
-                                }
-                                return out;
-                            }
+                            List<String> descs = asStringListOrPojoDescriptions(p);
+                            if (!descs.isEmpty()) return descs;
                         }
                     }
                 }
             } catch (Exception ignore) { }
-            return null;
+            return java.util.Collections.<String>emptyList();
         }
+
+        // --- helpers ---
+
+        @SuppressWarnings("unchecked")
+        private List<String> castStringList(Object val) {
+            if (val instanceof List) {
+                List list = (List) val;
+                if (!list.isEmpty() && list.get(0) instanceof String) {
+                    return new ArrayList<String>((List<String>) list);
+                }
+            }
+            return java.util.Collections.<String>emptyList();
+        }
+
+        private List<String> asStringListOrPojoNames(Object container) {
+            if (container == null) return java.util.Collections.<String>emptyList();
+            if (container instanceof Collection) {
+                Collection c = (Collection) container;
+                if (c.isEmpty()) return java.util.Collections.<String>emptyList();
+                Object first = c.iterator().next();
+                if (first instanceof String) return new ArrayList<String>((Collection<String>) c);
+                List<String> out = new ArrayList<String>(c.size());
+                for (Object o : (Collection) c) {
+                    String n = tryName(o);
+                    if (n != null) out.add(n);
+                }
+                return out;
+            }
+            if (container.getClass().isArray()) {
+                int n = java.lang.reflect.Array.getLength(container);
+                List<String> out = new ArrayList<String>(n);
+                for (int i = 0; i < n; i++) {
+                    Object elem = java.lang.reflect.Array.get(container, i);
+                    if (elem instanceof String) out.add((String) elem);
+                    else {
+                        String name = tryName(elem);
+                        if (name != null) out.add(name);
+                    }
+                }
+                return out;
+            }
+            return java.util.Collections.<String>emptyList();
+        }
+
+        private List<String> asStringListOrPojoDescriptions(Object container) {
+            if (container == null) return java.util.Collections.<String>emptyList();
+            if (container instanceof Collection) {
+                Collection c = (Collection) container;
+                if (c.isEmpty()) return java.util.Collections.<String>emptyList();
+                Object first = c.iterator().next();
+                if (first instanceof String) return new ArrayList<String>((Collection<String>) c);
+                List<String> out = new ArrayList<String>(c.size());
+                for (Object o : (Collection) c) {
+                    String d = tryDescription(o);
+                    out.add(d);
+                }
+                return out;
+            }
+            if (container.getClass().isArray()) {
+                int n = java.lang.reflect.Array.getLength(container);
+                List<String> out = new ArrayList<String>(n);
+                for (int i = 0; i < n; i++) {
+                    Object elem = java.lang.reflect.Array.get(container, i);
+                    if (elem instanceof String) out.add((String) elem);
+                    else out.add(tryDescription(elem));
+                }
+                return out;
+            }
+            return java.util.Collections.<String>emptyList();
+        }
+
+
+        /// ////////////////////////////
 
         private Method safeMethod(Class<?> c, String name) {
             try { return c.getMethod(name); }
             catch (Exception e) { return null; }
-        }
-
-        @SuppressWarnings("unchecked")
-        private List<String> castStringList(Object val) {
-            try { return (List<String>) val; }
-            catch (ClassCastException e) { return java.util.Collections.<String>emptyList(); }
         }
 
         private String tryName(Object o) {
@@ -417,10 +466,14 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             sb.append("<html><body style='font-family:sans-serif;font-size:12px;'>");
             sb.append("<div style='font-weight:bold;font-size:13px;margin-bottom:6px;'>")
                     .append(escapeHtml(fn)).append("</div>");
-            if (longDescription != null && longDescription.length() > 0) {
+
+            boolean hasDesc = longDescription != null && longDescription.length() > 0;
+            boolean hasParams = paramInfos != null && !paramInfos.isEmpty();
+
+            if (hasDesc) {
                 sb.append("<div style='margin-bottom:8px;'>").append(longDescription).append("</div>");
             }
-            if (paramInfos != null && !paramInfos.isEmpty()) {
+            if (hasParams) {
                 sb.append("<div style='margin-top:4px;'><b>Parameters</b></div>");
                 sb.append("<table width='100%' cellspacing='0' cellpadding='2' style='border-collapse:collapse;'>");
                 for (int i = 0; i < paramInfos.size(); i++) {
@@ -431,10 +484,15 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                             .append("</code></td>")
                             .append("<td valign='top' style='padding-left:6px;'>")
                             .append(p.desc != null ? escapeHtml(p.desc) : "")
-                            .append("</td>")
-                            .append("</tr>");
+                            .append("</td></tr>");
                 }
                 sb.append("</table>");
+            }
+
+            if (!hasDesc && !hasParams) {
+                // Make absence explicit – hilft beim Debuggen und UX
+                sb.append("<div style='color:#777;'>No description or parameters available. " +
+                        "Provide DescribedItem#getDescription() and metadata (names/descriptions).</div>");
             }
             sb.append("</body></html>");
             return sb.toString();
