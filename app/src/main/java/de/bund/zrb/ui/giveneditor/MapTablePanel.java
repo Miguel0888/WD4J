@@ -96,13 +96,7 @@ public class MapTablePanel extends JPanel {
                 for (int i = 0; i < sorted.size(); i++) {
                     final String name = sorted.get(i);
                     ExpressionFunction function = ExpressionRegistryImpl.getInstance().get(name);  // Hol die Funktion als ExpressionFunction
-                    out.put(name, new DescribedItem() {
-                        @Override
-                        public String getDescription() {
-                            // Überprüfe, ob die Funktion eine Beschreibung liefert, ansonsten gib eine Standardbeschreibung zurück
-                            return (function != null && function.getDescription() != null) ? function.getDescription() : "Keine Beschreibung verfügbar";
-                        }
-                    });
+                    out.put(name, function);
                 }
                 return out;
             }
