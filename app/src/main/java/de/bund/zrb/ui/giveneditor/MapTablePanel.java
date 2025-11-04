@@ -85,24 +85,50 @@ public class MapTablePanel extends JPanel {
             }
         };
 
-        // Funktionen: aus ExpressionRegistryImpl, optional mit Beschreibung (hier zunächst leer)
+        // Funktionen: aus ExpressionRegistryImpl, mit Beschreibung
         Supplier<Map<String, DescribedItem>> fnSupplier = new Supplier<Map<String, DescribedItem>>() {
-            @Override public Map<String, DescribedItem> get() {
+            @Override
+            public Map<String, DescribedItem> get() {
                 Map<String, DescribedItem> out = new LinkedHashMap<String, DescribedItem>();
                 java.util.Set<String> keys = ExpressionRegistryImpl.getInstance().getKeys();
+
+                // Hole alle Funktionsnamen, sortiere sie alphabetisch
                 java.util.List<String> sorted = new java.util.ArrayList<String>(keys);
                 java.util.Collections.sort(sorted, String.CASE_INSENSITIVE_ORDER);
+
                 for (int i = 0; i < sorted.size(); i++) {
                     final String name = sorted.get(i);
+
+                    // Suche die Beschreibung für die Funktion
+                    String description = getFunctionDescription(name); // Neue Methode
+
                     out.put(name, new DescribedItem() {
-                        @Override public String getDescription() {
-                            // Falls du Beschreibungen hast, gib sie hier zurück.
-                            // Z. B. aus einer eigenen Map<String,String> descriptions.get(name)
-                            return null;
+                        @Override
+                        public String getDescription() {
+                            // Gib die Beschreibung zurück (falls vorhanden)
+                            return description != null ? description : "Keine Beschreibung verfügbar";
                         }
                     });
                 }
                 return out;
+            }
+
+            // Neue Methode: Hole die Beschreibung für die Funktion
+            private String getFunctionDescription(String functionName) {
+                // Beispiel: Hole die Beschreibung aus dem Built-in Catalog oder anderen Quellen
+                switch (functionName) {
+                    case "Date":
+                        return "Gibt das aktuelle Datum/Zeit zurück, optional formatiert.";
+                    case "Echo":
+                        return "Gibt den übergebenen String zurück.";
+                    case "Navigate":
+                        return "Navigiert zum angegebenen URL.";
+                    case "Screenshot":
+                        return "Erstellt einen Screenshot der aktuellen Seite.";
+                    // Füge hier beliebig weitere Funktionen mit Beschreibung hinzu
+                    default:
+                        return null; // Keine Beschreibung gefunden
+                }
             }
         };
 
