@@ -87,26 +87,26 @@ public class MapTablePanel extends JPanel {
         };
 
         // Funktionen: aus ExpressionRegistryImpl, mit Beschreibung
+        // im MapTablePanel: fnSupplier
         Supplier<Map<String, DescribedItem>> fnSupplier = new Supplier<Map<String, DescribedItem>>() {
             @Override public Map<String, DescribedItem> get() {
                 Map<String, DescribedItem> out = new LinkedHashMap<String, DescribedItem>();
-                java.util.Set<String> keys = ExpressionRegistryImpl.getInstance().getKeys();
-                java.util.List<String> sorted = new java.util.ArrayList<String>(keys);
-                java.util.Collections.sort(sorted, String.CASE_INSENSITIVE_ORDER);
+                Set<String> keys = ExpressionRegistryImpl.getInstance().getKeys();
+                List<String> sorted = new ArrayList<String>(keys);
+                Collections.sort(sorted, String.CASE_INSENSITIVE_ORDER);
+
                 for (int i = 0; i < sorted.size(); i++) {
                     final String name = sorted.get(i);
-                    ExpressionFunction function = ExpressionRegistryImpl.getInstance().get(name);  // Hol die Funktion als ExpressionFunction
-                    out.put(name, new DescribedItem() {
-                        @Override
-                        public String getDescription() {
-                            // Überprüfe, ob die Funktion eine Beschreibung liefert, ansonsten gib eine Standardbeschreibung zurück
-                            return (function != null && function.getDescription() != null) ? function.getDescription() : "Keine Beschreibung verfügbar";
-                        }
-                    });
+                    ExpressionFunction function = ExpressionRegistryImpl.getInstance().get(name);
+                    if (function != null) {
+                        // Wichtig: Funktion selbst eintragen, nicht in anonymes DescribedItem wrappen!
+                        out.put(name, function);
+                    }
                 }
                 return out;
             }
         };
+
 
         // Regex-Presets: aus RegexPatternRegistry (Title- & Message-Presets)
         Supplier<Map<String, DescribedItem>> rxSupplier = new Supplier<Map<String, DescribedItem>>() {
