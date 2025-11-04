@@ -11,7 +11,7 @@ import java.util.*;
 public final class DateFunction implements ExpressionFunction {
 
     private static final FunctionMetadata META =
-            new FunctionMetadata("Date", "Return current date/time with optional pattern", Arrays.asList("pattern?"));
+            new FunctionMetadata("Date", "Return current date/time with optional pattern", Arrays.asList("pattern?"), null);
 
     public String invoke(List<String> args, FunctionContext ctx) throws FunctionExecutionException {
         Date now = new Date();

@@ -11,7 +11,7 @@ import java.util.List;
 public final class EchoFunction implements ExpressionFunction {
 
     private static final FunctionMetadata META =
-            new FunctionMetadata("Echo", "Echo the concatenation of arguments", Arrays.asList("value", "more..."));
+            new FunctionMetadata("Echo", "Echo the concatenation of arguments", Arrays.asList("value", "more..."), null);
 
     public String invoke(List<String> args, FunctionContext ctx) throws FunctionExecutionException {
         // Keep it simple: join with space

@@ -98,7 +98,7 @@ public class NavigationTool extends AbstractUserTool implements BuiltinTool {
                 ToolExpressionFunction.meta(
                         "Navigate",
                         "Navigate current user to the given URL and return the final URL.",
-                        ToolExpressionFunction.params("url")
+                        ToolExpressionFunction.params("url"), null
                 ),
                 1, 1,
                 new ToolExpressionFunction.Invoker() {
@@ -114,7 +114,7 @@ public class NavigationTool extends AbstractUserTool implements BuiltinTool {
                 ToolExpressionFunction.meta(
                         "NavigateAs",
                         "Navigate a specific user to the given URL and return the final URL.",
-                        ToolExpressionFunction.params("userName", "url")
+                        ToolExpressionFunction.params("userName", "url"), null
                 ),
                 2, 2,
                 new ToolExpressionFunction.Invoker() {

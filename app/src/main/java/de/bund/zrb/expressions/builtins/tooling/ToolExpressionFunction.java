@@ -47,8 +47,8 @@ public final class ToolExpressionFunction implements ExpressionFunction {
     public FunctionMetadata metadata() { return meta; }
 
     // helpers
-    public static FunctionMetadata meta(String name, String desc, List<String> params) {
-        return new FunctionMetadata(name, desc, params);
+    public static FunctionMetadata meta(String name, String desc, List<String> params,  List<String> paramDescs) {
+        return new FunctionMetadata(name, desc, params, paramDescs);
     }
     public static List<String> params(String p1) {
         List<String> l = new ArrayList<String>(1); l.add(p1); return l;
