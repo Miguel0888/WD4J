@@ -311,43 +311,53 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             // Kontext: Variable/Regex/Funktion innerhalb von {{fn( … )}} ?
             if ((c instanceof VariableCompletion) || (c instanceof RegexCompletion) || (c instanceof FunctionCompletionWrapped)) {
                 Bounds b = findFnBoundsAt(tc.getDocument(), pos);
-                if (b != null && pos >= b.parenOpen + 1 && pos <= b.parenClose) {
+                String all = null;
+                try {
+                    all = tc.getDocument().getText(0, tc.getDocument().getLength());
+                } catch (BadLocationException e) {
+                    throw new RuntimeException(e);
+                }
+                if (isInsideQuotes(all, b.parenOpen + 1, pos)) {
+                    // fallback: normaler Insert ohne ;/""
+                } else {
+                    if (b != null && pos >= b.parenOpen + 1 && pos <= b.parenClose) {
 
-                    // Bestimme, ob erster oder weiterer Parameter (nur Links-Scan)
-                    boolean firstParam = isFirstParamPosition(b, pos, tc.getDocument());
+                        // Bestimme, ob erster oder weiterer Parameter (nur Links-Scan)
+                        boolean firstParam = isFirstParamPosition(b, pos, tc.getDocument());
 
-                    StringBuilder sb = new StringBuilder();
-                    if (!firstParam) {
-                        sb.append("; ");
-                    }
+                        StringBuilder sb = new StringBuilder();
+                        if (!firstParam && !hasSepBefore(tc.getDocument(), pos, b.parenOpen + 1)) {
+                            sb.append("; ");
+                        }
 
-                    // Merke Einfüge-Start, damit wir den Caret nach dem Replace korrekt setzen
-                    int insertStart = tc.getCaretPosition();
+                        // Merke Einfüge-Start, damit wir den Caret nach dem Replace korrekt setzen
+                        int insertStart = tc.getCaretPosition();
 
-                    if (c instanceof VariableCompletion) {
-                        VariableCompletion vc = (VariableCompletion) c;
-                        sb.append("\"{{").append(vc.getVariableName()).append("}}\"");
-                        tc.replaceSelection(sb.toString());
-                        // Caret bleibt hinter dem eingefügten Token
-                        return;
-                    } else if (c instanceof RegexCompletion) {
-                        sb.append(((RegexCompletion) c).getReplacementText()); // already quoted
-                        tc.replaceSelection(sb.toString());
-                        // Caret bleibt hinter dem eingefügten Token
-                        return;
-                    } else {
-                        // --- NEW: Funktion als Argument einfügen: {{name()}}
-                        FunctionCompletionWrapped fcw = (FunctionCompletionWrapped) c;
-                        String fn = fcw.getFunctionName();
-                        sb.append("{{").append(fn).append("()}}");
-                        tc.replaceSelection(sb.toString());
+                        if (c instanceof VariableCompletion) {
+                            VariableCompletion vc = (VariableCompletion) c;
+                            sb.append("\"{{").append(vc.getVariableName()).append("}}\"");
+                            tc.replaceSelection(sb.toString());
+                            // Caret bleibt hinter dem eingefügten Token
+                            return;
+                        } else if (c instanceof RegexCompletion) {
+                            sb.append(((RegexCompletion) c).getReplacementText()); // already quoted
+                            tc.replaceSelection(sb.toString());
+                            // Caret bleibt hinter dem eingefügten Token
+                            return;
+                        } else {
+                            // --- NEW: Funktion als Argument einfügen: {{name()}}
+                            FunctionCompletionWrapped fcw = (FunctionCompletionWrapped) c;
+                            String fn = fcw.getFunctionName();
+                            sb.append("{{").append(fn).append("()}}");
+                            tc.replaceSelection(sb.toString());
 
-                        // Setze Caret in die inneren Klammern der soeben eingefügten Funktion
-                        // prefixLen = 2 wenn "; " eingefügt wurde, sonst 0
-                        int prefixLen = firstParam ? 0 : 2;
-                        int caretPosInInserted = insertStart + prefixLen + 2 /*{{*/ + fn.length() + 1 /*(*/;
-                        tc.getCaret().setDot(caretPosInInserted);
-                        return;
+                            // Setze Caret in die inneren Klammern der soeben eingefügten Funktion
+                            // prefixLen = 2 wenn "; " eingefügt wurde, sonst 0
+                            int prefixLen = firstParam ? 0 : 2;
+                            int caretPosInInserted = insertStart + prefixLen + 2 /*{{*/ + fn.length() + 1 /*(*/;
+                            tc.getCaret().setDot(caretPosInInserted);
+                            return;
+                        }
                     }
                 }
             }
@@ -366,6 +376,30 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
 
         // ---- Helfer ------------------------------------------------------------
+
+        /* Optional*/
+        private boolean isInsideQuotes(String s, int from, int to) {
+            boolean in = false; char q = 0;
+            for (int i = from; i < to && i < s.length(); i++) {
+                char c = s.charAt(i);
+                if (!in && (c == '"' || c == '\'')) { in = true; q = c; }
+                else if (in && c == q) { in = false; }
+            }
+            return in;
+        }
+
+        /* Optional*/
+        private boolean hasSepBefore(Document doc, int pos, int min) {
+            try {
+                int i = pos - 1;
+                while (i >= min) {
+                    char ch = doc.getText(i, 1).charAt(0);
+                    if (ch == ' ' || ch == '\t') { i--; continue; }
+                    return ch == ';';
+                }
+            } catch (BadLocationException ignored) { }
+            return false;
+        }
 
         static final class Bounds {
             String text;
