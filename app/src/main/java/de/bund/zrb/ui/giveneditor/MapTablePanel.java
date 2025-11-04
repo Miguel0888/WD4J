@@ -1,6 +1,7 @@
 // src/main/java/de/bund/zrb/ui/giveneditor/MapTablePanel.java
 package de.bund.zrb.ui.giveneditor;
 
+import de.bund.zrb.expressions.domain.ExpressionFunction;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.RegexPatternRegistry;
 import de.bund.zrb.runtime.ExpressionRegistryImpl;
@@ -87,48 +88,23 @@ public class MapTablePanel extends JPanel {
 
         // Funktionen: aus ExpressionRegistryImpl, mit Beschreibung
         Supplier<Map<String, DescribedItem>> fnSupplier = new Supplier<Map<String, DescribedItem>>() {
-            @Override
-            public Map<String, DescribedItem> get() {
+            @Override public Map<String, DescribedItem> get() {
                 Map<String, DescribedItem> out = new LinkedHashMap<String, DescribedItem>();
                 java.util.Set<String> keys = ExpressionRegistryImpl.getInstance().getKeys();
-
-                // Hole alle Funktionsnamen, sortiere sie alphabetisch
                 java.util.List<String> sorted = new java.util.ArrayList<String>(keys);
                 java.util.Collections.sort(sorted, String.CASE_INSENSITIVE_ORDER);
-
                 for (int i = 0; i < sorted.size(); i++) {
                     final String name = sorted.get(i);
-
-                    // Suche die Beschreibung für die Funktion
-                    String description = getFunctionDescription(name); // Neue Methode
-
+                    ExpressionFunction function = ExpressionRegistryImpl.getInstance().get(name);  // Hol die Funktion als ExpressionFunction
                     out.put(name, new DescribedItem() {
                         @Override
                         public String getDescription() {
-                            // Gib die Beschreibung zurück (falls vorhanden)
-                            return description != null ? description : "Keine Beschreibung verfügbar";
+                            // Überprüfe, ob die Funktion eine Beschreibung liefert, ansonsten gib eine Standardbeschreibung zurück
+                            return (function != null && function.getDescription() != null) ? function.getDescription() : "Keine Beschreibung verfügbar";
                         }
                     });
                 }
                 return out;
-            }
-
-            // Neue Methode: Hole die Beschreibung für die Funktion
-            private String getFunctionDescription(String functionName) {
-                // Beispiel: Hole die Beschreibung aus dem Built-in Catalog oder anderen Quellen
-                switch (functionName.toLowerCase()) {
-                    case "date":
-                        return "Gibt das aktuelle Datum/Zeit zurück, optional formatiert.";
-                    case "echo":
-                        return "Gibt den übergebenen String zurück.";
-                    case "navigate":
-                        return "Navigiert zum angegebenen URL.";
-                    case "screenshot":
-                        return "Erstellt einen Screenshot der aktuellen Seite.";
-                    // Füge hier beliebig weitere Funktionen mit Beschreibung hinzu
-                    default:
-                        return null; // Keine Beschreibung gefunden
-                }
             }
         };
 

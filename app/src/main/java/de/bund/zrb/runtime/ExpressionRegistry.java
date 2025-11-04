@@ -1,5 +1,7 @@
 package de.bund.zrb.runtime;
 
+import de.bund.zrb.expressions.domain.ExpressionFunction;
+
 import java.util.Optional;
 import java.util.Set;
 
@@ -55,4 +57,6 @@ public interface ExpressionRegistry {
      * Persist all current functions.
      */
     void save();
+
+    ExpressionFunction get(String name);
 }

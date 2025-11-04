@@ -16,6 +16,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.function.Function;
 
 /**
  * Vereinigt Benutzer-Expressions (kompiliert zur Laufzeit) und eingebaute Funktionen (Builtins, kein Compile).
@@ -234,4 +235,35 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
         }
         return "Expr_" + (fallback == null ? "_" : fallback.replaceAll("[^a-zA-Z0-9_$]", "_"));
     }
+
+    @Override
+    public synchronized ExpressionFunction get(String name) {
+        String norm = normalize(name);
+
+        // Zuerst Builtin-Funktionen prüfen
+        ExpressionFunction builtin = builtins.get(norm);
+        if (builtin != null) {
+            return builtin; // Wenn gefunden, zurückgeben
+        }
+
+        // Falls nicht im Builtin-Katalog, schauen wir in den benutzerspezifischen Funktionen
+        String sourceCode = expressions.get(norm);
+        if (sourceCode != null && !sourceCode.trim().isEmpty()) {
+            // Wenn eine benutzerspezifische Funktion existiert, kompilieren und zurückgeben
+            String className = extractClassName(sourceCode, norm);
+            Object instance = null;
+            try {
+                instance = compiler.compile(className, sourceCode, Function.class);
+            } catch (Exception e) {
+                return null; // do not deliver broken functions
+            }
+            if (instance instanceof ExpressionFunction) {
+                return (ExpressionFunction) instance;
+            }
+        }
+
+        // Wenn keine Funktion gefunden, null zurückgeben
+        return null;
+    }
+
 }
