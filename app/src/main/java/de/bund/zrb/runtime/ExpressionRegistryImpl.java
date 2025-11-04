@@ -7,12 +7,27 @@ import com.google.gson.reflect.TypeToken;
 import de.bund.zrb.compiler.InMemoryJavaCompiler;
 import de.bund.zrb.ui.settings.ExpressionExamples;
 
+import de.bund.zrb.expressions.domain.ExpressionFunction;
+import de.bund.zrb.expressions.domain.FunctionContext;
+import de.bund.zrb.expressions.domain.FunctionMetadata;
+// Falls du bereits Builtins angelegt hast (z. B. DateFunction), importiere sie im BuiltinFunctionCatalog.
+
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.lang.reflect.Type;
 import java.util.*;
 
+/**
+ * Registry vereinigt:
+ * - Benutzerdefinierte Expressions (persistiert und zur Laufzeit kompiliert)
+ * - Eingebaute Funktionen (ohne Compile, direkter Aufruf)
+ *
+ * Design-Notizen:
+ * - Favorisiere Builtins: evaluate() dispatcht zuerst auf den Builtin-Katalog.
+ * - Builtins erscheinen in getKeys(), sind aber nicht löschbar und haben keinen getCode()-Inhalt.
+ * - Halte API kompatibel zu deiner bisherigen Registry.
+ */
 public class ExpressionRegistryImpl implements ExpressionRegistry {
 
     private static final String FILE_NAME = "expressions.json";
@@ -21,9 +36,13 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
 
     private static ExpressionRegistryImpl instance;
 
-    private final Map<String, String> expressions = new LinkedHashMap<>();
+    // --- Benutzerdefinierte Expressions (Name -> Source) ---
+    private final Map<String, String> expressions = new LinkedHashMap<String, String>();
     private final File file;
     private final InMemoryJavaCompiler compiler = new InMemoryJavaCompiler();
+
+    // --- Eingebaute Funktionen (ohne Compile) ---
+    private final BuiltinFunctionCatalog builtins = new BuiltinFunctionCatalog();
 
     private ExpressionRegistryImpl() {
         this.file = new File(getSettingsFolder(), FILE_NAME);
@@ -37,23 +56,47 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
         return instance;
     }
 
+    // -------------------------------------------------------------------------
+    // Registry-API
+    // -------------------------------------------------------------------------
+
     @Override
     public synchronized Set<String> getKeys() {
-        return expressions.keySet();
+        // Combine builtins + user expressions (stabile Reihenfolge)
+        LinkedHashSet<String> all = new LinkedHashSet<String>();
+        all.addAll(builtins.names());        // zuerst Builtins
+        all.addAll(expressions.keySet());    // dann User
+        return Collections.unmodifiableSet(all);
     }
 
     @Override
     public synchronized Optional<String> getCode(String key) {
+        // Builtins haben keinen User-Source
+        String norm = normalize(key);
+        if (builtins.contains(norm)) {
+            return Optional.empty();
+        }
         return Optional.ofNullable(expressions.get(key));
     }
 
     @Override
     public synchronized void register(String key, String fullSourceCode) {
+        // Erlaube Namensüberschreibung auf User-Seite (aber nicht für Builtin)
+        String norm = normalize(key);
+        if (builtins.contains(norm)) {
+            // Optional: Fehler werfen, wenn du Builtin-Name schützen willst
+            // throw new IllegalArgumentException("Name ist reserviert (Builtin): " + key);
+            // Hier: einfach ignorieren
+            return;
+        }
         expressions.put(key, fullSourceCode != null ? fullSourceCode : "");
     }
 
     @Override
     public synchronized void remove(String key) {
+        // Builtins sind nicht löschbar
+        String norm = normalize(key);
+        if (builtins.contains(norm)) return;
         expressions.remove(key);
     }
 
@@ -84,12 +127,22 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
 
     @Override
     public synchronized String evaluate(String key, List<String> params) throws Exception {
+        String norm = normalize(key);
+
+        // --- 1) Builtin? Dann direkt aufrufen (kein Compile) ---
+        ExpressionFunction builtin = builtins.get(norm);
+        if (builtin != null) {
+            List<String> safeParams = params != null ? params : Collections.<String>emptyList();
+            return builtin.invoke(safeParams, defaultContext());
+        }
+
+        // --- 2) User-defined via Compile ---
         String source = expressions.get(key);
         if (source == null || source.trim().isEmpty()) {
             throw new IllegalArgumentException("Kein Quelltext für Ausdruck: '" + key + "'");
         }
 
-        // Comment: Require users to provide a full class (see examples); avoid wrappers
+        // Require "volle Klasse" (dein bisheriges Verhalten)
         if (!looksLikeFullClass(source)) {
             throw new IllegalArgumentException(
                     "Bitte vollständige Klasse im Stil der Beispiele angeben (implements Function<List<String>, String>)."
@@ -99,22 +152,48 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
         String className = extractClassName(source, key);
         Object instance = compiler.compile(className, source, java.util.function.Function.class);
 
-        // Comment: Type erasure makes apply(Object) the reflective signature
+        // Type erasure -> apply(Object)
         java.lang.reflect.Method apply = instance.getClass().getMethod("apply", Object.class);
         Object result = apply.invoke(instance, params);
         return String.valueOf(result);
     }
 
+    // -------------------------------------------------------------------------
+    // Zusätzliche, nützliche API für IntelliSense (optional)
+    // -------------------------------------------------------------------------
+
+    /** Liefere Metadaten aller Builtins (z. B. für den Functions-Tab). */
+    public synchronized Collection<FunctionMetadata> builtinMetadata() {
+        return builtins.metadata();
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    /** Provide a minimal default context. Extend when services are needed. */
+    private FunctionContext defaultContext() {
+        return new FunctionContext() {
+            public String resolveVariable(String name) { return ""; }
+            public Map<String, Object> services() { return Collections.emptyMap(); }
+        };
+    }
+
+    private String normalize(String key) {
+        return key == null ? "" : key.trim().toLowerCase(Locale.ROOT);
+    }
+
     /** Erkenne grob, ob es schon echter Klassencode ist. */
     private boolean looksLikeFullClass(String src) {
-        String s = src.trim();
+        String s = src == null ? "" : src.trim();
         // sehr simpel: wenn irgendwo "class " oder "interface " oder "enum " vorkommt, nehmen wir es als voll.
         return s.contains(" class ") || s.startsWith("class ")
                 || s.contains(" interface ") || s.startsWith("interface ")
                 || s.contains(" enum ") || s.startsWith("enum ");
     }
 
-    /** Erzeugt eine minimal lauffähige Klasse um den Body. */
+    /** Erzeuge eine minimal lauffähige Klasse um einen Body (wird aktuell nicht genutzt). */
+    @SuppressWarnings("unused")
     private String buildWrapperSource(String className, String body) {
         // Hinweis:
         // - params kommen als List<String> rein (Variable "P")
@@ -141,56 +220,15 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
                 + "    String $8 = param(P,8);\n"
                 + "    String $9 = param(P,9);\n"
                 + "    // ====== User-Code (Funktionsrumpf) ======\n"
-                +          body + "\n"
+                +          (body == null ? "" : body) + "\n"
                 + "    // Falls kein return im Body vorhanden war:\n"
                 + "    return \"\";\n"
                 + "  }\n"
                 + "}\n";
     }
 
-    // Comment: Sanitize string to a valid Java identifier; keep intent readable
-    private String toValidJavaIdentifier(String input) {
-        if (input == null || input.trim().isEmpty()) {
-            return "_";
-        }
-
-        String s = input.trim();
-
-        // Build result char by char according to Java identifier rules
-        StringBuilder out = new StringBuilder(s.length());
-
-        // Handle first character
-        char c0 = s.charAt(0);
-        if (Character.isJavaIdentifierStart(c0)) {
-            out.append(c0);
-        } else {
-            // Comment: Prepend underscore if first char is invalid
-            out.append('_');
-            if (Character.isJavaIdentifierPart(c0)) {
-                out.append(c0);
-            } else {
-                out.append('_');
-            }
-        }
-
-        // Handle remaining characters
-        for (int i = 1; i < s.length(); i++) {
-            char c = s.charAt(i);
-            out.append(Character.isJavaIdentifierPart(c) ? c : '_');
-        }
-
-        // Optional: Collapse multiple underscores and trim edges
-        String cleaned = out.toString().replaceAll("_+", "_");
-        if (cleaned.equals("_")) {
-            // Comment: Avoid returning a bare underscore if possible
-            cleaned = "_X";
-        }
-        return cleaned;
-    }
-
     private File getSettingsFolder() {
         // Passe das an deine Settings-Location an
-        // Falls du bereits SettingsService/SettingsHelper hast, binde das hier ein.
         String home = System.getProperty("user.home", ".");
         File dir = new File(home, ".wd4j"); // Beispielordner
         if (!dir.exists()) dir.mkdirs();
@@ -198,13 +236,64 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
     }
 
     private String extractClassName(String source, String fallback) {
-        for (String line : source.split("\\R")) {
-            String t = line.trim();
-            if (t.startsWith("public class ")) {
-                String[] tokens = t.split("\\s+");
-                if (tokens.length >= 3) return tokens[2];
+        if (source != null) {
+            String[] lines = source.split("\\R");
+            for (int i = 0; i < lines.length; i++) {
+                String t = lines[i].trim();
+                if (t.startsWith("public class ")) {
+                    String[] tokens = t.split("\\s+");
+                    if (tokens.length >= 3) return tokens[2];
+                }
             }
         }
-        return "Expr_" + fallback.replaceAll("[^a-zA-Z0-9_$]", "_");
+        return "Expr_" + (fallback == null ? "_" : fallback.replaceAll("[^a-zA-Z0-9_$]", "_"));
+    }
+
+    // =========================================================================
+    // BuiltinFunctionCatalog (lokal eingebettet, kann auch in eigene Datei)
+    // =========================================================================
+    /**
+     * Katalog der fest implementierten Funktionen.
+     * - Registriere hier alle Builtins (Date, Echo, …).
+     * - Liefere Implementierungen und Metadaten für IntelliSense.
+     */
+    static final class BuiltinFunctionCatalog {
+
+        private final Map<String, ExpressionFunction> byName = new LinkedHashMap<String, ExpressionFunction>();
+        private final Map<String, FunctionMetadata> metaByName = new LinkedHashMap<String, FunctionMetadata>();
+
+        BuiltinFunctionCatalog() {
+            // TODO: Registriere hier deine Builtins:
+            // register(new de.bund.zrb.expressions.builtins.DateFunction());
+            // register(new de.bund.zrb.expressions.builtins.EchoFunction());
+            // ...
+        }
+
+        Set<String> names() {
+            return Collections.unmodifiableSet(byName.keySet());
+        }
+
+        boolean contains(String name) {
+            return name != null && byName.containsKey(name);
+        }
+
+        ExpressionFunction get(String name) {
+            return name == null ? null : byName.get(name);
+        }
+
+        Collection<FunctionMetadata> metadata() {
+            return Collections.unmodifiableCollection(metaByName.values());
+        }
+
+        private void register(ExpressionFunction fn) {
+            if (fn == null || fn.metadata() == null || fn.metadata().getName() == null) return;
+            String key = normalize(fn.metadata().getName());
+            byName.put(key, fn);
+            metaByName.put(key, fn.metadata());
+        }
+
+        private String normalize(String s) {
+            return s == null ? "" : s.trim().toLowerCase(Locale.ROOT);
+        }
     }
 }
