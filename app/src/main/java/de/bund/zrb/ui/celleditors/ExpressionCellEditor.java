@@ -502,6 +502,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
     }
 
     // --- Tabbed Popup Window ----------------------------------------------------
+    // --- Tabbed Popup Window mit rechter Description-Spalte (RSyntax/AutoComplete API kompatibel) ---
     final class TabbedAutoCompletePopupWindow extends JWindow {
 
         private final JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
@@ -515,6 +516,10 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
         private final AutoCompletion ac;
 
+        // Right side: HTML description
+        private final JEditorPane descPane = new JEditorPane("text/html", "");
+        private final JScrollPane descScroll = new JScrollPane(descPane);
+
         TabbedAutoCompletePopupWindow(Window owner, AutoCompletion ac,
                                       String fnTitle, String varTitle, String rxTitle) {
             super(owner);
@@ -524,7 +529,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             varList.setModel(varModel);
             rxList.setModel(rxModel);
 
-            // Use AC’s renderer if one is set
+            @SuppressWarnings("unchecked")
             ListCellRenderer<Object> r = ac.getListCellRenderer();
             if (r != null) {
                 fnList.setCellRenderer(r);
@@ -532,7 +537,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 rxList.setCellRenderer(r);
             }
 
-            // Double-click or Enter -> insert selected completion
+            // Double-click or Enter -> insert selection
             MouseAdapter dbl = new MouseAdapter() {
                 @Override public void mouseClicked(MouseEvent e) {
                     if (e.getClickCount() == 2) insertSelected();
@@ -547,23 +552,37 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             fnList.addMouseListener(dbl); varList.addMouseListener(dbl); rxList.addMouseListener(dbl);
             fnList.addKeyListener(enter); varList.addKeyListener(enter); rxList.addKeyListener(enter);
 
+            // Selection -> update description
+            javax.swing.event.ListSelectionListener sel = new javax.swing.event.ListSelectionListener() {
+                public void valueChanged(javax.swing.event.ListSelectionEvent e) {
+                    if (!e.getValueIsAdjusting()) updateDescription(getSelection());
+                }
+            };
+            fnList.addListSelectionListener(sel);
+            varList.addListSelectionListener(sel);
+            rxList.addListSelectionListener(sel);
+
             tabs.addTab(fnTitle,  new JScrollPane(fnList));
             tabs.addTab(varTitle, new JScrollPane(varList));
             tabs.addTab(rxTitle,  new JScrollPane(rxList));
 
-            getContentPane().setLayout(new BorderLayout());
-            getContentPane().add(tabs, BorderLayout.CENTER);
+            descPane.setEditable(false);
+            descPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
 
-            setSize(400, 260); // ähnlich Default
+            JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tabs, descScroll);
+            split.setResizeWeight(0.6);
+            split.setBorder(BorderFactory.createEmptyBorder());
+
+            getContentPane().setLayout(new BorderLayout());
+            getContentPane().add(split, BorderLayout.CENTER);
+
+            setSize(640, 280);
         }
 
         void selectTab(int index) {
-            if (index >= 0 && index < tabs.getTabCount()) {
-                tabs.setSelectedIndex(index);
-            }
+            if (index >= 0 && index < tabs.getTabCount()) tabs.setSelectedIndex(index);
         }
 
-        // Fill lists with categorized completions
         void setCompletions(java.util.List<Completion> completions) {
             fnModel.clear(); varModel.clear(); rxModel.clear();
             for (int i = 0; i < completions.size(); i++) {
@@ -571,21 +590,21 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 if (c instanceof FunctionCompletion || c instanceof TemplateCompletion || c instanceof ParameterizedCompletion) {
                     fnModel.addElement(c);
                 } else if (c instanceof BasicCompletion) {
-                    // Entscheide anhand deines Typs
-                    if (c.getClass().getSimpleName().contains("Variable")) varModel.addElement(c);
-                    else if (c.getClass().getSimpleName().contains("Regex")) rxModel.addElement(c);
+                    String simple = c.getClass().getSimpleName();
+                    if (simple.contains("Variable")) varModel.addElement(c);
+                    else if (simple.contains("Regex")) rxModel.addElement(c);
                     else varModel.addElement(c);
                 } else {
                     varModel.addElement(c);
                 }
             }
-            // Fokus dort hin, wo es Inhalte gibt
             if (fnModel.size() > 0) tabs.setSelectedIndex(0);
             else if (varModel.size() > 0) tabs.setSelectedIndex(1);
             else tabs.setSelectedIndex(2);
+
+            updateDescription(getSelection());
         }
 
-        // Determine screen location near caret
         void setLocationRelativeToCaret(JTextComponent tc) throws BadLocationException {
             Rectangle r = tc.modelToView(tc.getCaretPosition());
             if (r == null) return;
@@ -594,7 +613,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             setLocation(p);
         }
 
-        // Expose currently selected completion
         Completion getSelection() {
             int idx = tabs.getSelectedIndex();
             if (idx == 0) return (Completion) fnList.getSelectedValue();
@@ -606,8 +624,93 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             Completion c = getSelection();
             if (c != null) {
                 setVisible(false);
-                ((TabbedAutoCompletion) ac).performInsertion(c); // -> öffentliche Brücke
+                ((TabbedAutoCompletion) ac).performInsertion(c);
             }
+        }
+
+        // ------ Description rendering (nutzt getSummary / getToolTipText) -------
+
+        private void updateDescription(Completion c) {
+            if (c == null) { descPane.setText(""); return; }
+            descPane.setText(buildHtml(c));
+            descPane.setCaretPosition(0);
+        }
+
+        private String buildHtml(Completion c) {
+            // Try rich HTML summary first (FunctionCompletion liefert hier Doku inkl. Parametern)
+            String summary = safe(c.getSummary());
+            if (summary != null && summary.length() > 0) {
+                // Wrap to ensure consistent font
+                return wrap(summary);
+            }
+
+            // Fallback: tooltip text
+            String tip = safe(c.getToolTipText());
+            if (tip != null && tip.length() > 0) {
+                return wrap(tip);
+            }
+
+            // Minimal rendering: name + (param list) selbst ableiten, falls FunctionCompletion
+            StringBuilder sb = new StringBuilder(256);
+            sb.append("<html><body style='font-family: sans-serif; font-size:12px;'>");
+            sb.append("<div style='font-weight:bold; font-size:13px; margin-bottom:6px;'>")
+                    .append(escape(displayName(c))).append("</div>");
+
+            if (c instanceof FunctionCompletion) {
+                FunctionCompletion fc = (FunctionCompletion) c;
+                int n = fc.getParamCount();
+                if (n > 0) {
+                    sb.append("<div><code>(");
+                    for (int i = 0; i < n; i++) {
+                        ParameterizedCompletion.Parameter p = fc.getParam(i);
+                        if (i > 0) sb.append("; ");
+                        String pn = (p.getName() != null) ? p.getName()
+                                : (p.getType() != null) ? p.getType()
+                                : ("arg" + (i + 1));
+                        sb.append(escape(pn));
+                    }
+                    sb.append(")</code></div>");
+                }
+            } else {
+                sb.append("<div style='color:#777;'>No description available.</div>");
+            }
+
+            sb.append("</body></html>");
+            return sb.toString();
+        }
+
+        private String wrap(String innerHtml) {
+            // Ensure consistent fonts even if summary already contains <html>...
+            return "<html><body style='font-family: sans-serif; font-size:12px;'>" + innerHtml + "</body></html>";
+        }
+
+        private String displayName(Completion c) {
+            String n = c.getReplacementText();
+            if (n == null || n.length() == 0) n = c.toString();
+            if (n.startsWith("{{") && n.endsWith("}}")) {
+                int lp = n.indexOf('(');
+                if (lp > 2) n = n.substring(2, lp);
+            }
+            return n;
+        }
+
+        private String safe(String s) { return s; } // Summary ist bereits HTML.
+
+        private String escape(String s) {
+            if (s == null) return "";
+            StringBuilder out = new StringBuilder(s.length());
+            for (int i = 0; i < s.length(); i++) {
+                char ch = s.charAt(i);
+                switch (ch) {
+                    case '&': out.append("&amp;"); break;
+                    case '<': out.append("&lt;"); break;
+                    case '>': out.append("&gt;"); break;
+                    case '"': out.append("&quot;"); break;
+                    case '\'': out.append("&#39;"); break;
+                    default: out.append(ch);
+                }
+            }
+            return out.toString();
         }
     }
 
