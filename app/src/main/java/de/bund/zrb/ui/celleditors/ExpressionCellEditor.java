@@ -12,6 +12,7 @@ import javax.swing.text.Document;
 import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.awt.event.*;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.List;
 import java.util.function.Supplier;
@@ -136,27 +137,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
 
         @Override public boolean isAutoActivateOkay(JTextComponent tc) { return true; }
-//
-//
-//        private void addFunctionCompletions(List out, String prefix) {
-//            Map<String, DescribedItem> map = functionItemsSupplier.get();
-//            List<String> names = sortedKeys(map.keySet());
-//            for (int i = 0; i < names.size(); i++) {
-//                String fn = names.get(i);
-//                if (!startsWithIgnoreCase(fn, prefix)) continue;
-//
-//                DescribedItem di = map.get(fn);
-//                String desc = di != null ? di.getDescription() : null;
-//
-//                // Parameternamen holen – aus deiner Quelle füllen:
-//                // z. B. di.getParamNames() falls vorhanden; sonst leer
-//                java.util.List<String> paramNames = di != null ? di.getParamNames() : java.util.Collections.<String>emptyList();
-//                java.util.List<String> paramDescs = di != null ? di.getParamDescriptions() : null;
-//
-//                out.add(new FunctionCompletionWrapped(this, fn, desc, paramNames, paramDescs));
-//            }
-//        }
-
 
         @Override
         public String getAlreadyEnteredText(JTextComponent comp) {
@@ -199,8 +179,14 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             for (int i = 0; i < fnNames.size(); i++) {
                 String fn = fnNames.get(i);
                 if (prefix.length() == 0 || startsWithIgnoreCase(fn, prefix)) {
-                    String desc = fmap.containsKey(fn) ? fmap.get(fn).getDescription() : null;
-                    out.add(new FunctionCompletionWrapped(this, fn, desc));
+                    DescribedItem di = fmap.get(fn);
+                    String desc = di != null ? di.getDescription() : null;
+
+                    // Try to extract parameter names/descriptions via reflection if available
+                    List<String> pNames = extractParamNames(di);
+                    List<String> pDescs = extractParamDescs(di);
+
+                    out.add(new FunctionCompletionWrapped(this, fn, desc, pNames, pDescs));
                 }
             }
 
@@ -215,6 +201,125 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             }
 
             return out;
+        }
+
+        // --- Reflection bridge to avoid changing your domain classes ---
+
+        /** Try to read a List<String> of parameter names from DescribedItem (directly or via getMetadata().getParameters()) */
+        private List<String> extractParamNames(DescribedItem di) {
+            if (di == null) return java.util.Collections.<String>emptyList();
+            try {
+                // Case 1: di has method getParamNames(): List<String>
+                Method m = safeMethod(di.getClass(), "getParamNames");
+                if (m != null) {
+                    Object val = m.invoke(di);
+                    if (val instanceof List) return castStringList(val);
+                }
+                // Case 2: di.getMetadata().getParameters(): returns Collection/Iterable of names
+                Method gm = safeMethod(di.getClass(), "getMetadata");
+                if (gm != null) {
+                    Object meta = gm.invoke(di);
+                    if (meta != null) {
+                        // FunctionMetadata#getParameters() -> List<String> or List<?> of objects with getName()
+                        Method gp = safeMethod(meta.getClass(), "getParameters");
+                        if (gp != null) {
+                            Object p = gp.invoke(meta);
+                            if (p instanceof List) {
+                                List list = (List) p;
+                                if (list.isEmpty()) return java.util.Collections.<String>emptyList();
+                                Object first = list.get(0);
+                                if (first instanceof String) {
+                                    return castStringList(list);
+                                } else {
+                                    // Try element.getName()
+                                    List<String> out = new ArrayList<String>(list.size());
+                                    for (int i = 0; i < list.size(); i++) {
+                                        Object elem = list.get(i);
+                                        String name = tryName(elem);
+                                        if (name != null) out.add(name);
+                                    }
+                                    return out;
+                                }
+                            }
+                        }
+                        // Fallback: FunctionMetadata might have getParamNames()
+                        Method mpn = safeMethod(meta.getClass(), "getParamNames");
+                        if (mpn != null) {
+                            Object val = mpn.invoke(meta);
+                            if (val instanceof List) return castStringList(val);
+                        }
+                    }
+                }
+            } catch (Exception ignore) { }
+            return java.util.Collections.<String>emptyList();
+        }
+
+        /** Try to read a List<String> of parameter descriptions (optional). */
+        private List<String> extractParamDescs(DescribedItem di) {
+            if (di == null) return null;
+            try {
+                // Case 1: di has getParamDescriptions(): List<String>
+                Method m = safeMethod(di.getClass(), "getParamDescriptions");
+                if (m != null) {
+                    Object val = m.invoke(di);
+                    if (val instanceof List) return castStringList(val);
+                }
+                // Case 2: via metadata: each parameter object has getDescription()
+                Method gm = safeMethod(di.getClass(), "getMetadata");
+                if (gm != null) {
+                    Object meta = gm.invoke(di);
+                    if (meta != null) {
+                        Method gp = safeMethod(meta.getClass(), "getParameters");
+                        if (gp != null) {
+                            Object p = gp.invoke(meta);
+                            if (p instanceof List) {
+                                List list = (List) p;
+                                List<String> out = new ArrayList<String>(list.size());
+                                for (int i = 0; i < list.size(); i++) {
+                                    Object elem = list.get(i);
+                                    String d = tryDescription(elem);
+                                    out.add(d);
+                                }
+                                return out;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignore) { }
+            return null;
+        }
+
+        private Method safeMethod(Class<?> c, String name) {
+            try { return c.getMethod(name); }
+            catch (Exception e) { return null; }
+        }
+
+        @SuppressWarnings("unchecked")
+        private List<String> castStringList(Object val) {
+            try { return (List<String>) val; }
+            catch (ClassCastException e) { return java.util.Collections.<String>emptyList(); }
+        }
+
+        private String tryName(Object o) {
+            if (o == null) return null;
+            try {
+                Method m = o.getClass().getMethod("getName");
+                Object v = m.invoke(o);
+                return v != null ? String.valueOf(v) : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        private String tryDescription(Object o) {
+            if (o == null) return null;
+            try {
+                Method m = o.getClass().getMethod("getDescription");
+                Object v = m.invoke(o);
+                return v != null ? String.valueOf(v) : null;
+            } catch (Exception e) {
+                return null;
+            }
         }
 
         private List<String> sortedKeys(java.util.Set<String> keys) {
@@ -252,37 +357,27 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
     }
 
-    // --- ersetzt die bisherige FunctionCompletionWrapped ---
+    // --- FunctionCompletion mit Parametertabelle im rechten Pane ---
     private static final class FunctionCompletionWrapped extends FunctionCompletion {
 
         private final String fn;
-        private final String longDescription; // frei formulierter Beschreibungstext (aus Registry/Catalog)
-        private final java.util.List<ParamInfo> paramInfos; // Namen + optionale Kurzbeschreibung
+        private final String longDescription;
+        private final java.util.List<ParamInfo> paramInfos;
 
-        /** Hilfs-DTO nur für Namen/Beschreibung der Parameter (typfrei, da wir keine echte Typen brauchen). */
         private static final class ParamInfo {
             final String name; final String desc;
             ParamInfo(String name, String desc) { this.name = name; this.desc = desc; }
         }
 
-        /**
-         * @param provider CompletionProvider
-         * @param functionName Klarname der Funktion (z. B. "Navigate")
-         * @param description  Längere Beschreibung, wird im Description-Pane gezeigt (HTML erlaubt)
-         * @param paramNames   Reihenfolge der Parameter (Anzeige im Pane & für Summary)
-         * @param paramDescs   Optionale Kurzbeschreibungen je Parameter; kann null oder kürzer sein
-         */
         FunctionCompletionWrapped(CompletionProvider provider,
                                   String functionName,
                                   String description,
                                   java.util.List<String> paramNames,
                                   java.util.List<String> paramDescs) {
-
             super(provider, functionName, null);
             this.fn = functionName;
             this.longDescription = description != null ? description : "";
 
-            // 1) baue Parameterliste für FunctionCompletion (damit getParamCount/getParam(i) gefüllt sind)
             java.util.List<ParameterizedCompletion.Parameter> pcParams = new java.util.ArrayList<ParameterizedCompletion.Parameter>();
             java.util.List<ParamInfo> infos = new java.util.ArrayList<ParamInfo>();
 
@@ -291,7 +386,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                     String pname = paramNames.get(i);
                     String pdesc = (paramDescs != null && i < paramDescs.size()) ? paramDescs.get(i) : null;
 
-                    // Library-Parameter: (type, name, description). Typ brauchen wir nicht -> null.
                     ParameterizedCompletion.Parameter p =
                             new ParameterizedCompletion.Parameter(null, pname);
                     p.setDescription(pdesc);
@@ -301,44 +395,31 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 }
             }
 
-            setParams(pcParams);                // <- wichtig: damit die Basisklasse Param-Infos hat
+            setParams(pcParams);
             this.paramInfos = infos;
 
-            // Optional: Rückgabebeschreibung, wenn du willst
-            // setReturnValueDescription("String");
-
-            // Kurze Beschreibung (List-Tooltip), falls Popup einen kurzen Text verwendet
             if (description != null && description.length() > 0) {
                 setShortDescription(description);
             }
         }
 
-        // Anzeige in der Liste
         @Override public String getInputText() {
             return "<html><b>" + escapeHtml(fn) + "</b></html>";
         }
 
-        // Text, der ins Dokument eingefügt wird
         @Override public String getReplacementText() { return "{{" + fn + "()}}"; }
 
         String getFunctionName() { return fn; }
 
-        // Reichhaltige HTML-Description rechts – nutzt Param-Infos
         @Override
         public String getSummary() {
             StringBuilder sb = new StringBuilder(512);
             sb.append("<html><body style='font-family:sans-serif;font-size:12px;'>");
-
-            // Kopf
             sb.append("<div style='font-weight:bold;font-size:13px;margin-bottom:6px;'>")
                     .append(escapeHtml(fn)).append("</div>");
-
-            // Beschreibung
             if (longDescription != null && longDescription.length() > 0) {
                 sb.append("<div style='margin-bottom:8px;'>").append(longDescription).append("</div>");
             }
-
-            // Parameter-Tabelle (benutze Namen/Beschreibung)
             if (paramInfos != null && !paramInfos.isEmpty()) {
                 sb.append("<div style='margin-top:4px;'><b>Parameters</b></div>");
                 sb.append("<table width='100%' cellspacing='0' cellpadding='2' style='border-collapse:collapse;'>");
@@ -355,7 +436,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 }
                 sb.append("</table>");
             }
-
             sb.append("</body></html>");
             return sb.toString();
         }
@@ -377,7 +457,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             return out.toString();
         }
     }
-
 
     private static final class RegexCompletion extends BasicCompletion {
         private final String rx;
@@ -423,70 +502,60 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             int len = alreadyEntered != null ? alreadyEntered.length() : 0;
             int start = dot - len;
 
-            // Entferne evtl. bereits getippten Prefix
+            // Remove typed prefix
             caret.setDot(start);
             caret.moveDot(dot);
             tc.replaceSelection("");
             int pos = tc.getCaretPosition();
 
-            // Kontext: Variable/Regex/Funktion innerhalb von {{fn( … )}} ?
+            // Context: inside {{fn( … )}} ?
             if ((c instanceof VariableCompletion) || (c instanceof RegexCompletion) || (c instanceof FunctionCompletionWrapped)) {
                 Bounds b = findFnBoundsAt(tc.getDocument(), pos);
                 if (b != null && pos >= b.parenOpen + 1 && pos <= b.parenClose) {
 
-                    // Bestimme, ob erster oder weiterer Parameter (nur Links-Scan)
                     boolean firstParam = isFirstParamPosition(b, pos, tc.getDocument());
 
                     StringBuilder sb = new StringBuilder();
-                    if (!firstParam) {
-                        sb.append("; ");
-                    }
+                    if (!firstParam) sb.append("; ");
 
-                    // Merke Einfüge-Start, damit wir den Caret nach dem Replace korrekt setzen
                     int insertStart = tc.getCaretPosition();
 
                     if (c instanceof VariableCompletion) {
                         VariableCompletion vc = (VariableCompletion) c;
                         sb.append("\"{{").append(vc.getVariableName()).append("}}\"");
                         tc.replaceSelection(sb.toString());
-                        // Caret bleibt hinter dem eingefügten Token
                         return;
                     } else if (c instanceof RegexCompletion) {
-                        sb.append(((RegexCompletion) c).getReplacementText()); // already quoted
+                        sb.append(((RegexCompletion) c).getReplacementText());
                         tc.replaceSelection(sb.toString());
-                        // Caret bleibt hinter dem eingefügten Token
                         return;
                     } else {
-                        // --- NEW: Funktion als Argument einfügen: {{name()}}
+                        // insert nested function
                         FunctionCompletionWrapped fcw = (FunctionCompletionWrapped) c;
                         String fn = fcw.getFunctionName();
                         sb.append("{{").append(fn).append("()}}");
                         tc.replaceSelection(sb.toString());
 
-                        // Setze Caret in die inneren Klammern der soeben eingefügten Funktion
-                        // prefixLen = 2 wenn "; " eingefügt wurde, sonst 0
                         int prefixLen = firstParam ? 0 : 2;
-                        int caretPosInInserted = insertStart + prefixLen + 2 /*{{*/ + fn.length() + 1 /*(*/;
+                        int caretPosInInserted = insertStart + prefixLen + 2 + fn.length() + 1; // {{ + fn + (
                         tc.getCaret().setDot(caretPosInInserted);
                         return;
                     }
                 }
             }
 
-            // Standardpfad: Funktionen und Variablen außerhalb der Argumentliste
-            Document doc = tc.getDocument();
+            // Default path (outside arg list)
             String repl = c.getReplacementText();
             tc.replaceSelection(repl);
 
             if (c instanceof FunctionCompletionWrapped) {
                 FunctionCompletionWrapped fc = (FunctionCompletionWrapped) c;
-                // Cursor nach '(' in {{fn(|)}}
                 int caretPos = start + 2 + fc.getFunctionName().length() + 1;
                 caret.setDot(caretPos);
             }
         }
 
-        // ---- Helfer ------------------------------------------------------------
+        // ---- Helpers ------------------------------------------------------------
 
         static final class Bounds {
             String text;
@@ -496,31 +565,27 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             int parenClose;
         }
 
-        /** Finde den umgebenden {{fn(...)}}-Block für 'pos' per balanciertem Scan. */
         Bounds findFnBoundsAt(Document doc, int pos) {
             try {
                 String s = doc.getText(0, doc.getLength());
                 final int N = s.length();
 
-                // --- 1) Passendes öffnendes "{{" LINKS von pos finden (balanciert) ---
                 int openIdx = -1;
-                int count = 0; // Anzahl offener "}}" die wir noch "ausgleichen" müssen
+                int count = 0;
                 int i = Math.min(Math.max(pos - 1, 0), N - 1);
 
                 while (i >= 0) {
-                    // prüfe auf "}}"
                     if (i - 1 >= 0 && s.charAt(i - 1) == '}' && s.charAt(i) == '}') {
-                        count++;           // ein Close gesehen
+                        count++;
                         i -= 2;
                         continue;
                     }
-                    // prüfe auf "{{"
                     if (i - 1 >= 0 && s.charAt(i - 1) == '{' && s.charAt(i) == '{') {
-                        if (count == 0) {  // dies ist die öffnende Klammer unseres Blocks
+                        if (count == 0) {
                             openIdx = i - 1;
                             break;
                         }
-                        count--;           // ein Close ausgleichen
+                        count--;
                         i -= 2;
                         continue;
                     }
@@ -528,18 +593,15 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 }
                 if (openIdx < 0) return null;
 
-                // --- 2) Zugehöriges schließendes "}}" RECHTS via Depth zählen ---
-                int depth = 1; // wir stehen direkt hinter "{{"
+                int depth = 1;
                 int closeIdx = -1;
                 i = openIdx + 2;
                 while (i < N - 1) {
-                    // "{{"?
                     if (s.charAt(i) == '{' && s.charAt(i + 1) == '{') {
                         depth++;
                         i += 2;
                         continue;
                     }
-                    // "}}"?
                     if (s.charAt(i) == '}' && s.charAt(i + 1) == '}') {
                         depth--;
                         if (depth == 0) {
@@ -553,7 +615,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 }
                 if (closeIdx < 0) return null;
 
-                // --- 3) Parameterklammern innerhalb des gefundenen Blocks ---
                 int parenOpen  = s.indexOf('(', openIdx + 2);
                 if (parenOpen  < 0 || parenOpen  >= closeIdx) return null;
                 int parenClose = s.indexOf(')', parenOpen + 1);
@@ -572,7 +633,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             }
         }
 
-        /** True, wenn zwischen '(' und pos nur Whitespace liegt → erster Parameter. */
         private boolean isFirstParamPosition(Bounds b, int pos, Document doc) {
             int i = pos - 1;
             int min = b.parenOpen + 1;
@@ -580,26 +640,12 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 while (i >= min) {
                     char ch = doc.getText(i, 1).charAt(0);
                     if (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r') { i--; continue; }
-                    return false; // es steht schon etwas vor dem Cursor → weiterer Parameter
+                    return false;
                 }
             } catch (BadLocationException ignored) { }
-            return true; // nur Whitespace zwischen '(' und Cursor
-        }
-
-        private boolean isWs(char ch) {
-            return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
-        }
-
-        private int lastIndexOf(String s, String needle, int upto) {
-            int stop = Math.min(upto, s.length());
-            if (stop <= 0) return -1;
-            return s.lastIndexOf(needle, stop - 1);
+            return true;
         }
     }
-
-
-
-
 
     // ---------- TableCellEditor ----------
 
@@ -622,8 +668,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         return textArea.getText();
     }
 
-    // --- Tabbed Popup Window ----------------------------------------------------
-    // --- Tabbed Popup Window mit rechter Description-Spalte (RSyntax/AutoComplete API kompatibel) ---
+    // --- Tabbed Popup Window mit rechter Description-Spalte ---
     final class TabbedAutoCompletePopupWindow extends JWindow {
 
         private final JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
@@ -637,7 +682,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
         private final AutoCompletion ac;
 
-        // Right side: HTML description
         private final JEditorPane descPane = new JEditorPane("text/html", "");
         private final JScrollPane descScroll = new JScrollPane(descPane);
 
@@ -658,7 +702,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 rxList.setCellRenderer(r);
             }
 
-            // Double-click or Enter -> insert selection
             MouseAdapter dbl = new MouseAdapter() {
                 @Override public void mouseClicked(MouseEvent e) {
                     if (e.getClickCount() == 2) insertSelected();
@@ -673,7 +716,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             fnList.addMouseListener(dbl); varList.addMouseListener(dbl); rxList.addMouseListener(dbl);
             fnList.addKeyListener(enter); varList.addKeyListener(enter); rxList.addKeyListener(enter);
 
-            // Selection -> update description
             javax.swing.event.ListSelectionListener sel = new javax.swing.event.ListSelectionListener() {
                 public void valueChanged(javax.swing.event.ListSelectionEvent e) {
                     if (!e.getValueIsAdjusting()) updateDescription(getSelection());
@@ -749,8 +791,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             }
         }
 
-        // ------ Description rendering (nutzt getSummary / getToolTipText) -------
-
         private void updateDescription(Completion c) {
             if (c == null) { descPane.setText(""); return; }
             descPane.setText(buildHtml(c));
@@ -758,20 +798,15 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
 
         private String buildHtml(Completion c) {
-            // Try rich HTML summary first (FunctionCompletion liefert hier Doku inkl. Parametern)
-            String summary = safe(c.getSummary());
+            String summary = c.getSummary();
             if (summary != null && summary.length() > 0) {
-                // Wrap to ensure consistent font
                 return wrap(summary);
             }
-
-            // Fallback: tooltip text
-            String tip = safe(c.getToolTipText());
+            String tip = c.getToolTipText();
             if (tip != null && tip.length() > 0) {
                 return wrap(tip);
             }
 
-            // Minimal rendering: name + (param list) selbst ableiten, falls FunctionCompletion
             StringBuilder sb = new StringBuilder(256);
             sb.append("<html><body style='font-family: sans-serif; font-size:12px;'>");
             sb.append("<div style='font-weight:bold; font-size:13px; margin-bottom:6px;'>")
@@ -801,7 +836,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
 
         private String wrap(String innerHtml) {
-            // Ensure consistent fonts even if summary already contains <html>...
             return "<html><body style='font-family: sans-serif; font-size:12px;'>" + innerHtml + "</body></html>";
         }
 
@@ -814,8 +848,6 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             }
             return n;
         }
-
-        private String safe(String s) { return s; } // Summary ist bereits HTML.
 
         private String escape(String s) {
             if (s == null) return "";
@@ -852,10 +884,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             setShowDescWindow(false);
         }
 
-        // Öffentliche Brücke für das Popup (ruft die protected Basismethode auf)
-        public void performInsertion(Completion c) {
-            super.insertCompletion(c);
-        }
+        public void performInsertion(Completion c) { super.insertCompletion(c); }
 
         @Override
         public void install(JTextComponent c) {
@@ -884,24 +913,20 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             }
 
             popup.setCompletions(completions);
-            // Decide default tab by context: if caret is inside fn(...), prefer Variables tab
             boolean inArgs = false;
             try {
                 int pos = tc.getCaretPosition();
-                Bounds b = findFnBoundsAt(tc.getDocument(), pos); // inherited from CursorAutoCompletion
+                Bounds b = findFnBoundsAt(tc.getDocument(), pos);
                 inArgs = (b != null && pos >= b.parenOpen + 1 && pos <= b.parenClose);
-            } catch (Exception ignore) {
-                // keep default
-            }
+            } catch (Exception ignore) { }
 
-            // 0 = Functions, 1 = Variables, 2 = Regex
             popup.selectTab(inArgs ? 1 : 0);
 
             try {
                 popup.setLocationRelativeToCaret(tc);
             } catch (BadLocationException ignore) { }
             popup.setVisible(true);
-            return 0; // nicht getLineOfCaret() benutzen (package-private)
+            return 0;
         }
 
         @Override
@@ -913,7 +938,5 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             return false;
         }
     }
-
-
 
 }
