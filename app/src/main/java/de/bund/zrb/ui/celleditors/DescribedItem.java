@@ -1,3 +1,4 @@
+// src/main/java/de/bund/zrb/ui/celleditors/DescribedItem.java
 package de.bund.zrb.ui.celleditors;
 
 /**

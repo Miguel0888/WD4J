@@ -240,118 +240,30 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
     public synchronized ExpressionFunction get(String name) {
         String norm = normalize(name);
 
-        // 1) Builtin direkt zurückgeben
+        // Zuerst Builtin-Funktionen prüfen
         ExpressionFunction builtin = builtins.get(norm);
         if (builtin != null) {
-            return builtin;
+            return builtin; // Wenn gefunden, zurückgeben
         }
 
-        // 2) User-Quelle vorhanden?
-        String source = expressions.get(norm);
-        if (source == null || source.trim().isEmpty()) {
-            return null; // unbekannt
-        }
-
-        try {
-            // Kompiliere wie in evaluate(..)
-            String className = extractClassName(source, norm);
-            // Kompiliere auf java.util.function.Function
-            @SuppressWarnings("unchecked")
-            java.util.function.Function<Object, Object> fun =
-                    (java.util.function.Function<Object, Object>)
-                            compiler.compile(className, source, java.util.function.Function.class);
-
-            // Metadaten aus Source extrahieren (Javadoc @param o.Ä.) oder Defaults
-            FunctionMetadata meta = MetadataExtractor.fromSource(norm, source);
-
-            // Adapter liefert ExpressionFunction + DescribedItem für die UI
-            return new CompiledFunctionAdapter(fun, meta);
-        } catch (Exception ex) {
-            System.err.println("⚠ Kompilierung fehlgeschlagen für '" + name + "': " + ex.getMessage());
-            return null;
-        }
-    }
-
-    // Inner class in ExpressionRegistryImpl oder eigene Datei im domain-Paket
-    private static final class CompiledFunctionAdapter implements de.bund.zrb.expressions.domain.ExpressionFunction {
-
-        private final java.util.function.Function<Object, Object> delegate;
-        private final de.bund.zrb.expressions.domain.FunctionMetadata meta;
-
-        CompiledFunctionAdapter(java.util.function.Function<Object, Object> delegate,
-                                de.bund.zrb.expressions.domain.FunctionMetadata meta) {
-            this.delegate = delegate;
-            this.meta = meta;
-        }
-
-        @Override
-        public String invoke(java.util.List<String> args, de.bund.zrb.expressions.domain.FunctionContext ctx) {
-            // Delegate expects List<String> (siehe evaluate), gib identisch weiter
-            Object res = delegate.apply(args != null ? args : java.util.Collections.<String>emptyList());
-            return String.valueOf(res);
-        }
-
-        @Override
-        public de.bund.zrb.expressions.domain.FunctionMetadata metadata() {
-            return meta;
-        }
-    }
-
-    // Inner static helper in ExpressionRegistryImpl
-    private static final class MetadataExtractor {
-
-        static de.bund.zrb.expressions.domain.FunctionMetadata fromSource(String name, String source) {
-            java.util.List<String> pNames = new java.util.ArrayList<String>();
-            java.util.List<String> pDescs = new java.util.ArrayList<String>();
-            String desc = "";
-
-            if (source != null) {
-                // Naiver Javadoc-Block finden
-                int start = source.indexOf("/**");
-                int end   = start >= 0 ? source.indexOf("*/", start + 3) : -1;
-                if (start >= 0 && end > start) {
-                    String block = source.substring(start + 3, end);
-                    String[] lines = block.split("\\R");
-                    StringBuilder descBuf = new StringBuilder();
-                    for (int i = 0; i < lines.length; i++) {
-                        String ln = lines[i].trim();
-                        if (ln.startsWith("*")) ln = ln.substring(1).trim();
-                        if (ln.startsWith("@param")) {
-                            // @param <name> <beschreibung...>
-                            String rest = ln.substring(6).trim();
-                            String[] toks = rest.split("\\s+", 2);
-                            if (toks.length >= 1) {
-                                String pn = toks[0].trim();
-                                if (pn.length() > 0) pNames.add(pn);
-                                String pd = (toks.length == 2) ? toks[1].trim() : "";
-                                pDescs.add(pd);
-                            }
-                        } else if (ln.startsWith("@")) {
-                            // ignore other tags
-                        } else {
-                            // Teil der allgemeinen Beschreibung
-                            if (descBuf.length() > 0) descBuf.append(' ');
-                            descBuf.append(ln);
-                        }
-                    }
-                    desc = descBuf.toString().trim();
-                }
+        // Falls nicht im Builtin-Katalog, schauen wir in den benutzerspezifischen Funktionen
+        String sourceCode = expressions.get(norm);
+        if (sourceCode != null && !sourceCode.trim().isEmpty()) {
+            // Wenn eine benutzerspezifische Funktion existiert, kompilieren und zurückgeben
+            String className = extractClassName(sourceCode, norm);
+            Object instance = null;
+            try {
+                instance = compiler.compile(className, sourceCode, Function.class);
+            } catch (Exception e) {
+                return null; // do not deliver broken functions
             }
-
-            // Fallbacks
-            if (desc.length() == 0) {
-                desc = "User-defined expression";
+            if (instance instanceof ExpressionFunction) {
+                return (ExpressionFunction) instance;
             }
-            // Param-Listen angleichen
-            while (pDescs.size() < pNames.size()) pDescs.add("");
-
-            // Deine FunctionMetadata mit Alias-Gettern (siehe vorherige Antwort)
-            return new de.bund.zrb.expressions.domain.FunctionMetadata(
-                    name, desc, pNames, pDescs
-            );
         }
+
+        // Wenn keine Funktion gefunden, null zurückgeben
+        return null;
     }
-
-
 
 }

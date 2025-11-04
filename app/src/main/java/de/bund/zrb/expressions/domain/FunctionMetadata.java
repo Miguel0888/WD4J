@@ -7,17 +7,11 @@ public final class FunctionMetadata {
     private final String name;
     private final String description;
     private final List<String> parameterNames;
-    private final List<String> parameterDescriptions;
 
     public FunctionMetadata(String name, String description, List<String> parameterNames) {
-        this(name, description, parameterNames,null);
-    }
-
-    public FunctionMetadata(String name, String description, List<String> parameterNames, List<String> pDescs) {
         this.name = name;
         this.description = description;
         this.parameterNames = parameterNames == null ? Collections.<String>emptyList() : parameterNames;
-        this.parameterDescriptions = pDescs;
     }
 
     public String getName() { return name; }
