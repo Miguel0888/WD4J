@@ -136,6 +136,27 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
 
         @Override public boolean isAutoActivateOkay(JTextComponent tc) { return true; }
+//
+//
+//        private void addFunctionCompletions(List out, String prefix) {
+//            Map<String, DescribedItem> map = functionItemsSupplier.get();
+//            List<String> names = sortedKeys(map.keySet());
+//            for (int i = 0; i < names.size(); i++) {
+//                String fn = names.get(i);
+//                if (!startsWithIgnoreCase(fn, prefix)) continue;
+//
+//                DescribedItem di = map.get(fn);
+//                String desc = di != null ? di.getDescription() : null;
+//
+//                // Parameternamen holen – aus deiner Quelle füllen:
+//                // z. B. di.getParamNames() falls vorhanden; sonst leer
+//                java.util.List<String> paramNames = di != null ? di.getParamNames() : java.util.Collections.<String>emptyList();
+//                java.util.List<String> paramDescs = di != null ? di.getParamDescriptions() : null;
+//
+//                out.add(new FunctionCompletionWrapped(this, fn, desc, paramNames, paramDescs));
+//            }
+//        }
+
 
         @Override
         public String getAlreadyEnteredText(JTextComponent comp) {
@@ -231,32 +252,132 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
         }
     }
 
+    // --- ersetzt die bisherige FunctionCompletionWrapped ---
     private static final class FunctionCompletionWrapped extends FunctionCompletion {
+
         private final String fn;
-        FunctionCompletionWrapped(CompletionProvider provider, String functionName, String description) {
+        private final String longDescription; // frei formulierter Beschreibungstext (aus Registry/Catalog)
+        private final java.util.List<ParamInfo> paramInfos; // Namen + optionale Kurzbeschreibung
+
+        /** Hilfs-DTO nur für Namen/Beschreibung der Parameter (typfrei, da wir keine echte Typen brauchen). */
+        private static final class ParamInfo {
+            final String name; final String desc;
+            ParamInfo(String name, String desc) { this.name = name; this.desc = desc; }
+        }
+
+        /**
+         * @param provider CompletionProvider
+         * @param functionName Klarname der Funktion (z. B. "Navigate")
+         * @param description  Längere Beschreibung, wird im Description-Pane gezeigt (HTML erlaubt)
+         * @param paramNames   Reihenfolge der Parameter (Anzeige im Pane & für Summary)
+         * @param paramDescs   Optionale Kurzbeschreibungen je Parameter; kann null oder kürzer sein
+         */
+        FunctionCompletionWrapped(CompletionProvider provider,
+                                  String functionName,
+                                  String description,
+                                  java.util.List<String> paramNames,
+                                  java.util.List<String> paramDescs) {
+
             super(provider, functionName, null);
             this.fn = functionName;
-            if (description != null && description.length() > 0) setShortDescription(description);
+            this.longDescription = description != null ? description : "";
+
+            // 1) baue Parameterliste für FunctionCompletion (damit getParamCount/getParam(i) gefüllt sind)
+            java.util.List<ParameterizedCompletion.Parameter> pcParams = new java.util.ArrayList<ParameterizedCompletion.Parameter>();
+            java.util.List<ParamInfo> infos = new java.util.ArrayList<ParamInfo>();
+
+            if (paramNames != null) {
+                for (int i = 0; i < paramNames.size(); i++) {
+                    String pname = paramNames.get(i);
+                    String pdesc = (paramDescs != null && i < paramDescs.size()) ? paramDescs.get(i) : null;
+
+                    // Library-Parameter: (type, name, description). Typ brauchen wir nicht -> null.
+                    ParameterizedCompletion.Parameter p =
+                            new ParameterizedCompletion.Parameter(null, pname);
+                    p.setDescription(pdesc);
+                    pcParams.add(p);
+
+                    infos.add(new ParamInfo(pname, pdesc));
+                }
+            }
+
+            setParams(pcParams);                // <- wichtig: damit die Basisklasse Param-Infos hat
+            this.paramInfos = infos;
+
+            // Optional: Rückgabebeschreibung, wenn du willst
+            // setReturnValueDescription("String");
+
+            // Kurze Beschreibung (List-Tooltip), falls Popup einen kurzen Text verwendet
+            if (description != null && description.length() > 0) {
+                setShortDescription(description);
+            }
         }
-        @Override public String getInputText() { return "<html><b>" + escapeHtml(fn) + "</b></html>"; }
+
+        // Anzeige in der Liste
+        @Override public String getInputText() {
+            return "<html><b>" + escapeHtml(fn) + "</b></html>";
+        }
+
+        // Text, der ins Dokument eingefügt wird
         @Override public String getReplacementText() { return "{{" + fn + "()}}"; }
+
         String getFunctionName() { return fn; }
+
+        // Reichhaltige HTML-Description rechts – nutzt Param-Infos
+        @Override
+        public String getSummary() {
+            StringBuilder sb = new StringBuilder(512);
+            sb.append("<html><body style='font-family:sans-serif;font-size:12px;'>");
+
+            // Kopf
+            sb.append("<div style='font-weight:bold;font-size:13px;margin-bottom:6px;'>")
+                    .append(escapeHtml(fn)).append("</div>");
+
+            // Beschreibung
+            if (longDescription != null && longDescription.length() > 0) {
+                sb.append("<div style='margin-bottom:8px;'>").append(longDescription).append("</div>");
+            }
+
+            // Parameter-Tabelle (benutze Namen/Beschreibung)
+            if (paramInfos != null && !paramInfos.isEmpty()) {
+                sb.append("<div style='margin-top:4px;'><b>Parameters</b></div>");
+                sb.append("<table width='100%' cellspacing='0' cellpadding='2' style='border-collapse:collapse;'>");
+                for (int i = 0; i < paramInfos.size(); i++) {
+                    ParamInfo p = paramInfos.get(i);
+                    sb.append("<tr>")
+                            .append("<td valign='top' style='white-space:nowrap;'><code>")
+                            .append(escapeHtml(p.name))
+                            .append("</code></td>")
+                            .append("<td valign='top' style='padding-left:6px;'>")
+                            .append(p.desc != null ? escapeHtml(p.desc) : "")
+                            .append("</td>")
+                            .append("</tr>");
+                }
+                sb.append("</table>");
+            }
+
+            sb.append("</body></html>");
+            return sb.toString();
+        }
+
         private String escapeHtml(String s) {
-            StringBuilder sb = new StringBuilder();
+            if (s == null) return "";
+            StringBuilder out = new StringBuilder(s.length());
             for (int i = 0; i < s.length(); i++) {
                 char c = s.charAt(i);
                 switch (c) {
-                    case '&': sb.append("&amp;"); break;
-                    case '<': sb.append("&lt;"); break;
-                    case '>': sb.append("&gt;"); break;
-                    case '"': sb.append("&quot;"); break;
-                    case '\'': sb.append("&#39;"); break;
-                    default: sb.append(c);
+                    case '&': out.append("&amp;"); break;
+                    case '<': out.append("&lt;"); break;
+                    case '>': out.append("&gt;"); break;
+                    case '"': out.append("&quot;"); break;
+                    case '\'': out.append("&#39;"); break;
+                    default: out.append(c);
                 }
             }
-            return sb.toString();
+            return out.toString();
         }
     }
+
 
     private static final class RegexCompletion extends BasicCompletion {
         private final String rx;
