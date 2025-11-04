@@ -308,8 +308,8 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             tc.replaceSelection("");
             int pos = tc.getCaretPosition();
 
-            // Kontext: Variable/Regex innerhalb von {{fn( … )}} ?
-            if ((c instanceof VariableCompletion) || (c instanceof RegexCompletion)) {
+            // Kontext: Variable/Regex/Funktion innerhalb von {{fn( … )}} ?
+            if ((c instanceof VariableCompletion) || (c instanceof RegexCompletion) || (c instanceof FunctionCompletionWrapped)) {
                 Bounds b = findFnBoundsAt(tc.getDocument(), pos);
                 if (b != null && pos >= b.parenOpen + 1 && pos <= b.parenClose) {
 
@@ -321,16 +321,34 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                         sb.append("; ");
                     }
 
+                    // Merke Einfüge-Start, damit wir den Caret nach dem Replace korrekt setzen
+                    int insertStart = tc.getCaretPosition();
+
                     if (c instanceof VariableCompletion) {
                         VariableCompletion vc = (VariableCompletion) c;
                         sb.append("\"{{").append(vc.getVariableName()).append("}}\"");
-                    } else {
+                        tc.replaceSelection(sb.toString());
+                        // Caret bleibt hinter dem eingefügten Token
+                        return;
+                    } else if (c instanceof RegexCompletion) {
                         sb.append(((RegexCompletion) c).getReplacementText()); // already quoted
-                    }
+                        tc.replaceSelection(sb.toString());
+                        // Caret bleibt hinter dem eingefügten Token
+                        return;
+                    } else {
+                        // --- NEW: Funktion als Argument einfügen: {{name()}}
+                        FunctionCompletionWrapped fcw = (FunctionCompletionWrapped) c;
+                        String fn = fcw.getFunctionName();
+                        sb.append("{{").append(fn).append("()}}");
+                        tc.replaceSelection(sb.toString());
 
-                    tc.replaceSelection(sb.toString());
-                    // Caret bleibt einfach hinter dem eingefügten Token
-                    return;
+                        // Setze Caret in die inneren Klammern der soeben eingefügten Funktion
+                        // prefixLen = 2 wenn "; " eingefügt wurde, sonst 0
+                        int prefixLen = firstParam ? 0 : 2;
+                        int caretPosInInserted = insertStart + prefixLen + 2 /*{{*/ + fn.length() + 1 /*(*/;
+                        tc.getCaret().setDot(caretPosInInserted);
+                        return;
+                    }
                 }
             }
 
