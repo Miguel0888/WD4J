@@ -52,12 +52,13 @@ public class SuiteScopeEditorTab extends JPanel {
         saveBtn.setToolTipText("Änderungen dieser Suite in tests.json schreiben");
         saveBtn.addActionListener(e -> {
             TestRegistry.getInstance().save();
-            JOptionPane.showMessageDialog(
-                    SuiteScopeEditorTab.this,
-                    "Gespeichert.",
-                    "Info",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
+            //DEBUG:
+//            JOptionPane.showMessageDialog(
+//                    SuiteScopeEditorTab.this,
+//                    "Gespeichert.",
+//                    "Info",
+//                    JOptionPane.INFORMATION_MESSAGE
+//            );
         });
         savePanel.add(saveBtn);
         savePanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));

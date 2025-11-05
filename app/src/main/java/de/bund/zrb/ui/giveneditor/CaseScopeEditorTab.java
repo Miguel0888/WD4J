@@ -38,12 +38,13 @@ public class CaseScopeEditorTab extends JPanel {
         saveBtn.setToolTipText("Änderungen dieses Case in tests.json schreiben");
         saveBtn.addActionListener(e -> {
             TestRegistry.getInstance().save();
-            JOptionPane.showMessageDialog(
-                    CaseScopeEditorTab.this,
-                    "Gespeichert.",
-                    "Info",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
+            //DEBUG:
+//            JOptionPane.showMessageDialog(
+//                    CaseScopeEditorTab.this,
+//                    "Gespeichert.",
+//                    "Info",
+//                    JOptionPane.INFORMATION_MESSAGE
+//            );
         });
         savePanel.add(saveBtn);
 

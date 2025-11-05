@@ -157,12 +157,13 @@ public class MapTablePanel extends JPanel {
         saveBtn.setToolTipText("Speichern");
         saveBtn.addActionListener(e -> {
             TestRegistry.getInstance().save();
-            JOptionPane.showMessageDialog(
-                    MapTablePanel.this,
-                    "Gespeichert.",
-                    "Info",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
+            //DEBUG:
+//            JOptionPane.showMessageDialog(
+//                    MapTablePanel.this,
+//                    "Gespeichert.",
+//                    "Info",
+//                    JOptionPane.INFORMATION_MESSAGE
+//            );
         });
 
         bar.add(addBtn);

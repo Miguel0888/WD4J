@@ -52,12 +52,13 @@ public class RootScopeEditorTab extends JPanel {
         saveBtn.setToolTipText("Tests speichern");
         saveBtn.addActionListener(e -> {
             TestRegistry.getInstance().save();
-            JOptionPane.showMessageDialog(
-                    RootScopeEditorTab.this,
-                    "Gespeichert.",
-                    "Info",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
+            //DEBUG:
+//            JOptionPane.showMessageDialog(
+//                    RootScopeEditorTab.this,
+//                    "Gespeichert.",
+//                    "Info",
+//                    JOptionPane.INFORMATION_MESSAGE
+//            );
         });
         savePanel.add(saveBtn);
 
