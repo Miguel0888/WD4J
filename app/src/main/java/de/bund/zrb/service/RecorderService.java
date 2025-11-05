@@ -3,6 +3,7 @@ package de.bund.zrb.service;
 import de.bund.zrb.RecordingEventRouter;
 import de.bund.zrb.dto.RecordedEvent;
 import de.bund.zrb.event.WDScriptEvent;
+import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.ui.RecorderListener;
 import de.bund.zrb.util.LocatorType;
 import de.bund.zrb.model.TestAction;
@@ -488,5 +489,80 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
         return (prefix != null) ? (prefix + " " + base) : base;
     }
 
+    // RecorderService.java – neue Utility-Methode einfügen
+    public static void wireSuite(TestSuite suite) {
+        if (suite == null) return;
 
+        // Ensure suite has id
+        if (suite.getId() == null || suite.getId().trim().isEmpty()) {
+            try {
+                java.lang.reflect.Field f = suite.getClass().getDeclaredField("id");
+                f.setAccessible(true);
+                Object cur = f.get(suite);
+                if (cur == null || String.valueOf(cur).trim().isEmpty()) {
+                    f.set(suite, java.util.UUID.randomUUID().toString());
+                }
+            } catch (Throwable ignore) {
+                // best effort only
+            }
+        }
+
+        // Resolve root and set parentId on suite
+        de.bund.zrb.model.RootNode root = de.bund.zrb.service.TestRegistry.getInstance().getRoot();
+        if (root != null && (suite.getParentId() == null || suite.getParentId().trim().isEmpty())) {
+            suite.setParentId(root.getId());
+        }
+
+        // Walk all cases
+        java.util.List<de.bund.zrb.model.TestCase> cases = suite.getTestCases();
+        if (cases == null) return;
+
+        for (int i = 0; i < cases.size(); i++) {
+            de.bund.zrb.model.TestCase tc = cases.get(i);
+            if (tc == null) continue;
+
+            // Ensure case id
+            if (tc.getId() == null || tc.getId().trim().isEmpty()) {
+                try {
+                    java.lang.reflect.Field f = tc.getClass().getDeclaredField("id");
+                    f.setAccessible(true);
+                    Object cur = f.get(tc);
+                    if (cur == null || String.valueOf(cur).trim().isEmpty()) {
+                        f.set(tc, java.util.UUID.randomUUID().toString());
+                    }
+                } catch (Throwable ignore) {
+                    // best effort only
+                }
+            }
+
+            // case.parentId -> suite.id
+            if (tc.getParentId() == null || tc.getParentId().trim().isEmpty()) {
+                tc.setParentId(suite.getId());
+            }
+
+            // Wire actions
+            java.util.List<de.bund.zrb.model.TestAction> steps = tc.getWhen();
+            if (steps == null) continue;
+
+            for (int j = 0; j < steps.size(); j++) {
+                de.bund.zrb.model.TestAction a = steps.get(j);
+                if (a == null) continue;
+
+                // Ensure action id
+                if (a.getId() == null || a.getId().trim().isEmpty()) {
+                    a.setId(java.util.UUID.randomUUID().toString());
+                }
+
+                // action.parentId -> case.id
+                if (a.getParentId() == null || a.getParentId().trim().isEmpty()) {
+                    a.setParentId(tc.getId());
+                }
+
+                // Ensure action type (legacy)
+                if (a.getType() == null) {
+                    a.setType(de.bund.zrb.model.TestAction.ActionType.WHEN);
+                }
+            }
+        }
+    }
 }

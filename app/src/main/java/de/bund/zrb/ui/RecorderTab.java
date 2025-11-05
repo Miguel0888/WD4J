@@ -212,8 +212,10 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         List<TestCase> testCases = splitIntoTestCases(actions, name);
         TestSuite suite = new TestSuite(name, testCases);
 
-        // >>> NEU: Users hochpromoten (Action -> Case -> Suite)
+        // Users hochpromoten (Action -> Case -> Suite)
         de.bund.zrb.service.UserPromotionUtil.promoteSuiteUsers(suite);
+
+        RecorderService.wireSuite(suite);
 
         TestRegistry.getInstance().addSuite(suite);
         TestRegistry.getInstance().save();
@@ -222,34 +224,49 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         session.clearRecordedEvents();
     }
 
+    // RecorderTab.java – Methode komplett ersetzen
     private void exportToSuite() {
         String selectedSuiteName = (String) suiteDropdown.getSelectedItem();
         if (selectedSuiteName == null) return;
 
-        TestSuite suite = TestRegistry.getInstance().getAll().stream()
-                .filter(s -> s.getName().equals(selectedSuiteName))
-                .findFirst().orElse(null);
+        // Suite ohne Streams holen
+        TestSuite suite = null;
+        java.util.List<TestSuite> all = TestRegistry.getInstance().getAll();
+        for (int i = 0; i < all.size(); i++) {
+            TestSuite s = all.get(i);
+            if (s != null && selectedSuiteName.equals(s.getName())) {
+                suite = s;
+                break;
+            }
+        }
         if (suite == null) return;
 
-        List<TestAction> actions = session.getAllTestActionsForDrawer();
-        List<TestCase> newCases = splitIntoTestCases(actions, selectedSuiteName + "_Part");
+        // Aktionen aus dem Recorder holen und in Cases splitten
+        java.util.List<TestAction> actions = session.getAllTestActionsForDrawer();
+        if (actions == null) actions = new java.util.ArrayList<TestAction>();
+        java.util.List<TestCase> newCases = splitIntoTestCases(actions, selectedSuiteName + "_Part");
 
-        // >>> NEU: Users in den neuen Cases hochpromoten (Action -> Case)
+        // 1) User von Actions auf Case-Ebene heben
         for (int i = 0; i < newCases.size(); i++) {
             de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(newCases.get(i));
         }
 
+        // 2) Neue Cases zur Suite hinzufügen
         suite.getTestCases().addAll(newCases);
 
-        // >>> NEU: prüfen, ob jetzt die gesamte Suite den gleichen Case-User hat
+        // 3) Prüfen, ob jetzt die gesamte Suite denselben Case-User hat -> ggf. Suite-User setzen
         de.bund.zrb.service.UserPromotionUtil.promoteSuiteUsers(suite);
 
+        // 4) IDs und Parent-IDs SOFORT verdrahten (suite.id, case.id, action.id + parentId)
+        //    ⇒ damit erscheinen parentId der Actions direkt im JSON nach dem Save
+        de.bund.zrb.service.RecorderService.wireSuite(suite);
+
+        // 5) Persistieren und UI aufräumen
         TestRegistry.getInstance().save();
 
         ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(selectedSuiteName));
         session.clearRecordedEvents();
     }
-
 
     private void importSuite() {
         String selectedSuiteName = (String) suiteDropdown.getSelectedItem();

@@ -182,7 +182,7 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
         userBox.setEditable(false);
 
         // 3) Vorbelegung: wenn Action-User null/leer -> leeren Eintrag wählen
-        String initialUser = action.getUser();
+        String initialUser = action.getUserRaw() != null ? action.getUserRaw(): "";
         if (initialUser == null || initialUser.trim().length() == 0) {
             userBox.setSelectedIndex(0); // leer
         } else {

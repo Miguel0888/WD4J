@@ -183,6 +183,9 @@ public class TestAction {
         return resolveUserFromParents();
     }
 
+    public String getUserRaw() {
+        return this.user;
+    }
 
     public void setUser(String user) {
         this.user = user;
