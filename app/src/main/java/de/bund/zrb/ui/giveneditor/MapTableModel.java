@@ -2,131 +2,92 @@ package de.bund.zrb.ui.giveneditor;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Two-column TableModel for Map<String,String>.
- * Column 0 = Name (key), Column 1 = Expression (value).
- * Write changes back to the map immediately.
- *
- * Optional behavior:
- * - If includeUserRow == true, ensure a pinned first row "user".
- * - Row 0 name is read-only and cannot be removed; value is editable.
- */
 public class MapTableModel extends AbstractTableModel {
 
     public static final String USER_KEY = "user";
 
     private final Map<String,String> backing;
-    private final List<String> keys;
-    private final boolean includeUserRow;
+    private final List<String> keys = new ArrayList<String>();
 
-    /** Keep old behavior (no user row). */
+    private final boolean includeUserRow;
+    private final boolean includePinnedRow;
+    private final String pinnedKey; // z. B. "OTP"
+
     public MapTableModel(Map<String,String> backing) {
-        this(backing, false);
+        this(backing, false, false, null);
     }
 
-    /** New behavior toggle: includeUserRow controls the pinned "user" row. */
     public MapTableModel(Map<String,String> backing, boolean includeUserRow) {
+        this(backing, includeUserRow, false, null);
+    }
+
+    public MapTableModel(Map<String,String> backing,
+                         boolean includeUserRow,
+                         boolean includePinnedRow,
+                         String pinnedKey) {
         this.backing = backing;
         this.includeUserRow = includeUserRow;
+        this.includePinnedRow = includePinnedRow;
+        this.pinnedKey = pinnedKey;
 
-        if (includeUserRow && backing != null && !backing.containsKey(USER_KEY)) {
-            backing.put(USER_KEY, "");
+        if (backing != null) keys.addAll(backing.keySet());
+
+        // Pinned first
+        if (includePinnedRow && pinnedKey != null) {
+            int pos = keys.indexOf(pinnedKey);
+            if (pos >= 0) keys.remove(pos);
+            keys.add(0, pinnedKey);
+        } else if (includeUserRow) {
+            int pos = keys.indexOf(USER_KEY);
+            if (pos >= 0) keys.remove(pos);
+            keys.add(0, USER_KEY);
         }
-
-        this.keys = new java.util.ArrayList<String>(backing != null ? backing.keySet() : java.util.Collections.<String>emptyList());
-
-        if (includeUserRow) {
-            int idx = this.keys.indexOf(USER_KEY);
-            if (idx >= 0) {
-                this.keys.remove(idx);
-            }
-            this.keys.add(0, USER_KEY);
-        }
     }
 
-    @Override
-    public int getRowCount() {
-        return keys.size();
-    }
+    public int getRowCount() { return keys.size(); }
+    public int getColumnCount() { return 2; }
+    public String getColumnName(int c) { return c == 0 ? "Name" : "Expression"; }
 
-    @Override
-    public int getColumnCount() {
-        return 2; // Name | Expression
-    }
-
-    @Override
-    public String getColumnName(int column) {
-        if (column == 0) return "Name";
-        if (column == 1) return "Expression";
-        return super.getColumnName(column);
-    }
-
-    @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
         String key = keys.get(rowIndex);
-        if (columnIndex == 0) {
-            // Show "user" label on pinned row for better UX
-//            if (includeUserRow && rowIndex == 0 && USER_KEY.equals(key)) {
-//                return "user (beforeAll)";
-//            }
-            return key;
-        } else if (columnIndex == 1) {
-            return backing.get(key);
-        }
-        return "";
+        if (columnIndex == 0) return key;
+        return backing != null ? backing.get(key) : "";
     }
 
-    @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
-        // Pin name cell on row 0 if user row is active
-        if (includeUserRow && rowIndex == 0 && columnIndex == 0) {
-            return false;
-        }
+        if (rowIndex == 0 && columnIndex == 0 && (includePinnedRow || includeUserRow)) return false;
         return true;
     }
 
-    @Override
     public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
+        if (backing == null) return;
         String oldKey = keys.get(rowIndex);
         String val = (aValue == null) ? "" : String.valueOf(aValue);
 
         if (columnIndex == 0) {
-            // Keep "user" name locked if pinned
-            if (includeUserRow && rowIndex == 0 && USER_KEY.equals(oldKey)) {
-                return;
-            }
+            if (rowIndex == 0 && (includePinnedRow || includeUserRow)) return; // Name gesperrt
             String newKey = val.trim();
-            if (newKey.length() == 0) {
-                return; // Do not allow empty key
-            }
-            // Prevent accidental rename to "user" somewhere else
-            if (includeUserRow && !"user".equals(oldKey) && USER_KEY.equals(newKey) && rowIndex != 0) {
-                return;
-            }
+            if (newKey.length() == 0) return;
             if (!newKey.equals(oldKey)) {
                 String oldValue = backing.remove(oldKey);
-                // Avoid overriding existing entries
                 if (!backing.containsKey(newKey)) {
                     backing.put(newKey, oldValue);
                     keys.set(rowIndex, newKey);
                 } else {
-                    // Key already exists -> revert (no-op)
                     backing.put(oldKey, oldValue);
                 }
             }
-        } else if (columnIndex == 1) {
+        } else {
             backing.put(oldKey, val);
         }
-
         fireTableRowsUpdated(rowIndex, rowIndex);
     }
 
-    /** Add a new empty row with a unique "neu" key. */
     public void addEmptyRow() {
+        if (backing == null) return;
         String base = "neu";
         String cand = base;
         int i = 2;
@@ -135,41 +96,24 @@ public class MapTableModel extends AbstractTableModel {
             i++;
         }
         backing.put(cand, "");
-        // Insert after pinned user row if present
-        int insertIndex = includeUserRow ? 1 : keys.size();
-        if (includeUserRow) {
-            // keep new keys after row 0
-            keys.add(insertIndex, cand);
-            fireTableRowsInserted(insertIndex, insertIndex);
-        } else {
-            keys.add(cand);
-            int newRow = keys.size() - 1;
-            fireTableRowsInserted(newRow, newRow);
-        }
+        int insertIndex = (includePinnedRow || includeUserRow) ? 1 : keys.size();
+        keys.add(insertIndex, cand);
+        fireTableRowsInserted(insertIndex, insertIndex);
     }
 
-    /** Remove the row at index. */
     public void removeRow(int rowIndex) {
         if (rowIndex < 0 || rowIndex >= keys.size()) return;
-
-        // Never remove pinned "user" row
-        if (includeUserRow && rowIndex == 0 && USER_KEY.equals(keys.get(rowIndex))) {
-            return;
-        }
-
+        if (rowIndex == 0 && (includePinnedRow || includeUserRow)) return; // gepinnt → nicht löschen
         String k = keys.remove(rowIndex);
-        backing.remove(k);
+        if (backing != null) backing.remove(k);
         fireTableRowsDeleted(rowIndex, rowIndex);
     }
 
-    /** Return true if the row can be removed (never the pinned user row). */
     public boolean canRemoveRow(int rowIndex) {
-        if (!includeUserRow) return true;
-        if (rowIndex == 0 && USER_KEY.equals(keys.get(rowIndex))) return false;
+        if (rowIndex == 0 && (includePinnedRow || includeUserRow)) return false;
         return true;
     }
 
-    /** Get underlying key at row (useful for custom renderers/editors). */
     public String getKeyAt(int rowIndex) {
         return (rowIndex >= 0 && rowIndex < keys.size()) ? keys.get(rowIndex) : null;
     }

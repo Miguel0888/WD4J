@@ -18,169 +18,85 @@ import java.util.function.Supplier;
 
 public class MapTablePanel extends JPanel {
 
-    /**
-     * @param backing         Map-Backing
-     * @param scopeName       Label/Tipptexte
-     * @param usersProvider   liefert die gleichen User-Optionen wie dein TestAction-Dropdown; null erlaubt
-     */
+    /** Behalte die bestehende Signatur – alle bisherigen Aufrufer bleiben kompatibel. */
     public MapTablePanel(final Map<String,String> backing,
                          final String scopeName,
-                         final java.util.function.Supplier<java.util.List<String>> usersProvider) {
+                         final Supplier<List<String>> usersProvider) {
+        this(backing, scopeName, usersProvider, null, null);
+    }
+
+    /** Neue Overload nur für „gepinnte“ erste Zeile (z. B. OTP im Root/Templates). */
+    public MapTablePanel(final Map<String,String> backing,
+                         final String scopeName,
+                         final Supplier<List<String>> usersProvider,
+                         final String pinnedKey,
+                         final String pinnedValue) {
         super(new BorderLayout());
 
-        // Entscheidet, ob die fixierte "user"-Zeile aktiv ist (null => false)
-        final boolean includeUserRow = (usersProvider != null);
+        final boolean includeUserRow = (usersProvider != null) && (pinnedKey == null);
+        final boolean includePinnedRow = (pinnedKey != null);
 
-        final MapTableModel model = new MapTableModel(backing, includeUserRow);
+        // Falls gepinnter Eintrag erstmalig fehlt → sofort anlegen und speichern
+        boolean needImmediateSave = false;
+        if (includePinnedRow && backing != null && !backing.containsKey(pinnedKey)) {
+            backing.put(pinnedKey, pinnedValue != null ? pinnedValue : "");
+            needImmediateSave = true;
+        }
+        if (!includePinnedRow && includeUserRow && backing != null && !backing.containsKey(MapTableModel.USER_KEY)) {
+            backing.put(MapTableModel.USER_KEY, "");
+            needImmediateSave = true;
+        }
+
+        final MapTableModel model = new MapTableModel(backing, includeUserRow, includePinnedRow, pinnedKey);
+
         final JTable table = new JTable(model) {
-
-            private final TableCellEditor userEditor = buildUserEditor(usersProvider);
-            private final ExpressionCellEditor exprEditor = buildExpressionEditor();
+            private final TableCellEditor userEditor =
+                    (includeUserRow ? buildUserEditor(usersProvider) : null);
+            private final ExpressionCellEditor exprEditor = buildExpressionEditor(backing);
 
             @Override
             public TableCellEditor getCellEditor(int row, int column) {
-                // IntelliSense NUR in Spalte "Expression" (column == 1)
+                // IntelliSense nur in Spalte 1
                 if (column == 1) {
-                    // Row 0 → User-Dropdown, falls aktiv
-                    if (includeUserRow && row == 0) {
-                        return userEditor;
-                    }
-                    // alle anderen Expression-Zellen → ExpressionCellEditor
+                    if (row == 0 && includeUserRow && userEditor != null) return userEditor;
                     return exprEditor;
                 }
-                // Name-Spalte (column == 0) → kein IntelliSense
                 return super.getCellEditor(row, column);
             }
 
             @Override
             public TableCellRenderer getCellRenderer(int row, int column) {
-                // Ausgegrauter Name für die fixierte User-Zeile (Row 0 / Col 0)
-                if (includeUserRow && row == 0 && column == 0) {
+                // Name der gepinnten Zeile (user oder pinnedKey) ausgegraut
+                if (row == 0 && column == 0 && (includeUserRow || includePinnedRow)) {
                     return new UserNameLockedRenderer();
                 }
-                // Monospace-Renderer für die Expression-Spalte
-                if (column == 1) {
-                    return new MultiLineMonoRenderer();
-                }
+                if (column == 1) return new MultiLineMonoRenderer();
                 return super.getCellRenderer(row, column);
             }
 
-            private TableCellEditor buildUserEditor(final java.util.function.Supplier<java.util.List<String>> provider) {
+            private TableCellEditor buildUserEditor(final Supplier<List<String>> provider) {
                 return new UserComboBoxCellEditor(new UserComboBoxCellEditor.ChoicesProvider() {
-                    public java.util.List<String> getUsers() {
+                    public List<String> getUsers() {
                         return provider != null ? provider.get() : java.util.Collections.<String>emptyList();
                     }
                 });
             }
 
-            private ExpressionCellEditor buildExpressionEditor() {
-                // ------- Suppliers wie gehabt -------
-                java.util.function.Supplier<java.util.List<String>> varSupplier =
-                        new java.util.function.Supplier<java.util.List<String>>() {
-                            @Override public java.util.List<String> get() {
-                                java.util.Set<String> all = new java.util.LinkedHashSet<String>();
-                                if (backing != null) all.addAll(backing.keySet());
-
-                                de.bund.zrb.model.RootNode root = TestRegistry.getInstance().getRoot();
-                                if (root != null) {
-                                    if (root.getBeforeAll()   != null) all.addAll(root.getBeforeAll().keySet());
-                                    if (root.getBeforeEach()  != null) all.addAll(root.getBeforeEach().keySet());
-                                    if (root.getTemplates()   != null) all.addAll(root.getTemplates().keySet());
-                                }
-                                java.util.List<de.bund.zrb.model.TestSuite> suites = TestRegistry.getInstance().getAll();
-                                if (suites != null) {
-                                    for (int si = 0; si < suites.size(); si++) {
-                                        de.bund.zrb.model.TestSuite s = suites.get(si);
-                                        if (s.getBeforeAll()   != null) all.addAll(s.getBeforeAll().keySet());
-                                        if (s.getBeforeEach()  != null) all.addAll(s.getBeforeEach().keySet());
-                                        if (s.getTemplates()   != null) all.addAll(s.getTemplates().keySet());
-                                        java.util.List<de.bund.zrb.model.TestCase> cases = s.getTestCases();
-                                        if (cases != null) {
-                                            for (int ci = 0; ci < cases.size(); ci++) {
-                                                de.bund.zrb.model.TestCase tc = cases.get(ci);
-                                                if (tc.getBefore()    != null) all.addAll(tc.getBefore().keySet());
-                                                if (tc.getTemplates() != null) all.addAll(tc.getTemplates().keySet());
-                                            }
-                                        }
-                                    }
-                                }
-                                java.util.List<String> sorted = new java.util.ArrayList<String>(all);
-                                java.util.Collections.sort(sorted, String.CASE_INSENSITIVE_ORDER);
-                                return sorted;
-                            }
-                        };
-
-                java.util.function.Supplier<java.util.Map<String, DescribedItem>> fnSupplier =
-                        new java.util.function.Supplier<java.util.Map<String, DescribedItem>>() {
-                            @Override public java.util.Map<String, DescribedItem> get() {
-                                java.util.Map<String, DescribedItem> out = new java.util.LinkedHashMap<String, DescribedItem>();
-                                ExpressionRegistryImpl reg = ExpressionRegistryImpl.getInstance();
-                                java.util.Set<String> keys = reg.getKeys();
-                                java.util.List<String> sorted = new java.util.ArrayList<String>(keys);
-                                java.util.Collections.sort(sorted, String.CASE_INSENSITIVE_ORDER);
-
-                                for (int i = 0; i < sorted.size(); i++) {
-                                    final String name = sorted.get(i);
-                                    ExpressionFunction builtin = reg.get(name);
-                                    if (builtin != null) {
-                                        out.put(name, builtin);
-                                        continue;
-                                    }
-                                    final de.bund.zrb.expressions.domain.FunctionMetadata m = reg.getMetadata(name);
-                                    out.put(name, new DescribedItem() {
-                                        public String getDescription() {
-                                            return m != null && m.getDescription() != null ? m.getDescription() : "";
-                                        }
-                                        public java.util.List<String> getParamNames() {
-                                            return m != null && m.getParameterNames() != null ? m.getParameterNames()
-                                                    : java.util.Collections.<String>emptyList();
-                                        }
-                                        public java.util.List<String> getParamDescriptions() {
-                                            return m != null && m.getParameterDescriptions() != null ? m.getParameterDescriptions()
-                                                    : java.util.Collections.<String>emptyList();
-                                        }
-                                        public Object getMetadata() { return m; }
-                                    });
-                                }
-                                return out;
-                            }
-                        };
-
-                java.util.function.Supplier<java.util.Map<String, DescribedItem>> rxSupplier =
-                        new java.util.function.Supplier<java.util.Map<String, DescribedItem>>() {
-                            @Override public java.util.Map<String, DescribedItem> get() {
-                                java.util.Map<String, DescribedItem> out = new java.util.LinkedHashMap<String, DescribedItem>();
-                                RegexPatternRegistry rx = RegexPatternRegistry.getInstance();
-                                java.util.List<String> titles = rx.getTitlePresets();
-                                for (int i = 0; i < titles.size(); i++) {
-                                    final String val = titles.get(i);
-                                    out.put(val, new DescribedItem() {
-                                        @Override public String getDescription() { return "Regex-Preset (Title)"; }
-                                    });
-                                }
-                                java.util.List<String> msgs = rx.getMessagePresets();
-                                for (int i = 0; i < msgs.size(); i++) {
-                                    final String val = msgs.get(i);
-                                    out.put(val, new DescribedItem() {
-                                        @Override public String getDescription() { return "Regex-Preset (Message)"; }
-                                    });
-                                }
-                                return out;
-                            }
-                        };
-
-                return new ExpressionCellEditor(varSupplier, fnSupplier, rxSupplier);
+            private ExpressionCellEditor buildExpressionEditor(final Map<String,String> backingMap) {
+                return new ExpressionCellEditor(
+                        buildVarSupplier(backingMap),
+                        buildFnSupplier(),
+                        buildRxSupplier()
+                );
             }
         };
 
-        // UX-Grundsetup
+        // UX
         table.setFillsViewportHeight(true);
         table.setSurrendersFocusOnKeystroke(true);
         table.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
-
         int fmH = table.getFontMetrics(table.getFont()).getHeight();
         table.setRowHeight(Math.max(table.getRowHeight(), 3 * fmH + 8));
-
         if (table.getColumnModel().getColumnCount() > 1) {
             table.getColumnModel().getColumn(1).setPreferredWidth(480);
         }
@@ -191,59 +107,47 @@ public class MapTablePanel extends JPanel {
 
         JButton addBtn = new JButton("+");
         addBtn.setToolTipText(scopeName + " Eintrag hinzufügen");
-        addBtn.addActionListener(new java.awt.event.ActionListener() {
-            @Override public void actionPerformed(java.awt.event.ActionEvent e) {
-                model.addEmptyRow();
-            }
-        });
+        addBtn.addActionListener(e -> model.addEmptyRow());
 
         JButton delBtn = new JButton("–");
         delBtn.setToolTipText("Ausgewählte Zeile löschen");
-        delBtn.addActionListener(new java.awt.event.ActionListener() {
-            @Override public void actionPerformed(java.awt.event.ActionEvent e) {
-                int row = table.getSelectedRow();
-                if (row >= 0) {
-                    if (!model.canRemoveRow(row)) {
-                        JOptionPane.showMessageDialog(
-                                MapTablePanel.this,
-                                "Dieser Eintrag ist gesperrt und kann nicht gelöscht werden.",
-                                "Hinweis",
-                                JOptionPane.INFORMATION_MESSAGE
-                        );
-                        return;
-                    }
-                    model.removeRow(row);
+        delBtn.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row >= 0) {
+                if (!model.canRemoveRow(row)) {
+                    String pinnedName = includePinnedRow ? pinnedKey : MapTableModel.USER_KEY;
+                    JOptionPane.showMessageDialog(
+                            MapTablePanel.this,
+                            "\"" + pinnedName + "\" kann nicht gelöscht werden.",
+                            "Hinweis",
+                            JOptionPane.INFORMATION_MESSAGE
+                    );
+                    return;
                 }
+                model.removeRow(row);
             }
         });
 
         JButton editBtn = new JButton("Bearbeiten");
         editBtn.setToolTipText("Expression in ausgewählter Zeile bearbeiten");
-        editBtn.addActionListener(new java.awt.event.ActionListener() {
-            @Override public void actionPerformed(java.awt.event.ActionEvent e) {
-                int row = table.getSelectedRow();
-                if (row < 0) return;
-                int exprCol = 1;
-                table.editCellAt(row, exprCol);
-                Component editorComp = table.getEditorComponent();
-                if (editorComp != null) {
-                    editorComp.requestFocusInWindow();
-                }
-            }
+        editBtn.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row < 0) return;
+            table.editCellAt(row, 1);
+            Component editorComp = table.getEditorComponent();
+            if (editorComp != null) editorComp.requestFocusInWindow();
         });
 
         JButton saveBtn = new JButton("💾");
         saveBtn.setToolTipText("Speichern");
-        saveBtn.addActionListener(new java.awt.event.ActionListener() {
-            @Override public void actionPerformed(java.awt.event.ActionEvent e) {
-                TestRegistry.getInstance().save();
-                JOptionPane.showMessageDialog(
-                        MapTablePanel.this,
-                        "Gespeichert.",
-                        "Info",
-                        JOptionPane.INFORMATION_MESSAGE
-                );
-            }
+        saveBtn.addActionListener(e -> {
+            TestRegistry.getInstance().save();
+            JOptionPane.showMessageDialog(
+                    MapTablePanel.this,
+                    "Gespeichert.",
+                    "Info",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
         });
 
         bar.add(addBtn);
@@ -254,11 +158,15 @@ public class MapTablePanel extends JPanel {
 
         add(bar, BorderLayout.NORTH);
         add(new JScrollPane(table), BorderLayout.CENTER);
+
+        // Sofort persistieren, wenn der gepinnte/user-Eintrag gerade neu erzeugt wurde
+        if (needImmediateSave) {
+            try { TestRegistry.getInstance().save(); } catch (Throwable ignore) { }
+        }
     }
 
-    // ==== Renderer/Editor-Helfer ====
+    // ---- Renderer/Editor helpers ----
 
-    /** Gray, italic, locked look for the fixed user name cell. */
     static final class UserNameLockedRenderer extends DefaultTableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(
@@ -272,14 +180,13 @@ public class MapTablePanel extends JPanel {
 
     static final class UserComboBoxCellEditor extends AbstractCellEditor implements TableCellEditor {
         interface ChoicesProvider { List<String> getUsers(); }
-        private final JComboBox<String> combo;
+        private final JComboBox<String> combo = new JComboBox<String>();
         private final ChoicesProvider provider;
 
         UserComboBoxCellEditor(ChoicesProvider provider) {
             this.provider = provider;
-            this.combo = new JComboBox<String>();
-            this.combo.putClientProperty("JComboBox.isTableCellEditor", Boolean.TRUE);
-            this.combo.setEditable(false);
+            combo.putClientProperty("JComboBox.isTableCellEditor", Boolean.TRUE);
+            combo.setEditable(false);
             rebuild();
         }
 
@@ -300,8 +207,7 @@ public class MapTablePanel extends JPanel {
 
         public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
             if (combo.getItemCount() == 0) rebuild();
-            String v = value == null ? "" : String.valueOf(value);
-            combo.setSelectedItem(v);
+            combo.setSelectedItem(value == null ? "" : String.valueOf(value));
             return combo;
         }
 
@@ -311,7 +217,6 @@ public class MapTablePanel extends JPanel {
         }
     }
 
-    /** Monospaced 3-Zeilen Renderer für Expressions (wie gehabt). */
     static final class MultiLineMonoRenderer extends JTextArea implements TableCellRenderer {
         private final Font mono = new Font(Font.MONOSPACED, Font.PLAIN, 12);
         MultiLineMonoRenderer() {
@@ -334,5 +239,100 @@ public class MapTablePanel extends JPanel {
             }
             return this;
         }
+    }
+
+    // ---- Suppliers (unverändert, nur ausgelagert, damit oben kurz bleibt) ----
+
+    private Supplier<List<String>> buildVarSupplier(final Map<String,String> backing) {
+        return new Supplier<List<String>>() {
+            @Override public List<String> get() {
+                Set<String> all = new LinkedHashSet<String>();
+                if (backing != null) all.addAll(backing.keySet());
+
+                de.bund.zrb.model.RootNode root = TestRegistry.getInstance().getRoot();
+                if (root != null) {
+                    if (root.getBeforeAll()   != null) all.addAll(root.getBeforeAll().keySet());
+                    if (root.getBeforeEach()  != null) all.addAll(root.getBeforeEach().keySet());
+                    if (root.getTemplates()   != null) all.addAll(root.getTemplates().keySet());
+                }
+                List<de.bund.zrb.model.TestSuite> suites = TestRegistry.getInstance().getAll();
+                if (suites != null) {
+                    for (int si = 0; si < suites.size(); si++) {
+                        de.bund.zrb.model.TestSuite s = suites.get(si);
+                        if (s.getBeforeAll()   != null) all.addAll(s.getBeforeAll().keySet());
+                        if (s.getBeforeEach()  != null) all.addAll(s.getBeforeEach().keySet());
+                        if (s.getTemplates()   != null) all.addAll(s.getTemplates().keySet());
+                        List<de.bund.zrb.model.TestCase> cases = s.getTestCases();
+                        if (cases != null) {
+                            for (int ci = 0; ci < cases.size(); ci++) {
+                                de.bund.zrb.model.TestCase tc = cases.get(ci);
+                                if (tc.getBefore()    != null) all.addAll(tc.getBefore().keySet());
+                                if (tc.getTemplates() != null) all.addAll(tc.getTemplates().keySet());
+                            }
+                        }
+                    }
+                }
+                List<String> sorted = new ArrayList<String>(all);
+                Collections.sort(sorted, String.CASE_INSENSITIVE_ORDER);
+                return sorted;
+            }
+        };
+    }
+
+    private Supplier<Map<String, DescribedItem>> buildFnSupplier() {
+        return new Supplier<Map<String, DescribedItem>>() {
+            @Override public Map<String, DescribedItem> get() {
+                Map<String, DescribedItem> out = new LinkedHashMap<String, DescribedItem>();
+                ExpressionRegistryImpl reg = ExpressionRegistryImpl.getInstance();
+                Set<String> keys = reg.getKeys();
+                List<String> sorted = new ArrayList<String>(keys);
+                Collections.sort(sorted, String.CASE_INSENSITIVE_ORDER);
+                for (int i = 0; i < sorted.size(); i++) {
+                    final String name = sorted.get(i);
+                    ExpressionFunction builtin = reg.get(name);
+                    if (builtin != null) { out.put(name, builtin); continue; }
+                    final de.bund.zrb.expressions.domain.FunctionMetadata m = reg.getMetadata(name);
+                    out.put(name, new DescribedItem() {
+                        public String getDescription() {
+                            return m != null && m.getDescription() != null ? m.getDescription() : "";
+                        }
+                        public java.util.List<String> getParamNames() {
+                            return m != null && m.getParameterNames() != null ? m.getParameterNames()
+                                    : java.util.Collections.<String>emptyList();
+                        }
+                        public java.util.List<String> getParamDescriptions() {
+                            return m != null && m.getParameterDescriptions() != null ? m.getParameterDescriptions()
+                                    : java.util.Collections.<String>emptyList();
+                        }
+                        public Object getMetadata() { return m; }
+                    });
+                }
+                return out;
+            }
+        };
+    }
+
+    private Supplier<Map<String, DescribedItem>> buildRxSupplier() {
+        return new Supplier<Map<String, DescribedItem>>() {
+            @Override public Map<String, DescribedItem> get() {
+                Map<String, DescribedItem> out = new LinkedHashMap<String, DescribedItem>();
+                RegexPatternRegistry rx = RegexPatternRegistry.getInstance();
+                List<String> titles = rx.getTitlePresets();
+                for (int i = 0; i < titles.size(); i++) {
+                    final String val = titles.get(i);
+                    out.put(val, new DescribedItem() {
+                        @Override public String getDescription() { return "Regex-Preset (Title)"; }
+                    });
+                }
+                List<String> msgs = rx.getMessagePresets();
+                for (int i = 0; i < msgs.size(); i++) {
+                    final String val = msgs.get(i);
+                    out.put(val, new DescribedItem() {
+                        @Override public String getDescription() { return "Regex-Preset (Message)"; }
+                    });
+                }
+                return out;
+            }
+        };
     }
 }
