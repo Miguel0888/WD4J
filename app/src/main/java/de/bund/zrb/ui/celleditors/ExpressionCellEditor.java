@@ -166,6 +166,7 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
 
             String prefix = getAlreadyEnteredText(comp);
 
+            // Variablen
             List<String> vars = variableNamesSupplier.get();
             for (int i = 0; i < vars.size(); i++) {
                 String v = vars.get(i);
@@ -174,22 +175,23 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
                 }
             }
 
+            // Funktionen
             Map<String, DescribedItem> fmap = functionItemsSupplier.get();
             List<String> fnNames = sortedKeys(fmap.keySet());
             for (int i = 0; i < fnNames.size(); i++) {
                 String fn = fnNames.get(i);
                 if (prefix.length() == 0 || startsWithIgnoreCase(fn, prefix)) {
                     DescribedItem di = fmap.get(fn);
-                    String desc = di != null ? di.getDescription() : null;
 
-                    // Try to extract parameter names/descriptions via reflection if available
-                    List<String> pNames = extractParamNames(di);
-                    List<String> pDescs = extractParamDescs(di);
+                    String desc = di != null ? di.getDescription() : null;
+                    List<String> pNames = di != null ? safeList(di.getParamNames()) : java.util.Collections.<String>emptyList();
+                    List<String> pDescs = di != null ? safeList(di.getParamDescriptions()) : java.util.Collections.<String>emptyList();
 
                     out.add(new FunctionCompletionWrapped(this, fn, desc, pNames, pDescs));
                 }
             }
 
+            // Regex
             Map<String, DescribedItem> rxmap = regexItemsSupplier.get();
             List<String> rxs = sortedKeys(rxmap.keySet());
             for (int i = 0; i < rxs.size(); i++) {
@@ -201,6 +203,10 @@ public class ExpressionCellEditor extends javax.swing.AbstractCellEditor impleme
             }
 
             return out;
+        }
+
+        private List<String> safeList(List<String> in) {
+            return (in != null) ? in : java.util.Collections.<String>emptyList();
         }
 
         // --- Reflection bridge to avoid changing your domain classes ---

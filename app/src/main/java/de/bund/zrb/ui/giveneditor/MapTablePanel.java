@@ -87,7 +87,7 @@ public class MapTablePanel extends JPanel {
             }
         };
 
-        // Funktionen: Builtins direkt, User-Funktionen aus Metadaten (kein Compile im EDT!)
+// Funktionen: Builtins direkt, User-Funktionen aus Metadaten (ohne Kompilierung im EDT)
         Supplier<Map<String, DescribedItem>> fnSupplier = new Supplier<Map<String, DescribedItem>>() {
             @Override public Map<String, DescribedItem> get() {
                 Map<String, DescribedItem> out = new LinkedHashMap<String, DescribedItem>();
@@ -100,22 +100,22 @@ public class MapTablePanel extends JPanel {
                 for (int i = 0; i < sorted.size(); i++) {
                     final String name = sorted.get(i);
 
-                    // 1) Builtins kommen als echte Funktion (implementiert DescribedItem)
-                    ExpressionFunction fn = reg.get(name); // im EDT für User-Funktionen null, für Builtins OK
-                    if (fn != null) {
-                        out.put(name, fn);
+                    // Builtins: echte Funktion liefern (implementiert DescribedItem vollständig)
+                    ExpressionFunction builtin = reg.get(name); // im EDT für User null, für Builtins OK
+                    if (builtin != null) {
+                        out.put(name, builtin);
                         continue;
                     }
 
-                    // 2) User-Funktionen: nur Metadaten -> leichtes DescribedItem
-                    final FunctionMetadata m = reg.getMetadata(name);
+                    // User-Funktionen: leichtes DescribedItem aus gespeicherten Metadaten
+                    final de.bund.zrb.expressions.domain.FunctionMetadata m = reg.getMetadata(name);
                     if (m == null) {
-                        // Fallback: wenigstens einen Eintrag ohne Beschreibung anzeigen
                         out.put(name, new DescribedItem() {
                             public String getDescription() { return ""; }
-                            // Falls dein DescribedItem erweitert wurde:
+                            // falls dein DescribedItem diese Methoden nicht hat, kannst du sie weglassen
                             public java.util.List<String> getParamNames() { return java.util.Collections.<String>emptyList(); }
                             public java.util.List<String> getParamDescriptions() { return java.util.Collections.<String>emptyList(); }
+                            public Object getMetadata() { return null; }
                         });
                         continue;
                     }
@@ -125,7 +125,7 @@ public class MapTablePanel extends JPanel {
                             String d = m.getDescription();
                             return d != null ? d : "";
                         }
-                        // ↓ Diese beiden Methoden nur belassen, wenn dein DescribedItem sie enthält
+                        // >>> WICHTIG: öffentlich, exakte Methodennamen, damit Reflection sie findet
                         public java.util.List<String> getParamNames() {
                             java.util.List<String> n = m.getParameterNames();
                             return n != null ? n : java.util.Collections.<String>emptyList();
@@ -134,12 +134,14 @@ public class MapTablePanel extends JPanel {
                             java.util.List<String> d = m.getParameterDescriptions();
                             return d != null ? d : java.util.Collections.<String>emptyList();
                         }
+                        public Object getMetadata() {
+                            return m; // optional – erlaubt der Reflection einen 2. Pfad
+                        }
                     });
                 }
                 return out;
             }
         };
-
 
         // Regex-Presets: aus RegexPatternRegistry (Title- & Message-Presets)
         Supplier<Map<String, DescribedItem>> rxSupplier = new Supplier<Map<String, DescribedItem>>() {
