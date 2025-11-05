@@ -39,11 +39,18 @@ public class MapTablePanel extends JPanel {
 
             @Override
             public TableCellEditor getCellEditor(int row, int column) {
-            // Row 0, Col 1 -> Dropdown für user (nur wenn includeUserRow == true)
-                if (includeUserRow && row == 0 && column == 1) {
-                    return userEditor;
+                // Column 1 (Expression):
+                if (column == 1) {
+                    // Row 0, Column 1 -> User-Dropdown (falls aktiv)
+                    if (includeUserRow && row == 0) {
+                        return userEditor;
+                    }
+                    // Alle anderen in Column 1 -> ExpressionCellEditor (mit IntelliSense)
+                    return exprEditor;
                 }
-            return exprEditor; // alle anderen Zellen
+
+                // Column 0 (Name) und alle anderen Spalten -> Standard-Editor der JTable (kein IntelliSense)
+                return super.getCellEditor(row, column);
             }
 
             @Override
