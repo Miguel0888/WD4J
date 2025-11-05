@@ -1,7 +1,6 @@
 package de.bund.zrb.runtime;
 
 import de.bund.zrb.expressions.domain.ExpressionFunction;
-import de.bund.zrb.expressions.domain.FunctionMetadata;
 
 import java.util.Optional;
 import java.util.Set;
@@ -60,8 +59,4 @@ public interface ExpressionRegistry {
     void save();
 
     ExpressionFunction get(String name);
-
-    /** Read/write metadata stored in expressions.json */
-    FunctionMetadata getMetadata(String key);
-    void setMetadata(String key, FunctionMetadata meta);
 }
