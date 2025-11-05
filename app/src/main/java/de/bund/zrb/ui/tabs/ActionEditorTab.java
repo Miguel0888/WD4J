@@ -2,7 +2,6 @@ package de.bund.zrb.ui.tabs;
 
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.service.TestRegistry;
-import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.expressions.GivenLookupService;
 import de.bund.zrb.ui.expressions.ScopeReferenceComboBox;
 import de.bund.zrb.util.LocatorType;
@@ -17,21 +16,16 @@ import java.util.TreeSet;
 /**
  * Editor für eine einzelne TestAction.
  *
- * Unterschiede zur alten Version:
- * - "Value:" ist jetzt (valueField + ScopeReferenceComboBox).
- *   Die Combo zeigt Variablen/BeforeAll/Templates aus dem Scope (Case->Suite->Root).
- * - Bei Auswahl in der Combo wird direkt ein Template-String wie "{{username}}" oder "{{otpCode()}}"
- *   ins valueField geschrieben und sofort in action.setValue(...) gespiegelt.
- *
- * Wichtig: Dieser Tab bekommt weiterhin im Konstruktor die Givens des Cases mit,
- * weil der rechte Bereich (Expression-Browser etc.) später damit arbeiten könnte.
- * Für Arbeitspaket 1 reicht uns aber der ScopeLookup für die Combo.
+ * Value-Feld:
+ *  - Freitext erlaubt.
+ *  - Auswahl aus ScopeReferenceComboBox:
+ *      - Variable  -> schreibe {{name}}
+ *      - *Template -> schreibe den Template-Body (Value) 1:1, KEIN erzwungenes {{fn()}}
  */
 public class ActionEditorTab extends AbstractEditorTab<TestAction> {
 
     private final TestAction action;
 
-    // UI Felder, damit wir sie im Save-Handler benutzen können
     private JComboBox<String> actionBox;
     private JTextField valueField;
     private ScopeReferenceComboBox scopeCombo;
@@ -50,33 +44,31 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
         formPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         add(formPanel, BorderLayout.NORTH);
 
-        // -------------------- bekannte Actions --------------------
+        // Actions
         Set<String> knownActions = new TreeSet<String>(Arrays.asList(
                 "click", "input", "fill", "type", "press",
                 "select", "check", "radio",
                 "navigate", "wait", "screenshot"
         ));
 
-        // -------------------- LocatorTypes ------------------------
+        // LocatorTypes
         Set<String> locatorTypes = new TreeSet<String>();
         for (LocatorType t : LocatorType.values()) {
             locatorTypes.add(t.getKey());
         }
 
-        // -------------------- Action ------------------------------
+        // Action
         formPanel.add(new JLabel("Action:"));
         actionBox = new JComboBox<String>(knownActions.toArray(new String[0]));
         actionBox.setEditable(true);
         actionBox.setSelectedItem(action.getAction());
         formPanel.add(actionBox);
 
-        // -------------------- Value -------------------------------
+        // Value
         formPanel.add(new JLabel("Value:"));
-
         JPanel valuePanel = new JPanel(new BorderLayout(4, 0));
         valueField = new JTextField();
-// allow free text again
-        valueField.setEditable(true);
+        valueField.setEditable(true); // allow free text
         valuePanel.add(valueField, BorderLayout.CENTER);
 
         scopeCombo = new ScopeReferenceComboBox();
@@ -84,159 +76,111 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
 
         formPanel.add(valuePanel);
 
-// ScopeData jetzt direkt holen
+        // ScopeData bereitstellen
         GivenLookupService.ScopeData scopeData =
                 new GivenLookupService().collectScopeForAction(action);
         scopeCombo.setScopeData(scopeData);
 
-// Vorbelegung für valueField aus action.getValue()
+        // Vorbelegung Value
         String initialTemplate = (action.getValue() != null) ? action.getValue().trim() : "";
         valueField.setText(initialTemplate);
 
-// Spiegle manuelle Eingaben sofort ins Modell
+        // Freitext -> Modell spiegeln
         attachValueMirror(valueField, action);
 
-// Optional: Combo initial vorwählen (wenn im Feld ein Template steckt)
+        // Vorwahl im Combo-Display (ohne Event)
         String preselectName = deriveScopeNameFromTemplate(initialTemplate);
         if (preselectName != null && preselectName.length() > 0) {
             scopeCombo.setInitialChoiceWithoutEvent(preselectName);
         }
 
-// 1) Schlanker Listener (Lambda) – schreibt {{...}} direkt ins Feld + Modell
-        scopeCombo.addSelectionListener(name -> {
-            if (name == null || name.trim().isEmpty()) {
-                return;
-            }
-            String template;
-            if (name.startsWith("*")) {
-                // Template -> {{fnName()}}
-                String fn = name.substring(1).trim();
-                template = "{{" + fn + "()}}";
-            } else if (name.startsWith("①")) {
-                // "①sessionId" wie normale Variable behandeln
-                String varName = name.substring(1).trim();
-                template = "{{" + varName + "}}";
-            } else {
-                // Variable -> {{varName}}
-                template = "{{" + name.trim() + "}}";
-            }
-            valueField.setText(template);
-            // DocumentListener spiegelt ohnehin, aber wir setzen explizit:
-            action.setValue(template);
-        });
-
-        ///
-
-        if (preselectName != null && preselectName.length() > 0) {
-            scopeCombo.setInitialChoiceWithoutEvent(preselectName);
-        }
-
-        // Wenn der User über die Combo eine Variable/Template auswählt,
-        // generieren wir SOFORT den passenden "{{...}}"-String und stecken
-        // ihn in valueField UND ins action.setValue(...)
+        // Einziger Listener: Variable -> {{name}}, *Template -> Body einsetzen
         scopeCombo.addSelectionListener(new ScopeReferenceComboBox.SelectionListener() {
-            @Override
             public void onSelected(String nameWithPrefix) {
-                if (nameWithPrefix == null || nameWithPrefix.trim().isEmpty()) {
-                    return;
-                }
-                String template;
+                if (nameWithPrefix == null || nameWithPrefix.trim().length() == 0) return;
+
+                String toSet;
+
                 if (nameWithPrefix.startsWith("*")) {
-                    // "*otpCode" -> "{{otpCode()}}"
+                    // Template gewählt -> Body (Expression-Value) aus Scope nehmen
                     String fn = nameWithPrefix.substring(1).trim();
-                    template = "{{" + fn + "()}}";
+                    GivenLookupService.ScopeData sd = scopeCombo.getCurrentScopeData();
+                    String body = (sd != null && sd.templates != null) ? sd.templates.get(fn) : null;
+
+                    // Fallback: falls nicht gefunden, schreibe zumindest {{fn()}}
+                    toSet = (body != null && body.trim().length() > 0)
+                            ? body.trim()
+                            : "{{" + fn + "()}}";
                 } else if (nameWithPrefix.startsWith("①")) {
-                    // "①sessionId" -> wir behandeln sie wie eine normale Variable
-                    // aber wir lassen das ① NICHT im Platzhalternamen drin.
+                    // beforeAll-Variable wie normale Variable behandeln
                     String varName = nameWithPrefix.substring(1).trim();
-                    template = "{{" + varName + "}}";
+                    toSet = "{{" + varName + "}}";
                 } else {
-                    // "username" -> "{{username}}"
-                    template = "{{" + nameWithPrefix.trim() + "}}";
+                    // Normale Variable
+                    toSet = "{{" + nameWithPrefix.trim() + "}}";
                 }
 
-                valueField.setText(template);
-                action.setValue(template);
+                valueField.setText(toSet);
+                action.setValue(toSet);
             }
         });
 
-        // -------------------- Locator Type ------------------------
+        // Locator Type
         formPanel.add(new JLabel("Locator Type:"));
         locatorBox = new JComboBox<String>(locatorTypes.toArray(new String[0]));
         locatorBox.setEditable(true);
-
         final String initialTypeKey = resolveInitialTypeKey(action);
         locatorBox.setSelectedItem(initialTypeKey);
         formPanel.add(locatorBox);
 
-        // -------------------- Selector ----------------------------
+        // Selector
         formPanel.add(new JLabel("Selector:"));
         selectorBox = new JComboBox<String>();
         selectorBox.setEditable(true);
-
         populateSelectorBoxForType(action, selectorBox, initialTypeKey);
         selectorBox.setSelectedItem(action.getSelectedSelector());
         formPanel.add(selectorBox);
 
-        // -------------------- User --------------------------------
+        // User
         formPanel.add(new JLabel("User:"));
-
-        // 1) Userliste aus Registry (ohne Streams hier)
         java.util.List<String> usernames = de.bund.zrb.service.UserRegistry.getInstance().getUsernames();
-
-        // 2) Array mit leerem Eintrag vorn aufbauen
         String[] userItems = new String[usernames.size() + 1];
-        userItems[0] = ""; // leerer Eintrag erlaubt "kein User" (=> Vererbung)
-        for (int i = 0; i < usernames.size(); i++) {
-            userItems[i + 1] = usernames.get(i);
-        }
-
+        userItems[0] = "";
+        for (int i = 0; i < usernames.size(); i++) userItems[i + 1] = usernames.get(i);
         userBox = new JComboBox<String>(userItems);
         userBox.setEditable(false);
-
-        // 3) Vorbelegung: wenn Action-User null/leer -> leeren Eintrag wählen
-        String initialUser = action.getUserRaw() != null ? action.getUserRaw(): "";
-        if (initialUser == null || initialUser.trim().length() == 0) {
-            userBox.setSelectedIndex(0); // leer
-        } else {
-            userBox.setSelectedItem(initialUser);
-        }
-
+        String initialUser = action.getUserRaw() != null ? action.getUserRaw() : "";
+        if (initialUser == null || initialUser.trim().length() == 0) userBox.setSelectedIndex(0);
+        else userBox.setSelectedItem(initialUser);
         formPanel.add(userBox);
 
-        // -------------------- Timeout -----------------------------
+        // Timeout
         formPanel.add(new JLabel("Timeout (ms):"));
         timeoutField = new JTextField(String.valueOf(action.getTimeout()));
         formPanel.add(timeoutField);
 
-        // -------------------- Locator/Selector-Interaktion --------
+        // Locator/Selector-Interaktion
         locatorBox.addActionListener(new AbstractAction() {
-            @Override
             public void actionPerformed(ActionEvent e) {
                 String typeKey = stringValue(locatorBox.getSelectedItem());
                 populateSelectorBoxForType(action, selectorBox, typeKey);
 
                 String currentSel = stringValue(selectorBox.getEditor().getItem());
                 if (!isSelectorValidForType(typeKey, currentSel)) {
-                    if (selectorBox.getItemCount() > 0) {
-                        selectorBox.setSelectedIndex(0);
-                    } else {
-                        selectorBox.setSelectedItem("");
-                    }
+                    if (selectorBox.getItemCount() > 0) selectorBox.setSelectedIndex(0);
+                    else selectorBox.setSelectedItem("");
                 }
             }
         });
 
-        // -------------------- Speichern ---------------------------
+        // Speichern
         JButton saveButton = new JButton("Speichern");
         saveButton.addActionListener(new AbstractAction() {
-            @Override
             public void actionPerformed(ActionEvent e) {
-
-                // Action (click/fill/...)
+                // Action
                 action.setAction(stringValue(actionBox.getSelectedItem()));
 
-                // Value aus valueField (Template-String wie "{{username}}")
+                // Value
                 action.setValue(valueField.getText());
 
                 // LocatorType
@@ -260,7 +204,7 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                 // User
                 String selUser = stringValue(userBox.getSelectedItem());
                 if (selUser == null || selUser.trim().length() == 0) {
-                    action.setUser(null); // wichtig: null schreiben, nicht leerer String
+                    action.setUser(null);
                 } else {
                     action.setUser(selUser.trim());
                 }
@@ -268,18 +212,10 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                 // Timeout
                 try {
                     action.setTimeout(Integer.parseInt(timeoutField.getText().trim()));
-                } catch (NumberFormatException ignored) {
-                    // invalid -> alten Wert behalten
-                }
+                } catch (NumberFormatException ignored) { /* keep old */ }
 
                 // Persist
                 TestRegistry.getInstance().save();
-
-                //DEBUG
-//                JOptionPane.showMessageDialog(
-//                        ActionEditorTab.this,
-//                        "Änderungen gespeichert.\nTemplate ist jetzt:\n" + action.getValue()
-//                );
             }
         });
 
@@ -289,45 +225,28 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
     }
 
     /**
-     * Beispiel:
-     *   "{{username}}"   -> "username"
-     *   "{{otpCode()}}"  -> "*otpCode"
-     *   ""               -> null
-     *
-     * Wir unterscheiden hier NICHT automatisch "①" zurück,
-     * weil das erfordern würde zu wissen, ob der Name aus beforeAll kommt.
-     * Das könnten wir später dazubauen, wenn du willst.
+     * "{{username}}"  -> "username"
+     * "{{otpCode()}}" -> "*otpCode"
+     * Sonst -> null
      */
     private String deriveScopeNameFromTemplate(String template) {
         if (template == null) return null;
         String t = template.trim();
-        if (!t.startsWith("{{") || !t.endsWith("}}")) {
-            return null;
-        }
-        // Innenleben rausholen
-        String inner = t.substring(2, t.length() - 2).trim(); // z.B. username  oder otpCode()
+        if (!t.startsWith("{{") || !t.endsWith("}}")) return null;
+
+        String inner = t.substring(2, t.length() - 2).trim();
         if (inner.endsWith("()")) {
-            // Template/Funktion
             String base = inner.substring(0, inner.length() - 2).trim();
-            if (base.length() > 0) {
-                return "*" + base;
-            }
-            return null;
+            return base.length() > 0 ? "*" + base : null;
         } else {
-            // normale Variable
-            if (inner.length() > 0) {
-                return inner;
-            }
-            return null;
+            return inner.length() > 0 ? inner : null;
         }
     }
 
-    // --------------------- Hilfsfunktionen (aus deiner Version) ---------------------
+    // ---------- Helpers ----------
 
     private String resolveInitialTypeKey(TestAction action) {
-        if (action.getLocatorType() != null) {
-            return action.getLocatorType().getKey();
-        }
+        if (action.getLocatorType() != null) return action.getLocatorType().getKey();
 
         String sel = action.getSelectedSelector();
         if (sel != null) {
@@ -357,24 +276,17 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
     private void populateSelectorBoxForType(TestAction action,
                                             JComboBox<String> selectorBox,
                                             String typeKey) {
-
         selectorBox.removeAllItems();
 
         String candidate = action.getLocators().get(typeKey);
-        if (candidate != null && candidate.trim().length() > 0) {
-            addIfAbsent(selectorBox, candidate);
-        }
+        if (candidate != null && candidate.trim().length() > 0) addIfAbsent(selectorBox, candidate);
 
         String currentSel = action.getSelectedSelector();
         if (currentSel != null && currentSel.trim().length() > 0) {
-            if (isSelectorValidForType(typeKey, currentSel)) {
-                addIfAbsent(selectorBox, currentSel);
-            }
+            if (isSelectorValidForType(typeKey, currentSel)) addIfAbsent(selectorBox, currentSel);
         }
 
-        if (selectorBox.getItemCount() == 0) {
-            selectorBox.addItem("");
-        }
+        if (selectorBox.getItemCount() == 0) selectorBox.addItem("");
 
         if (selectorBox.getSelectedItem() == null && selectorBox.getItemCount() > 0) {
             selectorBox.setSelectedIndex(0);
@@ -425,18 +337,14 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
 
     private boolean looksLikeXpath(String s) {
         String t = s.trim();
-        return t.startsWith("//")
-                || t.startsWith(".//")
-                || t.startsWith("/")
-                || t.startsWith("(");
+        return t.startsWith("//") || t.startsWith(".//") || t.startsWith("/") || t.startsWith("(");
     }
 
-    /** Spiegel Freitext-Änderungen aus dem Textfeld direkt in action.setValue(...). */
+    /** Mirror free text from UI into model immediately. */
     private static void attachValueMirror(final JTextField field, final TestAction action) {
         field.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             private void mirror() {
                 String txt = field.getText();
-                // Treat empty as null so the Resolve-Chain greifen kann (Case → Suite → Root)
                 if (txt == null) {
                     action.setValue(null);
                 } else {
@@ -444,10 +352,9 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                     action.setValue(t.length() == 0 ? null : txt);
                 }
             }
-            @Override public void insertUpdate(javax.swing.event.DocumentEvent e) { mirror(); }
-            @Override public void removeUpdate(javax.swing.event.DocumentEvent e) { mirror(); }
-            @Override public void changedUpdate(javax.swing.event.DocumentEvent e) { mirror(); }
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { mirror(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { mirror(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { mirror(); }
         });
     }
-
 }

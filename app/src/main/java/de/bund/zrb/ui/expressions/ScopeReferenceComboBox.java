@@ -11,10 +11,10 @@ import java.util.List;
  *
  * Darstellung:
  *  - normale Variablen (from beforeEach / case.given): "username"
- *  - einmalige Variablen (from beforeAll):            "①sessionId"
+ *  - einmalige Variablen (from beforeAll):            "①sessionId"  (optional, falls befüllt)
  *  - Templates (lazy):                                "*otpCode"
  *
- * Wir speichern genau den sichtbaren String (inkl. Präfix) als chosenName.
+ * Es wird genau der sichtbare String (inkl. Präfix) als chosenName gespeichert.
  */
 public class ScopeReferenceComboBox extends JPanel {
 
@@ -29,7 +29,10 @@ public class ScopeReferenceComboBox extends JPanel {
     private final DefaultListModel<String> listModel;
 
     private String chosenName;
-    private final List<SelectionListener> listeners = new ArrayList<>();
+    private final List<SelectionListener> listeners = new ArrayList<SelectionListener>();
+
+    // Keep last provided scope to allow lookups by caller (e.g., ActionEditorTab)
+    private GivenLookupService.ScopeData currentScopeData;
 
     public ScopeReferenceComboBox() {
         super(new BorderLayout());
@@ -41,8 +44,8 @@ public class ScopeReferenceComboBox extends JPanel {
         dropButton.setMargin(new Insets(0, 4, 0, 4));
         dropButton.setFocusable(false);
 
-        listModel = new DefaultListModel<>();
-        list = new JList<>(listModel);
+        listModel = new DefaultListModel<String>();
+        list = new JList<String>(listModel);
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         JScrollPane scroll = new JScrollPane(list);
@@ -61,42 +64,41 @@ public class ScopeReferenceComboBox extends JPanel {
     /**
      * Füllt die Liste anhand der gelieferten ScopeData.
      * Reihenfolge:
-     *  1. beforeEachNames  (ohne Präfix)
-     *  2. beforeAllNames   (mit Präfix ①)
-     *  3. templateNames    (mit Präfix *)
+     *  1. variables (ohne Präfix)
+     *  2. templates (mit Präfix *)
      */
     public void setScopeData(GivenLookupService.ScopeData data) {
+        this.currentScopeData = data;
+
         listModel.clear();
         chosenName = null;
         displayField.setText("");
 
         if (data != null) {
-            // 1. Variablen-Namen in Einfüge-Reihenfolge
+            // 1) Variablen
             for (String varName : data.variables.keySet()) {
-                if (varName != null && varName.trim().length() > 0) {
-                    listModel.addElement(varName.trim());
+                if (varName != null) {
+                    String t = varName.trim();
+                    if (t.length() > 0) listModel.addElement(t);
                 }
             }
-
-            // 2. Templates (mit "*")
+            // 2) Templates (mit "*")
             for (String tmplName : data.templates.keySet()) {
-                if (tmplName != null && tmplName.trim().length() > 0) {
-                    listModel.addElement("*" + tmplName.trim());
+                if (tmplName != null) {
+                    String t = tmplName.trim();
+                    if (t.length() > 0) listModel.addElement("*" + t);
                 }
             }
         }
     }
 
+    /** Provide caller access to the last scope data for lookups. */
+    public GivenLookupService.ScopeData getCurrentScopeData() {
+        return currentScopeData;
+    }
+
     /**
-     * Wird vom ActionEditorTab genutzt, um beim Öffnen die bereits gespeicherte
-     * Auswahl wieder sichtbar zu machen, OHNE als neue Auswahl zu feuern.
-     *
-     * Beispiel:
-     *  - Action.value == "{{username}}"          -> preselectName = "username"
-     *  - Action.value == "{{otpCode()}}"         -> preselectName = "*otpCode"
-     *  - Action.value == "{{sessionId}}" die aus beforeAll stammt -> "①sessionId"
-     *
-     * Wichtig: Du baust preselectName vorher selbst (deriveScopeNameFromTemplate).
+     * Stellt die bereits gespeicherte Auswahl sichtbar, ohne Listener zu feuern.
      */
     public void setInitialChoiceWithoutEvent(String preselectName) {
         if (preselectName == null) return;
@@ -105,9 +107,7 @@ public class ScopeReferenceComboBox extends JPanel {
     }
 
     public void addSelectionListener(SelectionListener l) {
-        if (l != null) {
-            listeners.add(l);
-        }
+        if (l != null) listeners.add(l);
     }
 
     public String getChosenName() {
@@ -117,14 +117,15 @@ public class ScopeReferenceComboBox extends JPanel {
     private void fireSelection(String nameWithPrefix) {
         chosenName = nameWithPrefix;
         displayField.setText(nameWithPrefix != null ? nameWithPrefix : "");
-
-        for (SelectionListener l : listeners) {
-            l.onSelected(nameWithPrefix);
+        for (int i = 0; i < listeners.size(); i++) {
+            listeners.get(i).onSelected(nameWithPrefix);
         }
     }
 
     private void wireInteractions() {
-        dropButton.addActionListener(e -> showPopup());
+        dropButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) { showPopup(); }
+        });
 
         list.addKeyListener(new KeyAdapter() {
             @Override
@@ -149,7 +150,6 @@ public class ScopeReferenceComboBox extends JPanel {
 
     private void showPopup() {
         popup.show(this, 0, this.getHeight());
-
         if (list.getModel().getSize() > 0 && list.getSelectedIndex() < 0) {
             list.setSelectedIndex(0);
         }
@@ -168,11 +168,10 @@ public class ScopeReferenceComboBox extends JPanel {
         hidePopup();
     }
 
+    @SuppressWarnings("unused")
     private void addIfNotPresent(String value) {
         for (int i = 0; i < listModel.size(); i++) {
-            if (value.equals(listModel.get(i))) {
-                return;
-            }
+            if (value.equals(listModel.get(i))) return;
         }
         listModel.addElement(value);
     }
