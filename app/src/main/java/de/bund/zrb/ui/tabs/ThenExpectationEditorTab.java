@@ -169,7 +169,8 @@ public class ThenExpectationEditorTab extends JPanel {
         // Speichern explizit anstoßen (wichtig, wenn vorher NULL gewesen)
         TestRegistry.getInstance().save();
 
-        JOptionPane.showMessageDialog(this, "Änderungen gespeichert.");
+        //DEBUG
+//        JOptionPane.showMessageDialog(this, "Änderungen gespeichert.");
     }
 
     private Number parseNumber(Object value, Class<?> targetType) {

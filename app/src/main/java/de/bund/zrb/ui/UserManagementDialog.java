@@ -163,7 +163,8 @@ public class UserManagementDialog extends JDialog {
             lc.setPasswordChangePage(passwordChangePageField.getText().trim());
 
             UserRegistry.getInstance().save();
-            JOptionPane.showMessageDialog(this, "Benutzer gespeichert!");
+            //DEBUG
+//            JOptionPane.showMessageDialog(this, "Benutzer gespeichert!");
         });
 
         deleteButton.addActionListener(e -> {

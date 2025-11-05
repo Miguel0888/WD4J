@@ -275,10 +275,11 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                 // Persist
                 TestRegistry.getInstance().save();
 
-                JOptionPane.showMessageDialog(
-                        ActionEditorTab.this,
-                        "Änderungen gespeichert.\nTemplate ist jetzt:\n" + action.getValue()
-                );
+                //DEBUG
+//                JOptionPane.showMessageDialog(
+//                        ActionEditorTab.this,
+//                        "Änderungen gespeichert.\nTemplate ist jetzt:\n" + action.getValue()
+//                );
             }
         });
 

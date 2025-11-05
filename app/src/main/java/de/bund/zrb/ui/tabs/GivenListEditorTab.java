@@ -90,7 +90,8 @@ public class GivenListEditorTab extends JPanel {
         save.addActionListener(new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
                 TestRegistry.getInstance().save();
-                JOptionPane.showMessageDialog(GivenListEditorTab.this, "Änderungen gespeichert.");
+                //DEBUG
+//                JOptionPane.showMessageDialog(GivenListEditorTab.this, "Änderungen gespeichert.");
             }
         });
 
