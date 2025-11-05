@@ -38,4 +38,15 @@ public class TotpService {
     public boolean isOtpValid(String secret, int code) {
         return authenticator.authorize(secret, code);
     }
+
+    public String getOtp() {
+        String username = UserContextMappingService.getInstance().getCurrentUsernameOrNull();
+        return getOtp(username);
+    }
+
+    public String getOtp(String username) {
+        UserRegistry.User user = UserRegistry.getInstance().getUser(username);
+        String otpSecret = user.getOtpSecret();
+        return String.valueOf(generateCurrentOtp(otpSecret));
+    }
 }

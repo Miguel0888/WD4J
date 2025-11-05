@@ -56,6 +56,11 @@ public class UserRegistry {
         /** LoginConfig ist jetzt eine eigenständige Klasse (de.bund.zrb.config) */
         private LoginConfig loginConfig;
 
+        public User(String username, String encryptedPassword) {
+            this.username = username;
+            this.encryptedPassword = encryptedPassword;
+        }
+
         public User(String username, String encryptedPassword, String startPage, String otpSecret, LoginConfig loginConfig) {
             this.username = username;
             this.encryptedPassword = encryptedPassword;

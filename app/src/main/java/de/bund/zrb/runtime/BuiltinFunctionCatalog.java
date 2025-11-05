@@ -3,7 +3,7 @@ package de.bund.zrb.runtime;
 
 import de.bund.zrb.expressions.builtins.EchoFunction;
 import de.bund.zrb.expressions.builtins.DateFunction;
-import de.bund.zrb.expressions.builtins.tooling.ToolFunctionsCollector;
+import de.bund.zrb.expressions.builtins.tooling.BuiltinTool;
 import de.bund.zrb.expressions.domain.ExpressionFunction;
 import de.bund.zrb.expressions.domain.FunctionMetadata;
 import de.bund.zrb.service.ToolsRegistry;
@@ -11,9 +11,8 @@ import de.bund.zrb.service.ToolsRegistry;
 import java.util.*;
 
 /**
- * Sammle alle fest verdrahteten (kompilierten) Built-in-Funktionen und stelle
- * sie dem System zur Verfügung. Tools, die Builtins anbieten, werden hier
- * ebenfalls integriert.
+ * Collect all built-in functions from core and tools in one place.
+ * Keep insertion order stable for deterministic UI.
  */
 public final class BuiltinFunctionCatalog {
 
@@ -21,19 +20,11 @@ public final class BuiltinFunctionCatalog {
     private final Map<String, FunctionMetadata> metaByName = new LinkedHashMap<String, FunctionMetadata>();
 
     public BuiltinFunctionCatalog() {
-        // 1) Klassische Builtins
-        register(new DateFunction());
-        register(new EchoFunction());
-
-        // 2) Tool-Builtins dynamisch einsammeln (nur Tools, die BuiltinTool implementieren)
-        Collection<ExpressionFunction> toolFns =
-                ToolFunctionsCollector.collectFrom(ToolsRegistry.getInstance());
-        for (ExpressionFunction f : toolFns) {
-            register(f);
-        }
+        registerCoreBuiltins();
+        registerToolBuiltins();
     }
 
-    // ----- API -----
+    // -------- public API -------------------------------------------------------
 
     public Set<String> names() {
         return Collections.unmodifiableSet(byName.keySet());
@@ -44,21 +35,52 @@ public final class BuiltinFunctionCatalog {
     }
 
     public ExpressionFunction get(String name) {
-        return name == null ? null : byName.get(normalize(name));
+        if (name == null) return null;
+        return byName.get(normalize(name));
+    }
+
+    public Collection<ExpressionFunction> all() {
+        return Collections.unmodifiableCollection(byName.values());
     }
 
     public Collection<FunctionMetadata> metadata() {
         return Collections.unmodifiableCollection(metaByName.values());
     }
 
-    /** Erlaube externe Registrierung (Tests/Plugins). */
-    public void add(ExpressionFunction fn) {
-        if (fn != null) register(fn);
+    // -------- internal ---------------------------------------------------------
+
+    private void registerCoreBuiltins() {
+        // Add all core built-ins here
+        register(new DateFunction());
+        register(new EchoFunction());
+        // register(new ToUpperFunction()); // example
     }
 
-    // ----- intern -----
+    private void registerToolBuiltins() {
+        ToolsRegistry tr = ToolsRegistry.getInstance();
+
+        // Collect every tool that implements BuiltinTool
+        List<Object> tools = new ArrayList<Object>();
+        tools.add(tr.navigationTool());
+        tools.add(tr.screenshotTool());
+        tools.add(tr.loginTool());
+        tools.add(tr.twoFaTool());
+        tools.add(tr.notificationTool());
+
+        for (int i = 0; i < tools.size(); i++) {
+            Object t = tools.get(i);
+            if (t instanceof BuiltinTool) {
+                BuiltinTool bt = (BuiltinTool) t;
+                Collection<ExpressionFunction> fns = bt.builtinFunctions();
+                if (fns != null) {
+                    for (ExpressionFunction fn : fns) register(fn);
+                }
+            }
+        }
+    }
 
     private void register(ExpressionFunction fn) {
+        if (fn == null || fn.metadata() == null) return;
         String key = normalize(fn.metadata().getName());
         byName.put(key, fn);
         metaByName.put(key, fn.metadata());
