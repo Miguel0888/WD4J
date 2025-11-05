@@ -5,11 +5,18 @@ import de.bund.zrb.expressions.domain.FunctionContext;
 import de.bund.zrb.expressions.domain.FunctionExecutionException;
 import de.bund.zrb.expressions.domain.FunctionMetadata;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
+/**
+ * Bridge zwischen Tools und Expression-Engine.
+ */
 public final class ToolExpressionFunction implements ExpressionFunction {
 
+    /** Strategy zum Ausführen der Funktion. */
     public interface Invoker {
+        /** Execute tool with args and return textual result. */
         String invoke(List<String> args, FunctionContext ctx) throws Exception;
     }
 
@@ -27,14 +34,18 @@ public final class ToolExpressionFunction implements ExpressionFunction {
         this.maxArity = maxArity;
     }
 
+    // -------------------------------- API --------------------------------
+
     public String invoke(List<String> args, FunctionContext ctx) throws FunctionExecutionException {
         try {
             List<String> a = (args != null) ? args : Collections.<String>emptyList();
             if (a.size() < minArity) {
-                throw new FunctionExecutionException("Missing argument(s). Expected at least " + minArity + " but got " + a.size());
+                throw new FunctionExecutionException(
+                        "Missing argument(s). Expected at least " + minArity + " but got " + a.size());
             }
             if (maxArity >= 0 && a.size() > maxArity) {
-                throw new FunctionExecutionException("Too many arguments. Expected at most " + maxArity + " but got " + a.size());
+                throw new FunctionExecutionException(
+                        "Too many arguments. Expected at most " + maxArity + " but got " + a.size());
             }
             return String.valueOf(invoker.invoke(a, ctx));
         } catch (FunctionExecutionException e) {
@@ -46,23 +57,29 @@ public final class ToolExpressionFunction implements ExpressionFunction {
 
     public FunctionMetadata metadata() { return meta; }
 
-    // helpers
-    public static FunctionMetadata meta(String name, String desc, List<String> params,  List<String> paramDescs) {
+    // --------------------------- Helpers/Factory ---------------------------
+
+    /** Create metadata with names and parameter doc. */
+    public static FunctionMetadata meta(String name, String desc, List<String> params, List<String> paramDescs) {
         return new FunctionMetadata(name, desc, params, paramDescs);
     }
-    public static List<String> params(String p1) {
-        List<String> l = new ArrayList<String>(1); l.add(p1); return l;
-    }
-    public static List<String> params(String p1, String p2) {
-        List<String> l = new ArrayList<String>(2); l.add(p1); l.add(p2); return l;
-    }
-    public static List<String> params(String p1, String p2, String p3) {
-        List<String> l = new ArrayList<String>(3); l.add(p1); l.add(p2); l.add(p3); return l;
-    }
-    public static List<String> params(String p1, String p2, String p3, String p4) {
-        List<String> l = new ArrayList<String>(3); l.add(p1); l.add(p2); l.add(p3); l.add(p4); return l;
-    }
-    public static List<String> params(String p1, String p2, String p3, String p4, String p5) {
-        List<String> l = new ArrayList<String>(3); l.add(p1); l.add(p2); l.add(p3); l.add(p4); l.add(p5); return l;
+
+    /**
+     * Build parameter name list. Supports any arity:
+     * <pre>
+     * params()                       -> []
+     * params("a")                    -> ["a"]
+     * params("a","b","c","d",...)    -> [...]
+     * </pre>
+     */
+    public static List<String> params(String... names) {
+        if (names == null || names.length == 0) {
+            return new ArrayList<String>(0);
+        }
+        List<String> l = new ArrayList<String>(names.length);
+        for (int i = 0; i < names.length; i++) {
+            l.add(names[i]);
+        }
+        return l;
     }
 }
