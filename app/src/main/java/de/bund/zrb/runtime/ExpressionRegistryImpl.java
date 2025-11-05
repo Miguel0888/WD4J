@@ -28,12 +28,12 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
 
     private static final String FILE_NAME = "expressions.json";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Type MAP_TYPE = new TypeToken<Map<String, String>>() {}.getType();
+    private static final Type MAP_TYPE = new TypeToken<Map<String, ExpressionEntry>>() {}.getType();
 
     private static ExpressionRegistryImpl instance;
 
-    // Benutzerdefinierte Expressions (Name -> Source)
-    private final Map<String, String> expressions = new LinkedHashMap<String, String>();
+    // Benutzerdefinierte Expressions (Name -> Code + Metadaten)
+    private final Map<String, ExpressionEntry> expressions = new LinkedHashMap<String, ExpressionEntry>();
     private final File file;
     private final InMemoryJavaCompiler compiler = new InMemoryJavaCompiler();
 
@@ -72,7 +72,9 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
         if (builtins.contains(norm)) {
             return Optional.empty();
         }
-        return Optional.ofNullable(expressions.get(key));
+        ExpressionEntry e = expressions.get(key);
+        if (e == null) e = expressions.get(norm);
+        return Optional.ofNullable(e != null ? e.getCode() : null);
     }
 
     @Override
@@ -84,7 +86,12 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
             // throw new IllegalArgumentException("Name ist reserviert (Builtin): " + key);
             return;
         }
-        expressions.put(key, fullSourceCode != null ? fullSourceCode : "");
+        ExpressionEntry existing = expressions.get(key);
+        if (existing == null) {
+            expressions.put(key, new ExpressionEntry(fullSourceCode, null));
+        } else {
+            existing.setCode(fullSourceCode != null ? fullSourceCode : "");
+        }
     }
 
     @Override
@@ -92,7 +99,9 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
         // Builtins sind nicht löschbar
         String norm = normalize(key);
         if (builtins.contains(norm)) return;
-        expressions.remove(key);
+        if (expressions.remove(key) == null) {
+            expressions.remove(norm);
+        }
     }
 
     @Override
@@ -109,7 +118,7 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
         expressions.clear();
         if (file.exists()) {
             try (FileReader reader = new FileReader(file)) {
-                Map<String, String> loaded = GSON.fromJson(reader, MAP_TYPE);
+                Map<String, ExpressionEntry> loaded = GSON.fromJson(reader, MAP_TYPE);
                 if (loaded != null) {
                     expressions.putAll(loaded);
                 }
@@ -132,7 +141,9 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
         }
 
         // 2) User-Expression via Compile
-        String source = expressions.get(key);
+        ExpressionEntry e = expressions.get(key);
+        if (e == null) e = expressions.get(norm);
+        String source = e != null ? e.getCode() : null;
         if (source == null || source.trim().isEmpty()) {
             throw new IllegalArgumentException("Kein Quelltext für Ausdruck: '" + key + "'");
         }
@@ -247,7 +258,10 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
         }
 
         // Falls nicht im Builtin-Katalog, schauen wir in den benutzerspezifischen Funktionen
-        String sourceCode = expressions.get(norm);
+        ExpressionEntry entry = expressions.get(name);
+        if (entry == null) entry = expressions.get(norm);
+        String sourceCode = entry != null ? entry.getCode() : null;
+
         if (sourceCode != null && !sourceCode.trim().isEmpty()) {
             // Wenn eine benutzerspezifische Funktion existiert, kompilieren und zurückgeben
             String className = extractClassName(sourceCode, norm);
@@ -266,4 +280,59 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
         return null;
     }
 
+    @Override
+    public synchronized FunctionMetadata getMetadata(String key) {
+        ExpressionEntry e = expressions.get(key);
+        if (e == null) e = expressions.get(normalize(key));
+        FunctionMetadata m = e != null ? e.getMeta() : null;
+        return m != null ? m : new FunctionMetadata("", "", Collections.<String>emptyList(), Collections.<String>emptyList());
+    }
+
+    @Override
+    public synchronized void setMetadata(String key, FunctionMetadata meta) {
+        if (key == null || key.trim().isEmpty()) return;
+        ExpressionEntry e = expressions.get(key);
+        if (e == null) e = expressions.get(normalize(key));
+        if (e == null) {
+            expressions.put(key, new ExpressionEntry("", meta));
+        } else {
+            e.setMeta(meta);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Persistenz-Datenträger für User-Expressions
+    // -------------------------------------------------------------------------
+    private static final class ExpressionEntry {
+        private String code;
+        private FunctionMetadata meta;
+
+        ExpressionEntry() { /* for Gson */ }
+
+        ExpressionEntry(String code, FunctionMetadata meta) {
+            this.code = code != null ? code : "";
+            setMeta(meta);
+        }
+
+        String getCode() { return code; }
+
+        void setCode(String code) { this.code = code != null ? code : ""; }
+
+        FunctionMetadata getMeta() { return meta; }
+
+        void setMeta(FunctionMetadata meta) {
+            if (meta == null) {
+                this.meta = new FunctionMetadata("", "", Collections.<String>emptyList(), Collections.<String>emptyList());
+            } else {
+                List<String> names = meta.getParameterNames() != null ? meta.getParameterNames() : Collections.<String>emptyList();
+                List<String> descs = meta.getParameterDescriptions() != null ? meta.getParameterDescriptions() : Collections.<String>emptyList();
+                this.meta = new FunctionMetadata(
+                        meta.getName() != null ? meta.getName() : "",
+                        meta.getDescription() != null ? meta.getDescription() : "",
+                        names,
+                        descs
+                );
+            }
+        }
+    }
 }
