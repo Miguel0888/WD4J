@@ -18,8 +18,6 @@ import java.util.List;
  */
 public class ScopeReferenceComboBox extends JPanel {
 
-    private GivenLookupService.ScopeData currentScopeData;
-
     public interface SelectionListener {
         void onSelected(String nameWithPrefix);
     }
@@ -71,26 +69,22 @@ public class ScopeReferenceComboBox extends JPanel {
         listModel.clear();
         chosenName = null;
         displayField.setText("");
-        this.currentScopeData = data; // keep for lookups
 
         if (data != null) {
-            // 1) normale Variablen
+            // 1. Variablen-Namen in Einfüge-Reihenfolge
             for (String varName : data.variables.keySet()) {
                 if (varName != null && varName.trim().length() > 0) {
                     listModel.addElement(varName.trim());
                 }
             }
-            // 2) Templates mit "*"
+
+            // 2. Templates (mit "*")
             for (String tmplName : data.templates.keySet()) {
                 if (tmplName != null && tmplName.trim().length() > 0) {
                     listModel.addElement("*" + tmplName.trim());
                 }
             }
         }
-    }
-
-    public GivenLookupService.ScopeData getCurrentScopeData() {
-        return currentScopeData;
     }
 
     /**

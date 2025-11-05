@@ -75,7 +75,7 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
 
         JPanel valuePanel = new JPanel(new BorderLayout(4, 0));
         valueField = new JTextField();
-        // allow free text again
+// allow free text again
         valueField.setEditable(true);
         valuePanel.add(valueField, BorderLayout.CENTER);
 
@@ -84,55 +84,45 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
 
         formPanel.add(valuePanel);
 
-        // ScopeData jetzt direkt holen
+// ScopeData jetzt direkt holen
         GivenLookupService.ScopeData scopeData =
                 new GivenLookupService().collectScopeForAction(action);
         scopeCombo.setScopeData(scopeData);
 
-        // Vorbelegung für valueField aus action.getValue()
+// Vorbelegung für valueField aus action.getValue()
         String initialTemplate = (action.getValue() != null) ? action.getValue().trim() : "";
         valueField.setText(initialTemplate);
 
-        // Spiegle manuelle Eingaben sofort ins Modell
+// Spiegle manuelle Eingaben sofort ins Modell
         attachValueMirror(valueField, action);
 
-        // Optional: Combo initial vorwählen (wenn im Feld ein Template steckt)
+// Optional: Combo initial vorwählen (wenn im Feld ein Template steckt)
         String preselectName = deriveScopeNameFromTemplate(initialTemplate);
         if (preselectName != null && preselectName.length() > 0) {
             scopeCombo.setInitialChoiceWithoutEvent(preselectName);
         }
 
-        // 1) Schlanker Listener (Lambda) – schreibt {{...}} direkt ins Feld + Modell
-        scopeCombo.addSelectionListener(new ScopeReferenceComboBox.SelectionListener() {
-            @Override
-            public void onSelected(String nameWithPrefix) {
-                if (nameWithPrefix == null || nameWithPrefix.trim().length() == 0) {
-                    return;
-                }
-
-                String toSet;
-
-                if (nameWithPrefix.startsWith("*")) {
-                    // Template gewählt -> Body (Value) 1:1 übernehmen, NICHT {{Fn()}} bauen
-                    String fn = nameWithPrefix.substring(1).trim();
-                    GivenLookupService.ScopeData sd = scopeCombo.getCurrentScopeData();
-                    String body = (sd != null && sd.templates != null) ? sd.templates.get(fn) : null;
-
-                    // Falls kein Body gefunden wird, bestmöglicher Fallback:
-                    toSet = (body != null && body.trim().length() > 0) ? body.trim() : "{{" + fn + "()}}";
-                } else if (nameWithPrefix.startsWith("①")) {
-                    // einmalige Variable wie normale Variable behandeln (Präfix entfernen)
-                    String varName = nameWithPrefix.substring(1).trim();
-                    toSet = "{{" + varName + "}}";
-                } else {
-                    // normale Variable
-                    toSet = "{{" + nameWithPrefix.trim() + "}}";
-                }
-
-                // Feld + Modell aktualisieren
-                valueField.setText(toSet);
-                action.setValue(toSet);
+// 1) Schlanker Listener (Lambda) – schreibt {{...}} direkt ins Feld + Modell
+        scopeCombo.addSelectionListener(name -> {
+            if (name == null || name.trim().isEmpty()) {
+                return;
             }
+            String template;
+            if (name.startsWith("*")) {
+                // Template -> {{fnName()}}
+                String fn = name.substring(1).trim();
+                template = "{{" + fn + "()}}";
+            } else if (name.startsWith("①")) {
+                // "①sessionId" wie normale Variable behandeln
+                String varName = name.substring(1).trim();
+                template = "{{" + varName + "}}";
+            } else {
+                // Variable -> {{varName}}
+                template = "{{" + name.trim() + "}}";
+            }
+            valueField.setText(template);
+            // DocumentListener spiegelt ohnehin, aber wir setzen explizit:
+            action.setValue(template);
         });
 
         ///
