@@ -203,7 +203,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
     private void saveAsNewTestSuite() {
         List<TestAction> actions = session.getAllTestActionsForDrawer();
-        if (actions == null) actions = new ArrayList<>();
+        if (actions == null) actions = new ArrayList<TestAction>();
 
         String name = JOptionPane.showInputDialog(this, "Name der Testsuite eingeben:",
                 "Neue Testsuite speichern", JOptionPane.PLAIN_MESSAGE);
@@ -211,11 +211,14 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
         List<TestCase> testCases = splitIntoTestCases(actions, name);
         TestSuite suite = new TestSuite(name, testCases);
+
+        // >>> NEU: Users hochpromoten (Action -> Case -> Suite)
+        de.bund.zrb.service.UserPromotionUtil.promoteSuiteUsers(suite);
+
         TestRegistry.getInstance().addSuite(suite);
         TestRegistry.getInstance().save();
 
         ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(name));
-
         session.clearRecordedEvents();
     }
 
@@ -230,12 +233,23 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
         List<TestAction> actions = session.getAllTestActionsForDrawer();
         List<TestCase> newCases = splitIntoTestCases(actions, selectedSuiteName + "_Part");
+
+        // >>> NEU: Users in den neuen Cases hochpromoten (Action -> Case)
+        for (int i = 0; i < newCases.size(); i++) {
+            de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(newCases.get(i));
+        }
+
         suite.getTestCases().addAll(newCases);
+
+        // >>> NEU: prüfen, ob jetzt die gesamte Suite den gleichen Case-User hat
+        de.bund.zrb.service.UserPromotionUtil.promoteSuiteUsers(suite);
+
         TestRegistry.getInstance().save();
 
         ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(selectedSuiteName));
         session.clearRecordedEvents();
     }
+
 
     private void importSuite() {
         String selectedSuiteName = (String) suiteDropdown.getSelectedItem();
