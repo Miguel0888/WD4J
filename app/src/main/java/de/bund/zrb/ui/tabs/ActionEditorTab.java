@@ -75,7 +75,8 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
 
         JPanel valuePanel = new JPanel(new BorderLayout(4, 0));
         valueField = new JTextField();
-        valueField.setEditable(false);
+// allow free text again
+        valueField.setEditable(true);
         valuePanel.add(valueField, BorderLayout.CENTER);
 
         scopeCombo = new ScopeReferenceComboBox();
@@ -83,20 +84,25 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
 
         formPanel.add(valuePanel);
 
-        // ScopeData jetzt direkt holen
+// ScopeData jetzt direkt holen
         GivenLookupService.ScopeData scopeData =
                 new GivenLookupService().collectScopeForAction(action);
         scopeCombo.setScopeData(scopeData);
 
-        // Vorbelegung für valueField aus action.getValue()
+// Vorbelegung für valueField aus action.getValue()
         String initialTemplate = (action.getValue() != null) ? action.getValue().trim() : "";
         valueField.setText(initialTemplate);
 
+// Spiegle manuelle Eingaben sofort ins Modell
+        attachValueMirror(valueField, action);
+
+// Optional: Combo initial vorwählen (wenn im Feld ein Template steckt)
         String preselectName = deriveScopeNameFromTemplate(initialTemplate);
         if (preselectName != null && preselectName.length() > 0) {
             scopeCombo.setInitialChoiceWithoutEvent(preselectName);
         }
 
+// 1) Schlanker Listener (Lambda) – schreibt {{...}} direkt ins Feld + Modell
         scopeCombo.addSelectionListener(name -> {
             if (name == null || name.trim().isEmpty()) {
                 return;
@@ -106,13 +112,20 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                 // Template -> {{fnName()}}
                 String fn = name.substring(1).trim();
                 template = "{{" + fn + "()}}";
+            } else if (name.startsWith("①")) {
+                // "①sessionId" wie normale Variable behandeln
+                String varName = name.substring(1).trim();
+                template = "{{" + varName + "}}";
             } else {
                 // Variable -> {{varName}}
                 template = "{{" + name.trim() + "}}";
             }
             valueField.setText(template);
+            // DocumentListener spiegelt ohnehin, aber wir setzen explizit:
             action.setValue(template);
         });
+
+        ///
 
         if (preselectName != null && preselectName.length() > 0) {
             scopeCombo.setInitialChoiceWithoutEvent(preselectName);
@@ -416,4 +429,24 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                 || t.startsWith("/")
                 || t.startsWith("(");
     }
+
+    /** Spiegel Freitext-Änderungen aus dem Textfeld direkt in action.setValue(...). */
+    private static void attachValueMirror(final JTextField field, final TestAction action) {
+        field.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            private void mirror() {
+                String txt = field.getText();
+                // Treat empty as null so the Resolve-Chain greifen kann (Case → Suite → Root)
+                if (txt == null) {
+                    action.setValue(null);
+                } else {
+                    String t = txt.trim();
+                    action.setValue(t.length() == 0 ? null : txt);
+                }
+            }
+            @Override public void insertUpdate(javax.swing.event.DocumentEvent e) { mirror(); }
+            @Override public void removeUpdate(javax.swing.event.DocumentEvent e) { mirror(); }
+            @Override public void changedUpdate(javax.swing.event.DocumentEvent e) { mirror(); }
+        });
+    }
+
 }
