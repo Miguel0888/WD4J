@@ -300,29 +300,36 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
     public synchronized ExpressionFunction get(String name) {
         String norm = normalize(name);
 
-        // Zuerst Builtin-Funktionen prüfen
+        // 1) Builtins immer sofort liefern (ist schnell, blockiert nicht)
         ExpressionFunction builtin = builtins.get(norm);
         if (builtin != null) {
-            return builtin; // Wenn gefunden, zurückgeben
+            return builtin;
         }
 
-        // Falls nicht im Builtin-Katalog, schauen wir in den benutzerspezifischen Funktionen
+        // 2) Niemals im Swing-EDT kompilieren (z. B. IntelliSense ruft hier rein)
+        if (javax.swing.SwingUtilities.isEventDispatchThread()) {
+            return null; // signalisiere: keine Runtime-Instanz im EDT erzeugen
+        }
+
+        // 3) User-Function nur außerhalb des EDT kompilieren
         String sourceCode = expressions.get(norm);
-        if (sourceCode != null && !sourceCode.trim().isEmpty()) {
-            // Wenn eine benutzerspezifische Funktion existiert, kompilieren und zurückgeben
+        if (sourceCode == null) {
+            sourceCode = expressions.get(name);
+        }
+        if (sourceCode == null || sourceCode.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
             String className = extractClassName(sourceCode, norm);
-            Object instance = null;
-            try {
-                instance = compiler.compile(className, sourceCode, Function.class);
-            } catch (Exception e) {
-                return null; // do not deliver broken functions
-            }
+            Object instance = compiler.compile(className, sourceCode, java.util.function.Function.class);
             if (instance instanceof ExpressionFunction) {
                 return (ExpressionFunction) instance;
             }
+        } catch (Exception e) {
+            // do not deliver broken functions
+            return null;
         }
-
-        // Wenn keine Funktion gefunden, null zurückgeben
         return null;
     }
 
