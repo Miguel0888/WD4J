@@ -3,6 +3,7 @@ package de.bund.zrb.ui.giveneditor;
 import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.service.TestRegistry;
+import de.bund.zrb.service.UserRegistry;
 
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
@@ -54,8 +55,8 @@ public class CaseScopeEditorTab extends JPanel {
         // Tabs:
         // "Before"  == testCase.getBefore()
         // "Templates" == testCase.getTemplates()
-        innerTabs.addTab("Before",    new MapTablePanel(testCase.getBefore(),    "Before"));
-        innerTabs.addTab("Templates", new MapTablePanel(testCase.getTemplates(), "Templates"));
+        innerTabs.addTab("Before",    new MapTablePanel(testCase.getBefore(),    "Before", UserRegistry.getInstance().usernamesSupplier()));
+        innerTabs.addTab("Templates", new MapTablePanel(testCase.getTemplates(), "Templates", null));
 
         add(innerTabs, BorderLayout.CENTER);
     }

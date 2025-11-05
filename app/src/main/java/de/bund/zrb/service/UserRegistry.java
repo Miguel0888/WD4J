@@ -7,6 +7,8 @@ import de.bund.zrb.util.WindowsCryptoUtil;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public class UserRegistry {
 
@@ -92,5 +94,45 @@ public class UserRegistry {
 
         @Override
         public String toString() { return username; }
+    }
+
+    /**
+     * Return current usernames as a materialized list.
+     * Keep this small and reusable for other methods.
+     */
+    public List<String> getUsernames() {
+        return getAll()
+                .stream()
+                .map(UserRegistry.User::getUsername)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Provide a live supplier that reads current usernames on every get().
+     * Prefer this when registry content may change and freshness matters.
+     */
+    public Supplier<List<String>> usernamesSupplier() {
+        return new Supplier<List<String>>() {
+            @Override
+            public List<String> get() {
+                // Read fresh usernames each time
+                return getUsernames();
+            }
+        };
+    }
+
+    /**
+     * Provide a snapshot supplier that captures usernames once.
+     * Prefer this when stability and performance are more important than freshness.
+     */
+    public Supplier<List<String>> usernamesSnapshotSupplier() {
+        final List<String> snapshot = getUsernames();
+        return new Supplier<List<String>>() {
+            @Override
+            public List<String> get() {
+                // Return captured snapshot
+                return snapshot;
+            }
+        };
     }
 }

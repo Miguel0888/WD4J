@@ -3,6 +3,7 @@ package de.bund.zrb.ui.giveneditor;
 import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.RootNode;
 import de.bund.zrb.service.TestRegistry;
+import de.bund.zrb.service.UserRegistry;
 
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
@@ -66,9 +67,9 @@ public class RootScopeEditorTab extends JPanel {
 
         add(header, BorderLayout.NORTH);
 
-        innerTabs.addTab("BeforeAll",   new MapTablePanel(root.getBeforeAll(),   "BeforeAll"));
-        innerTabs.addTab("BeforeEach",  new MapTablePanel(root.getBeforeEach(),  "BeforeEach"));
-        innerTabs.addTab("Templates",   new MapTablePanel(root.getTemplates(),   "Templates"));
+        innerTabs.addTab("BeforeAll",   new MapTablePanel(root.getBeforeAll(),   "BeforeAll", UserRegistry.getInstance().usernamesSupplier()));
+        innerTabs.addTab("BeforeEach",  new MapTablePanel(root.getBeforeEach(),  "BeforeEach", null));
+        innerTabs.addTab("Templates",   new MapTablePanel(root.getTemplates(),   "Templates", null));
 
         add(innerTabs, BorderLayout.CENTER);
     }

@@ -3,6 +3,7 @@ package de.bund.zrb.ui.giveneditor;
 import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.TestRegistry;
+import de.bund.zrb.service.UserRegistry;
 
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
@@ -66,9 +67,9 @@ public class SuiteScopeEditorTab extends JPanel {
 
         add(header, BorderLayout.NORTH);
 
-        innerTabs.addTab("BeforeAll",   new MapTablePanel(suite.getBeforeAll(),   "BeforeAll"));
-        innerTabs.addTab("BeforeEach",  new MapTablePanel(suite.getBeforeEach(),  "BeforeEach"));
-        innerTabs.addTab("Templates",   new MapTablePanel(suite.getTemplates(),   "Templates"));
+        innerTabs.addTab("BeforeAll",   new MapTablePanel(suite.getBeforeAll(),   "BeforeAll", UserRegistry.getInstance().usernamesSupplier()));
+        innerTabs.addTab("BeforeEach",  new MapTablePanel(suite.getBeforeEach(),  "BeforeEach", null));
+        innerTabs.addTab("Templates",   new MapTablePanel(suite.getTemplates(),   "Templates", null));
 
         add(innerTabs, BorderLayout.CENTER);
     }
