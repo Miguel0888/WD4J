@@ -59,4 +59,10 @@ public final class ToolExpressionFunction implements ExpressionFunction {
     public static List<String> params(String p1, String p2, String p3) {
         List<String> l = new ArrayList<String>(3); l.add(p1); l.add(p2); l.add(p3); return l;
     }
+    public static List<String> params(String p1, String p2, String p3, String p4) {
+        List<String> l = new ArrayList<String>(3); l.add(p1); l.add(p2); l.add(p3); l.add(p4); return l;
+    }
+    public static List<String> params(String p1, String p2, String p3, String p4, String p5) {
+        List<String> l = new ArrayList<String>(3); l.add(p1); l.add(p2); l.add(p3); l.add(p4); l.add(p5); return l;
+    }
 }
