@@ -61,29 +61,21 @@ public class ExpressionEditorCommand extends ShortcutMenuCommand {
         // South: footer with action buttons
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 8));
 
-        JButton btSave   = new JButton("Speichern");
-        JButton btClose  = new JButton("Schließen");
+        JButton btSave   = new JButton("OK");
+        JButton btClose  = new JButton("Abbrechen");
 
-        btSave.setToolTipText("Speichere aktuelle Änderungen in der Registry.");
+        btSave.setToolTipText("Speichern und Schließen");
         btClose.setToolTipText("Schließe den Dialog.");
 
         btSave.addActionListener(new ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
-                // Persist registry changes
                 panel.saveChanges();
-                JOptionPane.showMessageDialog(
-                        dialog,
-                        "Ausdrücke gespeichert.",
-                        "Info",
-                        JOptionPane.INFORMATION_MESSAGE
-                );
+                dialog.dispose();
             }
         });
 
         btClose.addActionListener(new ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
-                // Save once more for safety, then close
-                panel.saveChanges();
                 dialog.dispose();
             }
         });

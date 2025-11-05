@@ -34,6 +34,7 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
 
     // Benutzerdefinierte Expressions (Name -> Source)
     private final Map<String, String> expressions = new LinkedHashMap<String, String>();
+    private final Map<String, FunctionMetadata> metadata = new LinkedHashMap<String, FunctionMetadata>();
     private final File file;
     private final InMemoryJavaCompiler compiler = new InMemoryJavaCompiler();
 
@@ -98,7 +99,11 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
     @Override
     public synchronized void save() {
         try (FileWriter writer = new FileWriter(file)) {
-            GSON.toJson(expressions, writer);
+            // Write a composite object with both code and metadata
+            FileImage out = new FileImage();
+            out.code = expressions;
+            out.meta = metadata;
+            GSON.toJson(out, writer);
         } catch (Exception e) {
             System.err.println("⚠ Fehler beim Speichern der Expressions: " + e.getMessage());
         }
@@ -107,11 +112,28 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
     @Override
     public synchronized void reload() {
         expressions.clear();
+        metadata.clear();
         if (file.exists()) {
             try (FileReader reader = new FileReader(file)) {
-                Map<String, String> loaded = GSON.fromJson(reader, MAP_TYPE);
-                if (loaded != null) {
-                    expressions.putAll(loaded);
+                // Try new format first (object with "code" and "meta")
+                FileImage img = GSON.fromJson(reader, FileImage.class);
+                if (img != null && (img.code != null || img.meta != null)) {
+                    if (img.code != null) {
+                        expressions.putAll(img.code);
+                    }
+                    if (img.meta != null) {
+                        metadata.putAll(img.meta);
+                    }
+                } else {
+                    // Fallback: legacy flat map (name -> source)
+                    // Re-open because the reader is consumed
+                    reader.close();
+                    FileReader r2 = new FileReader(file);
+                    Map<String, String> loaded = GSON.fromJson(r2, MAP_TYPE);
+                    if (loaded != null) {
+                        expressions.putAll(loaded);
+                    }
+                    r2.close();
                 }
             } catch (Exception e) {
                 System.err.println("⚠ Fehler beim Laden der Expressions: " + e.getMessage());
@@ -119,6 +141,7 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
         }
         ExpressionExamples.ensureExamplesRegistered(this);
     }
+
 
     @Override
     public synchronized String evaluate(String key, List<String> params) throws Exception {
@@ -160,9 +183,46 @@ public class ExpressionRegistryImpl implements ExpressionRegistry {
         return builtins.metadata();
     }
 
+    @Override
+    public synchronized FunctionMetadata getMetadata(String key) {
+        if (key == null) return emptyMeta();
+        String norm = normalize(key);
+        FunctionMetadata m = metadata.get(key);
+        if (m == null) m = metadata.get(norm);
+        return m != null ? normalizeMeta(m) : emptyMeta();
+    }
+
+    @Override
+    public synchronized void setMetadata(String key, FunctionMetadata meta) {
+        if (key == null || key.trim().isEmpty()) return;
+        // Store under exact key (preserve UI name), allow overwrite
+        metadata.put(key, normalizeMeta(meta));
+    }
+
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    // Keep lists non-null and safe for serialization
+    private FunctionMetadata normalizeMeta(FunctionMetadata m) {
+        if (m == null) return emptyMeta();
+        List<String> names = m.getParameterNames() != null ? m.getParameterNames() : Collections.<String>emptyList();
+        List<String> descs = m.getParameterDescriptions() != null ? m.getParameterDescriptions() : Collections.<String>emptyList();
+        String name = m.getName() != null ? m.getName() : "";
+        String description = m.getDescription() != null ? m.getDescription() : "";
+        return new FunctionMetadata(name, description, names, descs);
+    }
+
+    private FunctionMetadata emptyMeta() {
+        return new FunctionMetadata("", "", Collections.<String>emptyList(), Collections.<String>emptyList());
+    }
+
+    /** JSON file image that holds code and metadata in one document. */
+    private static final class FileImage {
+        Map<String, String> code;
+        Map<String, FunctionMetadata> meta;
+    }
 
     private FunctionContext defaultContext() {
         // Keep minimal; erweitere bei Bedarf um Services
