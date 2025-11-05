@@ -2,6 +2,7 @@
 package de.bund.zrb.ui.giveneditor;
 
 import de.bund.zrb.expressions.domain.ExpressionFunction;
+import de.bund.zrb.expressions.domain.FunctionMetadata;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.RegexPatternRegistry;
 import de.bund.zrb.runtime.ExpressionRegistryImpl;
@@ -86,21 +87,59 @@ public class MapTablePanel extends JPanel {
             }
         };
 
-        // Funktionen: aus ExpressionRegistryImpl, mit Beschreibung
+        // Funktionen: Builtins direkt, User-Funktionen aus Metadaten (kein Compile im EDT!)
         Supplier<Map<String, DescribedItem>> fnSupplier = new Supplier<Map<String, DescribedItem>>() {
             @Override public Map<String, DescribedItem> get() {
                 Map<String, DescribedItem> out = new LinkedHashMap<String, DescribedItem>();
-                java.util.Set<String> keys = ExpressionRegistryImpl.getInstance().getKeys();
+                ExpressionRegistryImpl reg = ExpressionRegistryImpl.getInstance();
+
+                java.util.Set<String> keys = reg.getKeys();
                 java.util.List<String> sorted = new java.util.ArrayList<String>(keys);
                 java.util.Collections.sort(sorted, String.CASE_INSENSITIVE_ORDER);
+
                 for (int i = 0; i < sorted.size(); i++) {
                     final String name = sorted.get(i);
-                    ExpressionFunction function = ExpressionRegistryImpl.getInstance().get(name);  // Hol die Funktion als ExpressionFunction
-                    out.put(name, function);
+
+                    // 1) Builtins kommen als echte Funktion (implementiert DescribedItem)
+                    ExpressionFunction fn = reg.get(name); // im EDT für User-Funktionen null, für Builtins OK
+                    if (fn != null) {
+                        out.put(name, fn);
+                        continue;
+                    }
+
+                    // 2) User-Funktionen: nur Metadaten -> leichtes DescribedItem
+                    final FunctionMetadata m = reg.getMetadata(name);
+                    if (m == null) {
+                        // Fallback: wenigstens einen Eintrag ohne Beschreibung anzeigen
+                        out.put(name, new DescribedItem() {
+                            public String getDescription() { return ""; }
+                            // Falls dein DescribedItem erweitert wurde:
+                            public java.util.List<String> getParamNames() { return java.util.Collections.<String>emptyList(); }
+                            public java.util.List<String> getParamDescriptions() { return java.util.Collections.<String>emptyList(); }
+                        });
+                        continue;
+                    }
+
+                    out.put(name, new DescribedItem() {
+                        public String getDescription() {
+                            String d = m.getDescription();
+                            return d != null ? d : "";
+                        }
+                        // ↓ Diese beiden Methoden nur belassen, wenn dein DescribedItem sie enthält
+                        public java.util.List<String> getParamNames() {
+                            java.util.List<String> n = m.getParameterNames();
+                            return n != null ? n : java.util.Collections.<String>emptyList();
+                        }
+                        public java.util.List<String> getParamDescriptions() {
+                            java.util.List<String> d = m.getParameterDescriptions();
+                            return d != null ? d : java.util.Collections.<String>emptyList();
+                        }
+                    });
                 }
                 return out;
             }
         };
+
 
         // Regex-Presets: aus RegexPatternRegistry (Title- & Message-Presets)
         Supplier<Map<String, DescribedItem>> rxSupplier = new Supplier<Map<String, DescribedItem>>() {
