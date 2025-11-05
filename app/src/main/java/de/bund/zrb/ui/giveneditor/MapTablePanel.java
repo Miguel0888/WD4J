@@ -58,7 +58,15 @@ public class MapTablePanel extends JPanel {
             public TableCellEditor getCellEditor(int row, int column) {
                 // IntelliSense nur in Spalte 1
                 if (column == 1) {
-                    if (row == 0 && includeUserRow && userEditor != null) return userEditor;
+                    // Row 0 gelockt, wenn pinned-Row aktiv (OTP): kein Editor
+                    if (row == 0 && includePinnedRow) {
+                        return null; // gesperrt
+                    }
+                    // Row 0, userRow: User-Dropdown
+                    if (row == 0 && includeUserRow && userEditor != null) {
+                        return userEditor;
+                    }
+                    // Alle anderen in Spalte 1: Expression-Editor
                     return exprEditor;
                 }
                 return super.getCellEditor(row, column);
@@ -66,11 +74,18 @@ public class MapTablePanel extends JPanel {
 
             @Override
             public TableCellRenderer getCellRenderer(int row, int column) {
-                // Name der gepinnten Zeile (user oder pinnedKey) ausgegraut
+                // Erste Zeile, Name-Spalte (0) – immer gelockt (user oder pinned)
                 if (row == 0 && column == 0 && (includeUserRow || includePinnedRow)) {
                     return new UserNameLockedRenderer();
                 }
-                if (column == 1) return new MultiLineMonoRenderer();
+                // Erste Zeile, Value-Spalte (1) – gelockt nur bei pinned (OTP)
+                if (row == 0 && column == 1 && includePinnedRow) {
+                    return new PinnedValueLockedRenderer();
+                }
+                // Alle anderen Value-Zellen monospaced
+                if (column == 1) {
+                    return new MultiLineMonoRenderer();
+                }
                 return super.getCellRenderer(row, column);
             }
 
@@ -335,4 +350,42 @@ public class MapTablePanel extends JPanel {
             }
         };
     }
+
+    /** Gray, italic, locked look for the pinned value cell (row 0, col 1). */
+    static final class PinnedValueLockedRenderer extends JTextArea implements TableCellRenderer {
+        private final Font mono = new Font(Font.MONOSPACED, Font.ITALIC, 12);
+
+        PinnedValueLockedRenderer() {
+            setFont(mono);
+            setLineWrap(true);
+            setWrapStyleWord(false);
+            setOpaque(true);
+            setRows(3);
+            setBorder(null);
+            setEditable(false);
+            setEnabled(false);
+        }
+
+        public Component getTableCellRendererComponent(
+                JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+
+            setText(value == null ? "" : String.valueOf(value));
+            // dezent ausgegraut; bei Selektion gut lesbar lassen
+            if (isSelected) {
+                setForeground(table.getSelectionForeground());
+                setBackground(table.getSelectionBackground());
+            } else {
+                setForeground(Color.GRAY);
+                setBackground(table.getBackground());
+            }
+
+            int fmH = getFontMetrics(getFont()).getHeight();
+            int desired = Math.max(table.getRowHeight(), 3 * fmH + 8);
+            if (table.getRowHeight() < desired) {
+                table.setRowHeight(desired);
+            }
+            return this;
+        }
+    }
+
 }

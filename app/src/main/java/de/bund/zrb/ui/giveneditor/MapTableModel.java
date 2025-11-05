@@ -57,8 +57,12 @@ public class MapTableModel extends AbstractTableModel {
         return backing != null ? backing.get(key) : "";
     }
 
+    @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
-        if (rowIndex == 0 && columnIndex == 0 && (includePinnedRow || includeUserRow)) return false;
+        // Pinned erste Zeile: sowohl Name (0) als auch Expression (1) sperren
+        if (rowIndex == 0 && (includePinnedRow || includeUserRow)) {
+            return false;
+        }
         return true;
     }
 
