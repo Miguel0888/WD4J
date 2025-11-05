@@ -167,11 +167,28 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
 
         // -------------------- User --------------------------------
         formPanel.add(new JLabel("User:"));
-        String[] users = de.bund.zrb.service.UserRegistry.getInstance().getAll().stream()
-                .map(UserRegistry.User::getUsername)
-                .toArray(String[]::new);
-        userBox = new JComboBox<String>(users);
-        userBox.setSelectedItem(action.getUser());
+
+        // 1) Userliste aus Registry (ohne Streams hier)
+        java.util.List<String> usernames = de.bund.zrb.service.UserRegistry.getInstance().getUsernames();
+
+        // 2) Array mit leerem Eintrag vorn aufbauen
+        String[] userItems = new String[usernames.size() + 1];
+        userItems[0] = ""; // leerer Eintrag erlaubt "kein User" (=> Vererbung)
+        for (int i = 0; i < usernames.size(); i++) {
+            userItems[i + 1] = usernames.get(i);
+        }
+
+        userBox = new JComboBox<String>(userItems);
+        userBox.setEditable(false);
+
+        // 3) Vorbelegung: wenn Action-User null/leer -> leeren Eintrag wählen
+        String initialUser = action.getUser();
+        if (initialUser == null || initialUser.trim().length() == 0) {
+            userBox.setSelectedIndex(0); // leer
+        } else {
+            userBox.setSelectedItem(initialUser);
+        }
+
         formPanel.add(userBox);
 
         // -------------------- Timeout -----------------------------
@@ -228,7 +245,12 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                 action.setSelectedSelector(selector);
 
                 // User
-                action.setUser(stringValue(userBox.getSelectedItem()));
+                String selUser = stringValue(userBox.getSelectedItem());
+                if (selUser == null || selUser.trim().length() == 0) {
+                    action.setUser(null); // wichtig: null schreiben, nicht leerer String
+                } else {
+                    action.setUser(selUser.trim());
+                }
 
                 // Timeout
                 try {

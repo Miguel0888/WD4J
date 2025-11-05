@@ -175,8 +175,14 @@ public class TestAction {
 
     // ----- metadata -----
     public String getUser() {
-        return user;
+        // 1) Local override on action
+        if (!isBlank(this.user)) {
+            return this.user;
+        }
+        // 2) Inherit from parents: Case -> Suite -> Root
+        return resolveUserFromParents();
     }
+
 
     public void setUser(String user) {
         this.user = user;
@@ -421,5 +427,91 @@ public class TestAction {
      */
     public enum ActionType {
         GIVEN, WHEN, THEN
+    }
+
+    // ======== private helpers for user resolution (inheritance) ========
+
+    private String resolveUserFromParents() {
+        try {
+            de.bund.zrb.service.TestRegistry reg = de.bund.zrb.service.TestRegistry.getInstance();
+
+            // --- Case level ---
+            de.bund.zrb.model.TestCase tc = reg.findCaseById(this.parentId);
+            if (tc != null) {
+                // Prefer the case-level before-map (dein UI bindet "Before" am Case)
+                String u = readVar(tc.getBefore(), "user");
+                if (u != null) return u;
+
+                // Fallback: manche Modelle nennen es "beforeCase" – prüfe defensiv
+                try {
+                    java.lang.reflect.Method m = tc.getClass().getMethod("getBeforeCase");
+                    Object map = m.invoke(tc);
+                    if (map instanceof java.util.Map) {
+                        u = readVar((java.util.Map) map, "user");
+                        if (u != null) return u;
+                    }
+                } catch (Exception ignore) { /* keep walking */ }
+
+                // --- Suite level ---
+                de.bund.zrb.model.TestSuite suite = reg.findSuiteById(tc.getParentId());
+                if (suite != null) {
+                    // Suite: BeforeAll hat hier Vorrang (dein Wunsch: Case -> Suite -> Root)
+                    String us = readVar(suite.getBeforeAll(), "user");
+                    if (us != null) return us;
+
+                    // Optional: falls gewünscht, BeforeEach berücksichtigen (nur wenn nicht leer)
+//                    us = safeReadViaReflectiveMapGetter(suite, "getBeforeEach", "user");
+//                    if (us != null) return us;
+
+                    // --- Root level ---
+                    de.bund.zrb.model.RootNode root = reg.getRoot();
+                    if (root != null) {
+                        String ur = readVar(root.getBeforeAll(), "user");
+                        if (ur != null) return ur;
+
+                        // Optional: Root BeforeEach (defensiv)
+//                        ur = safeReadViaReflectiveMapGetter(root, "getBeforeEach", "user");
+//                        if (ur != null) return ur;
+                    }
+                }
+            } else {
+                // No case found -> still try suite/root via registry if possible
+                de.bund.zrb.model.RootNode root = reg.getRoot();
+                if (root != null) {
+                    String ur = readVar(root.getBeforeAll(), "user");
+                    if (ur != null) return ur;
+                    ur = safeReadViaReflectiveMapGetter(root, "getBeforeEach", "user");
+                    if (ur != null) return ur;
+                }
+            }
+        } catch (Throwable ignore) {
+            // Be tolerant – return null if anything goes wrong
+        }
+        return null;
+    }
+
+    /** Read string value for key if present and non-blank; else return null. */
+    private String readVar(java.util.Map<String,String> map, String key) {
+        if (map == null || key == null) return null;
+        String v = map.get(key);
+        return isBlank(v) ? null : v.trim();
+    }
+
+    /** Call a no-arg getter that returns Map<String,String> and read key. */
+    @SuppressWarnings("unchecked")
+    private String safeReadViaReflectiveMapGetter(Object bean, String getterName, String key) {
+        if (bean == null || getterName == null) return null;
+        try {
+            java.lang.reflect.Method m = bean.getClass().getMethod(getterName);
+            Object map = m.invoke(bean);
+            if (map instanceof java.util.Map) {
+                return readVar((java.util.Map<String,String>) map, key);
+            }
+        } catch (Exception ignore) { }
+        return null;
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.trim().length() == 0;
     }
 }
