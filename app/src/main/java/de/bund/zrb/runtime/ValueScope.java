@@ -43,13 +43,25 @@ public class ValueScope {
     public String lookupVar(String name) {
         if (name == null) return null;
         if (caseVars != null && caseVars.containsKey(name)) {
-            return caseVars.get(name);
+            String value = caseVars.get(name);
+            if(value != null && !value.isEmpty())
+            {
+                return caseVars.get(name);
+            }
         }
         if (suiteVars != null && suiteVars.containsKey(name)) {
-            return suiteVars.get(name);
+            String value = suiteVars.get(name);
+            if(value != null && !value.isEmpty())
+            {
+                return suiteVars.get(name);
+            }
         }
         if (rootVars != null && rootVars.containsKey(name)) {
-            return rootVars.get(name);
+            String value = rootVars.get(name);
+            if(value != null && !value.isEmpty())
+            {
+                return rootVars.get(name);
+            }
         }
         return null;
     }

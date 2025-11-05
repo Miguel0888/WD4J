@@ -1,5 +1,6 @@
 package de.bund.zrb.tools;
 
+import de.bund.zrb.expressions.builtins.tooling.BuiltinTool;
 import de.bund.zrb.expressions.builtins.tooling.ToolExpressionFunction;
 import de.bund.zrb.expressions.domain.ExpressionFunction;
 import de.bund.zrb.expressions.domain.FunctionContext;
@@ -15,7 +16,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-public class TwoFaTool extends AbstractUserTool {
+public class TwoFaTool extends AbstractUserTool implements BuiltinTool {
 
     private final BrowserService browserService;
     private final TotpService totpService;
@@ -48,7 +49,7 @@ public class TwoFaTool extends AbstractUserTool {
 
         list.add(new ToolExpressionFunction(
                 ToolExpressionFunction.meta(
-                        "TwoFa",
+                        "otp",
                         "Submit a given 2FA code or compute a TOTP code and submit it.",
                         ToolExpressionFunction.params("username?"),
                         Arrays.asList("Optional username. If omitted, a TOTP is generated for current active user. ")

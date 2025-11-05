@@ -2,6 +2,7 @@ package de.bund.zrb.tools;
 
 import com.microsoft.playwright.Page;
 import de.bund.zrb.config.LoginConfig;
+import de.bund.zrb.expressions.builtins.tooling.BuiltinTool;
 import de.bund.zrb.expressions.builtins.tooling.ToolExpressionFunction;
 import de.bund.zrb.expressions.domain.ExpressionFunction;
 import de.bund.zrb.expressions.domain.FunctionContext;
@@ -15,7 +16,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-public class LoginTool extends AbstractUserTool {
+public class LoginTool extends AbstractUserTool implements BuiltinTool {
 
     private final BrowserService browserService;
     private final TotpService totpService;
