@@ -349,6 +349,7 @@ public class TestAction {
      * Export a stable representation for reporting / persistence.
      * Use raw template value, not the resolved runtime string.
      */
+    @Deprecated // not used anymore
     public JsonObject toPlaywrightJson() {
         JsonObject obj = new JsonObject();
 
