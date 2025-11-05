@@ -33,26 +33,18 @@ public class MapTableModel extends AbstractTableModel {
         this.backing = backing;
         this.includeUserRow = includeUserRow;
 
-        // Ensure user entry exists if requested
-        if (includeUserRow && !backing.containsKey(USER_KEY)) {
+        if (includeUserRow && backing != null && !backing.containsKey(USER_KEY)) {
             backing.put(USER_KEY, "");
         }
 
-        // Build ordered keys (user first if enabled)
-        this.keys = new ArrayList<String>(backing.keySet());
+        this.keys = new java.util.ArrayList<String>(backing != null ? backing.keySet() : java.util.Collections.<String>emptyList());
+
         if (includeUserRow) {
-            // Move "user" to index 0 if present
             int idx = this.keys.indexOf(USER_KEY);
-            if (idx > 0) {
+            if (idx >= 0) {
                 this.keys.remove(idx);
-                this.keys.add(0, USER_KEY);
-            } else if (idx < 0) {
-                // backing already had user inserted above; be safe here too
-                this.keys.add(0, USER_KEY);
             }
-        } else {
-            // Keep previous order; nothing special
-            // (Optional: sort if you previously relied on natural map order)
+            this.keys.add(0, USER_KEY);
         }
     }
 

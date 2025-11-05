@@ -43,6 +43,15 @@ public class RootScopeEditorTab extends JPanel {
         super(new BorderLayout());
         this.root = root;
 
+        // Ensure default OTP template exists once at Root (lazy & user-basiert)
+        try {
+            if (root.getTemplates() != null && !root.getTemplates().containsKey("OTP")) {
+                root.getTemplates().put("OTP", "{{otp({{user}})}}");
+            }
+        } catch (Throwable ignore) {
+            // Keep UI resilient even if root/templates are null; MapTablePanel handles null backing.
+        }
+
         JPanel header = new JPanel(new BorderLayout());
         JLabel title = new JLabel("Root Scope", SwingConstants.LEFT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
@@ -67,11 +76,19 @@ public class RootScopeEditorTab extends JPanel {
 
         add(header, BorderLayout.NORTH);
 
-        innerTabs.addTab("BeforeAll",   new MapTablePanel(root.getBeforeAll(),   "BeforeAll", UserRegistry.getInstance().usernamesSupplier()));
-        innerTabs.addTab("BeforeEach",  new MapTablePanel(root.getBeforeEach(),  "BeforeEach", null));
-        innerTabs.addTab("Templates",   new MapTablePanel(root.getTemplates(),   "Templates", null));
+        // WICHTIG:
+        // - BeforeAll: usersProvider != null  → MapTablePanel zeigt oben die "user"-Dropdown-Zeile (ausgegraut)
+        // - BeforeEach / Templates: usersProvider == null → keine "user"-Zeile
+        innerTabs.addTab("BeforeAll",
+                new MapTablePanel(root.getBeforeAll(), "BeforeAll",
+                        UserRegistry.getInstance().usernamesSupplier()));
+        innerTabs.addTab("BeforeEach",
+                new MapTablePanel(root.getBeforeEach(), "BeforeEach", null));
+        innerTabs.addTab("Templates",
+                new MapTablePanel(root.getTemplates(), "Templates", null));
 
         add(innerTabs, BorderLayout.CENTER);
     }
+
 }
 
