@@ -60,8 +60,11 @@ public class MapTableModel extends AbstractTableModel {
     @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
         // Pinned erste Zeile: sowohl Name (0) als auch Expression (1) sperren
-        if (rowIndex == 0 && (includePinnedRow || includeUserRow)) {
+        if (rowIndex == 0 && includePinnedRow) {
             return false;
+        }
+        if (rowIndex == 0 && columnIndex == 0 && includeUserRow) {
+            return false; // user variable name is not editable
         }
         return true;
     }
