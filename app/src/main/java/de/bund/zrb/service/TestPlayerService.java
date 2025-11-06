@@ -820,8 +820,9 @@ public class TestPlayerService {
         return out;
     }
 
-    // Add near other helpers in TestPlayerService
-
+    // Comment: Execute After/Expectation assertions with relaxed success rule:
+// - PASS: null, "", or "true" (case-insensitive)
+// - FAIL: anything else -> use the string itself as error message
     private List<LogComponent> executeAfterAssertions(TestNode caseNode, TestCase testCase, SuiteLog parentLog) {
         List<LogComponent> out = new ArrayList<LogComponent>();
         try {
@@ -874,11 +875,14 @@ public class TestPlayerService {
 
                 try {
                     String result = ActionRuntimeEvaluator.evaluateActionValue(expr, scope);
-                    boolean ok = (result != null) && "true".equalsIgnoreCase(result.trim());
+                    String t = (result == null) ? null : result.trim();
+
+                    boolean ok = (t == null) || (t.length() == 0) || "true".equalsIgnoreCase(t);
                     assertionLog.setStatus(ok);
 
                     if (!ok) {
-                        assertionLog.setError("Ergebnis: " + String.valueOf(result));
+                        // Use the raw (trimmed) string as failure message (no prefix)
+                        assertionLog.setError(t);
                     }
                 } catch (Exception ex) {
                     assertionLog.setStatus(false);
@@ -901,6 +905,7 @@ public class TestPlayerService {
 
         return out;
     }
+
 
     private String shortExpr(String expr) {
         if (expr == null) return "";
