@@ -8,6 +8,7 @@ import de.bund.zrb.ui.commands.*;
 import de.bund.zrb.ui.commands.debug.*;
 import de.bund.zrb.ui.commands.tools.*;
 import de.bund.zrb.ui.status.StatusTicker;
+import de.bund.zrb.ui.util.AppIcon;
 import de.bund.zrb.ui.widgets.StatusBar;
 import de.bund.zrb.ui.widgets.UserSelectionCombo;
 import de.bund.zrb.ui.state.FileUiStateRepository;
@@ -96,6 +97,9 @@ public class MainWindow {
         frame = new JFrame("Web Test Recorder & Runner");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
+
+        // Set application/taskbar/title icons
+        AppIcon.install(frame);
 
         if (winState.isMaximized()) {
             frame.setBounds(
