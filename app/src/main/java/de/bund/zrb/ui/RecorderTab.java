@@ -80,7 +80,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         exportButton.setToolTipText("In gewählte Suite exportieren");
         exportButton.addActionListener(e -> exportToSuite());
 
-        // --- Topbar: links Bedienelemente, rechts der Record-Toggle ---
+        // --- Topbar: links Bedienelemente, rechts Hilfe ---
         JPanel topBar = new JPanel(new BorderLayout());
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
@@ -96,6 +96,10 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         left.add(exportButton);
 
         topBar.add(left, BorderLayout.CENTER);
+
+        // Right-aligned help button (blue ℹ)
+        topBar.add(buildHelpCornerButton(), BorderLayout.EAST);
+
         add(topBar, BorderLayout.NORTH);
 
         // Center: nur noch die Actions-Tabelle (Meta/Events-Drawer entfernt)
@@ -111,6 +115,57 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         if (myUserContextId != null && !myUserContextId.isEmpty()) {
             this.recorderEventController.setUserContextFilter(myUserContextId);
         }
+    }
+
+    // Build a small blue info button for the top-right corner
+    private JButton buildHelpCornerButton() {
+        JButton b = new JButton("ℹ");
+        b.setFocusable(false);
+        b.setToolTipText("Hilfe zum Recorder anzeigen");
+        b.setForeground(Color.WHITE);
+        b.setBackground(new Color(0x1E88E5)); // Blue
+        b.setFocusPainted(false);
+        b.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0x1565C0)),
+                BorderFactory.createEmptyBorder(2, 8, 2, 8)
+        ));
+        b.addActionListener(e -> {
+            String html = buildRecorderHelpHtml();
+            JOptionPane.showMessageDialog(
+                    this,
+                    new JScrollPane(wrapAsHtmlPane(html)),
+                    "Hilfe – Recorder",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+        return b;
+    }
+
+    // Build simple HTML help for the recorder
+    private String buildRecorderHelpHtml() {
+        StringBuilder sb = new StringBuilder(800);
+        sb.append("<html><body style='font-family:sans-serif; padding:8px;'>");
+        sb.append("<h3 style='margin-top:0'>Recorder – Kurzüberblick</h3>");
+        sb.append("<ul>");
+        sb.append("<li><b>+</b> fügt eine neue Zeile ein.</li>");
+        sb.append("<li><b>🗑</b> löscht markierte Zeilen. Sind keine markiert, wird angeboten, alle zu löschen.</li>");
+        sb.append("<li><b>▲/▼</b> verschiebt markierte Zeilen.</li>");
+        sb.append("<li><b>⤵</b> importiert die ausgewählte Suite in den Recorder.</li>");
+        sb.append("<li><b>⤴</b> exportiert die Recorder-Inhalte in die gewählte Suite.</li>");
+        sb.append("<li><b>Neue Testsuite speichern</b> legt aus den Recorder-Aktionen eine Suite an.</li>");
+        sb.append("</ul>");
+        sb.append("<p style='color:#555'>Tipp: Markierungen erfolgen über die Auswahl-Flags der Actions; die Tabelle spiegelt das im Modell.</p>");
+        sb.append("</body></html>");
+        return sb.toString();
+    }
+
+    // Create a non-editable HTML pane for dialogs
+    private JEditorPane wrapAsHtmlPane(String html) {
+        JEditorPane pane = new JEditorPane("text/html", html);
+        pane.setEditable(false);
+        pane.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+        pane.setCaretPosition(0);
+        return pane;
     }
 
     // ---------- RecorderTabUi ----------
@@ -289,7 +344,8 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
         TestAction newAction = new TestAction();
         newAction.setType(TestAction.ActionType.THEN);
-        newAction.setAction("screenshot");
+        // Set default action to "click"
+        newAction.setAction("click");
 
         int selectedRow = actionTable.getSelectedRow();
         if (selectedRow < 0 || selectedRow >= actions.size()) {
@@ -300,12 +356,46 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         session.setRecordedActions(actions);
     }
 
+    // Delete selected rows; if none selected, ask to delete all
     private void deleteSelectedRows() {
-        List<TestAction> actions = session.getAllTestActionsForDrawer();
-        if (actions == null) return;
+        java.util.List<TestAction> actions = session.getAllTestActionsForDrawer();
+        if (actions == null || actions.isEmpty()) {
+            return;
+        }
+
+        // Check selection state
+        boolean anySelected = false;
+        for (int i = 0; i < actions.size(); i++) {
+            if (actions.get(i).isSelected()) {
+                anySelected = true;
+                break;
+            }
+        }
+
+        if (!anySelected) {
+            // Ask if all rows should be deleted
+            int choice = JOptionPane.showConfirmDialog(
+                    this,
+                    "Es ist keine Zeile markiert.\nSollen wirklich alle Zeilen gelöscht werden?",
+                    "Alle Zeilen löschen?",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+            );
+            if (choice != JOptionPane.YES_OPTION) {
+                return; // Do nothing on "No"
+            }
+            // Clear all actions
+            actions.clear();
+            session.setRecordedActions(actions);
+            return;
+        }
+
+        // Remove only selected actions
         java.util.Iterator<TestAction> it = actions.iterator();
         while (it.hasNext()) {
-            if (it.next().isSelected()) it.remove();
+            if (it.next().isSelected()) {
+                it.remove();
+            }
         }
         session.setRecordedActions(actions);
     }
