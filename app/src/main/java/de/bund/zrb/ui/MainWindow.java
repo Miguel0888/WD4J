@@ -7,6 +7,7 @@ import de.bund.zrb.ui.commandframework.*;
 import de.bund.zrb.ui.commands.*;
 import de.bund.zrb.ui.commands.debug.*;
 import de.bund.zrb.ui.commands.tools.*;
+import de.bund.zrb.ui.status.StatusTicker;
 import de.bund.zrb.ui.widgets.StatusBar;
 import de.bund.zrb.ui.widgets.UserSelectionCombo;
 import de.bund.zrb.ui.state.FileUiStateRepository;
@@ -150,6 +151,7 @@ public class MainWindow {
         userCombo = new UserSelectionCombo(UserRegistry.getInstance());
         statusBar = new StatusBar(userCombo);
         frame.add(statusBar, BorderLayout.SOUTH);
+        StatusTicker.getInstance().attach(statusBar); // activate event queue
 
         // Browser erst nach Statusbar, wie gehabt
         initBrowser();
