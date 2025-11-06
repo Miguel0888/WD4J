@@ -64,45 +64,35 @@ public class TestPlayerService {
     public void registerDrawer(TestPlayerUi playerUi) { this.drawerRef = playerUi; }
     public void registerLogger(TestExecutionLogger logger) { this.logger = logger; }
 
-    // --- intern: Status prüfen und ggf. abbrechen ---
-    private void checkCanceled() {
-        if (stopped) throw new StopRequestedException();
-    }
+    public void stopPlayback() { stopped = true; }
 
     ////////////////////////////////////////////////////////////////////////////////
     // Public API
     ////////////////////////////////////////////////////////////////////////////////
 
-    public void stopPlayback() { stopped = true; }
-
     public void runSuites() {
         ActivityService.getInstance(browserService.getBrowser());
-        resetRunFlags(); // setzt stopped=false
+        resetRunFlags();
         if (!isReady()) return;
 
         beginReport();
 
-        try {
-            TestNode start = resolveStartNode();
-            checkCanceled(); // früh raus, wenn direkt vorher gestoppt
-            runNodeStepByStep(start);
-        } catch (StopRequestedException stop) {
-            if (logger != null) logger.append(new SuiteLog("⏹ Playback abgebrochen!"));
-        } finally {
-            OverlayBridge.clearSubtitle();
-            OverlayBridge.clearCaption();
-            endReport();
-        }
-    }
+        TestNode start = resolveStartNode();
+        runNodeStepByStep(start);
 
+        if (stopped) logger.append(new SuiteLog("⏹ Playback abgebrochen!"));
+
+        OverlayBridge.clearSubtitle();
+        OverlayBridge.clearCaption();
+        endReport();
+    }
 
     ////////////////////////////////////////////////////////////////////////////////
     // Orchestrierung
     ////////////////////////////////////////////////////////////////////////////////
 
     private LogComponent runNodeStepByStep(TestNode node) {
-        if (node == null) return null;
-        checkCanceled();
+        if (stopped || node == null) return null;
 
         Object model = node.getModelRef();
 
@@ -129,10 +119,6 @@ public class TestPlayerService {
         try {
             ok = playSingleAction(action, stepLog);
             if (!ok) err = "Action returned false";
-        } catch (StopRequestedException stop) {
-            // Bubble up – kein FAIL im Step-Log, das zentrale catch in runSuites
-            // macht „⏹ Playback abgebrochen!“
-            throw stop;
         } catch (RuntimeException ex) {
             ok = false;
             err = (ex.getMessage() != null) ? ex.getMessage() : ex.toString();
@@ -263,13 +249,11 @@ public class TestPlayerService {
     private List<LogComponent> executeChildren(TestNode parent, SuiteLog parentLog) {
         List<LogComponent> out = new ArrayList<LogComponent>();
         for (int i = 0; i < parent.getChildCount(); i++) {
-            checkCanceled();
             LogComponent child = runNodeStepByStep((TestNode) parent.getChildAt(i));
             if (child != null) {
                 child.setParent(parentLog);
                 out.add(child);
             }
-            checkCanceled();
         }
         return out;
     }
@@ -406,7 +390,6 @@ public class TestPlayerService {
 
     public synchronized boolean playSingleAction(final TestAction action, final StepLog stepLog) {
         try {
-            checkCanceled();
             // 1) User-Kontext
             final String effectiveUser = resolveEffectiveUserForAction(action);
             lastUsernameUsed = effectiveUser;
@@ -449,16 +432,9 @@ public class TestPlayerService {
                     });
                 }
 
-                case "wait": {
-                    long total = Long.parseLong(action.getValue());
-                    long slice = Math.min(250L, total);
-                    long end = System.currentTimeMillis() + total;
-                    while (System.currentTimeMillis() < end) {
-                        checkCanceled();
-                        try { Thread.sleep(slice); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
-                    }
+                case "wait":
+                    Thread.sleep(Long.parseLong(action.getValue()));
                     return true;
-                }
 
                 case "click": {
                     final Locator loc = LocatorResolver.resolve(page, action);
@@ -600,69 +576,15 @@ public class TestPlayerService {
 
     // --- Overload 1: Runnable (bestehend) ---
     private void waitThen(Locator locator, double timeout, Runnable action) {
-        waitForWithCancel(locator, timeout);
-        checkCanceled();
+        locator.waitFor(new Locator.WaitForOptions().setTimeout(timeout));
         action.run();
     }
 
     // --- Overload 2: ThrowingRunnable (neu) ---
     private void waitThen(Locator locator, double timeout, ThrowingRunnable action) {
-        waitForWithCancel(locator, timeout);
-        checkCanceled();
+        locator.waitFor(new Locator.WaitForOptions().setTimeout(timeout));
         runUnchecked(action);
     }
-
-    private void waitForWithCancel(Locator locator, double timeoutMs) {
-        long remaining = (long) Math.max(0, timeoutMs);
-        final long quantum = 300L; // 0.3s Scheibe
-
-        while (remaining > 0) {
-            checkCanceled();
-            long slice = Math.min(quantum, remaining);
-            try {
-                // Erfolgsfall: kehrt sofort zurück -> fertig
-                locator.waitFor(new Locator.WaitForOptions().setTimeout((double) slice));
-                return; // BREAK on success
-            } catch (com.microsoft.playwright.PlaywrightException pe) {
-                // Timeout dieser Scheibe -> weiterprobieren bis Gesamtzeit verbraucht
-                // Andere Fehler (z.B. "strict mode violation") nicht verschlucken:
-                if (!isTimeout(pe)) throw pe;
-            }
-            remaining -= slice;
-        }
-        // Letzter Versuch ohne Slicing, damit Original-Timeout-Semantik gewahrt bleibt
-        // (optional – kannst du auch weglassen, wenn "best effort" reicht)
-        checkCanceled();
-        locator.waitFor(new Locator.WaitForOptions().setTimeout(0.0)); // 0 == sofortiger Check
-    }
-
-    private void waitForFunctionWithCancel(Page page, String fn, Object arg, double timeoutMs) {
-        long remaining = (long) Math.max(0, timeoutMs);
-        final long quantum = 400L;
-
-        while (remaining > 0) {
-            checkCanceled();
-            long slice = Math.min(quantum, remaining);
-            try {
-                page.waitForFunction(fn, arg, new Page.WaitForFunctionOptions().setTimeout((double) slice));
-                return; // BREAK on success
-            } catch (com.microsoft.playwright.PlaywrightException pe) {
-                if (!isTimeout(pe)) throw pe;
-            }
-            remaining -= slice;
-        }
-        checkCanceled();
-        // finaler „sofort“-Check
-        page.waitForFunction(fn, arg, new Page.WaitForFunctionOptions().setTimeout(0.0));
-    }
-
-    /** Prüfe robust, ob es "nur" ein Timeout war. */
-    private boolean isTimeout(com.microsoft.playwright.PlaywrightException pe) {
-        String m = pe.getMessage();
-        return m != null && (m.contains("Timeout") || m.contains("waiting") || m.contains("timed out"));
-    }
-
-
 
     ////////////////////////////////////////////////////////////////////////////////
     // Logging/Hilfen
@@ -799,7 +721,7 @@ public class TestPlayerService {
 
     private void waitForStableBeforeScreenshot(Page page, double timeoutMs) {
         long to = (long) Math.max(1000, timeoutMs);
-        final String fn =
+        page.waitForFunction(
                 "quietMs => {"
                         + "  try {"
                         + "    const getA = (typeof window.__zrbGetActivity === 'function') ? window.__zrbGetActivity : null;"
@@ -814,8 +736,10 @@ public class TestPlayerService {
                         + "  } catch(_) {"
                         + "    return false;"
                         + "  }"
-                        + "}";
-        waitForFunctionWithCancel(page, fn, QUIET_MS, to);
+                        + "}",
+                QUIET_MS,
+                new Page.WaitForFunctionOptions().setTimeout(to)
+        );
     }
 
     /** Erwartet "id=<uuid>&..." im value. */
