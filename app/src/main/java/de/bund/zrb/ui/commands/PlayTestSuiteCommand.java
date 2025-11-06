@@ -10,6 +10,7 @@ import de.bund.zrb.ui.tabs.RunnerPanel;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Open Runner tab and start playback; show status via EventBus. */
 public class PlayTestSuiteCommand extends ShortcutMenuCommand {
@@ -29,32 +30,39 @@ public class PlayTestSuiteCommand extends ShortcutMenuCommand {
 
     @Override
     public void perform() {
-        // Publish start message to StatusBar (via StatusTicker)
+        // Status (ohne Icon)
         ApplicationEventBus.getInstance()
-                .publish(new StatusMessageEvent("▶ Starte Playback…", 1500, Severity.INFO));
+                .publish(new StatusMessageEvent("▶ Starte Playback…", 1500));
 
-        // Open runner tab and select it
+        // Runner-UI
         final RunnerPanel runnerPanel = new RunnerPanel();
         TestPlayerService.getInstance().registerLogger(runnerPanel.getLogger());
 
+        // Pro Tab eigener Running-Status
+        final AtomicBoolean running = new AtomicBoolean(false);
+
         tabbedPane.addTab("Runner", runnerPanel);
         final int tabIndex = tabbedPane.indexOfComponent(runnerPanel);
-        tabbedPane.setTabComponentAt(tabIndex, createClosableTabHeader("Runner", tabbedPane, runnerPanel));
+        tabbedPane.setTabComponentAt(tabIndex, createClosableTabHeader("Runner", tabbedPane, runnerPanel, running));
         tabbedPane.setSelectedComponent(runnerPanel);
 
-        // Run tests in background
+        // Hintergrund-Thread starten
         new Thread(new Runnable() {
             @Override public void run() {
+                running.set(true);
                 try {
                     TestPlayerService.getInstance().runSuites();
-                    // Notify finished
+                    // Erfolg
                     ApplicationEventBus.getInstance()
-                            .publish(new StatusMessageEvent("✔ Playback fertig", 2000, Severity.INFO));
+                            .publish(new StatusMessageEvent("✔ Playback fertig", 2000));
                 } catch (Throwable t) {
-                    // Notify error
+                    // Fehler
                     String msg = (t.getMessage() == null) ? t.toString() : t.getMessage();
                     ApplicationEventBus.getInstance()
                             .publish(new StatusMessageEvent("Fehler im Playback: " + msg, 4000, Severity.ERROR));
+                } finally {
+                    // Wichtig: Status zurücksetzen, damit Close kein „abgebrochen“ mehr sendet
+                    running.set(false);
                 }
             }
         }, "WD4J-Runner").start();
@@ -62,11 +70,12 @@ public class PlayTestSuiteCommand extends ShortcutMenuCommand {
 
     /**
      * Create a closable tab header: "Runner   [×]".
-     * Close stops playback, removes the tab, and publishes cancel status.
+     * Close stoppt nur, wenn noch läuft; Statusmeldung dann entsprechend.
      */
     private JComponent createClosableTabHeader(final String title,
                                                final JTabbedPane tabs,
-                                               final Component tabContent) {
+                                               final Component tabContent,
+                                               final AtomicBoolean running) {
         final JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         header.setOpaque(false);
 
@@ -79,22 +88,22 @@ public class PlayTestSuiteCommand extends ShortcutMenuCommand {
         close.setOpaque(false);
         close.setContentAreaFilled(false);
         close.setFocusable(false);
-        close.setToolTipText("Playback abbrechen und Tab schließen");
+        close.setToolTipText("Tab schließen" + " (stoppt Playback, falls noch aktiv)");
         close.setForeground(new Color(200, 0, 0));
         Font f = close.getFont();
         close.setFont(f.deriveFont(Font.BOLD, f.getSize2D() + 1f));
 
         close.addActionListener(new AbstractAction() {
             @Override public void actionPerformed(ActionEvent e) {
-                try {
-                    TestPlayerService.getInstance().stopPlayback();
-                } catch (Throwable ignore) {
-                    // ignore
+                boolean wasRunning = running.get();
+                if (wasRunning) {
+                    try {
+                        TestPlayerService.getInstance().stopPlayback();
+                    } catch (Throwable ignore) { /* ignore */ }
+                    // Nur dann Abbruchstatus senden, wenn wirklich noch lief
+                    ApplicationEventBus.getInstance()
+                            .publish(new StatusMessageEvent("⏹ Playback abgebrochen", 2000));
                 }
-                // Publish cancel message
-                ApplicationEventBus.getInstance()
-                        .publish(new StatusMessageEvent("⏹ Playback abgebrochen", 2000, Severity.WARN));
-
                 int idx = tabs.indexOfComponent(tabContent);
                 if (idx >= 0) {
                     tabs.removeTabAt(idx);
