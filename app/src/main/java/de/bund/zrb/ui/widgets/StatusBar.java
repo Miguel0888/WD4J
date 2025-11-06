@@ -1,4 +1,3 @@
-// File: app/src/main/java/de/bund/zrb/ui/widgets/StatusBar.java
 package de.bund.zrb.ui.widgets;
 
 import javax.swing.*;
@@ -10,7 +9,6 @@ public final class StatusBar extends JPanel {
     public StatusBar(JComponent rightComponent) {
         super(new BorderLayout());
         setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(0,0,0,50)));
-
         add(leftLabel, BorderLayout.WEST);
 
         JPanel rightWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 2));
@@ -19,12 +17,23 @@ public final class StatusBar extends JPanel {
         add(rightWrap, BorderLayout.EAST);
     }
 
-    /** Text links stumpf setzen. Thread-safe auf den EDT. */
+    /** Set only text (keeps old icon). Thread-safe. */
     public void setMessage(String text) {
+        setMessage(text, null, false);
+    }
+
+    /** Set text and (optionally) replace icon. Thread-safe. */
+    public void setMessage(final String text, final Icon icon, final boolean replaceIcon) {
         if (SwingUtilities.isEventDispatchThread()) {
             leftLabel.setText(text != null ? text : "");
+            if (replaceIcon) leftLabel.setIcon(icon);
         } else {
-            SwingUtilities.invokeLater(() -> leftLabel.setText(text != null ? text : ""));
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override public void run() {
+                    leftLabel.setText(text != null ? text : "");
+                    if (replaceIcon) leftLabel.setIcon(icon);
+                }
+            });
         }
     }
 }
