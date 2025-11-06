@@ -89,4 +89,8 @@ public class StepLog implements LogComponent {
                 .replace("<", "&lt;")
                 .replace(">", "&gt;");
     }
+
+    public String getHtmlAppend() {
+        return htmlAppend;
+    }
 }
