@@ -183,6 +183,12 @@ public class NotificationTestDialog extends JDialog {
         t.setAutoCreateRowSorter(true);
         t.setAutoResizeMode(JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS);
 
+        // Enable robust cell selection
+        t.setCellSelectionEnabled(true);
+        t.setRowSelectionAllowed(true);
+        t.setColumnSelectionAllowed(true);
+        t.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
+
         if (t.getColumnModel().getColumnCount() >= 5) {
             t.getColumnModel().getColumn(0).setPreferredWidth(110);  // Zeit
             t.getColumnModel().getColumn(1).setPreferredWidth(70);   // Type
