@@ -129,6 +129,10 @@ public class TestPlayerService {
         try {
             ok = playSingleAction(action, stepLog);
             if (!ok) err = "Action returned false";
+        } catch (StopRequestedException stop) {
+            // Bubble up – kein FAIL im Step-Log, das zentrale catch in runSuites
+            // macht „⏹ Playback abgebrochen!“
+            throw stop;
         } catch (RuntimeException ex) {
             ok = false;
             err = (ex.getMessage() != null) ? ex.getMessage() : ex.toString();
@@ -611,25 +615,53 @@ public class TestPlayerService {
     private void waitForWithCancel(Locator locator, double timeoutMs) {
         long remaining = (long) Math.max(0, timeoutMs);
         final long quantum = 300L; // 0.3s Scheibe
+
         while (remaining > 0) {
             checkCanceled();
             long slice = Math.min(quantum, remaining);
-            locator.waitFor(new Locator.WaitForOptions().setTimeout((double) slice));
+            try {
+                // Erfolgsfall: kehrt sofort zurück -> fertig
+                locator.waitFor(new Locator.WaitForOptions().setTimeout((double) slice));
+                return; // BREAK on success
+            } catch (com.microsoft.playwright.PlaywrightException pe) {
+                // Timeout dieser Scheibe -> weiterprobieren bis Gesamtzeit verbraucht
+                // Andere Fehler (z.B. "strict mode violation") nicht verschlucken:
+                if (!isTimeout(pe)) throw pe;
+            }
             remaining -= slice;
-            // Wenn der Zustand schon erfüllt wurde, kehrt waitFor vorzeitig zurück – passt.
         }
+        // Letzter Versuch ohne Slicing, damit Original-Timeout-Semantik gewahrt bleibt
+        // (optional – kannst du auch weglassen, wenn "best effort" reicht)
+        checkCanceled();
+        locator.waitFor(new Locator.WaitForOptions().setTimeout(0.0)); // 0 == sofortiger Check
     }
 
     private void waitForFunctionWithCancel(Page page, String fn, Object arg, double timeoutMs) {
         long remaining = (long) Math.max(0, timeoutMs);
-        final long quantum = 400L; // 0.4s Scheibe
+        final long quantum = 400L;
+
         while (remaining > 0) {
             checkCanceled();
             long slice = Math.min(quantum, remaining);
-            page.waitForFunction(fn, arg, new Page.WaitForFunctionOptions().setTimeout((double) slice));
+            try {
+                page.waitForFunction(fn, arg, new Page.WaitForFunctionOptions().setTimeout((double) slice));
+                return; // BREAK on success
+            } catch (com.microsoft.playwright.PlaywrightException pe) {
+                if (!isTimeout(pe)) throw pe;
+            }
             remaining -= slice;
         }
+        checkCanceled();
+        // finaler „sofort“-Check
+        page.waitForFunction(fn, arg, new Page.WaitForFunctionOptions().setTimeout(0.0));
     }
+
+    /** Prüfe robust, ob es "nur" ein Timeout war. */
+    private boolean isTimeout(com.microsoft.playwright.PlaywrightException pe) {
+        String m = pe.getMessage();
+        return m != null && (m.contains("Timeout") || m.contains("waiting") || m.contains("timed out"));
+    }
+
 
 
     ////////////////////////////////////////////////////////////////////////////////
