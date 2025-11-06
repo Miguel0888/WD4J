@@ -36,7 +36,6 @@ public class MapTablePanel extends JPanel {
         final boolean includeUserRow = (usersProvider != null) && (pinnedKey == null);
         final boolean includePinnedRow = (pinnedKey != null);
 
-        // Falls gepinnter Eintrag erstmalig fehlt → sofort anlegen und speichern
         boolean needImmediateSave = false;
         if (includePinnedRow && backing != null && !backing.containsKey(pinnedKey)) {
             backing.put(pinnedKey, pinnedValue != null ? pinnedValue : "");
@@ -56,17 +55,13 @@ public class MapTablePanel extends JPanel {
 
             @Override
             public TableCellEditor getCellEditor(int row, int column) {
-                // IntelliSense nur in Spalte 1
                 if (column == 1) {
-                    // Row 0 gelockt, wenn pinned-Row aktiv (OTP): kein Editor
                     if (row == 0 && includePinnedRow) {
-                        return null; // gesperrt
+                        return null;
                     }
-                    // Row 0, userRow: User-Dropdown
                     if (row == 0 && includeUserRow && userEditor != null) {
                         return userEditor;
                     }
-                    // Alle anderen in Spalte 1: Expression-Editor
                     return exprEditor;
                 }
                 return super.getCellEditor(row, column);
@@ -74,15 +69,12 @@ public class MapTablePanel extends JPanel {
 
             @Override
             public TableCellRenderer getCellRenderer(int row, int column) {
-                // Erste Zeile, Name-Spalte (0) – immer gelockt (user oder pinned)
                 if (row == 0 && column == 0 && (includeUserRow || includePinnedRow)) {
                     return new UserNameLockedRenderer();
                 }
-                // Erste Zeile, Value-Spalte (1) – gelockt nur bei pinned (OTP)
                 if (row == 0 && column == 1 && includePinnedRow) {
                     return new PinnedValueLockedRenderer();
                 }
-                // Alle anderen Value-Zellen monospaced
                 if (column == 1) {
                     return new MultiLineMonoRenderer();
                 }
@@ -106,7 +98,7 @@ public class MapTablePanel extends JPanel {
             }
         };
 
-        // UX
+        // UX (unverändert)
         table.setFillsViewportHeight(true);
         table.setSurrendersFocusOnKeystroke(true);
         table.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
@@ -116,14 +108,62 @@ public class MapTablePanel extends JPanel {
             table.getColumnModel().getColumn(1).setPreferredWidth(480);
         }
 
-        // Toolbar
+        // Toolbar (neu via Builder, Inhalt identisch, Hilfe/Save nun rechtsbündig)
+        JToolBar bar = buildToolbar(scopeName, model, table, includePinnedRow, pinnedKey);
+        add(bar, BorderLayout.NORTH);
+        add(new JScrollPane(table), BorderLayout.CENTER);
+
+        if (needImmediateSave) {
+            try { TestRegistry.getInstance().save(); } catch (Throwable ignore) { }
+        }
+    }
+
+    // Build toolbar with left-aligned CRUD + save and right-aligned help
+    private JToolBar buildToolbar(final String scopeName,
+                                  final MapTableModel model,
+                                  final JTable table,
+                                  final boolean includePinnedRow,
+                                  final String pinnedKey) {
+        // Use BoxLayout to allow glue-based right alignment
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
+        bar.setLayout(new BoxLayout(bar, BoxLayout.X_AXIS)); // force BoxLayout semantics
 
+        JButton addBtn  = buildAddButton(model, scopeName);
+        JButton delBtn  = buildDeleteButton(model, table, includePinnedRow, pinnedKey);
+        JButton editBtn = buildEditButton(table);
+        JButton saveBtn = buildSaveButton();          // stays on the left
+        JButton helpBtn = buildHelpButton(scopeName); // goes to the far right
+
+        // Left group (unchanged order, save stays left)
+        bar.add(addBtn);
+        bar.add(delBtn);
+        bar.add(editBtn);
+        bar.addSeparator();
+        bar.add(saveBtn);
+
+        // Glue pushes following components (only help) to the far right
+        bar.add(Box.createHorizontalGlue());
+
+        // Right group
+        bar.add(helpBtn);
+
+        return bar;
+    }
+
+    // Create "+" button
+    private JButton buildAddButton(final MapTableModel model, final String scopeName) {
         JButton addBtn = new JButton("+");
         addBtn.setToolTipText(scopeName + " Eintrag hinzufügen");
         addBtn.addActionListener(e -> model.addEmptyRow());
+        return addBtn;
+    }
 
+    // Create "–" button with pinned/user protection identical to original behavior
+    private JButton buildDeleteButton(final MapTableModel model,
+                                      final JTable table,
+                                      final boolean includePinnedRow,
+                                      final String pinnedKey) {
         JButton delBtn = new JButton("–");
         delBtn.setToolTipText("Ausgewählte Zeile löschen");
         delBtn.addActionListener(e -> {
@@ -142,7 +182,11 @@ public class MapTablePanel extends JPanel {
                 model.removeRow(row);
             }
         });
+        return delBtn;
+    }
 
+    // Create "Bearbeiten" button
+    private JButton buildEditButton(final JTable table) {
         JButton editBtn = new JButton("Bearbeiten");
         editBtn.setToolTipText("Expression in ausgewählter Zeile bearbeiten");
         editBtn.addActionListener(e -> {
@@ -152,33 +196,110 @@ public class MapTablePanel extends JPanel {
             Component editorComp = table.getEditorComponent();
             if (editorComp != null) editorComp.requestFocusInWindow();
         });
+        return editBtn;
+    }
 
+    // Create "💾" button (left side)
+    private JButton buildSaveButton() {
         JButton saveBtn = new JButton("💾");
         saveBtn.setToolTipText("Speichern");
         saveBtn.addActionListener(e -> {
+            // Persist changes immediately
             TestRegistry.getInstance().save();
-            //DEBUG:
-//            JOptionPane.showMessageDialog(
-//                    MapTablePanel.this,
-//                    "Gespeichert.",
-//                    "Info",
-//                    JOptionPane.INFORMATION_MESSAGE
-//            );
         });
+        return saveBtn;
+    }
 
-        bar.add(addBtn);
-        bar.add(delBtn);
-        bar.add(editBtn);
-        bar.addSeparator();
-        bar.add(saveBtn);
+    // ---- Hilfe-Button ----------------------------------------------------------
 
-        add(bar, BorderLayout.NORTH);
-        add(new JScrollPane(table), BorderLayout.CENTER);
+    /** Erzeuge einen blauen Hilfe-Button mit verständlicher Erläuterung (Cucumber-artig). */
+    private JButton buildHelpButton(final String scopeName) {
+        JButton b = new JButton("ℹ");
+        b.setToolTipText("Was bedeuten „Before…“ und „Templates“?");
+        b.setForeground(Color.WHITE);
+        b.setBackground(new Color(0x1E88E5)); // Blau
+        b.setFocusPainted(false);
+        b.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0x1565C0)),
+                BorderFactory.createEmptyBorder(2, 8, 2, 8)
+        ));
 
-        // Sofort persistieren, wenn der gepinnte/user-Eintrag gerade neu erzeugt wurde
-        if (needImmediateSave) {
-            try { TestRegistry.getInstance().save(); } catch (Throwable ignore) { }
-        }
+        b.addActionListener(e -> {
+            String html = buildHelpHtml(scopeName);
+            JOptionPane.showMessageDialog(
+                    MapTablePanel.this,
+                    new JScrollPane(wrapAsHtmlPane(html)),
+                    "Hilfe zu \"" + scopeName + "\"",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+        return b;
+    }
+
+    /** Baue den erklärenden Text abhängig vom Scope-Namen. */
+    private String buildHelpHtml(String scopeName) {
+        String scope = (scopeName == null) ? "" : scopeName.trim().toLowerCase();
+        boolean isRoot   = "beforeall".equalsIgnoreCase(scope) || "beforeeach".equalsIgnoreCase(scope) || "templates".equalsIgnoreCase(scope);
+        // Wir zeigen für alle Scopes die vollständige Erklärung; die Beispiele nennen Root/Suite/Case explizit.
+
+        StringBuilder sb = new StringBuilder(1024);
+        sb.append("<html><body style='font-family:sans-serif; padding:8px;'>");
+        sb.append("<h3 style='margin-top:0'>Wie lese ich diese Tabellen?</h3>");
+
+        sb.append("<p><b>Idee (angelehnt an Cucumber):</b> ")
+          .append("Hier verwaltest du Testdaten und Bausteine in drei Ebenen – <i>Root</i>, <i>Suite</i> und <i>Case</i>. ")
+          .append("Die Werte werden je nach Tab zu unterschiedlichen Zeitpunkten berechnet (\"evaluiert\").</p>");
+
+        sb.append("<h4>Tabs & Auswertungszeitpunkte</h4>");
+        sb.append("<ul>");
+        sb.append("<li><b>Root → BeforeAll:</b> wird genau <u>einmal beim ersten Suite-Start</u> evaluiert. ")
+          .append("Typisch für dauerhafte Dinge wie Basis-URLs, Mandanten, Feature-Flags.</li>");
+        sb.append("<li><b>Root → BeforeEach:</b> wird <u>vor jedem TestCase</u> evaluiert. ")
+          .append("Gut für Werte, die pro Testlauf frisch sein sollen (z. B. Datum, zufällige IDs).</li>");
+        sb.append("<li><b>Suite → BeforeAll:</b> wird <u>einmal pro Suite</u> evaluiert. ")
+          .append("Nutze es für suite-spezifische Konstanten.</li>");
+        sb.append("<li><b>Suite → BeforeEach:</b> wird <u>vor jedem Case der Suite</u> evaluiert. ")
+          .append("Hier z. B. Logins oder vorbereitende Daten für die Suite.</li>");
+        sb.append("<li><b>Case → Before:</b> existiert nur auf Case-Ebene und wird <u>einmal zu Beginn des Cases</u> evaluiert. ")
+          .append("Damit überschreibst oder ergänzt du Werte gezielt für diesen einen Case.</li>");
+        sb.append("</ul>");
+
+        sb.append("<h4>Templates (lazy)</h4>");
+        sb.append("<p><b>Templates</b> sind wie Funktionsbausteine: Sie werden <i>nicht sofort</i> berechnet, ")
+          .append("sondern erst <u>im Moment der Verwendung</u> in einer Action (lazy). ")
+          .append("So kannst du zeitkritische Dinge genau dann erzeugen, wenn sie gebraucht werden.</p>");
+        sb.append("<p><b>Beispiel:</b> Das Template <code>OTP</code> könnte so definiert sein: ")
+          .append("<code>{{OTP({{user}})}}</code>. ")
+          .append("Wenn eine Action das Template nutzt (z. B. beim Button-Klick), wird der OTP-Code ")
+          .append("erst dann mit dem <i>aktuellen</i> User berechnet.</p>");
+
+        sb.append("<h4>Variablen vs. Templates</h4>");
+        sb.append("<ul>");
+        sb.append("<li><b>Variablen</b> (in <i>Before…</i> Tabellen) werden zum jeweiligen Zeitpunkt evaluiert und als fester String abgelegt. ")
+          .append("In Actions greifst du mit <code>{{variablenName}}</code> darauf zu.</li>");
+        sb.append("<li><b>Templates</b> bleiben Ausdrücke und werden bei Benutzung aufgelöst. ")
+          .append("In Actions wählst du das Template im Dropdown, und der vollständige Ausdruck wird in das Value-Feld übernommen.</li>");
+        sb.append("</ul>");
+
+        sb.append("<h4>Auflösung in der Laufzeit</h4>");
+        sb.append("<p>Die Laufzeit löst Werte in folgender Reihenfolge auf (Schatten-Prinzip): ")
+          .append("<i>Case → Suite → Root</i>. ")
+          .append("So kann ein Case einen Wert aus Suite/Root überschreiben.</p>");
+
+        sb.append("<p style='margin-top:10px;color:#555'><i>Hinweis:</i> Details zur Auswertung findest du im Player (")
+          .append("<code>TestPlayerService</code>), dort wird z. B. <i>Root.BeforeAll</i> nur ein einziges Mal initialisiert, ")
+          .append("während <i>BeforeEach</i> je TestCase frisch berechnet wird.</p>");
+
+        sb.append("</body></html>");
+        return sb.toString();
+    }
+
+    private JEditorPane wrapAsHtmlPane(String html) {
+        JEditorPane pane = new JEditorPane("text/html", html);
+        pane.setEditable(false);
+        pane.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+        pane.setCaretPosition(0);
+        return pane;
     }
 
     // ---- Renderer/Editor helpers ----
