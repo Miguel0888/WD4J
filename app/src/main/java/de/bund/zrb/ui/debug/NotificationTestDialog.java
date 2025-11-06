@@ -190,6 +190,9 @@ public class NotificationTestDialog extends JDialog {
             t.getColumnModel().getColumn(3).setPreferredWidth(560);  // Message
             t.getColumnModel().getColumn(4).setPreferredWidth(160);  // Context
         }
+
+    // --- Context-Menü + Copy-Shortcuts installieren ---
+    de.bund.zrb.ui.util.TableCopyContextMenu.install(t);
     }
 
     private void installEscToClose() {
