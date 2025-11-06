@@ -64,35 +64,45 @@ public class TestPlayerService {
     public void registerDrawer(TestPlayerUi playerUi) { this.drawerRef = playerUi; }
     public void registerLogger(TestExecutionLogger logger) { this.logger = logger; }
 
-    public void stopPlayback() { stopped = true; }
+    // --- intern: Status prüfen und ggf. abbrechen ---
+    private void checkCanceled() {
+        if (stopped) throw new StopRequestedException();
+    }
 
     ////////////////////////////////////////////////////////////////////////////////
     // Public API
     ////////////////////////////////////////////////////////////////////////////////
 
+    public void stopPlayback() { stopped = true; }
+
     public void runSuites() {
         ActivityService.getInstance(browserService.getBrowser());
-        resetRunFlags();
+        resetRunFlags(); // setzt stopped=false
         if (!isReady()) return;
 
         beginReport();
 
-        TestNode start = resolveStartNode();
-        runNodeStepByStep(start);
-
-        if (stopped) logger.append(new SuiteLog("⏹ Playback abgebrochen!"));
-
-        OverlayBridge.clearSubtitle();
-        OverlayBridge.clearCaption();
-        endReport();
+        try {
+            TestNode start = resolveStartNode();
+            checkCanceled(); // früh raus, wenn direkt vorher gestoppt
+            runNodeStepByStep(start);
+        } catch (StopRequestedException stop) {
+            if (logger != null) logger.append(new SuiteLog("⏹ Playback abgebrochen!"));
+        } finally {
+            OverlayBridge.clearSubtitle();
+            OverlayBridge.clearCaption();
+            endReport();
+        }
     }
+
 
     ////////////////////////////////////////////////////////////////////////////////
     // Orchestrierung
     ////////////////////////////////////////////////////////////////////////////////
 
     private LogComponent runNodeStepByStep(TestNode node) {
-        if (stopped || node == null) return null;
+        if (node == null) return null;
+        checkCanceled();
 
         Object model = node.getModelRef();
 
@@ -249,11 +259,13 @@ public class TestPlayerService {
     private List<LogComponent> executeChildren(TestNode parent, SuiteLog parentLog) {
         List<LogComponent> out = new ArrayList<LogComponent>();
         for (int i = 0; i < parent.getChildCount(); i++) {
+            checkCanceled();
             LogComponent child = runNodeStepByStep((TestNode) parent.getChildAt(i));
             if (child != null) {
                 child.setParent(parentLog);
                 out.add(child);
             }
+            checkCanceled();
         }
         return out;
     }
@@ -390,6 +402,7 @@ public class TestPlayerService {
 
     public synchronized boolean playSingleAction(final TestAction action, final StepLog stepLog) {
         try {
+            checkCanceled();
             // 1) User-Kontext
             final String effectiveUser = resolveEffectiveUserForAction(action);
             lastUsernameUsed = effectiveUser;
@@ -432,9 +445,16 @@ public class TestPlayerService {
                     });
                 }
 
-                case "wait":
-                    Thread.sleep(Long.parseLong(action.getValue()));
+                case "wait": {
+                    long total = Long.parseLong(action.getValue());
+                    long slice = Math.min(250L, total);
+                    long end = System.currentTimeMillis() + total;
+                    while (System.currentTimeMillis() < end) {
+                        checkCanceled();
+                        try { Thread.sleep(slice); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                    }
                     return true;
+                }
 
                 case "click": {
                     final Locator loc = LocatorResolver.resolve(page, action);
@@ -576,15 +596,41 @@ public class TestPlayerService {
 
     // --- Overload 1: Runnable (bestehend) ---
     private void waitThen(Locator locator, double timeout, Runnable action) {
-        locator.waitFor(new Locator.WaitForOptions().setTimeout(timeout));
+        waitForWithCancel(locator, timeout);
+        checkCanceled();
         action.run();
     }
 
     // --- Overload 2: ThrowingRunnable (neu) ---
     private void waitThen(Locator locator, double timeout, ThrowingRunnable action) {
-        locator.waitFor(new Locator.WaitForOptions().setTimeout(timeout));
+        waitForWithCancel(locator, timeout);
+        checkCanceled();
         runUnchecked(action);
     }
+
+    private void waitForWithCancel(Locator locator, double timeoutMs) {
+        long remaining = (long) Math.max(0, timeoutMs);
+        final long quantum = 300L; // 0.3s Scheibe
+        while (remaining > 0) {
+            checkCanceled();
+            long slice = Math.min(quantum, remaining);
+            locator.waitFor(new Locator.WaitForOptions().setTimeout((double) slice));
+            remaining -= slice;
+            // Wenn der Zustand schon erfüllt wurde, kehrt waitFor vorzeitig zurück – passt.
+        }
+    }
+
+    private void waitForFunctionWithCancel(Page page, String fn, Object arg, double timeoutMs) {
+        long remaining = (long) Math.max(0, timeoutMs);
+        final long quantum = 400L; // 0.4s Scheibe
+        while (remaining > 0) {
+            checkCanceled();
+            long slice = Math.min(quantum, remaining);
+            page.waitForFunction(fn, arg, new Page.WaitForFunctionOptions().setTimeout((double) slice));
+            remaining -= slice;
+        }
+    }
+
 
     ////////////////////////////////////////////////////////////////////////////////
     // Logging/Hilfen
@@ -721,7 +767,7 @@ public class TestPlayerService {
 
     private void waitForStableBeforeScreenshot(Page page, double timeoutMs) {
         long to = (long) Math.max(1000, timeoutMs);
-        page.waitForFunction(
+        final String fn =
                 "quietMs => {"
                         + "  try {"
                         + "    const getA = (typeof window.__zrbGetActivity === 'function') ? window.__zrbGetActivity : null;"
@@ -736,10 +782,8 @@ public class TestPlayerService {
                         + "  } catch(_) {"
                         + "    return false;"
                         + "  }"
-                        + "}",
-                QUIET_MS,
-                new Page.WaitForFunctionOptions().setTimeout(to)
-        );
+                        + "}";
+        waitForFunctionWithCancel(page, fn, QUIET_MS, to);
     }
 
     /** Erwartet "id=<uuid>&..." im value. */

@@ -98,7 +98,7 @@ public class ActionTable extends JTable {
 
         // Aktionen DropDown – neue Aktionen ergänzt
         JComboBox<String> actionComboBox =
-                new JComboBox<>(new String[]{ "click", "input", "select", "check", "radio", "screenshot" });
+                new JComboBox<>(new String[]{ "click", "input", "select", "check", "radio", "wait", "screenshot" });
         columnModel.getColumn(2).setCellEditor(new DefaultCellEditor(actionComboBox));
 
         // Wert-Editor: erlaubt Freitext und bietet „OTP“ zur Auswahl
