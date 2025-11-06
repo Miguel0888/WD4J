@@ -96,7 +96,7 @@ public class RootScopeEditorTab extends JPanel {
 
         // AfterEach (Root) – gepinnt: Screenshot-Expression, Checkbox editierbar
         String pinnedKey   = "screenshot";
-        String pinnedValue = "{{takeScreenshot()}}"; // Deine Built-in-Function
+        String pinnedValue = "{{takeScreenshot({{user}})}}"; // Built-in-Function
         innerTabs.addTab("AfterEach",
                 new AssertionTablePanel(root.getAfterEach(), root.getAfterEachEnabled(),
                         "AfterEach", pinnedKey, pinnedValue));

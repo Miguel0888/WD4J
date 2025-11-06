@@ -81,29 +81,42 @@ public class ScreenshotTool extends AbstractUserTool implements BuiltinTool {
      * Capture (current user), persist in report, append log step, return relative image path (or null on error).
      */
     public String captureForCurrentUserAndLogReturningRel(String label, String selectorOrNull) {
+        CapturedShot shot = captureAndPersistWithLog(label, selectorOrNull);
+        return shot != null ? shot.rel : null;
+    }
+
+    private static final class CapturedShot {
+        final byte[] png;
+        final String rel; // may be null on error
+        CapturedShot(byte[] png, String rel) { this.png = png; this.rel = rel; }
+    }
+
+    // --- NEW: capture bytes for current user; do not save/log here ---
+    private byte[] captureBytesForCurrentUser(String selectorOrNull) throws Exception {
+        UserRegistry.User user = getCurrentUserOrFail();
+        com.microsoft.playwright.Page page = browserService.getActivePage(user.getUsername());
+        if (page == null) throw new IllegalStateException("Kein aktiver Tab für Benutzer: " + user.getUsername());
+        if (selectorOrNull != null) {
+            return page.locator(selectorOrNull).screenshot();
+        }
+        return page.screenshot();
+    }
+
+    private CapturedShot captureAndPersistWithLog(String label, String selectorOrNull) {
         try {
-            UserRegistry.User user = getCurrentUserOrFail();
-            Page page = browserService.getActivePage(user.getUsername());
-            if (page == null) {
-                JOptionPane.showMessageDialog(null,
-                        "Kein aktiver Tab für Benutzer: " + user.getUsername(),
-                        "Screenshot", JOptionPane.WARNING_MESSAGE);
-                return null;
-            }
+            byte[] png = captureBytesForCurrentUser(selectorOrNull);
 
-            byte[] png = (selectorOrNull != null)
-                    ? page.locator(selectorOrNull).screenshot()
-                    : page.screenshot();
-
-            TestPlayerService tps = TestPlayerService.getInstance();
+            // Persist + log via TestPlayerService
+            de.bund.zrb.service.TestPlayerService tps = de.bund.zrb.service.TestPlayerService.getInstance();
             String rel = tps.saveScreenshotFromTool(png, safeBaseName(label != null ? label : "shot"));
             tps.logScreenshotFromTool(label, rel, true, null);
-            return rel;
+
+            return new CapturedShot(png, rel);
+
         } catch (Exception ex) {
             try {
-                TestPlayerService.getInstance().logScreenshotFromTool(
-                        label, null, false,
-                        (ex.getMessage() != null) ? ex.getMessage() : ex.toString()
+                de.bund.zrb.service.TestPlayerService.getInstance().logScreenshotFromTool(
+                        label, null, false, (ex.getMessage() != null) ? ex.getMessage() : ex.toString()
                 );
             } catch (Throwable ignore) {}
             JOptionPane.showMessageDialog(null,
@@ -120,36 +133,40 @@ public class ScreenshotTool extends AbstractUserTool implements BuiltinTool {
      * - show a simple viewer window with the image (until echte TestPlayer-Tab Integration da ist)
      */
     public void captureAndShowInWindow(String label) {
-        String rel = captureForCurrentUserAndLogReturningRel(label, null);
-        if (rel == null) return;
+        CapturedShot shot = captureAndPersistWithLog(label, null);
+        if (shot == null || shot.png == null || shot.png.length == 0) return;
 
-        // Minimaler, unabhängiger Viewer (JFrame) – kann später durch "TestPlayerTab" ersetzt werden.
+        // Build image safely from bytes
+        javax.swing.ImageIcon icon = new javax.swing.ImageIcon(shot.png);
+        if (icon.getIconWidth() <= 0 || icon.getIconHeight() <= 0) {
+            JOptionPane.showMessageDialog(null, "Screenshot gespeichert, aber Anzeige fehlgeschlagen.", "Hinweis", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        // Simple, scrollable viewer window
         JFrame f = new JFrame(label != null ? label : "Screenshot");
         f.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         f.setLayout(new BorderLayout());
 
-        // Bild als URL relativ zum Report-HTML laden ist nicht trivial -> zeige es als <img> in JEditorPane.
-        // Einfacher: nutze absoluten Pfad aus dem Report-Logger? Wir haben nur 'rel'.
-        // Lösung: baue die absolute URL über den Logger-Dokumentpfad.
-        try {
-            // Wir nutzen den TestPlayerService, um den absoluten Pfad aufzubauen.
-            // relToHtml() hast du schon; hier zeigen wir das Bild über <img src=...> an.
-            String html = "<html><body style='margin:0;padding:0'>" +
-                    "<img src='" + rel.replace("'", "%27") + "' style='max-width:100%;'/>" +
-                    "</body></html>";
-            JEditorPane pane = new JEditorPane("text/html", html);
-            pane.setEditable(false);
-            pane.setOpaque(true);
+        JLabel img = new JLabel(icon);
+        img.setHorizontalAlignment(SwingConstants.CENTER);
 
-            JScrollPane sp = new JScrollPane(pane);
-            f.add(sp, BorderLayout.CENTER);
-            f.setSize(900, 700);
-            f.setLocationByPlatform(true);
-            f.setVisible(true);
-        } catch (Exception ignore) {
-            // Fallback: einfache Message
-            JOptionPane.showMessageDialog(null, "Screenshot gespeichert: " + rel, "Screenshot", JOptionPane.INFORMATION_MESSAGE);
+        JScrollPane sp = new JScrollPane(img);
+        sp.getVerticalScrollBar().setUnitIncrement(24);
+        sp.getHorizontalScrollBar().setUnitIncrement(24);
+
+        // Optional header with path info
+        if (shot.rel != null) {
+            JPanel header = new JPanel(new BorderLayout());
+            header.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
+            header.add(new JLabel("Gespeichert im Report unter: " + shot.rel), BorderLayout.WEST);
+            f.add(header, BorderLayout.NORTH);
         }
+
+        f.add(sp, BorderLayout.CENTER);
+        f.setSize(1000, 750);
+        f.setLocationByPlatform(true);
+        f.setVisible(true);
     }
 
     // ----------------- Internals (wie gehabt) -----------------
