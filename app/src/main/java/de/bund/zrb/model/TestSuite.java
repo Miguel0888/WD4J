@@ -1,9 +1,8 @@
 package de.bund.zrb.model;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import de.bund.zrb.runtime.ExpressionRegistry;
+
+import java.util.*;
 
 /**
  * A logical test suite in the tree.
@@ -35,6 +34,9 @@ public class TestSuite {
     private final java.util.Map<String,String> beforeEach  = new java.util.LinkedHashMap<>();
     private final java.util.Map<String,String> templates   = new java.util.LinkedHashMap<>();
 
+    private final java.util.Map<String,String> afterAll   = new java.util.LinkedHashMap<>();
+    private final Map<String, Boolean> afterAllEnabled = new HashMap<>();
+
     public TestSuite() {
         // leer für Gson
     }
@@ -65,5 +67,13 @@ public class TestSuite {
     public Map<String,String> getBeforeAll()   { return beforeAll; }
     public Map<String,String> getBeforeEach()  { return beforeEach; }
     public Map<String,String> getTemplates()   { return templates; }
+
+    public Map<String, String> getAfterAll() {
+        return afterAll;
+    }
+
+    public Map<String, Boolean> getAfterAllEnabled() {
+        return afterAllEnabled;
+    }
 }
 

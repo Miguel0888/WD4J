@@ -1,7 +1,11 @@
 package de.bund.zrb.model;
 
+import de.bund.zrb.runtime.ExpressionRegistry;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class TestCase {
     private String id;
@@ -15,6 +19,9 @@ public class TestCase {
 
     private final java.util.Map<String,String> before    = new java.util.LinkedHashMap<>();
     private final java.util.Map<String,String> templates = new java.util.LinkedHashMap<>();
+
+    private final java.util.Map<String,String> after    = new java.util.LinkedHashMap<>();
+    private final Map<String, Boolean> afterEnabled = new HashMap<>();
 
     public TestCase() {}
 
@@ -39,5 +46,13 @@ public class TestCase {
 
     public java.util.Map<String,String> getBefore()    { return before; }
     public java.util.Map<String,String> getTemplates() { return templates; }
+
+    public Map<String, String> getAfter() {
+        return after;
+    }
+
+    public Map<String, Boolean> getAfterEnabled() {
+        return afterEnabled;
+    }
 }
 

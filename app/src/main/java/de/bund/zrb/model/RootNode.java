@@ -1,6 +1,9 @@
 package de.bund.zrb.model;
 
+import de.bund.zrb.runtime.ExpressionRegistry;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +21,10 @@ public class RootNode {
 
     // Templates = Funktionshandles (lazy, z.B. "otpCode" -> "otpCode({{username}})")
     private final java.util.Map<String,String> templates    = new java.util.LinkedHashMap<>();
+
+    // Variablen, die nach JEDEM Case gesetzt werden sollen (globaler Default)
+    private final java.util.Map<String,String> afterEach   = new java.util.LinkedHashMap<>();
+    private final Map<String, Boolean> afterEachEnabled = new HashMap<>();
 
     public RootNode() {
         this.id = java.util.UUID.randomUUID().toString();
@@ -41,6 +48,14 @@ public class RootNode {
 
     public Map<String, String> getTemplates() {
         return templates;
+    }
+
+    public Map<String, String> getAfterEach() {
+        return afterEach;
+    }
+
+    public Map<String, Boolean> getAfterEachEnabled() {
+        return afterEachEnabled;
     }
 }
 

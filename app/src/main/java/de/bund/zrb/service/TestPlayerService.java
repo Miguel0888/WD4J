@@ -160,6 +160,9 @@ public class TestPlayerService {
         // THEN – final screenshot
         executeThenPhase(node, testCase, caseLog);
 
+        // AFTER – Assertions
+        executeAfterAssertions(node, testCase, caseLog);
+
         drawerRef.updateSuiteStatus(node);
         return caseLog;
     }
@@ -309,33 +312,34 @@ public class TestPlayerService {
         return out;
     }
 
+    @Deprecated // use after
     private List<LogComponent> executeThenPhase(TestNode caseNode, TestCase testCase, SuiteLog parentLog) {
         List<LogComponent> out = new ArrayList<LogComponent>();
 
-        StepLog thenLog = new StepLog("THEN", "Screenshot am Ende des TestCase");
-        thenLog.setParent(parentLog);
-
-        try {
-            String username = resolveUserForTestCase(caseNode);
-            PageImpl page = (PageImpl) browserService.getActivePage(username);
-
-            byte[] png = screenshotAfterWait(3000, page);
-
-            String baseName = (testCase.getName() == null) ? "case" : testCase.getName();
-            Path file = saveScreenshotBytes(png, baseName);
-            String rel = relToHtml(file);
-
-            thenLog.setStatus(true);
-            thenLog.setHtmlAppend(
-                    "<img src='" + rel + "' alt='Screenshot' style='max-width:100%;border:1px solid #ccc;margin-top:.5rem'/>"
-            );
-        } catch (Exception ex) {
-            thenLog.setStatus(false);
-            thenLog.setError("Screenshot fehlgeschlagen: " + safeMsg(ex));
-        }
-
-        logger.append(thenLog);
-        out.add(thenLog);
+//        StepLog thenLog = new StepLog("THEN", "Screenshot am Ende des TestCase");
+//        thenLog.setParent(parentLog);
+//
+//        try {
+//            String username = resolveUserForTestCase(caseNode);
+//            PageImpl page = (PageImpl) browserService.getActivePage(username);
+//
+//            byte[] png = screenshotAfterWait(3000, page);
+//
+//            String baseName = (testCase.getName() == null) ? "case" : testCase.getName();
+//            Path file = saveScreenshotBytes(png, baseName);
+//            String rel = relToHtml(file);
+//
+//            thenLog.setStatus(true);
+//            thenLog.setHtmlAppend(
+//                    "<img src='" + rel + "' alt='Screenshot' style='max-width:100%;border:1px solid #ccc;margin-top:.5rem'/>"
+//            );
+//        } catch (Exception ex) {
+//            thenLog.setStatus(false);
+//            thenLog.setError("Screenshot fehlgeschlagen: " + safeMsg(ex));
+//        }
+//
+//        logger.append(thenLog);
+//        out.add(thenLog);
         return out;
     }
 
@@ -349,6 +353,35 @@ public class TestPlayerService {
             }
         }
         return (lastUsernameUsed != null && !lastUsernameUsed.isEmpty()) ? lastUsernameUsed : "default";
+    }
+
+    // --- Public API for tools: save screenshot into report and return relative path (for <img src=...>) ---
+    public String saveScreenshotFromTool(byte[] png, String baseName) throws Exception {
+        initReportIfNeeded();
+        if (baseName == null || baseName.trim().isEmpty()) {
+            baseName = "tool";
+        }
+        Path file = saveScreenshotBytes(png, baseName);
+        return relToHtml(file);
+    }
+
+    /**
+     * Append a single log step with an <img> to the current logger.
+     * Keep it lightweight; tools can call this after saveScreenshotFromTool.
+     */
+    public void logScreenshotFromTool(String label, String relImagePath, boolean ok, String errorMsg) {
+        StepLog log = new StepLog("ASSERT", (label == null || label.trim().isEmpty()) ? "Screenshot" : label);
+        log.setStatus(ok);
+        if (!ok && errorMsg != null && errorMsg.trim().length() > 0) {
+            log.setError(errorMsg.trim());
+        }
+        if (relImagePath != null && relImagePath.trim().length() > 0) {
+            log.setHtmlAppend("<img src='" + relImagePath + "' alt='Screenshot' " +
+                    "style='max-width:100%;border:1px solid #ccc;margin-top:.5rem'/>");
+        }
+        if (logger != null) {
+            logger.append(log);
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -785,6 +818,95 @@ public class TestPlayerService {
         }
 
         return out;
+    }
+
+    // Add near other helpers in TestPlayerService
+
+    private List<LogComponent> executeAfterAssertions(TestNode caseNode, TestCase testCase, SuiteLog parentLog) {
+        List<LogComponent> out = new ArrayList<LogComponent>();
+        try {
+            // Build scope
+            final ValueScope scope = runtimeCtx.buildCaseScope();
+
+            // Collect assertions: Root.AfterEach + Suite.AfterAll + Case.After (enabled only)
+            RootNode root = TestRegistry.getInstance().getRoot();
+            TestSuite suite = (TestSuite) ((TestNode) caseNode.getParent()).getModelRef();
+
+            java.util.LinkedHashMap<String,String> collected = new java.util.LinkedHashMap<String,String>();
+
+            if (root != null && root.getAfterEach() != null && root.getAfterEachEnabled() != null) {
+                for (java.util.Map.Entry<String,String> e : root.getAfterEach().entrySet()) {
+                    String k = e.getKey();
+                    Boolean en = root.getAfterEachEnabled().get(k);
+                    if (en == null || en.booleanValue()) collected.put("Root/" + k, e.getValue());
+                }
+            }
+            if (suite != null && suite.getAfterAll() != null && suite.getAfterAllEnabled() != null) {
+                for (java.util.Map.Entry<String,String> e : suite.getAfterAll().entrySet()) {
+                    String k = e.getKey();
+                    Boolean en = suite.getAfterAllEnabled().get(k);
+                    if (en == null || en.booleanValue()) collected.put("Suite/" + k, e.getValue());
+                }
+            }
+            if (testCase.getAfter() != null && testCase.getAfterEnabled() != null) {
+                for (java.util.Map.Entry<String,String> e : testCase.getAfter().entrySet()) {
+                    String k = e.getKey();
+                    Boolean en = testCase.getAfterEnabled().get(k);
+                    if (en == null || en.booleanValue()) collected.put("Case/" + k, e.getValue());
+                }
+            }
+
+            if (collected.isEmpty()) return out;
+
+            // Group log header
+            SuiteLog afterLog = new SuiteLog("AFTER");
+            afterLog.setParent(parentLog);
+            logger.append(afterLog);
+            out.add(afterLog);
+
+            // Evaluate each
+            for (java.util.Map.Entry<String,String> e : collected.entrySet()) {
+                final String name = e.getKey();
+                final String expr = e.getValue();
+
+                StepLog assertionLog = new StepLog("EXPECT", name + " → " + shortExpr(expr));
+                assertionLog.setParent(afterLog);
+
+                try {
+                    String result = ActionRuntimeEvaluator.evaluateActionValue(expr, scope);
+                    boolean ok = (result != null) && "true".equalsIgnoreCase(result.trim());
+                    assertionLog.setStatus(ok);
+
+                    if (!ok) {
+                        assertionLog.setError("Ergebnis: " + String.valueOf(result));
+                    }
+                } catch (Exception ex) {
+                    assertionLog.setStatus(false);
+                    assertionLog.setError("Exception: " + safeMsg(ex));
+                }
+
+                logger.append(assertionLog);
+                out.add(assertionLog);
+            }
+
+        } catch (Exception ex) {
+            // Defensive – ein Fehler hier soll den Case nicht crashen
+            StepLog err = new StepLog("AFTER", "After-Assertions fehlgeschlagen");
+            err.setStatus(false);
+            err.setError(safeMsg(ex));
+            err.setParent(parentLog);
+            logger.append(err);
+            out.add(err);
+        }
+
+        return out;
+    }
+
+    private String shortExpr(String expr) {
+        if (expr == null) return "";
+        String t = expr.trim();
+        if (t.length() <= 120) return t;
+        return t.substring(0, 117) + "...";
     }
 
     ////////////////////////////////////////////////////////////////////////////////
