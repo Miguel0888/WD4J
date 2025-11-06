@@ -17,6 +17,9 @@ public class CaptureScreenshotCommand extends ShortcutMenuCommand {
 
     @Override
     public void perform() {
-        ToolsRegistry.getInstance().screenshotTool().captureAndSave();
+        // Use the new convenience method: persists to report, logs, then shows a window.
+        ToolsRegistry.getInstance()
+                .screenshotTool()
+                .captureAndShowInWindow("Screenshot");
     }
 }

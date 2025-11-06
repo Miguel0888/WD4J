@@ -66,12 +66,11 @@ public class AssertionTablePanel extends JPanel {
 
             @Override
             public TableCellRenderer getCellRenderer(int row, int column) {
-                // Pinned row: lock look (name + expression)
-                if (includePinnedRow && row == 0) {
-                    if (column == 1) return new LockedGrayLabelRenderer();
-                    if (column == 2) return new LockedGrayMonoRenderer();
+                // Pinned: gray/italic for name+value
+                if (includePinnedRow && row == 0 && (column == 1 || column == 2)) {
+                    return new MapTablePanel.UserNameLockedRenderer();
                 }
-                // Normal expression cells monospaced (reuse your renderer)
+                // Expression monospaced
                 if (column == 2) {
                     return new MapTablePanel.MultiLineMonoRenderer();
                 }
@@ -79,7 +78,6 @@ public class AssertionTablePanel extends JPanel {
             }
         };
 
-        // UX
         table.setFillsViewportHeight(true);
         table.setSurrendersFocusOnKeystroke(true);
         table.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
@@ -141,55 +139,6 @@ public class AssertionTablePanel extends JPanel {
 
         if (needImmediateSave) {
             try { TestRegistry.getInstance().save(); } catch (Throwable ignore) { }
-        }
-    }
-
-    // ---------------- Renderers (lokal, keine Fremdabhängigkeit) ----------------
-
-    /** Render lock look for pinned Name (gray + italic, JLabel-basierend). */
-    static final class LockedGrayLabelRenderer extends JLabel implements TableCellRenderer {
-        LockedGrayLabelRenderer() {
-            setOpaque(true);
-        }
-        public Component getTableCellRendererComponent(
-                JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-            setText(value == null ? "" : String.valueOf(value));
-            setFont(table.getFont().deriveFont(Font.ITALIC));
-            setForeground(isSelected ? table.getSelectionForeground() : Color.GRAY);
-            setBackground(isSelected ? table.getSelectionBackground() : table.getBackground());
-            return this;
-        }
-    }
-
-    /** Render lock look for pinned Expression (gray + monospaced, JTextArea). */
-    static final class LockedGrayMonoRenderer extends JTextArea implements TableCellRenderer {
-        private final Font mono = new Font(Font.MONOSPACED, Font.ITALIC, 12);
-        LockedGrayMonoRenderer() {
-            setFont(mono);
-            setLineWrap(true);
-            setWrapStyleWord(false);
-            setOpaque(true);
-            setRows(3);
-            setBorder(null);
-            setEditable(false);
-            setEnabled(false);
-        }
-        public Component getTableCellRendererComponent(
-                JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-            setText(value == null ? "" : String.valueOf(value));
-            if (isSelected) {
-                setForeground(table.getSelectionForeground());
-                setBackground(table.getSelectionBackground());
-            } else {
-                setForeground(Color.GRAY);
-                setBackground(table.getBackground());
-            }
-            int fmH = getFontMetrics(getFont()).getHeight();
-            int desired = Math.max(table.getRowHeight(), 3 * fmH + 8);
-            if (table.getRowHeight() < desired) {
-                table.setRowHeight(desired);
-            }
-            return this;
         }
     }
 }

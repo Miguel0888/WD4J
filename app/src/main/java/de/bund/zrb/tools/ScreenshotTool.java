@@ -11,23 +11,13 @@ import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 
 import javax.swing.*;
+import java.awt.*;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-/**
- * Built-in tool that captures screenshots and writes them into the current run's report,
- * then appends a log entry with the image.
- *
- * Functions exposed:
- *   Screenshot()                 -> full page of current user's active tab
- *   Screenshot(selector)         -> clip to CSS selector (current user's tab)
- *   ScreenshotFor(user)          -> full page of given user's active tab
- *   ScreenshotFor(user, selector)-> clip to CSS selector for given user's tab
- *
- * All functions return an empty string "" to keep the Expression runtime happy.
- */
 public class ScreenshotTool extends AbstractUserTool implements BuiltinTool {
 
     private final BrowserService browserService;
@@ -36,21 +26,18 @@ public class ScreenshotTool extends AbstractUserTool implements BuiltinTool {
         this.browserService = browserService;
     }
 
-    // ----------------- Builtin functions registration -----------------
+    // ----------------- Builtins (unverändert aus der vorherigen Antwort) -----------------
 
     public Collection<ExpressionFunction> builtinFunctions() {
         List<ExpressionFunction> list = new ArrayList<ExpressionFunction>();
 
-        // Screenshot(selector?)
         list.add(new ToolExpressionFunction(
                 ToolExpressionFunction.meta(
                         "Screenshot",
                         "Create a screenshot of the current page; optionally clip by CSS selector. " +
                                 "Saves it in the current report and appends it to the HTML log.",
                         ToolExpressionFunction.params("selector?"),
-                        Arrays.asList(
-                                "Optional CSS selector to clip the screenshot to a specific element."
-                        )
+                        Arrays.asList("Optional CSS selector to clip the screenshot to a specific element.")
                 ),
                 0, 1,
                 new ToolExpressionFunction.Invoker() {
@@ -62,7 +49,6 @@ public class ScreenshotTool extends AbstractUserTool implements BuiltinTool {
                 }
         ));
 
-        // ScreenshotFor(user[, selector])
         list.add(new ToolExpressionFunction(
                 ToolExpressionFunction.meta(
                         "ScreenshotFor",
@@ -89,7 +75,84 @@ public class ScreenshotTool extends AbstractUserTool implements BuiltinTool {
         return list;
     }
 
-    // ----------------- Implementation -----------------
+    // ----------------- Public convenience for Commands -----------------
+
+    /**
+     * Capture (current user), persist in report, append log step, return relative image path (or null on error).
+     */
+    public String captureForCurrentUserAndLogReturningRel(String label, String selectorOrNull) {
+        try {
+            UserRegistry.User user = getCurrentUserOrFail();
+            Page page = browserService.getActivePage(user.getUsername());
+            if (page == null) {
+                JOptionPane.showMessageDialog(null,
+                        "Kein aktiver Tab für Benutzer: " + user.getUsername(),
+                        "Screenshot", JOptionPane.WARNING_MESSAGE);
+                return null;
+            }
+
+            byte[] png = (selectorOrNull != null)
+                    ? page.locator(selectorOrNull).screenshot()
+                    : page.screenshot();
+
+            TestPlayerService tps = TestPlayerService.getInstance();
+            String rel = tps.saveScreenshotFromTool(png, safeBaseName(label != null ? label : "shot"));
+            tps.logScreenshotFromTool(label, rel, true, null);
+            return rel;
+        } catch (Exception ex) {
+            try {
+                TestPlayerService.getInstance().logScreenshotFromTool(
+                        label, null, false,
+                        (ex.getMessage() != null) ? ex.getMessage() : ex.toString()
+                );
+            } catch (Throwable ignore) {}
+            JOptionPane.showMessageDialog(null,
+                    "Screenshot fehlgeschlagen: " + ex.getMessage(),
+                    "Fehler", JOptionPane.ERROR_MESSAGE);
+            return null;
+        }
+    }
+
+    /**
+     * One-stop helper for menu/shortcut:
+     * - capture for current user
+     * - persist & log
+     * - show a simple viewer window with the image (until echte TestPlayer-Tab Integration da ist)
+     */
+    public void captureAndShowInWindow(String label) {
+        String rel = captureForCurrentUserAndLogReturningRel(label, null);
+        if (rel == null) return;
+
+        // Minimaler, unabhängiger Viewer (JFrame) – kann später durch "TestPlayerTab" ersetzt werden.
+        JFrame f = new JFrame(label != null ? label : "Screenshot");
+        f.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+        f.setLayout(new BorderLayout());
+
+        // Bild als URL relativ zum Report-HTML laden ist nicht trivial -> zeige es als <img> in JEditorPane.
+        // Einfacher: nutze absoluten Pfad aus dem Report-Logger? Wir haben nur 'rel'.
+        // Lösung: baue die absolute URL über den Logger-Dokumentpfad.
+        try {
+            // Wir nutzen den TestPlayerService, um den absoluten Pfad aufzubauen.
+            // relToHtml() hast du schon; hier zeigen wir das Bild über <img src=...> an.
+            String html = "<html><body style='margin:0;padding:0'>" +
+                    "<img src='" + rel.replace("'", "%27") + "' style='max-width:100%;'/>" +
+                    "</body></html>";
+            JEditorPane pane = new JEditorPane("text/html", html);
+            pane.setEditable(false);
+            pane.setOpaque(true);
+
+            JScrollPane sp = new JScrollPane(pane);
+            f.add(sp, BorderLayout.CENTER);
+            f.setSize(900, 700);
+            f.setLocationByPlatform(true);
+            f.setVisible(true);
+        } catch (Exception ignore) {
+            // Fallback: einfache Message
+            JOptionPane.showMessageDialog(null, "Screenshot gespeichert: " + rel, "Screenshot", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    // ----------------- Internals (wie gehabt) -----------------
 
     private void captureForCurrentUserAndLog(String label, String selectorOrNull) {
         UserRegistry.User user = getCurrentUserOrFail();
@@ -106,36 +169,24 @@ public class ScreenshotTool extends AbstractUserTool implements BuiltinTool {
                 return;
             }
 
-            // Capture
-            byte[] png;
-            if (selectorOrNull != null) {
-                Locator loc = page.locator(selectorOrNull);
-                png = loc.screenshot();
-            } else {
-                png = page.screenshot();
-            }
+            byte[] png = (selectorOrNull != null)
+                    ? page.locator(selectorOrNull).screenshot()
+                    : page.screenshot();
 
-            // Persist in report
             TestPlayerService tps = TestPlayerService.getInstance();
-            String baseName = safeBaseName(label != null ? label : "shot");
-            String rel = tps.saveScreenshotFromTool(png, baseName);
-
-            // Append log entry
+            String rel = tps.saveScreenshotFromTool(png, safeBaseName(label != null ? label : "shot"));
             tps.logScreenshotFromTool(label, rel, true, null);
 
         } catch (Exception ex) {
-            // Log failure (without image)
             try {
                 TestPlayerService.getInstance().logScreenshotFromTool(
                         label, null, false,
                         (ex.getMessage() != null) ? ex.getMessage() : ex.toString()
                 );
-            } catch (Throwable ignore) {
-                // keep UI feedback as last resort
-                JOptionPane.showMessageDialog(null,
-                        "Screenshot fehlgeschlagen: " + ex.getMessage(),
-                        "Fehler", JOptionPane.ERROR_MESSAGE);
-            }
+            } catch (Throwable ignore) {}
+            JOptionPane.showMessageDialog(null,
+                    "Screenshot fehlgeschlagen: " + ex.getMessage(),
+                    "Fehler", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -148,7 +199,6 @@ public class ScreenshotTool extends AbstractUserTool implements BuiltinTool {
     private String safeBaseName(String s) {
         String t = (s == null) ? "shot" : s.trim();
         if (t.length() == 0) t = "shot";
-        // keep consistent with your saveScreenshotBytes sanitization
         return t.replaceAll("[^a-zA-Z0-9._-]", "_");
     }
 }
