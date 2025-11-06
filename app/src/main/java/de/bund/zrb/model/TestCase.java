@@ -22,6 +22,7 @@ public class TestCase {
 
     private final java.util.Map<String,String> after    = new java.util.LinkedHashMap<>();
     private final Map<String, Boolean> afterEnabled = new HashMap<>();
+    private final Map<String, String> afterDesc = new HashMap<>();
 
     public TestCase() {}
 
@@ -53,6 +54,10 @@ public class TestCase {
 
     public Map<String, Boolean> getAfterEnabled() {
         return afterEnabled;
+    }
+
+    public Map<String, String> getAfterDesc() {
+        return afterDesc;
     }
 }
 

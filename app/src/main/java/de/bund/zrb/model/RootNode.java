@@ -25,6 +25,7 @@ public class RootNode {
     // Variablen, die nach JEDEM Case gesetzt werden sollen (globaler Default)
     private final java.util.Map<String,String> afterEach   = new java.util.LinkedHashMap<>();
     private final Map<String, Boolean> afterEachEnabled = new HashMap<>();
+    private final Map<String,String> afterEachDesc = new HashMap<>();
 
     public RootNode() {
         this.id = java.util.UUID.randomUUID().toString();
@@ -56,6 +57,10 @@ public class RootNode {
 
     public Map<String, Boolean> getAfterEachEnabled() {
         return afterEachEnabled;
+    }
+
+    public Map<String, String> getAfterEachDesc() {
+        return afterEachDesc;
     }
 }
 

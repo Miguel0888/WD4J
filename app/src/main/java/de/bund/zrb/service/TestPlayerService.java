@@ -820,40 +820,59 @@ public class TestPlayerService {
         return out;
     }
 
-    // Comment: Execute After/Expectation assertions with relaxed success rule:
+    // Comment: Execute After/Expectation assertions with optional human-readable descriptions.
 // - PASS: null, "", or "true" (case-insensitive)
-// - FAIL: anything else -> use the string itself as error message
+// - FAIL: anything else -> use the string itself as error message (no prefix)
+// - Display text: prefer description (if present), otherwise short expression.
     private List<LogComponent> executeAfterAssertions(TestNode caseNode, TestCase testCase, SuiteLog parentLog) {
         List<LogComponent> out = new ArrayList<LogComponent>();
         try {
             // Build scope
             final ValueScope scope = runtimeCtx.buildCaseScope();
 
-            // Collect assertions: Root.AfterEach + Suite.AfterAll + Case.After (enabled only)
+            // Collect assertions + descriptions: Root.AfterEach + Suite.AfterAll + Case.After (enabled only)
             RootNode root = TestRegistry.getInstance().getRoot();
             TestSuite suite = (TestSuite) ((TestNode) caseNode.getParent()).getModelRef();
 
+            // Expressions
             java.util.LinkedHashMap<String,String> collected = new java.util.LinkedHashMap<String,String>();
+            // Descriptions (parallel key: "Root/<k>", "Suite/<k>", "Case/<k>")
+            java.util.LinkedHashMap<String,String> descriptions = new java.util.LinkedHashMap<String,String>();
 
             if (root != null && root.getAfterEach() != null && root.getAfterEachEnabled() != null) {
+                Map<String,String> descMap = safeMap(root.getAfterEachDesc());
                 for (java.util.Map.Entry<String,String> e : root.getAfterEach().entrySet()) {
                     String k = e.getKey();
                     Boolean en = root.getAfterEachEnabled().get(k);
-                    if (en == null || en.booleanValue()) collected.put("Root/" + k, e.getValue());
+                    if (en == null || en.booleanValue()) {
+                        String fqk = "Root/" + k;
+                        collected.put(fqk, e.getValue());
+                        descriptions.put(fqk, trimToNull(descMap.get(k)));
+                    }
                 }
             }
             if (suite != null && suite.getAfterAll() != null && suite.getAfterAllEnabled() != null) {
+                Map<String,String> descMap = safeMap(suite.getAfterAllDesc());
                 for (java.util.Map.Entry<String,String> e : suite.getAfterAll().entrySet()) {
                     String k = e.getKey();
                     Boolean en = suite.getAfterAllEnabled().get(k);
-                    if (en == null || en.booleanValue()) collected.put("Suite/" + k, e.getValue());
+                    if (en == null || en.booleanValue()) {
+                        String fqk = "Suite/" + k;
+                        collected.put(fqk, e.getValue());
+                        descriptions.put(fqk, trimToNull(descMap.get(k)));
+                    }
                 }
             }
             if (testCase.getAfter() != null && testCase.getAfterEnabled() != null) {
+                Map<String,String> descMap = safeMap(testCase.getAfterDesc());
                 for (java.util.Map.Entry<String,String> e : testCase.getAfter().entrySet()) {
                     String k = e.getKey();
                     Boolean en = testCase.getAfterEnabled().get(k);
-                    if (en == null || en.booleanValue()) collected.put("Case/" + k, e.getValue());
+                    if (en == null || en.booleanValue()) {
+                        String fqk = "Case/" + k;
+                        collected.put(fqk, e.getValue());
+                        descriptions.put(fqk, trimToNull(descMap.get(k)));
+                    }
                 }
             }
 
@@ -867,10 +886,16 @@ public class TestPlayerService {
 
             // Evaluate each
             for (java.util.Map.Entry<String,String> e : collected.entrySet()) {
-                final String name = e.getKey();
+                final String name = e.getKey();   // e.g. "Root/screenshot"
                 final String expr = e.getValue();
 
-                StepLog assertionLog = new StepLog("EXPECT", name + " → " + shortExpr(expr));
+                // Prefer human description if present; otherwise short form of expression
+                final String desc = descriptions.get(name);
+                final String displayText = (desc != null && desc.length() > 0)
+                        ? (name + " → " + desc)
+                        : (name + " → " + shortExpr(expr));
+
+                StepLog assertionLog = new StepLog("EXPECT", displayText);
                 assertionLog.setParent(afterLog);
 
                 try {
@@ -881,7 +906,7 @@ public class TestPlayerService {
                     assertionLog.setStatus(ok);
 
                     if (!ok) {
-                        // Use the raw (trimmed) string as failure message (no prefix)
+                        // Fail: show the raw error text returned by expression
                         assertionLog.setError(t);
                     }
                 } catch (Exception ex) {
@@ -906,6 +931,17 @@ public class TestPlayerService {
         return out;
     }
 
+// --- small helpers (package-private/private in same class) ---
+
+    private static Map<String,String> safeMap(Map<String,String> m) {
+        return (m != null) ? m : java.util.Collections.<String,String>emptyMap();
+    }
+
+    private static String trimToNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.length() == 0 ? null : t;
+    }
 
     private String shortExpr(String expr) {
         if (expr == null) return "";

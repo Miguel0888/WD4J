@@ -1,118 +1,147 @@
 package de.bund.zrb.ui.giveneditor;
 
 import javax.swing.table.AbstractTableModel;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Columns: [0]=Enabled(Boolean), [1]=Name(String), [2]=Expression(String)
- * - Keep maps in sync: expressions[name] , enabled[name]
- * - Optional pinned first row: name/value locked, enabled editable.
+ * TableModel for After/Expectation assertions:
+ * Columns: [0] Enabled(Boolean) | [1] Name(String) | [2] Expression(String) | [3] Description(String)
+ *
+ * Keeps three parallel backings:
+ * - expressions:   Map<name, expr>
+ * - enabledFlags:  Map<name, Boolean>
+ * - descriptions:  Map<name, desc>
+ *
+ * Supports optional pinned first row (name + expr locked; enabled & desc editable).
  */
 public class AssertionTableModel extends AbstractTableModel {
 
     private final Map<String,String> expressions;
-    private final Map<String,Boolean> enabled;
-    private final List<String> keys;
+    private final Map<String,Boolean> enabledFlags;
+    private final Map<String,String> descriptions;
+
+    private final List<String> keys = new ArrayList<String>();
+
     private final boolean includePinnedRow;
     private final String pinnedKey;
 
     public AssertionTableModel(Map<String,String> expressions,
-                               Map<String,Boolean> enabled,
+                               Map<String,Boolean> enabledFlags,
+                               Map<String,String> descriptions,
                                boolean includePinnedRow,
                                String pinnedKey) {
-        this.expressions = expressions;
-        this.enabled = enabled;
+        this.expressions = (expressions != null) ? expressions : new LinkedHashMap<String,String>();
+        this.enabledFlags = (enabledFlags != null) ? enabledFlags : new LinkedHashMap<String,Boolean>();
+        this.descriptions = (descriptions != null) ? descriptions : new LinkedHashMap<String,String>();
         this.includePinnedRow = includePinnedRow;
         this.pinnedKey = pinnedKey;
 
-        this.keys = new ArrayList<String>(expressions.keySet());
+        // Normalize enabled + description entries
+        for (String k : this.expressions.keySet()) {
+            if (!this.enabledFlags.containsKey(k)) this.enabledFlags.put(k, Boolean.TRUE);
+            if (!this.descriptions.containsKey(k)) this.descriptions.put(k, "");
+        }
 
-        // Ensure order: pinned first if present
+        // Build ordered keys (pinned first if present)
+        keys.addAll(this.expressions.keySet());
         if (includePinnedRow && pinnedKey != null) {
-            if (!keys.contains(pinnedKey)) {
-                keys.add(0, pinnedKey);
-            } else {
-                keys.remove(pinnedKey);
-                keys.add(0, pinnedKey);
+            int idx = keys.indexOf(pinnedKey);
+            if (idx >= 0) {
+                keys.remove(idx);
             }
+            keys.add(0, pinnedKey);
         }
     }
 
-    public int getRowCount() { return keys.size(); }
-    public int getColumnCount() { return 3; }
+    @Override public int getRowCount() { return keys.size(); }
+    @Override public int getColumnCount() { return 4; }
 
     @Override
     public String getColumnName(int column) {
         switch (column) {
-            case 0: return "Aktiv";
+            case 0: return "Enabled";
             case 1: return "Name";
             case 2: return "Expression";
+            case 3: return "Description";
             default: return super.getColumnName(column);
         }
     }
 
     @Override
     public Class<?> getColumnClass(int columnIndex) {
-        return columnIndex == 0 ? Boolean.class : String.class;
+        if (columnIndex == 0) return Boolean.class;
+        return String.class;
     }
 
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
         String key = keys.get(rowIndex);
         switch (columnIndex) {
-            case 0: {
-                Boolean b = enabled.get(key);
-                return (b != null) ? b : Boolean.TRUE;
-            }
+            case 0: return asBool(enabledFlags.get(key));
             case 1: return key;
             case 2: return expressions.get(key);
+            case 3: return descriptions.get(key);
             default: return "";
         }
     }
 
     @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
-        // Pinned: only checkbox editable
-        if (includePinnedRow && rowIndex == 0) {
-            return columnIndex == 0;
-        }
+        boolean pinned = includePinnedRow && rowIndex == 0 && keyEqualsPinned(rowIndex);
+        if (columnIndex == 0) return true;               // Enabled always editable
+        if (columnIndex == 1) return !pinned;            // Name locked if pinned
+        if (columnIndex == 2) return !pinned;            // Expr locked if pinned
+        if (columnIndex == 3) return true;               // Description always editable
         return true;
     }
 
     @Override
     public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
         String oldKey = keys.get(rowIndex);
-        if (columnIndex == 0) {
-            boolean val = (aValue instanceof Boolean) ? ((Boolean) aValue).booleanValue() : Boolean.TRUE;
-            enabled.put(oldKey, val);
-            fireTableRowsUpdated(rowIndex, rowIndex);
-            return;
-        }
+        String sval = (aValue == null) ? "" : String.valueOf(aValue);
 
-        if (columnIndex == 1) {
-            // Rename key
-            String newKey = (aValue == null) ? "" : String.valueOf(aValue).trim();
-            if (newKey.length() == 0) return;
-            if (includePinnedRow && rowIndex == 0) return; // pinned locked
+        switch (columnIndex) {
+            case 0: // Enabled
+                enabledFlags.put(oldKey, asBool(aValue));
+                break;
 
-            if (!newKey.equals(oldKey)) {
-                if (expressions.containsKey(newKey)) return; // avoid override
-                String exprVal = expressions.remove(oldKey);
-                Boolean enVal = enabled.remove(oldKey);
-                expressions.put(newKey, exprVal);
-                enabled.put(newKey, enVal != null ? enVal : Boolean.TRUE);
+            case 1: { // Name (rename)
+                // Prevent rename of pinned key
+                if (includePinnedRow && rowIndex == 0 && keyEqualsPinned(rowIndex)) return;
+
+                String newKey = sval.trim();
+                if (newKey.length() == 0 || newKey.equals(oldKey)) break;
+                if (expressions.containsKey(newKey)) break; // do not allow duplicates
+
+                // Move expression
+                String expr = expressions.remove(oldKey);
+                expressions.put(newKey, expr);
+
+                // Move enabled
+                Boolean en = enabledFlags.remove(oldKey);
+                enabledFlags.put(newKey, asBool(en));
+
+                // Move description
+                String desc = descriptions.remove(oldKey);
+                descriptions.put(newKey, desc != null ? desc : "");
+
                 keys.set(rowIndex, newKey);
+                break;
             }
-            fireTableRowsUpdated(rowIndex, rowIndex);
-            return;
+
+            case 2: // Expression
+                expressions.put(oldKey, sval);
+                break;
+
+            case 3: // Description
+                descriptions.put(oldKey, sval);
+                break;
         }
 
-        if (columnIndex == 2) {
-            if (includePinnedRow && rowIndex == 0) return; // pinned locked
-            String expr = (aValue == null) ? "" : String.valueOf(aValue);
-            expressions.put(oldKey, expr);
-            fireTableRowsUpdated(rowIndex, rowIndex);
-        }
+        fireTableRowsUpdated(rowIndex, rowIndex);
     }
 
     public void addEmptyRow() {
@@ -124,32 +153,41 @@ public class AssertionTableModel extends AbstractTableModel {
             i++;
         }
         expressions.put(cand, "");
-        enabled.put(cand, Boolean.TRUE);
-        if (includePinnedRow) {
-            keys.add(1, cand);
-            fireTableRowsInserted(1, 1);
-        } else {
-            keys.add(cand);
-            int newRow = keys.size() - 1;
-            fireTableRowsInserted(newRow, newRow);
-        }
+        enabledFlags.put(cand, Boolean.TRUE);
+        descriptions.put(cand, "");
+
+        int insertIndex = includePinnedRow ? 1 : keys.size();
+        keys.add(insertIndex, cand);
+        fireTableRowsInserted(insertIndex, insertIndex);
     }
 
     public void removeRow(int rowIndex) {
         if (rowIndex < 0 || rowIndex >= keys.size()) return;
-        if (includePinnedRow && rowIndex == 0) return; // pinned locked
+        if (!canRemoveRow(rowIndex)) return;
+
         String k = keys.remove(rowIndex);
         expressions.remove(k);
-        enabled.remove(k);
+        enabledFlags.remove(k);
+        descriptions.remove(k);
         fireTableRowsDeleted(rowIndex, rowIndex);
     }
 
     public boolean canRemoveRow(int rowIndex) {
-        if (!includePinnedRow) return true;
-        return rowIndex != 0;
+        return !(includePinnedRow && rowIndex == 0 && keyEqualsPinned(rowIndex));
     }
 
-    public String getKeyAt(int rowIndex) {
-        return (rowIndex >= 0 && rowIndex < keys.size()) ? keys.get(rowIndex) : null;
+    // --- helpers ---
+
+    private boolean keyEqualsPinned(int rowIndex) {
+        String k = keys.get(rowIndex);
+        return (pinnedKey != null && pinnedKey.equals(k));
+    }
+
+    private static boolean asBool(Object v) {
+        if (v instanceof Boolean) return ((Boolean) v).booleanValue();
+        if (v == null) return false;
+        String s = String.valueOf(v).trim();
+        return "true".equalsIgnoreCase(s) || "1".equals(s) || "yes".equalsIgnoreCase(s) || "on".equalsIgnoreCase(s);
+        // default: false
     }
 }

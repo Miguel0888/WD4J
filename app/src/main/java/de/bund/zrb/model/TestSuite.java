@@ -36,6 +36,7 @@ public class TestSuite {
 
     private final java.util.Map<String,String> afterAll   = new java.util.LinkedHashMap<>();
     private final Map<String, Boolean> afterAllEnabled = new HashMap<>();
+    private final Map<String, String> afterAllDesc = new HashMap<>();
 
     public TestSuite() {
         // leer für Gson
@@ -74,6 +75,10 @@ public class TestSuite {
 
     public Map<String, Boolean> getAfterAllEnabled() {
         return afterAllEnabled;
+    }
+
+    public Map<String, String> getAfterAllDesc() {
+        return afterAllDesc;
     }
 }
 
