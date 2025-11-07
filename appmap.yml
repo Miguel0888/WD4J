@@ -1,0 +1,6 @@
+language: "java"
+name: "WD4J"
+appmap_dir: "tmp/appmap"
+packages:
+- path: "com.microsoft.playwright"
+- path: "de.bund.zrb"

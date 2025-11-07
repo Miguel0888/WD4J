@@ -1,0 +1,9 @@
+{
+  "port": "9222",
+  "useProfile": true,
+  "profilePath": "",
+  "headlessMode": false,
+  "disableGpu": false,
+  "noRemote": false,
+  "startMaximized": false
+}
