@@ -7,10 +7,19 @@ import de.bund.zrb.runtime.ExpressionRegistryImpl;
 import de.bund.zrb.ui.celleditors.DescribedItem;
 import de.bund.zrb.ui.celleditors.ExpressionCellEditor;
 
+import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
+import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.DefaultHighlighter;
+import javax.swing.text.Highlighter;
+import javax.swing.text.Position;
+import javax.swing.text.View;
+import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
@@ -90,10 +99,10 @@ public class MapTablePanel extends JPanel {
                     return new UserNameLockedRenderer();
                 }
                 if (row == 0 && column == 2 && includePinnedRow) {
-                    return new PinnedValueLockedRenderer();
+                    return new ExpressionRenderers.PinnedExpressionRenderer();
                 }
                 if (column == 2) {
-                    return new MultiLineMonoRenderer();
+                    return new ExpressionRenderers.ExpressionRenderer();
                 }
                 return super.getCellRenderer(row, column);
             }
@@ -236,7 +245,7 @@ public class MapTablePanel extends JPanel {
     /** Erzeuge einen blauen Hilfe-Button mit verständlicher Erläuterung (Cucumber-artig). */
     private JButton buildHelpButton(final String scopeName) {
         JButton b = new JButton("ℹ");
-        b.setToolTipText("Was bedeuten „Before…“ und „Templates“?");
+        b.setToolTipText("Was bedeuten 'Before…' und 'Templates'?");
         b.setForeground(Color.WHITE);
         b.setBackground(new Color(0x1E88E5)); // Blau
         b.setFocusPainted(false);
@@ -260,7 +269,6 @@ public class MapTablePanel extends JPanel {
     /** Baue den erklärenden Text abhängig vom Scope-Namen. */
     private String buildHelpHtml(String scopeName) {
         String scope = (scopeName == null) ? "" : scopeName.trim().toLowerCase();
-        boolean isRoot   = "beforeall".equalsIgnoreCase(scope) || "beforeeach".equalsIgnoreCase(scope) || "templates".equalsIgnoreCase(scope);
         // Wir zeigen für alle Scopes die vollständige Erklärung; die Beispiele nennen Root/Suite/Case explizit.
 
         StringBuilder sb = new StringBuilder(1024);
@@ -333,69 +341,6 @@ public class MapTablePanel extends JPanel {
             c.setForeground(isSelected ? table.getSelectionForeground() : Color.GRAY);
             c.setFont(c.getFont().deriveFont(Font.ITALIC));
             return c;
-        }
-    }
-
-    static final class UserComboBoxCellEditor extends AbstractCellEditor implements TableCellEditor {
-        interface ChoicesProvider { List<String> getUsers(); }
-        private final JComboBox<String> combo = new JComboBox<String>();
-        private final ChoicesProvider provider;
-
-        UserComboBoxCellEditor(ChoicesProvider provider) {
-            this.provider = provider;
-            combo.putClientProperty("JComboBox.isTableCellEditor", Boolean.TRUE);
-            combo.setEditable(false);
-            rebuild();
-        }
-
-        private void rebuild() {
-            combo.removeAllItems();
-            combo.addItem(""); // leerer Eintrag
-            List<String> users = provider != null ? provider.getUsers() : null;
-            if (users != null) {
-                for (int i = 0; i < users.size(); i++) {
-                    String u = users.get(i);
-                    if (u != null) {
-                        String t = u.trim();
-                        if (t.length() > 0) combo.addItem(t);
-                    }
-                }
-            }
-        }
-
-        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
-            if (combo.getItemCount() == 0) rebuild();
-            combo.setSelectedItem(value == null ? "" : String.valueOf(value));
-            return combo;
-        }
-
-        public Object getCellEditorValue() {
-            Object sel = combo.getSelectedItem();
-            return sel == null ? "" : String.valueOf(sel);
-        }
-    }
-
-    static final class MultiLineMonoRenderer extends JTextArea implements TableCellRenderer {
-        private final Font mono = new Font(Font.MONOSPACED, Font.PLAIN, 12);
-        MultiLineMonoRenderer() {
-            setFont(mono);
-            setLineWrap(true);
-            setWrapStyleWord(false);
-            setOpaque(true);
-            setRows(3);
-            setBorder(null);
-        }
-        public Component getTableCellRendererComponent(
-                JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-            setText(value == null ? "" : String.valueOf(value));
-            setForeground(isSelected ? table.getSelectionForeground() : table.getForeground());
-            setBackground(isSelected ? table.getSelectionBackground() : table.getBackground());
-            int fmH = getFontMetrics(getFont()).getHeight();
-            int desired = Math.max(table.getRowHeight(), 3 * fmH + 8);
-            if (table.getRowHeight() < desired) {
-                table.setRowHeight(desired);
-            }
-            return this;
         }
     }
 
@@ -492,43 +437,6 @@ public class MapTablePanel extends JPanel {
                 return out;
             }
         };
-    }
-
-    /** Gray, italic, locked look for the pinned value cell (row 0, col 1). */
-    static final class PinnedValueLockedRenderer extends JTextArea implements TableCellRenderer {
-        private final Font mono = new Font(Font.MONOSPACED, Font.ITALIC, 12);
-
-        PinnedValueLockedRenderer() {
-            setFont(mono);
-            setLineWrap(true);
-            setWrapStyleWord(false);
-            setOpaque(true);
-            setRows(3);
-            setBorder(null);
-            setEditable(false);
-            setEnabled(false);
-        }
-
-        public Component getTableCellRendererComponent(
-                JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-
-            setText(value == null ? "" : String.valueOf(value));
-            // dezent ausgegraut; bei Selektion gut lesbar lassen
-            if (isSelected) {
-                setForeground(table.getSelectionForeground());
-                setBackground(table.getSelectionBackground());
-            } else {
-                setForeground(Color.GRAY);
-                setBackground(table.getBackground());
-            }
-
-            int fmH = getFontMetrics(getFont()).getHeight();
-            int desired = Math.max(table.getRowHeight(), 3 * fmH + 8);
-            if (table.getRowHeight() < desired) {
-                table.setRowHeight(desired);
-            }
-            return this;
-        }
     }
 
 }
