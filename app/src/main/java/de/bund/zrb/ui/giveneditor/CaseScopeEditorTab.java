@@ -56,8 +56,8 @@ public class CaseScopeEditorTab extends JPanel {
         // Tabs:
         // "Before"  == testCase.getBefore()
         // "Templates" == testCase.getTemplates()
-        innerTabs.addTab("Before",    new MapTablePanel(testCase.getBefore(),    "Before", UserRegistry.getInstance().usernamesSupplier()));
-        innerTabs.addTab("Templates", new MapTablePanel(testCase.getTemplates(), "Templates", null));
+        innerTabs.addTab("Before",    new MapTablePanel(testCase.getBefore(),    testCase.getBeforeEnabled(),    "Before",    UserRegistry.getInstance().usernamesSupplier()));
+        innerTabs.addTab("Templates", new MapTablePanel(testCase.getTemplates(), testCase.getTemplatesEnabled(), "Templates", null));
 
         // After (Case) – frei editierbar, kein Pin
         innerTabs.addTab("After",

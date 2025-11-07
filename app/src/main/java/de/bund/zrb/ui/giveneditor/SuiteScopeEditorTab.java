@@ -68,9 +68,9 @@ public class SuiteScopeEditorTab extends JPanel {
 
         add(header, BorderLayout.NORTH);
 
-        innerTabs.addTab("BeforeAll",   new MapTablePanel(suite.getBeforeAll(),   "BeforeAll", UserRegistry.getInstance().usernamesSupplier()));
-        innerTabs.addTab("BeforeEach",  new MapTablePanel(suite.getBeforeEach(),  "BeforeEach", null));
-        innerTabs.addTab("Templates",   new MapTablePanel(suite.getTemplates(),   "Templates", null));
+        innerTabs.addTab("BeforeAll",   new MapTablePanel(suite.getBeforeAll(),   suite.getBeforeAllEnabled(),   "BeforeAll",   UserRegistry.getInstance().usernamesSupplier()));
+        innerTabs.addTab("BeforeEach",  new MapTablePanel(suite.getBeforeEach(),  suite.getBeforeEachEnabled(),  "BeforeEach",  null));
+        innerTabs.addTab("Templates",   new MapTablePanel(suite.getTemplates(),   suite.getTemplatesEnabled(),   "Templates",   null));
 
         // AfterAll (Suite) – kein Pin nötig per se, kann aber ergänzt werden
         innerTabs.addTab("AfterAll",

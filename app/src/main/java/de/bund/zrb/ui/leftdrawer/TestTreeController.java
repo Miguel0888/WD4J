@@ -1122,6 +1122,24 @@ public class TestTreeController {
         if (original.getBefore() != null) {
             copy.getBefore().putAll(original.getBefore());
         }
+        if (original.getBeforeEnabled() != null) {
+            copy.getBeforeEnabled().putAll(original.getBeforeEnabled());
+        }
+        if (original.getTemplates() != null) {
+            copy.getTemplates().putAll(original.getTemplates());
+        }
+        if (original.getTemplatesEnabled() != null) {
+            copy.getTemplatesEnabled().putAll(original.getTemplatesEnabled());
+        }
+        if (original.getAfter() != null) {
+            copy.getAfter().putAll(original.getAfter());
+        }
+        if (original.getAfterEnabled() != null) {
+            copy.getAfterEnabled().putAll(original.getAfterEnabled());
+        }
+        if (original.getAfterDesc() != null) {
+            copy.getAfterDesc().putAll(original.getAfterDesc());
+        }
 
         // THEN-Schritte: das hängt davon ab, was deine Then-Struktur ist
         // Wenn Then noch eine List<ThenExpectation> ist, wie vorher:
@@ -1158,11 +1176,29 @@ public class TestTreeController {
         if (original.getBeforeAll() != null) {
             copy.getBeforeAll().putAll(original.getBeforeAll());
         }
+        if (original.getBeforeAllEnabled() != null) {
+            copy.getBeforeAllEnabled().putAll(original.getBeforeAllEnabled());
+        }
         if (original.getBeforeEach() != null) {
             copy.getBeforeEach().putAll(original.getBeforeEach());
         }
+        if (original.getBeforeEachEnabled() != null) {
+            copy.getBeforeEachEnabled().putAll(original.getBeforeEachEnabled());
+        }
         if (original.getTemplates() != null) {
             copy.getTemplates().putAll(original.getTemplates());
+        }
+        if (original.getTemplatesEnabled() != null) {
+            copy.getTemplatesEnabled().putAll(original.getTemplatesEnabled());
+        }
+        if (original.getAfterAll() != null) {
+            copy.getAfterAll().putAll(original.getAfterAll());
+        }
+        if (original.getAfterAllEnabled() != null) {
+            copy.getAfterAllEnabled().putAll(original.getAfterAllEnabled());
+        }
+        if (original.getAfterAllDesc() != null) {
+            copy.getAfterAllDesc().putAll(original.getAfterAllDesc());
         }
 
         // Then-Expectations (wenn noch vorhanden als Liste)

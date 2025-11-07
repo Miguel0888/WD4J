@@ -35,6 +35,10 @@ public final class UserPromotionUtil {
         Map<String,String> before = tc.getBefore();
         if (before != null) {
             before.put("user", u);
+            Map<String, Boolean> enabled = tc.getBeforeEnabled();
+            if (enabled != null) {
+                enabled.put("user", Boolean.TRUE);
+            }
         }
 
         // clear user on actions (inherit from case)
@@ -67,6 +71,10 @@ public final class UserPromotionUtil {
         Map<String,String> beforeAll = suite.getBeforeAll();
         if (beforeAll != null) {
             beforeAll.put("user", suiteUser);
+            Map<String, Boolean> enabled = suite.getBeforeAllEnabled();
+            if (enabled != null) {
+                enabled.put("user", Boolean.TRUE);
+            }
         }
 
         // remove user from each case.before
@@ -75,6 +83,10 @@ public final class UserPromotionUtil {
             Map<String,String> before = (tc != null) ? tc.getBefore() : null;
             if (before != null) {
                 before.remove("user");
+                Map<String, Boolean> enabled = (tc != null) ? tc.getBeforeEnabled() : null;
+                if (enabled != null) {
+                    enabled.remove("user");
+                }
             }
         }
     }

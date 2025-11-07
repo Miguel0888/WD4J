@@ -49,23 +49,23 @@ public class GivenLookupService {
         // 1. Root
         if (root != null) {
             // Variablen: beforeAll + beforeEach
-            mergeInto(out.variables, root.getBeforeAll());
-            mergeInto(out.variables, root.getBeforeEach());
+            mergeInto(out.variables, root.getBeforeAll(), root.getBeforeAllEnabled());
+            mergeInto(out.variables, root.getBeforeEach(), root.getBeforeEachEnabled());
             // Templates:
-            mergeInto(out.templates, root.getTemplates());
+            mergeInto(out.templates, root.getTemplates(), root.getTemplatesEnabled());
         }
 
         // 2. Suite
         if (su != null) {
-            mergeInto(out.variables, su.getBeforeAll());
-            mergeInto(out.variables, su.getBeforeEach());
-            mergeInto(out.templates, su.getTemplates());
+            mergeInto(out.variables, su.getBeforeAll(), su.getBeforeAllEnabled());
+            mergeInto(out.variables, su.getBeforeEach(), su.getBeforeEachEnabled());
+            mergeInto(out.templates, su.getTemplates(), su.getTemplatesEnabled());
         }
 
         // 3. Case
         if (tc != null) {
-            mergeInto(out.variables, tc.getBefore());     // Case.before verhält sich wie BeforeEach
-            mergeInto(out.templates, tc.getTemplates());  // Case.templates
+            mergeInto(out.variables, tc.getBefore(), tc.getBeforeEnabled());     // Case.before verhält sich wie BeforeEach
+            mergeInto(out.templates, tc.getTemplates(), tc.getTemplatesEnabled());  // Case.templates
         }
 
         return out;
@@ -75,11 +75,21 @@ public class GivenLookupService {
      * putAll mit Shadowing:
      * spätere Aufrufer überschreiben frühere Werte => genau was wir wollen.
      */
-    private void mergeInto(Map<String,String> target, Map<String,String> src) {
+    private void mergeInto(Map<String,String> target,
+                           Map<String,String> src,
+                           Map<String, Boolean> enabled) {
         if (src == null) return;
         for (Map.Entry<String,String> e : src.entrySet()) {
-            if (e.getKey() == null) continue;
-            target.put(e.getKey(), e.getValue());
+            String key = e.getKey();
+            if (key == null) continue;
+            if (!isEnabled(enabled, key)) continue;
+            target.put(key, e.getValue());
         }
+    }
+
+    private boolean isEnabled(Map<String, Boolean> enabled, String key) {
+        if (enabled == null) return true;
+        Boolean val = enabled.get(key);
+        return val == null || val.booleanValue();
     }
 }

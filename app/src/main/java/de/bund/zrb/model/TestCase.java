@@ -18,7 +18,9 @@ public class TestCase {
     private final List<ThenExpectation> then = new ArrayList<>();
 
     private final java.util.Map<String,String> before    = new java.util.LinkedHashMap<>();
+    private final Map<String, Boolean> beforeEnabled      = new HashMap<>();
     private final java.util.Map<String,String> templates = new java.util.LinkedHashMap<>();
+    private final Map<String, Boolean> templatesEnabled   = new HashMap<>();
 
     private final java.util.Map<String,String> after    = new java.util.LinkedHashMap<>();
     private final Map<String, Boolean> afterEnabled = new HashMap<>();
@@ -46,7 +48,9 @@ public class TestCase {
     public List<ThenExpectation> getThen() { return then; }
 
     public java.util.Map<String,String> getBefore()    { return before; }
+    public Map<String, Boolean> getBeforeEnabled() { return beforeEnabled; }
     public java.util.Map<String,String> getTemplates() { return templates; }
+    public Map<String, Boolean> getTemplatesEnabled() { return templatesEnabled; }
 
     public Map<String, String> getAfter() {
         return after;

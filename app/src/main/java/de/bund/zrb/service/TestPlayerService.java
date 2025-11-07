@@ -172,15 +172,18 @@ public class TestPlayerService {
         RootNode rootModel = TestRegistry.getInstance().getRoot();
 
         runtimeCtx.fillCaseVarsFromMap(
-                evaluateExpressionMapNow(rootModel.getBeforeEach(), runtimeCtx)
+                evaluateExpressionMapNow(rootModel.getBeforeEach(), rootModel.getBeforeEachEnabled(), runtimeCtx)
         );
         runtimeCtx.fillCaseVarsFromMap(
-                evaluateExpressionMapNow(parentSuite.getBeforeEach(), runtimeCtx)
+                evaluateExpressionMapNow(
+                        parentSuite != null ? parentSuite.getBeforeEach() : null,
+                        parentSuite != null ? parentSuite.getBeforeEachEnabled() : null,
+                        runtimeCtx)
         );
         runtimeCtx.fillCaseVarsFromMap(
-                evaluateExpressionMapNow(testCase.getBefore(), runtimeCtx)
+                evaluateExpressionMapNow(testCase.getBefore(), testCase.getBeforeEnabled(), runtimeCtx)
         );
-        runtimeCtx.fillCaseTemplatesFromMap(testCase.getTemplates());
+        runtimeCtx.fillCaseTemplatesFromMap(filterEnabled(testCase.getTemplates(), testCase.getTemplatesEnabled()));
     }
 
     private LogComponent executeSuiteNode(TestNode node, TestSuite suite) {
@@ -221,17 +224,19 @@ public class TestPlayerService {
         if (runtimeCtx.buildCaseScope().lookupVar("___rootInitMarker") == null) {
             Map<String,String> evaluated = evaluateExpressionMapNow(
                     rootModel.getBeforeAll(),
+                    rootModel.getBeforeAllEnabled(),
                     runtimeCtx);
             runtimeCtx.fillRootVarsFromMap(evaluated);
-            runtimeCtx.fillRootTemplatesFromMap(rootModel.getTemplates());
+            runtimeCtx.fillRootTemplatesFromMap(filterEnabled(rootModel.getTemplates(), rootModel.getTemplatesEnabled()));
             runtimeCtx.setRootVar("___rootInitMarker", "done");
         }
 
         Map<String,String> suiteAllEval = evaluateExpressionMapNow(
                 suite.getBeforeAll(),
+                suite.getBeforeAllEnabled(),
                 runtimeCtx);
         runtimeCtx.fillSuiteVarsFromMap(suiteAllEval);
-        runtimeCtx.fillSuiteTemplatesFromMap(suite.getTemplates());
+        runtimeCtx.fillSuiteTemplatesFromMap(filterEnabled(suite.getTemplates(), suite.getTemplatesEnabled()));
     }
 
     private LogComponent executeGenericContainerNode(TestNode node) {
@@ -797,6 +802,7 @@ public class TestPlayerService {
      */
     private Map<String,String> evaluateExpressionMapNow(
             Map<String,String> src,
+            Map<String, Boolean> enabled,
             RuntimeVariableContext ctx
     ) throws Exception {
         java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<String,String>();
@@ -805,6 +811,7 @@ public class TestPlayerService {
         for (java.util.Map.Entry<String,String> e : src.entrySet()) {
             String key = e.getKey();
             String exprText = e.getValue();
+            if (!isEnabled(enabled, key)) continue;
 
             ValueScope currentScope = ctx.buildCaseScope(); // include already set values
 
@@ -818,6 +825,23 @@ public class TestPlayerService {
         }
 
         return out;
+    }
+
+    private Map<String,String> filterEnabled(Map<String,String> src, Map<String, Boolean> enabled) {
+        java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<String,String>();
+        if (src == null) return out;
+        for (java.util.Map.Entry<String,String> e : src.entrySet()) {
+            String key = e.getKey();
+            if (!isEnabled(enabled, key)) continue;
+            out.put(key, e.getValue());
+        }
+        return out;
+    }
+
+    private boolean isEnabled(Map<String, Boolean> enabled, String key) {
+        if (enabled == null) return true;
+        Boolean val = enabled.get(key);
+        return val == null || val.booleanValue();
     }
 
     // Comment: Execute After/Expectation assertions with optional human-readable descriptions.

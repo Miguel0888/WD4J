@@ -20,26 +20,26 @@ final class MapTablePanelFactories {
                 Set<String> all = new LinkedHashSet<String>();
                 de.bund.zrb.model.RootNode root = TestRegistry.getInstance().getRoot();
                 if (root != null) {
-                    if (root.getBeforeAll()   != null) all.addAll(root.getBeforeAll().keySet());
-                    if (root.getBeforeEach()  != null) all.addAll(root.getBeforeEach().keySet());
-                    if (root.getTemplates()   != null) all.addAll(root.getTemplates().keySet());
-                    if (root.getAfterEach()   != null) all.addAll(root.getAfterEach().keySet());
+                    addKeysIfEnabled(all, root.getBeforeAll(),   root.getBeforeAllEnabled());
+                    addKeysIfEnabled(all, root.getBeforeEach(),  root.getBeforeEachEnabled());
+                    addKeysIfEnabled(all, root.getTemplates(),   root.getTemplatesEnabled());
+                    addKeysIfEnabled(all, root.getAfterEach(),   root.getAfterEachEnabled());
                 }
                 List<de.bund.zrb.model.TestSuite> suites = TestRegistry.getInstance().getAll();
                 if (suites != null) {
                     for (int si = 0; si < suites.size(); si++) {
                         de.bund.zrb.model.TestSuite s = suites.get(si);
-                        if (s.getBeforeAll()   != null) all.addAll(s.getBeforeAll().keySet());
-                        if (s.getBeforeEach()  != null) all.addAll(s.getBeforeEach().keySet());
-                        if (s.getTemplates()   != null) all.addAll(s.getTemplates().keySet());
-                        if (s.getAfterAll()    != null) all.addAll(s.getAfterAll().keySet());
+                        addKeysIfEnabled(all, s.getBeforeAll(),   s.getBeforeAllEnabled());
+                        addKeysIfEnabled(all, s.getBeforeEach(),  s.getBeforeEachEnabled());
+                        addKeysIfEnabled(all, s.getTemplates(),   s.getTemplatesEnabled());
+                        addKeysIfEnabled(all, s.getAfterAll(),    s.getAfterAllEnabled());
                         List<de.bund.zrb.model.TestCase> cases = s.getTestCases();
                         if (cases != null) {
                             for (int ci = 0; ci < cases.size(); ci++) {
                                 de.bund.zrb.model.TestCase tc = cases.get(ci);
-                                if (tc.getBefore()    != null) all.addAll(tc.getBefore().keySet());
-                                if (tc.getTemplates() != null) all.addAll(tc.getTemplates().keySet());
-                                if (tc.getAfter()     != null) all.addAll(tc.getAfter().keySet());
+                                addKeysIfEnabled(all, tc.getBefore(),    tc.getBeforeEnabled());
+                                addKeysIfEnabled(all, tc.getTemplates(), tc.getTemplatesEnabled());
+                                addKeysIfEnabled(all, tc.getAfter(),     tc.getAfterEnabled());
                             }
                         }
                     }
@@ -49,6 +49,24 @@ final class MapTablePanelFactories {
                 return sorted;
             }
         };
+    }
+
+    private static void addKeysIfEnabled(Set<String> target,
+                                         Map<String,String> values,
+                                         Map<String, Boolean> enabled) {
+        if (values == null) return;
+        for (Map.Entry<String,String> e : values.entrySet()) {
+            String key = e.getKey();
+            if (key == null) continue;
+            if (!isEnabled(enabled, key)) continue;
+            target.add(key);
+        }
+    }
+
+    private static boolean isEnabled(Map<String, Boolean> enabled, String key) {
+        if (enabled == null) return true;
+        Boolean v = enabled.get(key);
+        return v == null || v.booleanValue();
     }
 
     static Supplier<Map<String, DescribedItem>> fnSupplier() {

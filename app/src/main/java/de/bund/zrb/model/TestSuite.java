@@ -31,8 +31,11 @@ public class TestSuite {
     private final List<TestCase> testCases = new ArrayList<>();
 
     private final java.util.Map<String,String> beforeAll   = new java.util.LinkedHashMap<>();
+    private final Map<String, Boolean> beforeAllEnabled    = new HashMap<>();
     private final java.util.Map<String,String> beforeEach  = new java.util.LinkedHashMap<>();
+    private final Map<String, Boolean> beforeEachEnabled   = new HashMap<>();
     private final java.util.Map<String,String> templates   = new java.util.LinkedHashMap<>();
+    private final Map<String, Boolean> templatesEnabled    = new HashMap<>();
 
     private final java.util.Map<String,String> afterAll   = new java.util.LinkedHashMap<>();
     private final Map<String, Boolean> afterAllEnabled = new HashMap<>();
@@ -66,8 +69,11 @@ public class TestSuite {
 
 
     public Map<String,String> getBeforeAll()   { return beforeAll; }
+    public Map<String, Boolean> getBeforeAllEnabled() { return beforeAllEnabled; }
     public Map<String,String> getBeforeEach()  { return beforeEach; }
+    public Map<String, Boolean> getBeforeEachEnabled() { return beforeEachEnabled; }
     public Map<String,String> getTemplates()   { return templates; }
+    public Map<String, Boolean> getTemplatesEnabled() { return templatesEnabled; }
 
     public Map<String, String> getAfterAll() {
         return afterAll;

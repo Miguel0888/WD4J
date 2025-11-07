@@ -70,14 +70,14 @@ public class RootScopeEditorTab extends JPanel {
 
         // BeforeAll: User-Dropdown aktiv (wie gehabt)
         innerTabs.addTab("BeforeAll",
-                new MapTablePanel(root.getBeforeAll(), "BeforeAll",
+                new MapTablePanel(root.getBeforeAll(), root.getBeforeAllEnabled(), "BeforeAll",
                         /* usersProvider */ de.bund.zrb.service.UserRegistry.getInstance().usernamesSupplier(),
                         /* pinnedKey */ null,
                         /* pinnedValue */ null));
 
         // BeforeEach: kein User-Dropdown, keine Pinned-Zeile
         innerTabs.addTab("BeforeEach",
-                new MapTablePanel(root.getBeforeEach(), "BeforeEach",
+                new MapTablePanel(root.getBeforeEach(), root.getBeforeEachEnabled(), "BeforeEach",
                         /* usersProvider */ null,
                         /* pinnedKey */ null,
                         /* pinnedValue */ null));
@@ -87,6 +87,7 @@ public class RootScopeEditorTab extends JPanel {
                 "Templates",
                 new MapTablePanel(
                         root.getTemplates(),
+                        root.getTemplatesEnabled(),
                         "Templates",
                         null,                 // kein User-Dropdown
                         "OTP",                // gepinnter Key

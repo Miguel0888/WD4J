@@ -43,13 +43,14 @@ public final class UserAwareMapTableModel implements TableModel {
     }
 
     @Override public Class<?> getColumnClass(int columnIndex) {
-        return String.class;
+        return delegate.getColumnClass(columnIndex);
     }
 
     @Override public boolean isCellEditable(int rowIndex, int columnIndex) {
         // Row 0: "user" → left cell not editable; right cell editable
         if (rowIndex == 0) {
-            return columnIndex == 1;
+            if (columnIndex == 1) return false; // Name gesperrt
+            return columnIndex != 1; // allow enabled + expression edits
         }
         return delegate.isCellEditable(rowIndex, columnIndex);
     }
@@ -58,8 +59,9 @@ public final class UserAwareMapTableModel implements TableModel {
         // We must ensure that row 0 returns the "user" entry consistently.
         // MapTableModel hält die Reihenfolge intern; um robust zu sein, greifen wir direkt zu.
         if (rowIndex == 0) {
-            if (columnIndex == 0) return USER_KEY;
-            if (columnIndex == 1) return backing.get(USER_KEY);
+            if (columnIndex == 0) return delegate.getValueAt(rowIndex, columnIndex);
+            if (columnIndex == 1) return USER_KEY;
+            if (columnIndex == 2) return backing.get(USER_KEY);
         }
         return delegate.getValueAt(rowIndex, columnIndex);
     }
@@ -67,7 +69,10 @@ public final class UserAwareMapTableModel implements TableModel {
     @Override public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
         if (rowIndex == 0) {
             // Only value column may change; name is fixed.
-            if (columnIndex == 1) {
+            if (columnIndex == 0) {
+                delegate.setValueAt(aValue, rowIndex, columnIndex);
+            }
+            if (columnIndex == 2) {
                 String v = aValue == null ? "" : String.valueOf(aValue);
                 backing.put(USER_KEY, v);
                 // inform listeners for row 0
