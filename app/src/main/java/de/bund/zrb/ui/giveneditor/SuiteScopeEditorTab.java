@@ -4,10 +4,12 @@ import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.ui.tabs.GivenListEditorTab;
+import de.bund.zrb.ui.tabs.PreconditionListValidator;
 
 import javax.swing.*;
-import javax.swing.table.AbstractTableModel;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -68,19 +70,58 @@ public class SuiteScopeEditorTab extends JPanel {
 
         add(header, BorderLayout.NORTH);
 
-        innerTabs.addTab("BeforeAll",   new MapTablePanel(suite.getBeforeAll(),   suite.getBeforeAllEnabled(),   "BeforeAll",   UserRegistry.getInstance().usernamesSupplier()));
-        innerTabs.addTab("BeforeEach",  new MapTablePanel(suite.getBeforeEach(),  suite.getBeforeEachEnabled(),  "BeforeEach",  null));
-        innerTabs.addTab("Templates",   new MapTablePanel(suite.getTemplates(),   suite.getTemplatesEnabled(),   "Templates",   null));
+        List<Precondtion> preconditions = suite.getPreconditions();
+        boolean needImmediateSave = false;
+        if (preconditions == null) {
+            preconditions = new ArrayList<Precondtion>();
+            suite.setPreconditions(preconditions);
+            needImmediateSave = true;
+        }
+        String scopeLabel = "Suite " + safe(suite.getName());
+        GivenListEditorTab preconditionsTab = new GivenListEditorTab(scopeLabel, preconditions);
+        innerTabs.insertTab("Preconditions", null, preconditionsTab, "Suite Preconditions");
+
+        boolean preconditionsValid = true;
+        try {
+            PreconditionListValidator.validateOrThrow(scopeLabel, preconditions);
+            preconditionsTab.clearValidationError();
+        } catch (Exception ex) {
+            preconditionsValid = false;
+            preconditionsTab.showValidationError(ex.getMessage());
+        }
+
+        if (needImmediateSave) {
+            try { TestRegistry.getInstance().save(); } catch (Throwable ignore) { }
+        }
+
+        innerTabs.addTab("BeforeAll",
+                new MapTablePanel(suite.getBeforeAll(), suite.getBeforeAllEnabled(), "BeforeAll",
+                        UserRegistry.getInstance().usernamesSupplier()));
+        innerTabs.addTab("BeforeEach",
+                new MapTablePanel(suite.getBeforeEach(), suite.getBeforeEachEnabled(), "BeforeEach", null));
+        innerTabs.addTab("Templates",
+                new MapTablePanel(suite.getTemplates(), suite.getTemplatesEnabled(), "Templates", null));
 
         // AfterAll (Suite) – kein Pin nötig per se, kann aber ergänzt werden
         innerTabs.addTab("AfterAll",
                 new AssertionTablePanel(suite.getAfterAll(), suite.getAfterAllEnabled(), suite.getAfterAllDesc(), "AfterAll", null, null));
 
         add(innerTabs, BorderLayout.CENTER);
+
+        if (!preconditionsValid) {
+            disableTabsFromIndex(1);
+            innerTabs.setSelectedIndex(0);
+        }
     }
 
     private static String safe(String s) {
         return (s == null || s.trim().isEmpty()) ? "" : s.trim();
+    }
+
+    private void disableTabsFromIndex(int startIndex) {
+        for (int i = startIndex; i < innerTabs.getTabCount(); i++) {
+            innerTabs.setEnabledAt(i, false);
+        }
     }
 }
 

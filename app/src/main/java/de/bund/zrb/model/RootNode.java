@@ -30,6 +30,8 @@ public class RootNode {
     private final Map<String, Boolean> afterEachEnabled = new HashMap<>();
     private final Map<String,String> afterEachDesc = new HashMap<>();
 
+    private List<Precondtion> preconditions = new ArrayList<>();
+
     public RootNode() {
         this.id = java.util.UUID.randomUUID().toString();
     }
@@ -76,6 +78,14 @@ public class RootNode {
 
     public Map<String, String> getAfterEachDesc() {
         return afterEachDesc;
+    }
+
+    public List<Precondtion> getPreconditions() {
+        return preconditions;
+    }
+
+    public void setPreconditions(List<Precondtion> preconditions) {
+        this.preconditions = (preconditions != null) ? preconditions : new ArrayList<Precondtion>();
     }
 }
 

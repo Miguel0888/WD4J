@@ -41,6 +41,8 @@ public class TestSuite {
     private final Map<String, Boolean> afterAllEnabled = new HashMap<>();
     private final Map<String, String> afterAllDesc = new HashMap<>();
 
+    private List<Precondtion> preconditions = new ArrayList<Precondtion>();
+
     public TestSuite() {
         // leer für Gson
     }
@@ -85,6 +87,14 @@ public class TestSuite {
 
     public Map<String, String> getAfterAllDesc() {
         return afterAllDesc;
+    }
+
+    public List<Precondtion> getPreconditions() {
+        return preconditions;
+    }
+
+    public void setPreconditions(List<Precondtion> preconditions) {
+        this.preconditions = (preconditions != null) ? preconditions : new ArrayList<Precondtion>();
     }
 }
 

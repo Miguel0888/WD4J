@@ -26,6 +26,8 @@ public class TestCase {
     private final Map<String, Boolean> afterEnabled = new HashMap<>();
     private final Map<String, String> afterDesc = new HashMap<>();
 
+    private List<Precondtion> preconditions = new ArrayList<Precondtion>();
+
     public TestCase() {}
 
     public TestCase(String name, List<TestAction> when) {
@@ -62,6 +64,14 @@ public class TestCase {
 
     public Map<String, String> getAfterDesc() {
         return afterDesc;
+    }
+
+    public List<Precondtion> getPreconditions() {
+        return preconditions;
+    }
+
+    public void setPreconditions(List<Precondtion> preconditions) {
+        this.preconditions = (preconditions != null) ? preconditions : new ArrayList<Precondtion>();
     }
 }
 
