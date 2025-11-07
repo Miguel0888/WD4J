@@ -18,12 +18,79 @@ test {
     useJUnitPlatform()
 }
 
-//def javaToolsJar = file("${System.getenv('JAVA_HOME')}/lib/tools.jar")
-def javaHome = System.properties['java.home']
-def javaToolsJar = file("$javaHome/../lib/tools.jar").canonicalFile
-if (!javaToolsJar.exists()) {
-    throw new GradleException("tools.jar nicht gefunden! Stelle sicher, dass JAVA_HOME auf ein Java 8 JDK zeigt.")
+// Resolve tools.jar from preferred locations:
+// 1) java.home (current runtime, preferred, wie IntelliJ/Gradle-JVM)
+// 2) JAVA_HOME
+// 3) PATH (beliebiges installiertes Java, aus bin zurück auf Home schließen)
+def resolveToolsJar() {
+    // 1) Try current runtime (java.home)
+    def javaHomeProp = System.properties['java.home']
+    if (javaHomeProp != null) {
+        def runtimeHome = new File(javaHomeProp)
+        def jdkHome = runtimeHome.name.equalsIgnoreCase("jre")
+                ? runtimeHome.parentFile
+                : runtimeHome
+        def toolsFromJavaHome = new File(jdkHome, "lib/tools.jar")
+        if (toolsFromJavaHome.exists()) {
+            return toolsFromJavaHome.canonicalFile
+        }
+    }
+
+    // 2) Try JAVA_HOME
+    def javaHomeEnv = System.getenv('JAVA_HOME')
+    if (javaHomeEnv != null) {
+        def envHome = new File(javaHomeEnv)
+        def toolsFromEnv = new File(envHome, "lib/tools.jar")
+        if (toolsFromEnv.exists()) {
+            return toolsFromEnv.canonicalFile
+        }
+    }
+
+    // 3) Try PATH entries
+    def pathEnv = System.getenv('PATH')
+    if (pathEnv != null) {
+        def toolsFromPath = null
+
+        pathEnv.split(File.pathSeparator).each { pathEntry ->
+            if (toolsFromPath != null) {
+                return
+            }
+
+            def binDir = new File(pathEntry)
+            def javaExeName = isWindowsOs()
+                    ? "java.exe"
+                    : "java"
+            def javaExe = new File(binDir, javaExeName)
+
+            if (javaExe.exists()) {
+                def jdkHome = binDir.parentFile
+                if (jdkHome != null) {
+                    def candidateTools = new File(jdkHome, "lib/tools.jar")
+                    if (candidateTools.exists()) {
+                        toolsFromPath = candidateTools.canonicalFile
+                    }
+                }
+            }
+        }
+
+        if (toolsFromPath != null) {
+            return toolsFromPath
+        }
 }
+
+    throw new GradleException(
+            "tools.jar not found. Install a Java 8 JDK and ensure it is reachable via java.home, JAVA_HOME or PATH."
+    )
+}
+
+// Detect Windows OS in a minimal way
+def isWindowsOs() {
+    def name = System.properties['os.name']
+    return name != null && name.toLowerCase().contains("win")
+}
+
+// tools.jar für JavaCompiler (nur Java 8, ab Java 9 JShell verwenden!)
+def javaToolsJar = resolveToolsJar()
 
 dependencies {
     implementation project(':playwright-adapter')
