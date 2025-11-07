@@ -64,7 +64,7 @@ public class CaseScopeEditorTab extends JPanel {
         }
         String scopeLabel = "Case " + safe(testCase.getName());
         GivenListEditorTab preconditionsTab = new GivenListEditorTab(scopeLabel, preconditions);
-        innerTabs.insertTab("Preconditions", null, preconditionsTab, "Case Preconditions");
+        innerTabs.insertTab("Preconditions", null, preconditionsTab, "Case Preconditions", 0);
 
         boolean preconditionsValid = true;
         try {
@@ -110,4 +110,3 @@ public class CaseScopeEditorTab extends JPanel {
         }
     }
 }
-

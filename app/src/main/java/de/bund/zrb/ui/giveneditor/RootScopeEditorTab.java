@@ -78,7 +78,7 @@ public class RootScopeEditorTab extends JPanel {
             needImmediateSave = true;
         }
         GivenListEditorTab preconditionsTab = new GivenListEditorTab("Root Scope", preconditions);
-        innerTabs.insertTab("Preconditions", null, preconditionsTab, "Globale Preconditions");
+        innerTabs.insertTab("Preconditions", null, preconditionsTab, "Globale Preconditions", 0);
 
         boolean preconditionsValid = true;
         try {
@@ -141,4 +141,3 @@ public class RootScopeEditorTab extends JPanel {
     }
 
 }
-
