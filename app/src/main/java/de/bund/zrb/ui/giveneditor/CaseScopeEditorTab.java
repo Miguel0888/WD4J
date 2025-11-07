@@ -4,10 +4,12 @@ import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.ui.tabs.GivenListEditorTab;
+import de.bund.zrb.ui.tabs.PreconditionListValidator;
 
 import javax.swing.*;
-import javax.swing.table.AbstractTableModel;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -53,20 +55,59 @@ public class CaseScopeEditorTab extends JPanel {
         header.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         add(header, BorderLayout.NORTH);
 
+        List<Precondtion> preconditions = testCase.getPreconditions();
+        boolean needImmediateSave = false;
+        if (preconditions == null) {
+            preconditions = new ArrayList<Precondtion>();
+            testCase.setPreconditions(preconditions);
+            needImmediateSave = true;
+        }
+        String scopeLabel = "Case " + safe(testCase.getName());
+        GivenListEditorTab preconditionsTab = new GivenListEditorTab(scopeLabel, preconditions);
+        innerTabs.insertTab("Preconditions", null, preconditionsTab, "Case Preconditions");
+
+        boolean preconditionsValid = true;
+        try {
+            PreconditionListValidator.validateOrThrow(scopeLabel, preconditions);
+            preconditionsTab.clearValidationError();
+        } catch (Exception ex) {
+            preconditionsValid = false;
+            preconditionsTab.showValidationError(ex.getMessage());
+        }
+
+        if (needImmediateSave) {
+            try { TestRegistry.getInstance().save(); } catch (Throwable ignore) { }
+        }
+
         // Tabs:
         // "Before"  == testCase.getBefore()
         // "Templates" == testCase.getTemplates()
-        innerTabs.addTab("Before",    new MapTablePanel(testCase.getBefore(),    testCase.getBeforeEnabled(),    "Before",    UserRegistry.getInstance().usernamesSupplier()));
-        innerTabs.addTab("Templates", new MapTablePanel(testCase.getTemplates(), testCase.getTemplatesEnabled(), "Templates", null));
+        innerTabs.addTab("Before",
+                new MapTablePanel(testCase.getBefore(), testCase.getBeforeEnabled(), "Before",
+                        UserRegistry.getInstance().usernamesSupplier()));
+        innerTabs.addTab("Templates",
+                new MapTablePanel(testCase.getTemplates(), testCase.getTemplatesEnabled(), "Templates", null));
 
         // After (Case) – frei editierbar, kein Pin
         innerTabs.addTab("After",
                 new AssertionTablePanel(testCase.getAfter(), testCase.getAfterEnabled(), testCase.getAfterDesc(), "After", null, null));
 
         add(innerTabs, BorderLayout.CENTER);
+
+        if (!preconditionsValid) {
+            disableTabsFromIndex(1);
+            innerTabs.setSelectedIndex(0);
+        }
     }
 
     private static String safe(String s) {
         return (s == null || s.trim().isEmpty()) ? "" : s.trim();
     }
+
+    private void disableTabsFromIndex(int startIndex) {
+        for (int i = startIndex; i < innerTabs.getTabCount(); i++) {
+            innerTabs.setEnabledAt(i, false);
+        }
+    }
 }
+

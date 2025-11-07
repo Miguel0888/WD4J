@@ -4,10 +4,12 @@ import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.RootNode;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.ui.tabs.GivenListEditorTab;
+import de.bund.zrb.ui.tabs.PreconditionListValidator;
 
 import javax.swing.*;
-import javax.swing.table.AbstractTableModel;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -68,6 +70,29 @@ public class RootScopeEditorTab extends JPanel {
 
         add(header, BorderLayout.NORTH);
 
+        List<Precondtion> preconditions = root.getPreconditions();
+        boolean needImmediateSave = false;
+        if (preconditions == null) {
+            preconditions = new ArrayList<Precondtion>();
+            root.setPreconditions(preconditions);
+            needImmediateSave = true;
+        }
+        GivenListEditorTab preconditionsTab = new GivenListEditorTab("Root Scope", preconditions);
+        innerTabs.insertTab("Preconditions", null, preconditionsTab, "Globale Preconditions");
+
+        boolean preconditionsValid = true;
+        try {
+            PreconditionListValidator.validateOrThrow("Root Scope", preconditions);
+            preconditionsTab.clearValidationError();
+        } catch (Exception ex) {
+            preconditionsValid = false;
+            preconditionsTab.showValidationError(ex.getMessage());
+        }
+
+        if (needImmediateSave) {
+            try { TestRegistry.getInstance().save(); } catch (Throwable ignore) { }
+        }
+
         // BeforeAll: User-Dropdown aktiv (wie gehabt)
         innerTabs.addTab("BeforeAll",
                 new MapTablePanel(root.getBeforeAll(), root.getBeforeAllEnabled(), "BeforeAll",
@@ -102,6 +127,17 @@ public class RootScopeEditorTab extends JPanel {
                 new AssertionTablePanel(root.getAfterEach(), root.getAfterEachEnabled(), root.getAfterEachDesc(), "AfterEach", pinnedKey, pinnedValue));
 
         add(innerTabs, BorderLayout.CENTER);
+
+        if (!preconditionsValid) {
+            disableTabsFromIndex(1);
+            innerTabs.setSelectedIndex(0);
+        }
+    }
+
+    private void disableTabsFromIndex(int startIndex) {
+        for (int i = startIndex; i < innerTabs.getTabCount(); i++) {
+            innerTabs.setEnabledAt(i, false);
+        }
     }
 
 }

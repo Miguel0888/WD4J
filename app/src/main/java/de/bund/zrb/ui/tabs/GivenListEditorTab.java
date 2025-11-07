@@ -21,16 +21,30 @@ import java.util.List;
  */
 public class GivenListEditorTab extends JPanel {
 
-    private static final String TYPE_PRECONDITION_REF = "preconditionRef"; // agreed convention
-
     private final List<Precondtion> model; // the live list from suite/case
     private final DefaultListModel<Precondtion> listModel = new DefaultListModel<Precondtion>();
     private final JList<Precondtion> list;
+    private final JLabel contextLabel;
+    private final JLabel validationLabel;
 
-    public GivenListEditorTab(List<Precondtion> givenList) {
+    public GivenListEditorTab(String scopeContext, List<Precondtion> givenList) {
         super(new BorderLayout(10, 10));
         this.model = (givenList != null) ? givenList : new ArrayList<Precondtion>();
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        contextLabel = new JLabel();
+        contextLabel.setFont(contextLabel.getFont().deriveFont(Font.BOLD));
+        validationLabel = new JLabel();
+        validationLabel.setVisible(false);
+
+        JPanel header = new JPanel(new BorderLayout(6, 6));
+        header.setOpaque(false);
+        header.add(contextLabel, BorderLayout.WEST);
+        header.add(validationLabel, BorderLayout.CENTER);
+        add(header, BorderLayout.NORTH);
+
+        setScopeContext(scopeContext);
+        clearValidationError();
 
         list = new JList<Precondtion>(listModel);
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -43,6 +57,27 @@ public class GivenListEditorTab extends JPanel {
 
         add(new JScrollPane(list), BorderLayout.CENTER);
         add(buildButtons(), BorderLayout.EAST);
+    }
+
+    public void setScopeContext(String scopeContext) {
+        String text = (scopeContext == null || scopeContext.trim().isEmpty())
+                ? "Preconditions"
+                : scopeContext.trim();
+        contextLabel.setText(text);
+    }
+
+    public void showValidationError(String message) {
+        if (message == null || message.trim().isEmpty()) {
+            clearValidationError();
+            return;
+        }
+        validationLabel.setText("<html><span style='color:#b71c1c'>" + escapeHtml(message) + "</span></html>");
+        validationLabel.setVisible(true);
+    }
+
+    public void clearValidationError() {
+        validationLabel.setText("");
+        validationLabel.setVisible(false);
     }
 
     private JComponent buildButtons() {
@@ -120,7 +155,7 @@ public class GivenListEditorTab extends JPanel {
         // So we always create a GivenCondition of type "preconditionRef".
 
         Precondtion gc = new Precondtion();
-        gc.setType("preconditionRef"); // or TYPE_PRECONDITION_REF constant
+        gc.setType(PreconditionListUtil.TYPE_PRECONDITION_REF);
         gc.setValue("id=" + idOrType); // idOrType is the UUID (or "" if user chose the empty entry)
 
         model.add(gc);
@@ -136,9 +171,9 @@ public class GivenListEditorTab extends JPanel {
         Precondtion sel = list.getSelectedValue();
         if (sel == null) return;
 
-        if (TYPE_PRECONDITION_REF.equals(sel.getType())) {
+        if (PreconditionListUtil.TYPE_PRECONDITION_REF.equals(sel.getType())) {
             // Re-pick the precondition
-            String currentId = parseIdFromValue(sel.getValue());
+            String currentId = PreconditionListUtil.extractPreconditionId(sel);
             Window owner = SwingUtilities.getWindowAncestor(this);
             GivenChoiceDialog dlg = new GivenChoiceDialog(owner, "Precondition wählen", currentId);
             dlg.setVisible(true);
@@ -204,16 +239,6 @@ public class GivenListEditorTab extends JPanel {
         }
     }
 
-    private String parseIdFromValue(String value) {
-        if (value == null) return "";
-        String[] parts = value.split("&");
-        for (int i = 0; i < parts.length; i++) {
-            String[] kv = parts[i].split("=", 2);
-            if (kv.length == 2 && "id".equals(kv[0])) return kv[1];
-        }
-        return "";
-    }
-
     // -------------------- Renderer --------------------
 
     private static class GivenCellRenderer extends DefaultListCellRenderer {
@@ -222,16 +247,8 @@ public class GivenListEditorTab extends JPanel {
             JLabel c = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
             if (value instanceof Precondtion) {
                 Precondtion gc = (Precondtion) value;
-                if ("preconditionRef".equals(gc.getType())) {
-                    String id = "";
-                    String v = gc.getValue();
-                    if (v != null) {
-                        String[] parts = v.split("&");
-                        for (int i = 0; i < parts.length; i++) {
-                            String[] kv = parts[i].split("=", 2);
-                            if (kv.length == 2 && "id".equals(kv[0])) { id = kv[1]; break; }
-                        }
-                    }
+                if (PreconditionListUtil.TYPE_PRECONDITION_REF.equals(gc.getType())) {
+                    String id = PreconditionListUtil.extractPreconditionId(gc);
                     // Resolve name for display
                     String name = id;
                     List<Precondition> pres = PreconditionRegistry.getInstance().getAll();
@@ -251,4 +268,14 @@ public class GivenListEditorTab extends JPanel {
             return c;
         }
     }
+
+    private String escapeHtml(String text) {
+        if (text == null || text.isEmpty()) {
+            return "";
+        }
+        return text.replace("&", "&amp;")
+                   .replace("<", "&lt;")
+                   .replace(">", "&gt;");
+    }
 }
+
