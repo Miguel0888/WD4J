@@ -343,7 +343,7 @@ Beiträge sind willkommen! Wenn du helfen möchtest:
 Dieses Projekt steht unter der **MIT-Lizenz**. Bitte beachten Sie, dass die verwendete PlayWright API ggf. unter einer anderen Lizenz steht. Dies bezieht sich lediglich auf die Interfaces (api package), die Implementierungs-Klassen (impl package) wurden hingegen vollkommen neu geschrieben!
 
 # ToDos:
-## Aufzeichnung aller für automatisierter Tests relevaner Events ermöglichen (ist die Liste vollständig?)
+## Aufzeichnung aller für automatisierter Tests relevanten Events ermöglichen (ist die Liste vollständig?)
 
 | Event-Kategorie        | WebDriver BiDi Event                          | Bedeutung                          |
 |------------------------|----------------------------------------------|------------------------------------|
@@ -385,3 +385,4 @@ Dieses Projekt steht unter der **MIT-Lizenz**. Bitte beachten Sie, dass die verw
 
 Der Recorder der App-Schicht verwendet seine eigene von PlayWright abweichende Logik, sendet die Events aber per WebDriver BiDi Messages an die Anwendung zurück.
 
+Überarbeitet von Codex
