@@ -76,31 +76,15 @@ public class PlayTestSuiteCommand extends ShortcutMenuCommand {
                                                final JTabbedPane tabs,
                                                final Component tabContent,
                                                final AtomicBoolean running) {
-        final JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        header.setOpaque(false);
-
-        final JLabel label = new JLabel(title);
-        header.add(label);
-
-        final JButton close = new JButton("\u00D7"); // '×'
-        close.setMargin(new Insets(0, 6, 0, 6));
-        close.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
-        close.setOpaque(false);
-        close.setContentAreaFilled(false);
-        close.setFocusable(false);
-        close.setToolTipText("Tab schließen" + " (stoppt Playback, falls noch aktiv)");
-        close.setForeground(new Color(200, 0, 0));
-        Font f = close.getFont();
-        close.setFont(f.deriveFont(Font.BOLD, f.getSize2D() + 1f));
-
-        close.addActionListener(new AbstractAction() {
-            @Override public void actionPerformed(ActionEvent e) {
+        // Use centralized ClosableTabHeader and provide an onClose hook that implements the
+        // special behavior (stop playback if running + remove tab + status message)
+        Runnable onClose = new Runnable() {
+            @Override public void run() {
                 boolean wasRunning = running.get();
                 if (wasRunning) {
                     try {
                         TestPlayerService.getInstance().stopPlayback();
                     } catch (Throwable ignore) { /* ignore */ }
-                    // Nur dann Abbruchstatus senden, wenn wirklich noch lief
                     ApplicationEventBus.getInstance()
                             .publish(new StatusMessageEvent("⏹ Playback abgebrochen", 2000));
                 }
@@ -109,9 +93,8 @@ public class PlayTestSuiteCommand extends ShortcutMenuCommand {
                     tabs.removeTabAt(idx);
                 }
             }
-        });
+        };
 
-        header.add(close);
-        return header;
+        return new de.bund.zrb.ui.tabs.ClosableTabHeader(tabs, tabContent, title, onClose);
     }
 }
