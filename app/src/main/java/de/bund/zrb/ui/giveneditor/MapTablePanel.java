@@ -20,13 +20,15 @@ public class MapTablePanel extends JPanel {
 
     /** Behalte die bestehende Signatur – alle bisherigen Aufrufer bleiben kompatibel. */
     public MapTablePanel(final Map<String,String> backing,
+                         final Map<String, Boolean> backingEnabled,
                          final String scopeName,
                          final Supplier<List<String>> usersProvider) {
-        this(backing, scopeName, usersProvider, null, null);
+        this(backing, backingEnabled, scopeName, usersProvider, null, null);
     }
 
     /** Neue Overload nur für „gepinnte“ erste Zeile (z. B. OTP im Root/Templates). */
     public MapTablePanel(final Map<String,String> backing,
+                         final Map<String, Boolean> backingEnabled,
                          final String scopeName,
                          final Supplier<List<String>> usersProvider,
                          final String pinnedKey,
@@ -39,14 +41,20 @@ public class MapTablePanel extends JPanel {
         boolean needImmediateSave = false;
         if (includePinnedRow && backing != null && !backing.containsKey(pinnedKey)) {
             backing.put(pinnedKey, pinnedValue != null ? pinnedValue : "");
+            if (backingEnabled != null && !backingEnabled.containsKey(pinnedKey)) {
+                backingEnabled.put(pinnedKey, Boolean.TRUE);
+            }
             needImmediateSave = true;
         }
         if (!includePinnedRow && includeUserRow && backing != null && !backing.containsKey(MapTableModel.USER_KEY)) {
             backing.put(MapTableModel.USER_KEY, "");
+            if (backingEnabled != null && !backingEnabled.containsKey(MapTableModel.USER_KEY)) {
+                backingEnabled.put(MapTableModel.USER_KEY, Boolean.TRUE);
+            }
             needImmediateSave = true;
         }
 
-        final MapTableModel model = new MapTableModel(backing, includeUserRow, includePinnedRow, pinnedKey);
+        final MapTableModel model = new MapTableModel(backing, backingEnabled, includeUserRow, includePinnedRow, pinnedKey);
 
         final JTable table = new JTable(model) {
             private final TableCellEditor userEditor =
@@ -56,6 +64,15 @@ public class MapTablePanel extends JPanel {
             @Override
             public TableCellEditor getCellEditor(int row, int column) {
                 if (column == 1) {
+                    if (row == 0 && includePinnedRow) {
+                        return null;
+                    }
+                    if (row == 0 && includeUserRow) {
+                        return null; // Name gesperrt
+                    }
+                    return super.getCellEditor(row, column);
+                }
+                if (column == 2) {
                     if (row == 0 && includePinnedRow) {
                         return null;
                     }
@@ -69,13 +86,13 @@ public class MapTablePanel extends JPanel {
 
             @Override
             public TableCellRenderer getCellRenderer(int row, int column) {
-                if (row == 0 && column == 0 && (includeUserRow || includePinnedRow)) {
+                if (row == 0 && column == 1 && (includeUserRow || includePinnedRow)) {
                     return new UserNameLockedRenderer();
                 }
-                if (row == 0 && column == 1 && includePinnedRow) {
+                if (row == 0 && column == 2 && includePinnedRow) {
                     return new PinnedValueLockedRenderer();
                 }
-                if (column == 1) {
+                if (column == 2) {
                     return new MultiLineMonoRenderer();
                 }
                 return super.getCellRenderer(row, column);
@@ -104,8 +121,12 @@ public class MapTablePanel extends JPanel {
         table.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
         int fmH = table.getFontMetrics(table.getFont()).getHeight();
         table.setRowHeight(Math.max(table.getRowHeight(), 3 * fmH + 8));
-        if (table.getColumnModel().getColumnCount() > 1) {
-            table.getColumnModel().getColumn(1).setPreferredWidth(480);
+        if (table.getColumnModel().getColumnCount() > 0) {
+            table.getColumnModel().getColumn(0).setPreferredWidth(80);
+            table.getColumnModel().getColumn(0).setMaxWidth(90);
+        }
+        if (table.getColumnModel().getColumnCount() > 2) {
+            table.getColumnModel().getColumn(2).setPreferredWidth(480);
         }
 
         // Toolbar (neu via Builder, Inhalt identisch, Hilfe/Save nun rechtsbündig)

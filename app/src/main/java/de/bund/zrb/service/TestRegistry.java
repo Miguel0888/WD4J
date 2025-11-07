@@ -168,6 +168,11 @@ public class TestRegistry {
         forceInitListIfNull(r, "beforeAllVars");
         forceInitListIfNull(r, "beforeEachVars");
         forceInitListIfNull(r, "templates");
+        forceInitMapIfNull(r, "beforeAllEnabled");
+        forceInitMapIfNull(r, "beforeEachEnabled");
+        forceInitMapIfNull(r, "templatesEnabled");
+        forceInitMapIfNull(r, "afterEachEnabled");
+        forceInitMapIfNull(r, "afterEachDesc");
     }
 
     /**
@@ -224,6 +229,11 @@ public class TestRegistry {
             forceInitListIfNull(suite, "beforeAll");
             forceInitListIfNull(suite, "beforeEach");
             forceInitListIfNull(suite, "templates");
+            forceInitMapIfNull(suite, "beforeAllEnabled");
+            forceInitMapIfNull(suite, "beforeEachEnabled");
+            forceInitMapIfNull(suite, "templatesEnabled");
+            forceInitMapIfNull(suite, "afterAllEnabled");
+            forceInitMapIfNull(suite, "afterAllDesc");
 
             List<TestCase> cases = suite.getTestCases();
             for (TestCase tc : cases) {
@@ -247,6 +257,10 @@ public class TestRegistry {
                 // NEU: Case-Scope-Listen absichern
                 forceInitListIfNull(tc, "beforeCase");
                 forceInitListIfNull(tc, "templates");
+                forceInitMapIfNull(tc, "beforeEnabled");
+                forceInitMapIfNull(tc, "templatesEnabled");
+                forceInitMapIfNull(tc, "afterEnabled");
+                forceInitMapIfNull(tc, "afterDesc");
 
                 List<TestAction> steps = tc.getWhen();
                 for (TestAction a : steps) {
@@ -288,6 +302,21 @@ public class TestRegistry {
             Object current = f.get(bean);
             if (current == null) {
                 f.set(bean, new ArrayList());
+            }
+        } catch (Exception ignore) {
+            // worst case: bleibt halt null
+        }
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    private void forceInitMapIfNull(Object bean, String fieldName) {
+        if (bean == null) return;
+        try {
+            java.lang.reflect.Field f = bean.getClass().getDeclaredField(fieldName);
+            f.setAccessible(true);
+            Object current = f.get(bean);
+            if (current == null) {
+                f.set(bean, new java.util.HashMap());
             }
         } catch (Exception ignore) {
             // worst case: bleibt halt null
