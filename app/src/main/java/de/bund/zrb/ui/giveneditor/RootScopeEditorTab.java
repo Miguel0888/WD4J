@@ -104,8 +104,8 @@ public class RootScopeEditorTab extends JPanel {
         innerTabs.addTab("BeforeEach",
                 new MapTablePanel(root.getBeforeEach(), root.getBeforeEachEnabled(), "BeforeEach",
                         /* usersProvider */ null,
-                        /* pinnedKey */ null,
-                        /* pinnedValue */ null));
+                        /* pinnedKey */ "home",
+                        /* pinnedValue */ "{{navigateToStartPage({{user}})}}"));
 
         // Templates (ROOT): gepinnte OTP-Zeile
         innerTabs.addTab(

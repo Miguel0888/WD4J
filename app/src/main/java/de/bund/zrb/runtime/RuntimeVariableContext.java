@@ -166,4 +166,17 @@ public class RuntimeVariableContext {
                 exprRegistry
         );
     }
+
+    public ValueScope buildCaseScopeForActionOnly() {
+        // Build a ValueScope that only contains case-level vars/templates; root/suite maps empty
+        return new ValueScope(
+                new java.util.LinkedHashMap<String,String>(), // empty rootVars
+                new java.util.LinkedHashMap<String,String>(), // empty suiteVars
+                caseVars,
+                new java.util.LinkedHashMap<String,String>(), // empty rootTemplates
+                new java.util.LinkedHashMap<String,String>(), // empty suiteTemplates
+                caseTemplates,
+                exprRegistry
+        );
+    }
 }

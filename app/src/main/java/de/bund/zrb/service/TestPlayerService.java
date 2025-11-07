@@ -117,6 +117,29 @@ public class TestPlayerService {
         boolean ok;
         String err = null;
         try {
+            // Setup minimal case scope if action is run standalone (parent case exists)
+            TestNode caseNode = (TestNode) node.getParent();
+            if (caseNode != null && caseNode.getModelRef() instanceof TestCase) {
+                TestCase tc = (TestCase) caseNode.getModelRef();
+                // Clear case-scope and evaluate only Case-level Before and Templates
+                runtimeCtx.enterCase();
+
+                // Pre-set username to resolve expressions that use {{user}}
+                String effectiveUser = resolveEffectiveUserForAction(action);
+                if (effectiveUser != null && effectiveUser.trim().length() > 0) {
+                    runtimeCtx.setCaseVar("username", effectiveUser.trim());
+                }
+
+                // Evaluate case-level Befores without suite/root
+                ValueScope actionOnlyScope = runtimeCtx.buildCaseScopeForActionOnly();
+                runUnchecked(new ThrowingRunnable() {
+                    @Override public void run() throws Exception {
+                        evaluateExpressionMapNowWithScope(tc.getBefore(), tc.getBeforeEnabled(), actionOnlyScope, runtimeCtx);
+                    }
+                });
+                runtimeCtx.fillCaseTemplatesFromMap(filterEnabled(tc.getTemplates(), tc.getTemplatesEnabled()));
+            }
+
             ok = playSingleAction(action, stepLog);
             if (!ok) err = "Action returned false";
         } catch (RuntimeException ex) {
@@ -143,6 +166,14 @@ public class TestPlayerService {
         logger.append(caseLog); // show header immediately
 
         try {
+            // Ensure suite/root befores/templates are initialized so that BeforeEach has {{user}} available
+            TestNode parentNode = (TestNode) node.getParent();
+            TestSuite parentSuite = (parentNode != null && parentNode.getModelRef() instanceof TestSuite)
+                    ? (TestSuite) parentNode.getModelRef() : null;
+            if (parentSuite != null) {
+                initSuiteSymbols(parentSuite);
+            }
+
             initCaseSymbols(node, testCase); // may throw -> fail case
         } catch (Exception ex) {
             caseLog.setStatus(false);
@@ -816,6 +847,32 @@ public class TestPlayerService {
             ValueScope currentScope = ctx.buildCaseScope(); // include already set values
 
             String resolved = ActionRuntimeEvaluator.evaluateActionValue(exprText, currentScope);
+            if (resolved == null) resolved = "";
+
+            out.put(key, resolved);
+
+            // Shadow immediately in case scope for subsequent keys
+            ctx.setCaseVar(key, resolved);
+        }
+
+        return out;
+    }
+
+    private Map<String,String> evaluateExpressionMapNowWithScope(
+            Map<String,String> src,
+            Map<String, Boolean> enabled,
+            ValueScope scope,
+            RuntimeVariableContext ctx
+    ) throws Exception {
+        java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<String,String>();
+        if (src == null) return out;
+
+        for (java.util.Map.Entry<String,String> e : src.entrySet()) {
+            String key = e.getKey();
+            String exprText = e.getValue();
+            if (!isEnabled(enabled, key)) continue;
+
+            String resolved = ActionRuntimeEvaluator.evaluateActionValue(exprText, scope);
             if (resolved == null) resolved = "";
 
             out.put(key, resolved);
