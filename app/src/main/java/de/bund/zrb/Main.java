@@ -1,6 +1,5 @@
 package de.bund.zrb;
 
-import com.appland.appmap.record.Recorder;
 import de.bund.zrb.service.RecorderEventBridge;
 import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.service.TestRegistry;
@@ -11,6 +10,7 @@ import javax.swing.JOptionPane;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -19,25 +19,33 @@ import java.util.List;
 
 public class Main {
 
-    public static final Recorder RECORDER = Recorder.getInstance();
-
     public static final String RECORD_FLAG = "-d";
     public static final String ALT_RECORD_FLAG = "--debug";
-    public static final String RECORD_NAME_PREFIX = "zrb-session-";
 
     public static final String AGENT_LAUNCHED_FLAG = "appmap.launcher.active";
 
-    // Use fixed versioned file name to avoid surprises
+    // Feste Version, kein Chaos
     public static final String APPMAP_JAR_FILE_NAME = "appmap-agent-1.28.0.jar";
-
-    // Download URL for this exact version (no dependency hell)
     public static final String APPMAP_DOWNLOAD_URL =
             "https://repo1.maven.org/maven2/com/appland/appmap-agent/1.28.0/appmap-agent-1.28.0.jar";
+
+    public static final String APPMAP_CONFIG_FILE_NAME = "appmap.yml";
+    public static final String APPMAP_CONFIG_CONTENT =
+            "language: \"java\"\n" +
+                    "name: \"WD4J\"\n" +
+                    "appmap_dir: \"tmp/appmap\"\n" +
+                    "packages:\n" +
+                    "- path: \"com.microsoft.playwright\"\n" +
+                    "- path: \"de.bund.zrb\"\n";
 
     public static void main(String[] args) {
         boolean recordingRequested = hasArgument(args, RECORD_FLAG) || hasArgument(args, ALT_RECORD_FLAG);
 
         if (recordingRequested && !isLauncherActive()) {
+            // Sicherstellen, dass appmap.yml existiert
+            ensureAppMapConfigExists();
+
+            // Versuchen, vorhandenen Agent zu finden
             File existingAgent = findExistingAgentJar();
 
             if (existingAgent != null && existingAgent.isFile()) {
@@ -46,6 +54,7 @@ public class Main {
                 return;
             }
 
+            // Falls nicht vorhanden: fragen, ob wir ihn aus Maven Central ziehen sollen
             if (askToDownloadAgent()) {
                 File target = getPreferredDownloadLocation();
                 if (downloadAgentJar(target)) {
@@ -58,18 +67,14 @@ public class Main {
                 System.out.println("AppMap recording disabled by user (no agent download).");
             }
 
-            // At this point: no agent → run without recording
+            // Kein Agent -> kein Recording
             recordingRequested = false;
         }
 
-        // Normal startup path (with or without recording)
+        // Normaler Start (zweiter Prozess mit Agent, oder ohne Debug)
         RecorderEventBridge.install();
         SettingsService.initAdapter();
-
-        if (recordingRequested) {
-            startRecording();
-            installShutdownHook();
-        }
+        installInfoShutdownHook();
 
         SwingUtilities.invokeLater(new Runnable() {
             @Override
@@ -80,47 +85,12 @@ public class Main {
         });
     }
 
-    private static void startRecording() {
-        try {
-            if (RECORDER.hasActiveSession()) {
-                System.out.println("AppMap recording already active, skip start.");
-                return;
-            }
-
-            String recordingName = RECORD_NAME_PREFIX + System.currentTimeMillis();
-
-            Recorder.Metadata metadata = new Recorder.Metadata("zrb", "process");
-            metadata.scenarioName = recordingName;
-
-            RECORDER.start(metadata);
-            System.out.println("AppMap recording started: " + recordingName);
-        } catch (Throwable t) {
-            System.out.println("AppMap recording not started: " + t.getMessage());
-        }
-    }
-
-    private static void installShutdownHook() {
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    if (RECORDER.hasActiveSession()) {
-                        RECORDER.stop();
-                        System.out.println("AppMap recording stopped on shutdown.");
-                    }
-                } catch (Throwable t) {
-                    System.out.println("Failed to stop AppMap recording on shutdown: " + t.getMessage());
-                }
-            }
-        }));
-    }
-
     private static boolean hasArgument(String[] args, String flag) {
         if (args == null || flag == null) {
             return false;
         }
-        for (int i = 0; i < args.length; i++) {
-            if (flag.equals(args[i])) {
+        for (String arg : args) {
+            if (flag.equals(arg)) {
                 return true;
             }
         }
@@ -131,18 +101,44 @@ public class Main {
         return Boolean.getBoolean(AGENT_LAUNCHED_FLAG);
     }
 
+    private static void ensureAppMapConfigExists() {
+        String baseDir = System.getProperty("user.dir");
+        File configFile = new File(baseDir, APPMAP_CONFIG_FILE_NAME);
+
+        if (configFile.exists()) {
+            System.out.println("Found existing " + APPMAP_CONFIG_FILE_NAME + " at " + configFile.getAbsolutePath());
+            return;
+        }
+
+        FileWriter writer = null;
+        try {
+            writer = new FileWriter(configFile);
+            writer.write(APPMAP_CONFIG_CONTENT);
+            writer.flush();
+            System.out.println("Created default " + APPMAP_CONFIG_FILE_NAME + " at " + configFile.getAbsolutePath());
+        } catch (IOException e) {
+            System.out.println("Failed to create " + APPMAP_CONFIG_FILE_NAME + ": " + e.getMessage());
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IOException ignore) {
+                    // Ignorieren
+                }
+            }
+        }
+    }
+
     /**
      * Check known locations for an existing agent JAR with fixed versioned name.
      */
     private static File findExistingAgentJar() {
-        // 1) Working directory
         String baseDir = System.getProperty("user.dir");
         File inWorkDir = new File(baseDir, APPMAP_JAR_FILE_NAME);
         if (inWorkDir.exists() && inWorkDir.isFile()) {
             return inWorkDir;
         }
 
-        // 2) User home .appmap/lib/java
         String userHome = System.getProperty("user.home");
         if (userHome != null) {
             File inHome = new File(userHome + File.separator
@@ -184,30 +180,24 @@ public class Main {
             }
         }
 
-        // Last resort: temp file in system temp folder
-        File temp = new File(System.getProperty("java.io.tmpdir"),
-                APPMAP_JAR_FILE_NAME);
-        return temp;
+        return new File(System.getProperty("java.io.tmpdir"), APPMAP_JAR_FILE_NAME);
     }
 
     private static boolean canWriteFile(File file) {
         try {
             File parent = file.getParentFile();
-            if (parent != null && !parent.exists()) {
-                if (!parent.mkdirs()) {
-                    return false;
-                }
-            }
-            if (!parent.canWrite()) {
+            if (parent != null && !parent.exists() && !parent.mkdirs()) {
                 return false;
             }
-            // quick probe
-            File probe = new File(parent, file.getName() + ".tmp_probe");
-            if (probe.exists()) {
-                return probe.delete();
+            if (parent != null && !parent.canWrite()) {
+                return false;
             }
-            boolean created = probe.createNewFile();
-            if (created) {
+
+            File probe = new File(parent, file.getName() + ".tmp_probe");
+            if (probe.exists() && !probe.delete()) {
+                return false;
+            }
+            if (probe.createNewFile()) {
                 return probe.delete();
             }
             return false;
@@ -270,8 +260,19 @@ public class Main {
 
         List<String> command = new ArrayList<String>();
         command.add(javaBin);
+
+        // AppMap Agent
         command.add("-javaagent:" + agentJar.getAbsolutePath());
+
+        // Marker gegen Relaunch-Schleife
         command.add("-D" + AGENT_LAUNCHED_FLAG + "=true");
+
+        // Auto-Recording: Agent erzeugt AppMaps automatisch
+        command.add("-Dappmap.recording.auto=true");
+
+        // explizit unsere Config-Datei verwenden
+        command.add("-Dappmap.config.file=" + APPMAP_CONFIG_FILE_NAME);
+
         command.add("-cp");
         command.add(classPath);
         command.add(Main.class.getName());
@@ -289,6 +290,19 @@ public class Main {
         }
 
         System.exit(0);
+    }
+
+    private static void installInfoShutdownHook() {
+        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+            @Override
+            public void run() {
+                String baseDir = System.getProperty("user.dir");
+                String recordingDir = baseDir
+                        + File.separator + "tmp"
+                        + File.separator + "appmap";
+                System.out.println("AppMap recordings directory: " + recordingDir);
+            }
+        }));
     }
 
     private static void closeQuietly(InputStream in) {
