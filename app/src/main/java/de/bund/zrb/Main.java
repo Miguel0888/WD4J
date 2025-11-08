@@ -1,5 +1,6 @@
 package de.bund.zrb;
 
+import com.appland.appmap.record.Recorder;
 import de.bund.zrb.service.RecorderEventBridge;
 import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.service.TestRegistry;
@@ -8,6 +9,8 @@ import de.bund.zrb.ui.MainWindow;
 import javax.swing.SwingUtilities;
 
 public class Main {
+    public static final Recorder RECORDER = Recorder.getInstance();
+
     public static void main(String[] args) {
         // Install event bridge before any UI is created
         RecorderEventBridge.install();

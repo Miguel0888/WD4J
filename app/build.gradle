@@ -1,9 +1,6 @@
 plugins {
     id 'java'
     id 'com.github.johnrengelman.shadow' version '8.1.1' //um Fat-Jar mit allen Dependendies zu erzeugen
-
-
-    id "com.appland.appmap" version "1.2.0"
 }
 
 java {
