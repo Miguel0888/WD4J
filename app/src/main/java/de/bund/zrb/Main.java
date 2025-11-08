@@ -21,7 +21,8 @@ public class Main {
 
     public static final Recorder RECORDER = Recorder.getInstance();
 
-    public static final String RECORD_FLAG = "debug";
+    public static final String RECORD_FLAG = "-d";
+    public static final String ALT_RECORD_FLAG = "--debug";
     public static final String RECORD_NAME_PREFIX = "zrb-session-";
 
     public static final String AGENT_LAUNCHED_FLAG = "appmap.launcher.active";
@@ -34,7 +35,7 @@ public class Main {
             "https://repo1.maven.org/maven2/com/appland/appmap-agent/1.28.0/appmap-agent-1.28.0.jar";
 
     public static void main(String[] args) {
-        boolean recordingRequested = hasArgument(args, RECORD_FLAG);
+        boolean recordingRequested = hasArgument(args, RECORD_FLAG) || hasArgument(args, ALT_RECORD_FLAG);
 
         if (recordingRequested && !isLauncherActive()) {
             File existingAgent = findExistingAgentJar();
