@@ -11,13 +11,9 @@ import de.bund.zrb.ui.giveneditor.SuiteScopeEditorTab;
 import de.bund.zrb.ui.leftdrawer.NodeOpenHandler;
 
 import javax.swing.*;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.text.JTextComponent;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * TabManager verwaltet genau EIN Preview-Tab (flüchtig) und beliebig viele persistente Tabs.
@@ -25,19 +21,22 @@ import java.util.Objects;
  * Unterscheidung erfolgt NICHT über einen Titelpräfix, sondern über interne Metadaten.
  */
 public class TabManager implements NodeOpenHandler {
-
     /** Interne Repräsentation eines Tabs. */
     private static class TabEntry {
         Component component;
-        Object modelRef; // kann RootNode/TestSuite/TestCase/TestAction sein
+        Object modelRef;
+        String id; // eindeutige ID (Model-UUID oder synthetisch)
         boolean persistent; // false = Preview
-        String title; // angezeigter Titel (ohne "Preview:"-Präfix)
+        String title;
     }
 
     private final JTabbedPane editorTabs;
     private final Component parent;
-    private final List<TabEntry> entries = new ArrayList<>();
-    private TabEntry previewEntry; // explizite Referenz statt Suche
+    // Map für persistente Tabs: ID -> TabEntry
+    private final Map<String, TabEntry> persistentTabs = new LinkedHashMap<>();
+    // Preview-Tab separat
+    private volatile TabEntry previewEntry; // volatile für spätere Thread-Sicherheit
+    private volatile String previewId;
 
     public TabManager(Component parent, JTabbedPane editorTabs) {
         this.parent = parent;
@@ -51,13 +50,10 @@ public class TabManager implements NodeOpenHandler {
         if (node == null) return;
         Object ref = node.getModelRef();
         if (ref == null) return;
-
-        if (focusExistingPersistentTabIfPresent(ref)) {
-            return; // persistenter Tab vorhanden -> kein Preview-Update nötig
-        }
-
-        // Preview neu oder ersetzen
-        createOrReplacePreview(ref);
+        String id = extractId(ref);
+        // Persistenter Tab vorhanden? -> Fokus statt Preview
+        if (id != null && focusPersistentTab(id)) return;
+        createOrUpdatePreview(id, ref);
     }
 
     /** Öffnet einen persistenten Tab oder fokussiert existierenden. */
@@ -66,61 +62,21 @@ public class TabManager implements NodeOpenHandler {
         if (node == null) return;
         Object ref = node.getModelRef();
         if (ref == null) return;
-
-        if (focusExistingPersistentTabIfPresent(ref)) {
-            return; // schon da
-        }
-        // Falls Preview den gleichen Ref zeigt -> Promotion
-        if (previewEntry != null && Objects.equals(previewEntry.modelRef, ref) && !previewEntry.persistent) {
-            promotePreview(previewEntry);
+        String id = extractId(ref);
+        if (id == null) id = synthId(ref);
+        // Falls schon persistent -> Fokus
+        if (focusPersistentTab(id)) return;
+        // Falls Preview denselben Inhalt zeigt -> Promotion
+        if (previewEntry != null && !previewEntry.persistent && id.equals(previewId)) {
+            promotePreviewToPersistent(id);
             return;
         }
-        createPersistentTab(ref);
+        createPersistentTab(id, ref);
     }
 
-    /** Prüft ob für modelRef bereits persistenter Tab existiert und fokussiert ihn. */
-    public boolean focusExistingPersistentTabIfPresent(Object modelRef) {
-        for (int i = 0; i < entries.size(); i++) {
-            TabEntry e = entries.get(i);
-            if (e.persistent && Objects.equals(e.modelRef, modelRef)) {
-                int idx = editorTabs.indexOfComponent(e.component);
-                if (idx >= 0) {
-                    editorTabs.setSelectedIndex(idx);
-                    return true;
-                } else {
-                    entries.remove(i);
-                    i--;
-                }
-            }
-        }
-        return false;
-    }
-
-    /** Wird von Auto-Promote-Listenern aufgerufen, sobald eine Modifikation festgestellt wird. */
-    private void promotePreviewIfModified(TabEntry preview) {
-        if (preview == null || preview.persistent) return;
-        promotePreview(preview);
-    }
-
-    /** Externe Aufrufoption (falls Editor explizit Promotion auslösen will). */
-    public void promotePreviewToPersistentIfModified(Object modelRef) {
-        TabEntry preview = getPreviewEntry();
-        if (preview != null && Objects.equals(preview.modelRef, modelRef) && !preview.persistent) {
-            promotePreview(preview);
-        }
-    }
-
-    /** Liefert Index des Preview-Tabs oder -1. */
-    public int getPreviewTabIndex() {
-        TabEntry preview = getPreviewEntry();
-        if (preview == null) return -1;
-        return editorTabs.indexOfComponent(preview.component);
-    }
-
-    /** Ist Komponente der Preview-Tab? */
-    public boolean isPreviewComponent(Component c) {
-        TabEntry preview = getPreviewEntry();
-        return preview != null && preview.component == c;
+    public boolean isPersistentForModel(Object modelRef) {
+        String id = extractId(modelRef);
+        return id != null && persistentTabs.containsKey(id);
     }
 
     /**
@@ -129,125 +85,112 @@ public class TabManager implements NodeOpenHandler {
      */
     public java.util.List<Object> listPersistentModelRefs() {
         java.util.List<Object> out = new java.util.ArrayList<>();
-        for (TabEntry e : entries) {
-            if (e.persistent && e.modelRef != null) out.add(e.modelRef);
-        }
+        for (TabEntry e : persistentTabs.values()) if (e.modelRef != null) out.add(e.modelRef);
         return java.util.Collections.unmodifiableList(out);
     }
 
-    /** Prüft ob für das gegebene Modell bereits ein persistenter Tab existiert. */
-    public boolean isPersistentForModel(Object modelRef) {
-        if (modelRef == null) return false;
-        for (TabEntry e : entries) {
-            if (e.persistent && java.util.Objects.equals(e.modelRef, modelRef)) return true;
+    /** Liefert Index des Preview-Tabs oder -1. */
+    public int getPreviewTabIndex() {
+        if (previewEntry == null) return -1;
+        return editorTabs.indexOfComponent(previewEntry.component);
+    }
+
+    /** Ist Komponente der Preview-Tab? */
+    public boolean isPreviewComponent(Component c) {
+        return previewEntry != null && previewEntry.component == c;
+    }
+
+    // Optionale explizite Promotion via externer Änderung
+    public void notifyContentModified(Object modelRef) {
+        if (previewEntry == null || previewEntry.persistent) return;
+        String id = extractId(modelRef);
+        if (id != null && id.equals(previewId)) {
+            promotePreviewToPersistent(id);
         }
-        return false;
     }
 
     // ========================= Interne Hilfen =========================
 
-    private TabEntry getPreviewEntry() { return previewEntry; }
-
-    private void promotePreview(TabEntry preview) {
-        preview.persistent = true;
-        int idx = editorTabs.indexOfComponent(preview.component);
+    private boolean focusPersistentTab(String id) {
+        TabEntry e = persistentTabs.get(id);
+        if (e == null) return false;
+        int idx = editorTabs.indexOfComponent(e.component);
         if (idx >= 0) {
-            // Closable Header mit onCloseHook setzen
-            editorTabs.setTabComponentAt(idx, new ClosableTabHeader(
-                    editorTabs,
-                    preview.component,
-                    preview.title,
-                    () -> {
-                        entries.remove(preview);
-                        if (previewEntry == preview) previewEntry = null; // sicherheit
-                    }
-            ));
+            editorTabs.setSelectedIndex(idx);
+            return true;
         }
-        // Preview-Eintrag loslösen
-        if (previewEntry == preview) previewEntry = null;
+        // verwaist -> entfernen
+        persistentTabs.remove(id);
+        return false;
     }
 
-    private void createOrReplacePreview(Object ref) {
+    private void createOrUpdatePreview(String id, Object ref) {
         Component panel = buildEditorPanelFor(ref);
         if (panel == null) return;
         String title = derivePreviewTitle(ref);
-
         if (previewEntry == null || editorTabs.indexOfComponent(previewEntry.component) < 0) {
             previewEntry = new TabEntry();
             previewEntry.component = panel;
             previewEntry.modelRef = ref;
+            previewEntry.id = id;
             previewEntry.persistent = false;
             previewEntry.title = title;
-            entries.add(previewEntry);
-            editorTabs.addTab(previewEntry.title, previewEntry.component);
-            editorTabs.setSelectedIndex(editorTabs.indexOfComponent(previewEntry.component));
-            attachAutoPromoteListener(previewEntry);
+            previewId = id;
+            editorTabs.addTab(title, panel);
+            editorTabs.setSelectedIndex(editorTabs.indexOfComponent(panel));
         } else {
             int idx = editorTabs.indexOfComponent(previewEntry.component);
-            previewEntry.component = panel; // neue Komponente setzen
+            previewEntry.component = panel;
             previewEntry.modelRef = ref;
+            previewEntry.id = id;
             previewEntry.title = title;
+            previewId = id;
             editorTabs.setComponentAt(idx, panel);
             editorTabs.setTitleAt(idx, title);
             editorTabs.setSelectedIndex(idx);
-            attachAutoPromoteListener(previewEntry);
         }
     }
 
-    private void createPersistentTab(Object ref) {
+    private void promotePreviewToPersistent(String id) {
+        if (previewEntry == null) return;
+        previewEntry.persistent = true;
+        int idx = editorTabs.indexOfComponent(previewEntry.component);
+        if (idx >= 0) {
+            editorTabs.setTabComponentAt(idx, new ClosableTabHeader(
+                    editorTabs,
+                    previewEntry.component,
+                    previewEntry.title,
+                    () -> persistentTabs.remove(id)
+            ));
+        }
+        persistentTabs.put(id, previewEntry);
+        previewEntry = null;
+        previewId = null;
+    }
+
+    private void createPersistentTab(String id, Object ref) {
         Component panel = buildEditorPanelFor(ref);
         if (panel == null) return;
-        TabEntry entry = new TabEntry();
-        entry.component = panel;
-        entry.modelRef = ref;
-        entry.persistent = true;
-        entry.title = derivePersistentTitle(ref);
-        entries.add(entry);
-        editorTabs.addTab(entry.title, entry.component);
-        int idx = editorTabs.indexOfComponent(entry.component);
+        TabEntry e = new TabEntry();
+        e.component = panel;
+        e.modelRef = ref;
+        e.id = id;
+        e.persistent = true;
+        e.title = derivePersistentTitle(ref);
+        persistentTabs.put(id, e);
+        editorTabs.addTab(e.title, e.component);
+        int idx = editorTabs.indexOfComponent(e.component);
         editorTabs.setTabComponentAt(idx, new ClosableTabHeader(
                 editorTabs,
-                entry.component,
-                entry.title,
-                () -> entries.remove(entry)
+                e.component,
+                e.title,
+                () -> persistentTabs.remove(id)
         ));
         editorTabs.setSelectedIndex(idx);
     }
 
-    private void attachAutoPromoteListener(TabEntry preview) {
-        // Entferne evtl. alte Listener: nicht nötig wenn Panel ersetzt wurde
-        // Suche Text-Komponenten und hänge DocumentListener an, der Promotion triggert
-        if (preview == null) return;
-        for (Component c : getAllDescendants(preview.component)) {
-            if (c instanceof JTextComponent) {
-                ((JTextComponent) c).getDocument().addDocumentListener(new DocumentListener() {
-                    private boolean triggered = false;
-                    private void trigger(DocumentEvent e) {
-                        if (!triggered) {
-                            triggered = true;
-                            SwingUtilities.invokeLater(() -> promotePreviewIfModified(preview));
-                        }
-                    }
-                    public void insertUpdate(DocumentEvent e) { trigger(e); }
-                    public void removeUpdate(DocumentEvent e) { trigger(e); }
-                    public void changedUpdate(DocumentEvent e) { trigger(e); }
-                });
-            }
-        }
-    }
-
-    private List<Component> getAllDescendants(Component root) {
-        List<Component> list = new ArrayList<>();
-        if (root instanceof Container) {
-            for (Component child : ((Container) root).getComponents()) {
-                list.add(child);
-                list.addAll(getAllDescendants(child));
-            }
-        }
-        return list;
-    }
-
-    // ========================= Panel-Fabriken & Titel =========================
+    // Entfernte automatische Promotion-Mechanik
+    // promotePreviewIfModified / attachAutoPromoteListener entfallen
 
     private Component buildEditorPanelFor(Object ref) {
         if (ref instanceof RootNode) return new RootScopeEditorTab((RootNode) ref);
@@ -258,10 +201,7 @@ public class TabManager implements NodeOpenHandler {
         return null;
     }
 
-    private String derivePreviewTitle(Object ref) {
-        // Gleiche Titel wie persistent, nur intern als Preview markiert
-        return derivePersistentTitle(ref);
-    }
+    private String derivePreviewTitle(Object ref) { return derivePersistentTitle(ref); }
 
     private String derivePersistentTitle(Object ref) {
         if (ref instanceof RootNode) return "Root Scope";
@@ -271,7 +211,22 @@ public class TabManager implements NodeOpenHandler {
         return "Editor";
     }
 
-    private static String safe(String s) {
-        return (s == null || s.trim().isEmpty()) ? "(unnamed)" : s.trim();
+    private static String safe(String s) { return (s == null || s.trim().isEmpty()) ? "(unnamed)" : s.trim(); }
+
+    private String extractId(Object ref) {
+        if (ref == null) return null;
+        try {
+            java.lang.reflect.Method m = ref.getClass().getMethod("getId");
+            Object v = m.invoke(ref); // korrekte Reflection-Nutzung
+            if (v == null) return null;
+            String s = String.valueOf(v).trim();
+            return s.isEmpty() ? null : s;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private String synthId(Object ref) {
+        return ref.getClass().getName() + "@" + System.identityHashCode(ref);
     }
 }
