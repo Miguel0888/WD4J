@@ -8,22 +8,24 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreePath;
 import java.lang.reflect.Field;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 /**
  * Test für Preview-Tab Verhalten des LeftDrawer.
  */
 class LeftDrawerTest {
-    private JTabbedPane dummyTabs;
-    private JTree realTree; // vom LeftDrawer erzeugt
+    private JTabbedPane tabs;
+    private JTree testTree;
+    private LeftDrawer leftDrawer;
 
     @BeforeEach
     void setUp() {
-        dummyTabs = new JTabbedPane();
-        LeftDrawer leftDrawer = new LeftDrawer(dummyTabs);
-
+        tabs = new JTabbedPane();
+        leftDrawer = new LeftDrawer(tabs);
         try {
             Field f = LeftDrawer.class.getDeclaredField("testTree");
             f.setAccessible(true);
-            realTree = (JTree) f.get(leftDrawer);
+            testTree = (JTree) f.get(leftDrawer);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -31,19 +33,13 @@ class LeftDrawerTest {
 
     @Test
     void previewSelection_ShouldCreateOrReplacePreviewTab() {
-        DefaultMutableTreeNode root = (DefaultMutableTreeNode) realTree.getModel().getRoot();
-        if (root.getChildCount() > 0) {
-            DefaultMutableTreeNode firstChild = (DefaultMutableTreeNode) root.getChildAt(0);
-            realTree.setSelectionPath(new TreePath(firstChild.getPath()));
-            boolean found = false;
-            for (int i = 0; i < dummyTabs.getTabCount(); i++) {
-                String title = dummyTabs.getTitleAt(i);
-                if (title != null && title.startsWith("Preview:")) {
-                    found = true;
-                    break;
-                }
-            }
-            assert found : "Preview-Tab wurde nicht angelegt";
-        }
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) testTree.getModel().getRoot();
+        if (root.getChildCount() == 0) return; // nichts zu testen
+        DefaultMutableTreeNode first = (DefaultMutableTreeNode) root.getChildAt(0);
+        testTree.setSelectionPath(new TreePath(first.getPath()));
+        assertEquals(1, tabs.getTabCount(), "Ein Preview-Tab wird erwartet");
+        String title = tabs.getTitleAt(0);
+        assertNotNull(title);
+        assertFalse(title.startsWith("Preview:"), "Altes Präfix darf nicht mehr vorkommen");
     }
 }

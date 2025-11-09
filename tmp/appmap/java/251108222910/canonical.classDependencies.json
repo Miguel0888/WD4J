@@ -1,0 +1,10 @@
+[
+  {
+    "caller": "com/microsoft",
+    "callee": "de/bund"
+  },
+  {
+    "caller": "de/bund",
+    "callee": "com/microsoft"
+  }
+]

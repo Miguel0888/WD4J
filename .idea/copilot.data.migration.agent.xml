@@ -4,6 +4,7 @@
     <option name="migrationStatus" value="IN_PROGRESS" />
     <option name="pendingSessionIds">
       <option value="05224ff9-5831-40e4-9ce0-c1057f8fbb33" />
+      <option value="10d8b19c-816c-42ff-a02e-23368f329400" />
       <option value="40068c8f-86ed-4ce5-be97-2ef184999784" />
       <option value="60907b7b-1e22-415d-b273-da4fcd60e998" />
       <option value="8d4bfd2b-2b1f-47a8-b314-14717ea5ab5b" />
@@ -34,6 +35,13 @@
               <option value="f231a7bf-e2e8-4839-bf8f-0520f9d545bf" />
               <option value="f286251f-b228-43f7-9ee6-a30656b23a4d" />
               <option value="f434b75e-144d-461b-874f-8d8cf29795a5" />
+            </set>
+          </value>
+        </entry>
+        <entry key="10d8b19c-816c-42ff-a02e-23368f329400">
+          <value>
+            <set>
+              <option value="6e497f13-54f9-4ab6-9c30-5e0c101fbfd2" />
             </set>
           </value>
         </entry>
@@ -105,6 +113,17 @@
     </option>
     <pendingWorkingSetItems>
       <entry key="05224ff9-5831-40e4-9ce0-c1057f8fbb33" />
+      <entry key="10d8b19c-816c-42ff-a02e-23368f329400">
+        <set>
+          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/leftdrawer/NodeOpenHandler.java" />
+          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/tabs/TabManager.java" />
+          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/LeftDrawer.java" />
+          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeController.java" />
+          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/leftdrawer/PrecondTreeController.java" />
+          <option value="file://$PROJECT_DIR$/app/src/test/java/de/bund/zrb/ui/LeftDrawerTest.java" />
+          <option value="file://$PROJECT_DIR$/wd4j/src/main/java/de/bund/zrb/command/request/parameters/browser/SetClientWindowStateParameters.java" />
+        </set>
+      </entry>
     </pendingWorkingSetItems>
   </component>
 </project>

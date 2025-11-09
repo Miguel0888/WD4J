@@ -1,0 +1,1364 @@
+[
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "name": "getSourceActions",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/ui/TestSuiteTreeTransferHandler.java:81"
+                      }
+                    ],
+                    "name": "TestSuiteTreeTransferHandler",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "name": "getById",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/commandframework/CommandRegistryImpl.java:35"
+                          },
+                          {
+                            "name": "register",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/commandframework/CommandRegistryImpl.java:31"
+                          }
+                        ],
+                        "name": "CommandRegistryImpl",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "loadShortcuts",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/commandframework/ShortcutManager.java:24"
+                          },
+                          {
+                            "name": "registerGlobalShortcuts",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/commandframework/ShortcutManager.java:53"
+                          }
+                        ],
+                        "name": "ShortcutManager",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "buildMenuBar",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/commandframework/MenuTreeBuilder.java:11"
+                          }
+                        ],
+                        "name": "MenuTreeBuilder",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "createMenuItem",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/commandframework/CommandMenuFactory.java:9"
+                          }
+                        ],
+                        "name": "CommandMenuFactory",
+                        "type": "class"
+                      }
+                    ],
+                    "name": "commandframework",
+                    "type": "package"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "name": "withDefaultContextWiring",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/debug/WDEventWiringConfig.java:348"
+                          },
+                          {
+                            "name": "enablePage",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/debug/WDEventWiringConfig.java:68"
+                          },
+                          {
+                            "name": "enableContext",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/debug/WDEventWiringConfig.java:78"
+                          },
+                          {
+                            "name": "withDefaultPageWiring",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/debug/WDEventWiringConfig.java:110"
+                          },
+                          {
+                            "name": "build",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/debug/WDEventWiringConfig.java:104"
+                          }
+                        ],
+                        "name": "WDEventWiringConfig$Builder",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "builder",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/debug/WDEventWiringConfig.java:410"
+                          },
+                          {
+                            "name": "defaults",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/debug/WDEventWiringConfig.java:414"
+                          }
+                        ],
+                        "name": "WDEventWiringConfig",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "recorderDefaults",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/debug/WDEventFlagPresets.java:10"
+                          }
+                        ],
+                        "name": "WDEventFlagPresets",
+                        "type": "class"
+                      }
+                    ],
+                    "name": "debug",
+                    "type": "package"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "name": "setMessage",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/widgets/StatusBar.java:27"
+                          }
+                        ],
+                        "name": "StatusBar",
+                        "type": "class"
+                      }
+                    ],
+                    "name": "widgets",
+                    "type": "package"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "name": "renderActionLabel",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeController.java:118"
+                          },
+                          {
+                            "name": "addCommonMenuItems",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeController.java:227"
+                          },
+                          {
+                            "name": "createNewStep",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeController.java:429"
+                          },
+                          {
+                            "name": "refreshTestTree",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeController.java:1041"
+                          },
+                          {
+                            "name": "setupContextMenu",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeController.java:131"
+                          },
+                          {
+                            "name": "selectNode",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeController.java:928"
+                          },
+                          {
+                            "name": "buildContextMenu",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeController.java:159"
+                          },
+                          {
+                            "name": "buildTestTree",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeController.java:54"
+                          }
+                        ],
+                        "name": "TestTreeController",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "buildPrecondTree",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/PrecondTreeController.java:36"
+                          },
+                          {
+                            "name": "renderActionLabel",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/PrecondTreeController.java:70"
+                          },
+                          {
+                            "name": "setupContextMenu",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/PrecondTreeController.java:88"
+                          },
+                          {
+                            "name": "refreshPreconditions",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/PrecondTreeController.java:41"
+                          }
+                        ],
+                        "name": "PrecondTreeController",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "values",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeCellRenderer.java:23"
+                          }
+                        ],
+                        "name": "TestTreeCellRenderer$NodeKind",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "mouseReleased",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeController.java:151"
+                          },
+                          {
+                            "name": "mousePressed",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeController.java:150"
+                          }
+                        ],
+                        "name": "TestTreeController$1",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "paintIcon",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeCellRenderer.java:92"
+                          }
+                        ],
+                        "name": "TestTreeCellRenderer$2",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "openEditorTab",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/EditorTabOpener.java:36"
+                          }
+                        ],
+                        "name": "EditorTabOpener",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "getTreeCellRendererComponent",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/leftdrawer/TestTreeCellRenderer.java:198"
+                          }
+                        ],
+                        "name": "TestTreeCellRenderer",
+                        "type": "class"
+                      }
+                    ],
+                    "name": "leftdrawer",
+                    "type": "package"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "name": "install",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/celleditors/ExpressionCellEditor.java:897"
+                          },
+                          {
+                            "name": "hidePopupWindow",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/celleditors/ExpressionCellEditor.java:940"
+                          }
+                        ],
+                        "name": "ExpressionCellEditor$TabbedAutoCompletion",
+                        "type": "class"
+                      }
+                    ],
+                    "name": "celleditors",
+                    "type": "package"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "name": "updateLeftDrawerState",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/state/UiStateService.java:42"
+                          },
+                          {
+                            "name": "persist",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/state/UiStateService.java:61"
+                          },
+                          {
+                            "name": "updateMainWindowState",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/state/UiStateService.java:30"
+                          },
+                          {
+                            "name": "updateRightDrawerState",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/state/UiStateService.java:51"
+                          }
+                        ],
+                        "name": "UiStateService",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "loadUiState",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/state/FileUiStateRepository.java:28"
+                          },
+                          {
+                            "name": "saveUiState",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/state/FileUiStateRepository.java:38"
+                          }
+                        ],
+                        "name": "FileUiStateRepository",
+                        "type": "class"
+                      }
+                    ],
+                    "name": "state",
+                    "type": "package"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "name": "clearValidationError",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/tabs/GivenListEditorTab.java:79"
+                          }
+                        ],
+                        "name": "GivenListEditorTab",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "validateOrThrow",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/tabs/PreconditionListValidator.java:18"
+                          }
+                        ],
+                        "name": "PreconditionListValidator",
+                        "type": "class"
+                      }
+                    ],
+                    "name": "tabs",
+                    "type": "package"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "name": "ensureExamplesRegistered",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/settings/ExpressionExamples.java:24"
+                          }
+                        ],
+                        "name": "ExpressionExamples",
+                        "type": "class"
+                      }
+                    ],
+                    "name": "settings",
+                    "type": "package"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "name": "fnSupplier",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/giveneditor/MapTablePanelFactories.java:73"
+                          },
+                          {
+                            "name": "rxSupplier",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/giveneditor/MapTablePanelFactories.java:104"
+                          },
+                          {
+                            "name": "varSupplierForAssertions",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/giveneditor/MapTablePanelFactories.java:18"
+                          }
+                        ],
+                        "name": "MapTablePanelFactories",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "getColumnName",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/giveneditor/AssertionTableModel.java:64"
+                          }
+                        ],
+                        "name": "AssertionTableModel",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "getColumnName",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/giveneditor/MapTableModel.java:58"
+                          }
+                        ],
+                        "name": "MapTableModel",
+                        "type": "class"
+                      }
+                    ],
+                    "name": "giveneditor",
+                    "type": "package"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "mouseClicked",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/ui/LeftDrawer.java:58"
+                      }
+                    ],
+                    "name": "LeftDrawer$1",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "initUI",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/ui/MainWindow.java:77"
+                      }
+                    ],
+                    "name": "MainWindow",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "compare",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/ui/ActionToolbar.java:600"
+                      }
+                    ],
+                    "name": "ActionToolbar$3",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "name": "install",
+                            "type": "function",
+                            "static": true,
+                            "location": "app/src/main/java/de/bund/zrb/ui/util/AppIcon.java:16"
+                          }
+                        ],
+                        "name": "AppIcon",
+                        "type": "class"
+                      }
+                    ],
+                    "name": "util",
+                    "type": "package"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "getTableCellRendererComponent",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/ui/ActionTable.java:163"
+                      }
+                    ],
+                    "name": "ActionTable$ButtonHeaderRenderer",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "name": "attach",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/status/StatusTicker.java:60"
+                          }
+                        ],
+                        "name": "StatusTicker",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "actionPerformed",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/status/StatusTicker.java:41"
+                          }
+                        ],
+                        "name": "StatusTicker$1",
+                        "type": "class"
+                      }
+                    ],
+                    "name": "status",
+                    "type": "package"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "getColumnName",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/ui/ActionTableModel.java:84"
+                      }
+                    ],
+                    "name": "ActionTableModel",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "windowClosing",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/ui/MainWindow.java:179"
+                      }
+                    ],
+                    "name": "MainWindow$1",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "name": "actionPerformed",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/ui/dialogs/ActionPickerDialog.java:40"
+                          }
+                        ],
+                        "name": "ActionPickerDialog$1",
+                        "type": "class"
+                      }
+                    ],
+                    "name": "dialogs",
+                    "type": "package"
+                  }
+                ],
+                "name": "ui",
+                "type": "package"
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "name": "screenshotTool",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/ToolsRegistry.java:28"
+                      },
+                      {
+                        "name": "loginTool",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/ToolsRegistry.java:31"
+                      },
+                      {
+                        "name": "twoFaTool",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/ToolsRegistry.java:29"
+                      },
+                      {
+                        "name": "navigationTool",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/ToolsRegistry.java:30"
+                      },
+                      {
+                        "name": "notificationTool",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/ToolsRegistry.java:32"
+                      }
+                    ],
+                    "name": "ToolsRegistry",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "save",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/SettingsService.java:192"
+                      },
+                      {
+                        "name": "loadShortcuts",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/SettingsService.java:202"
+                      },
+                      {
+                        "name": "load",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/SettingsService.java:178"
+                      },
+                      {
+                        "name": "initAdapter",
+                        "type": "function",
+                        "static": true,
+                        "location": "app/src/main/java/de/bund/zrb/service/SettingsService.java:64"
+                      },
+                      {
+                        "name": "get",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/SettingsService.java:159"
+                      }
+                    ],
+                    "name": "SettingsService",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "registerTab",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/RecorderCoordinator.java:20"
+                      }
+                    ],
+                    "name": "RecorderCoordinator",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "load",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/UserRegistry.java:33"
+                      },
+                      {
+                        "name": "usernamesSupplier",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/UserRegistry.java:115"
+                      }
+                    ],
+                    "name": "UserRegistry",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "wasLoadedFromLegacy",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/TestRegistry.java:43"
+                      },
+                      {
+                        "name": "load",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/TestRegistry.java:99"
+                      },
+                      {
+                        "name": "save",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/TestRegistry.java:81"
+                      }
+                    ],
+                    "name": "TestRegistry",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "load",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/PreconditionRegistry.java:86"
+                      }
+                    ],
+                    "name": "PreconditionRegistry",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "install",
+                        "type": "function",
+                        "static": true,
+                        "location": "app/src/main/java/de/bund/zrb/service/RecorderEventBridge.java:17"
+                      }
+                    ],
+                    "name": "RecorderEventBridge",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "launchBrowser",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/BrowserServiceImpl.java:41"
+                      },
+                      {
+                        "name": "terminateBrowser",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/BrowserServiceImpl.java:116"
+                      }
+                    ],
+                    "name": "BrowserServiceImpl",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "registerDrawer",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/TestPlayerService.java:64"
+                      }
+                    ],
+                    "name": "TestPlayerService",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "addPropertyChangeListener",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/UserContextMappingService.java:125"
+                      },
+                      {
+                        "name": "getContextForUser",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/UserContextMappingService.java:51"
+                      }
+                    ],
+                    "name": "UserContextMappingService",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "addListener",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/RecordingSession.java:212"
+                      }
+                    ],
+                    "name": "RecordingSession",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "get",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/service/UserRegistry.java:119"
+                      }
+                    ],
+                    "name": "UserRegistry$2",
+                    "type": "class"
+                  }
+                ],
+                "name": "service",
+                "type": "package"
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "name": "reload",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/runtime/ExpressionRegistryImpl.java:114"
+                      }
+                    ],
+                    "name": "ExpressionRegistryImpl",
+                    "type": "class"
+                  }
+                ],
+                "name": "runtime",
+                "type": "package"
+              },
+              {
+                "children": [
+                  {
+                    "name": "send",
+                    "type": "function",
+                    "static": false,
+                    "location": "wd4j/src/main/java/de/bund/zrb/WDWebSocketManagerImpl.java:57"
+                  },
+                  {
+                    "name": "receive",
+                    "type": "function",
+                    "static": false,
+                    "location": "wd4j/src/main/java/de/bund/zrb/WDWebSocketManagerImpl.java:146"
+                  },
+                  {
+                    "name": "registerEventListener",
+                    "type": "function",
+                    "static": false,
+                    "location": "wd4j/src/main/java/de/bund/zrb/WDWebSocketManagerImpl.java:202"
+                  },
+                  {
+                    "name": "sendAndWaitForResponse",
+                    "type": "function",
+                    "static": false,
+                    "location": "wd4j/src/main/java/de/bund/zrb/WDWebSocketManagerImpl.java:77"
+                  }
+                ],
+                "name": "WDWebSocketManagerImpl",
+                "type": "class"
+              },
+              {
+                "children": [
+                  {
+                    "name": "onError",
+                    "type": "function",
+                    "static": false,
+                    "location": "wd4j/src/main/java/de/bund/zrb/WDWebSocketImpl.java:249"
+                  },
+                  {
+                    "name": "onClose",
+                    "type": "function",
+                    "static": false,
+                    "location": "wd4j/src/main/java/de/bund/zrb/WDWebSocketImpl.java:240"
+                  }
+                ],
+                "name": "WDWebSocketImpl$1",
+                "type": "class"
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "children": [
+                              {
+                                "name": "metadata",
+                                "type": "function",
+                                "static": false,
+                                "location": "app/src/main/java/de/bund/zrb/expressions/builtins/tooling/ToolExpressionFunction.java:58"
+                              },
+                              {
+                                "name": "params",
+                                "type": "function",
+                                "static": true,
+                                "location": "app/src/main/java/de/bund/zrb/expressions/builtins/tooling/ToolExpressionFunction.java:76"
+                              },
+                              {
+                                "name": "meta",
+                                "type": "function",
+                                "static": true,
+                                "location": "app/src/main/java/de/bund/zrb/expressions/builtins/tooling/ToolExpressionFunction.java:64"
+                              }
+                            ],
+                            "name": "ToolExpressionFunction",
+                            "type": "class"
+                          }
+                        ],
+                        "name": "tooling",
+                        "type": "package"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "metadata",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/expressions/builtins/DateFunction.java:29"
+                          }
+                        ],
+                        "name": "DateFunction",
+                        "type": "class"
+                      },
+                      {
+                        "children": [
+                          {
+                            "name": "metadata",
+                            "type": "function",
+                            "static": false,
+                            "location": "app/src/main/java/de/bund/zrb/expressions/builtins/EchoFunction.java:26"
+                          }
+                        ],
+                        "name": "EchoFunction",
+                        "type": "class"
+                      }
+                    ],
+                    "name": "builtins",
+                    "type": "package"
+                  }
+                ],
+                "name": "expressions",
+                "type": "package"
+              },
+              {
+                "children": [
+                  {
+                    "name": "session",
+                    "type": "function",
+                    "static": false,
+                    "location": "wd4j/src/main/java/de/bund/zrb/WebDriver.java:83"
+                  },
+                  {
+                    "name": "connect",
+                    "type": "function",
+                    "static": false,
+                    "location": "wd4j/src/main/java/de/bund/zrb/WebDriver.java:146"
+                  }
+                ],
+                "name": "WebDriver",
+                "type": "class"
+              },
+              {
+                "children": [
+                  {
+                    "name": "run",
+                    "type": "function",
+                    "static": false,
+                    "location": "app/src/main/java/de/bund/zrb/Main.java:299"
+                  }
+                ],
+                "name": "Main$2",
+                "type": "class"
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "name": "builtinFunctions",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/tools/LoginTool.java:83"
+                      }
+                    ],
+                    "name": "LoginTool",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "builtinFunctions",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/tools/ScreenshotTool.java:32"
+                      }
+                    ],
+                    "name": "ScreenshotTool",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "builtinFunctions",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/tools/TwoFaTool.java:48"
+                      }
+                    ],
+                    "name": "TwoFaTool",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "builtinFunctions",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/tools/NavigationTool.java:97"
+                      }
+                    ],
+                    "name": "NavigationTool",
+                    "type": "class"
+                  },
+                  {
+                    "children": [
+                      {
+                        "name": "builtinFunctions",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/tools/NotificationTool.java:89"
+                      }
+                    ],
+                    "name": "NotificationTool",
+                    "type": "class"
+                  }
+                ],
+                "name": "tools",
+                "type": "package"
+              },
+              {
+                "children": [
+                  {
+                    "name": "run",
+                    "type": "function",
+                    "static": false,
+                    "location": "app/src/main/java/de/bund/zrb/Main.java:82"
+                  }
+                ],
+                "name": "Main$1",
+                "type": "class"
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "name": "values",
+                        "type": "function",
+                        "static": true,
+                        "location": "wd4j/src/main/java/de/bund/zrb/websocket/WDEventNames.java:3"
+                      }
+                    ],
+                    "name": "WDEventNames",
+                    "type": "class"
+                  }
+                ],
+                "name": "websocket",
+                "type": "package"
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "name": "newSession",
+                        "type": "function",
+                        "static": false,
+                        "location": "wd4j/src/main/java/de/bund/zrb/manager/WDSessionManager.java:55"
+                      }
+                    ],
+                    "name": "WDSessionManager",
+                    "type": "class"
+                  }
+                ],
+                "name": "manager",
+                "type": "package"
+              },
+              {
+                "children": [
+                  {
+                    "name": "connect",
+                    "type": "function",
+                    "static": false,
+                    "location": "playwright-adapter/src/main/java/de/bund/zrb/BrowserTypeImpl.java:135"
+                  },
+                  {
+                    "name": "launch",
+                    "type": "function",
+                    "static": false,
+                    "location": "playwright-adapter/src/main/java/de/bund/zrb/BrowserTypeImpl.java:102"
+                  },
+                  {
+                    "name": "name",
+                    "type": "function",
+                    "static": false,
+                    "location": "playwright-adapter/src/main/java/de/bund/zrb/BrowserTypeImpl.java:129"
+                  },
+                  {
+                    "name": "newFirefoxInstance",
+                    "type": "function",
+                    "static": true,
+                    "location": "playwright-adapter/src/main/java/de/bund/zrb/BrowserTypeImpl.java:74"
+                  },
+                  {
+                    "name": "getCommandLineArgs",
+                    "type": "function",
+                    "static": false,
+                    "location": "playwright-adapter/src/main/java/de/bund/zrb/BrowserTypeImpl.java:236"
+                  },
+                  {
+                    "name": "startProcess",
+                    "type": "function",
+                    "static": false,
+                    "location": "playwright-adapter/src/main/java/de/bund/zrb/BrowserTypeImpl.java:167"
+                  }
+                ],
+                "name": "BrowserTypeImpl",
+                "type": "class"
+              },
+              {
+                "children": [
+                  {
+                    "name": "onFrameReceived",
+                    "type": "function",
+                    "static": false,
+                    "location": "wd4j/src/main/java/de/bund/zrb/WDWebSocketImpl.java:47"
+                  },
+                  {
+                    "name": "connect",
+                    "type": "function",
+                    "static": false,
+                    "location": "wd4j/src/main/java/de/bund/zrb/WDWebSocketImpl.java:266"
+                  }
+                ],
+                "name": "WDWebSocketImpl",
+                "type": "class"
+              },
+              {
+                "children": [
+                  {
+                    "name": "create",
+                    "type": "function",
+                    "static": true,
+                    "location": "playwright-adapter/src/main/java/de/bund/zrb/PlaywrightImpl.java:33"
+                  }
+                ],
+                "name": "PlaywrightImpl",
+                "type": "class"
+              },
+              {
+                "children": [
+                  {
+                    "name": "main",
+                    "type": "function",
+                    "static": true,
+                    "location": "app/src/main/java/de/bund/zrb/Main.java:42"
+                  }
+                ],
+                "name": "Main",
+                "type": "class"
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "name": "subscribe",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/event/ApplicationEventBus.java:27"
+                      },
+                      {
+                        "name": "subscribe",
+                        "type": "function",
+                        "static": false,
+                        "location": "app/src/main/java/de/bund/zrb/event/ApplicationEventBus.java:22"
+                      }
+                    ],
+                    "name": "ApplicationEventBus",
+                    "type": "class"
+                  }
+                ],
+                "name": "event",
+                "type": "package"
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "name": "values",
+                        "type": "function",
+                        "static": true,
+                        "location": "app/src/main/java/de/bund/zrb/model/TestAction.java:431"
+                      }
+                    ],
+                    "name": "TestAction$ActionType",
+                    "type": "class"
+                  }
+                ],
+                "name": "model",
+                "type": "package"
+              }
+            ],
+            "name": "zrb",
+            "type": "package"
+          }
+        ],
+        "name": "bund",
+        "type": "package"
+      }
+    ],
+    "name": "de",
+    "type": "package"
+  },
+  {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "name": "setHeadless",
+                    "type": "function",
+                    "static": false,
+                    "location": "playwright-java/src/main/java/com/microsoft/playwright/BrowserType.java:377"
+                  },
+                  {
+                    "name": "setFirefoxUserPrefs",
+                    "type": "function",
+                    "static": false,
+                    "location": "playwright-java/src/main/java/com/microsoft/playwright/BrowserType.java:346"
+                  },
+                  {
+                    "name": "setTimeout",
+                    "type": "function",
+                    "static": false,
+                    "location": "playwright-java/src/main/java/com/microsoft/playwright/BrowserType.java:421"
+                  },
+                  {
+                    "name": "setArgs",
+                    "type": "function",
+                    "static": false,
+                    "location": "playwright-java/src/main/java/com/microsoft/playwright/BrowserType.java:270"
+                  }
+                ],
+                "name": "BrowserType$LaunchOptions",
+                "type": "class"
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "name": "create",
+                        "type": "function",
+                        "static": true,
+                        "location": "playwright-java/src/main/java/com/microsoft/playwright/impl/PlaywrightImpl.java:10"
+                      }
+                    ],
+                    "name": "PlaywrightImpl",
+                    "type": "class"
+                  }
+                ],
+                "name": "impl",
+                "type": "package"
+              }
+            ],
+            "name": "playwright",
+            "type": "package"
+          }
+        ],
+        "name": "microsoft",
+        "type": "package"
+      }
+    ],
+    "name": "com",
+    "type": "package"
+  }
+]
