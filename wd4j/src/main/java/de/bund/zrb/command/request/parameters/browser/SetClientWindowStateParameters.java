@@ -6,21 +6,22 @@ import de.bund.zrb.api.WDCommand;
 
 //@JsonAdapter(GenericWrapperAdapter.class) // Not required, since for the GenericWrapper is searched for in the factory
 public abstract class SetClientWindowStateParameters implements WDCommand.Params {
-    private final WDClientWindow WDClientWindow;
+    // Feldname angepasst, damit JSON-Schlüssel "clientWindow" statt "WDClientWindow" erzeugt wird
+    private final WDClientWindow clientWindow;
 
-    public SetClientWindowStateParameters(WDClientWindow WDClientWindow) {
-        this.WDClientWindow = WDClientWindow;
+    public SetClientWindowStateParameters(WDClientWindow clientWindow) {
+        this.clientWindow = clientWindow;
     }
 
     public WDClientWindow getClientWindow() {
-        return WDClientWindow;
+        return clientWindow;
     }
 
     public static class ClientWindowNamedState extends SetClientWindowStateParameters {
         private final State state;
 
-        public ClientWindowNamedState(WDClientWindow WDClientWindow, State state) {
-            super(WDClientWindow);
+        public ClientWindowNamedState(WDClientWindow clientWindow, State state) {
+            super(clientWindow);
             this.state = state;
         }
 
@@ -53,12 +54,12 @@ public abstract class SetClientWindowStateParameters implements WDCommand.Params
         private final Integer x; // optional
         private final Integer y; // optional
 
-        public ClientWindowRectState(WDClientWindow WDClientWindow) {
-            this(WDClientWindow, null, null, null, null);
+        public ClientWindowRectState(WDClientWindow clientWindow) {
+            this(clientWindow, null, null, null, null);
         }
 
-        public ClientWindowRectState(WDClientWindow WDClientWindow, Integer width, Integer height, Integer x, Integer y) {
-            super(WDClientWindow);
+        public ClientWindowRectState(WDClientWindow clientWindow, Integer width, Integer height, Integer x, Integer y) {
+            super(clientWindow);
             this.width = width;
             this.height = height;
             this.x = x;

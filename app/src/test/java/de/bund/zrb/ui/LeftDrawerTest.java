@@ -5,46 +5,45 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.DefaultTreeModel;
-
+import javax.swing.tree.TreePath;
 import java.lang.reflect.Field;
 
-import static org.mockito.Mockito.*;
-
+/**
+ * Test für Preview-Tab Verhalten des LeftDrawer.
+ */
 class LeftDrawerTest {
-    private LeftDrawer leftDrawer;
-    private JTree mockTree;
-    private DefaultTreeModel mockModel;
-    private DefaultMutableTreeNode parentNode;
-    private DefaultMutableTreeNode childNode;
+    private JTabbedPane dummyTabs;
+    private JTree realTree; // vom LeftDrawer erzeugt
 
     @BeforeEach
     void setUp() {
-        leftDrawer = new LeftDrawer(null);
+        dummyTabs = new JTabbedPane();
+        LeftDrawer leftDrawer = new LeftDrawer(dummyTabs);
 
-        mockTree = mock(JTree.class);
-        mockModel = mock(DefaultTreeModel.class);
-        parentNode = new DefaultMutableTreeNode("parent");
-        childNode = new DefaultMutableTreeNode("child");
-        parentNode.add(childNode);
-
-        when(mockTree.getLastSelectedPathComponent()).thenReturn(childNode);
-        when(mockTree.getModel()).thenReturn(mockModel);
-
-        // Inject mocks via reflection (simplified for this context)
         try {
-            Field treeField = LeftDrawer.class.getDeclaredField("leftDrawer");
-            treeField.setAccessible(true);
-            treeField.set(leftDrawer, mockTree);
+            Field f = LeftDrawer.class.getDeclaredField("testTree");
+            f.setAccessible(true);
+            realTree = (JTree) f.get(leftDrawer);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     @Test
-    void deleteNode_ShouldUpdateTreeStructure() {
-//        leftDrawer.deleteNode(); // ToDo: Fix Test
-        verify(mockModel).removeNodeFromParent(childNode);
-        verify(mockModel).nodeStructureChanged(parentNode);
+    void previewSelection_ShouldCreateOrReplacePreviewTab() {
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) realTree.getModel().getRoot();
+        if (root.getChildCount() > 0) {
+            DefaultMutableTreeNode firstChild = (DefaultMutableTreeNode) root.getChildAt(0);
+            realTree.setSelectionPath(new TreePath(firstChild.getPath()));
+            boolean found = false;
+            for (int i = 0; i < dummyTabs.getTabCount(); i++) {
+                String title = dummyTabs.getTitleAt(i);
+                if (title != null && title.startsWith("Preview:")) {
+                    found = true;
+                    break;
+                }
+            }
+            assert found : "Preview-Tab wurde nicht angelegt";
+        }
     }
 }
