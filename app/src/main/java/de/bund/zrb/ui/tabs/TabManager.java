@@ -11,9 +11,6 @@ import de.bund.zrb.ui.giveneditor.SuiteScopeEditorTab;
 import de.bund.zrb.ui.leftdrawer.NodeOpenHandler;
 
 import javax.swing.*;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -96,17 +93,10 @@ public class TabManager implements NodeOpenHandler {
         return false;
     }
 
-    /** Wird von Auto-Promote-Listenern aufgerufen, sobald eine Modifikation festgestellt wird. */
-    private void promotePreviewIfModified(TabEntry preview) {
-        if (preview == null || preview.persistent) return;
-        promotePreview(preview);
-    }
-
-    /** Externe Aufrufoption (falls Editor explizit Promotion auslösen will). */
-    public void promotePreviewToPersistentIfModified(Object modelRef) {
-        TabEntry preview = getPreviewEntry();
-        if (preview != null && Objects.equals(preview.modelRef, modelRef) && !preview.persistent) {
-            promotePreview(preview);
+    /** Externe Benachrichtigung: Inhalt im Preview wurde wirklich geändert -> Promotion durchführen. */
+    public void notifyContentModified(Object modelRef) {
+        if (previewEntry != null && !previewEntry.persistent && Objects.equals(previewEntry.modelRef, modelRef)) {
+            promotePreview(previewEntry);
         }
     }
 
@@ -159,7 +149,7 @@ public class TabManager implements NodeOpenHandler {
                     preview.title,
                     () -> {
                         entries.remove(preview);
-                        if (previewEntry == preview) previewEntry = null; // sicherheit
+                        if (previewEntry == preview) previewEntry = null;
                     }
             ));
         }
@@ -181,7 +171,6 @@ public class TabManager implements NodeOpenHandler {
             entries.add(previewEntry);
             editorTabs.addTab(previewEntry.title, previewEntry.component);
             editorTabs.setSelectedIndex(editorTabs.indexOfComponent(previewEntry.component));
-            attachAutoPromoteListener(previewEntry);
         } else {
             int idx = editorTabs.indexOfComponent(previewEntry.component);
             previewEntry.component = panel; // neue Komponente setzen
@@ -190,7 +179,6 @@ public class TabManager implements NodeOpenHandler {
             editorTabs.setComponentAt(idx, panel);
             editorTabs.setTitleAt(idx, title);
             editorTabs.setSelectedIndex(idx);
-            attachAutoPromoteListener(previewEntry);
         }
     }
 
@@ -212,39 +200,6 @@ public class TabManager implements NodeOpenHandler {
                 () -> entries.remove(entry)
         ));
         editorTabs.setSelectedIndex(idx);
-    }
-
-    private void attachAutoPromoteListener(TabEntry preview) {
-        // Entferne evtl. alte Listener: nicht nötig wenn Panel ersetzt wurde
-        // Suche Text-Komponenten und hänge DocumentListener an, der Promotion triggert
-        if (preview == null) return;
-        for (Component c : getAllDescendants(preview.component)) {
-            if (c instanceof JTextComponent) {
-                ((JTextComponent) c).getDocument().addDocumentListener(new DocumentListener() {
-                    private boolean triggered = false;
-                    private void trigger(DocumentEvent e) {
-                        if (!triggered) {
-                            triggered = true;
-                            SwingUtilities.invokeLater(() -> promotePreviewIfModified(preview));
-                        }
-                    }
-                    public void insertUpdate(DocumentEvent e) { trigger(e); }
-                    public void removeUpdate(DocumentEvent e) { trigger(e); }
-                    public void changedUpdate(DocumentEvent e) { trigger(e); }
-                });
-            }
-        }
-    }
-
-    private List<Component> getAllDescendants(Component root) {
-        List<Component> list = new ArrayList<>();
-        if (root instanceof Container) {
-            for (Component child : ((Container) root).getComponents()) {
-                list.add(child);
-                list.addAll(getAllDescendants(child));
-            }
-        }
-        return list;
     }
 
     // ========================= Panel-Fabriken & Titel =========================
