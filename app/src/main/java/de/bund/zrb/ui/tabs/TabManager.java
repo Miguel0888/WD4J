@@ -114,8 +114,12 @@ public class TabManager implements NodeOpenHandler {
                 int idx = editorTabs.indexOfComponent(e.component);
                 if (idx >= 0) {
                     editorTabs.setSelectedIndex(idx);
+                    return true; // nur true, wenn Tab wirklich existiert
+                } else {
+                    // verwaister Eintrag -> entfernen und weiter suchen
+                    entries.remove(i);
+                    i--; // Index korrigieren nach Entfernen
                 }
-                return true;
             }
         }
         return false;
@@ -180,10 +184,15 @@ public class TabManager implements NodeOpenHandler {
 
     private void promotePreview(TabEntry preview) {
         preview.persistent = true;
-        // Closable Header hinzufügen
         int idx = editorTabs.indexOfComponent(preview.component);
         if (idx >= 0) {
-            editorTabs.setTabComponentAt(idx, new ClosableTabHeader(editorTabs, preview.component, preview.title));
+            // Closable Header mit onCloseHook setzen
+            editorTabs.setTabComponentAt(idx, new ClosableTabHeader(
+                    editorTabs,
+                    preview.component,
+                    preview.title,
+                    () -> entries.remove(preview)
+            ));
         }
         // Neuer Preview-Tab wird erst wieder angelegt bei nächstem showInPreview für anderen Node
     }
@@ -199,7 +208,12 @@ public class TabManager implements NodeOpenHandler {
         entries.add(entry);
         editorTabs.addTab(entry.title, entry.component);
         int idx = editorTabs.indexOfComponent(entry.component);
-        editorTabs.setTabComponentAt(idx, new ClosableTabHeader(editorTabs, entry.component, entry.title));
+        editorTabs.setTabComponentAt(idx, new ClosableTabHeader(
+                editorTabs,
+                entry.component,
+                entry.title,
+                () -> entries.remove(entry)
+        ));
         editorTabs.setSelectedIndex(idx);
     }
 
