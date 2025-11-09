@@ -119,7 +119,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         // --- Recording ---
         JPanel pnlRecording = new JPanel(new GridBagLayout());
-        pnlRecording.setBorder(sectionBorder("Recording"));
+        pnlRecording.setBorder(sectionBorder("Aufnahme"));
         GridBagConstraints g1 = gbc();
 
         int row = 0;
@@ -187,7 +187,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         // --- Eingabe ---
         JPanel pnlInput = new JPanel(new GridBagLayout());
-        pnlInput.setBorder(sectionBorder("Eingabe (Keyboard)"));
+        pnlInput.setBorder(sectionBorder("Wiedergabe"));
         GridBagConstraints g2 = gbc();
 
         spKeyDown = new JSpinner(new SpinnerNumberModel(kd, 0, 2000, 1));
@@ -253,7 +253,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         // --- Reporting ---
         JPanel pnlReport = new JPanel(new GridBagLayout());
-        pnlReport.setBorder(sectionBorder("Reporting"));
+        pnlReport.setBorder(sectionBorder("Bericht"));
         GridBagConstraints g4 = gbc();
 
         tfReportDir = new JTextField(reportDir, 28);
