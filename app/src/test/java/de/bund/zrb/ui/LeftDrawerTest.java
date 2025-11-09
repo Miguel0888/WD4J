@@ -5,46 +5,41 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.DefaultTreeModel;
-
+import javax.swing.tree.TreePath;
 import java.lang.reflect.Field;
 
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Test für Preview-Tab Verhalten des LeftDrawer.
+ */
 class LeftDrawerTest {
+    private JTabbedPane tabs;
+    private JTree testTree;
     private LeftDrawer leftDrawer;
-    private JTree mockTree;
-    private DefaultTreeModel mockModel;
-    private DefaultMutableTreeNode parentNode;
-    private DefaultMutableTreeNode childNode;
 
     @BeforeEach
     void setUp() {
-        leftDrawer = new LeftDrawer(null);
-
-        mockTree = mock(JTree.class);
-        mockModel = mock(DefaultTreeModel.class);
-        parentNode = new DefaultMutableTreeNode("parent");
-        childNode = new DefaultMutableTreeNode("child");
-        parentNode.add(childNode);
-
-        when(mockTree.getLastSelectedPathComponent()).thenReturn(childNode);
-        when(mockTree.getModel()).thenReturn(mockModel);
-
-        // Inject mocks via reflection (simplified for this context)
+        tabs = new JTabbedPane();
+        leftDrawer = new LeftDrawer(tabs);
         try {
-            Field treeField = LeftDrawer.class.getDeclaredField("leftDrawer");
-            treeField.setAccessible(true);
-            treeField.set(leftDrawer, mockTree);
+            Field f = LeftDrawer.class.getDeclaredField("testTree");
+            f.setAccessible(true);
+            testTree = (JTree) f.get(leftDrawer);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     @Test
-    void deleteNode_ShouldUpdateTreeStructure() {
-//        leftDrawer.deleteNode(); // ToDo: Fix Test
-        verify(mockModel).removeNodeFromParent(childNode);
-        verify(mockModel).nodeStructureChanged(parentNode);
+    void previewSelection_ShouldCreateOrReplacePreviewTab() {
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) testTree.getModel().getRoot();
+        if (root.getChildCount() == 0) return; // nichts zu testen
+        DefaultMutableTreeNode first = (DefaultMutableTreeNode) root.getChildAt(0);
+        testTree.setSelectionPath(new TreePath(first.getPath()));
+        assertEquals(1, tabs.getTabCount(), "Ein Preview-Tab wird erwartet");
+        String title = tabs.getTitleAt(0);
+        assertNotNull(title);
+        assertFalse(title.startsWith("Preview:"), "Altes Präfix darf nicht mehr vorkommen");
     }
 }

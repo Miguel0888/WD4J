@@ -7,6 +7,7 @@ import de.bund.zrb.service.UserRegistry;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.IdentityHashMap;
@@ -159,7 +160,7 @@ public class RightDrawer extends JPanel {
         Runnable onStopRecording = () ->
                 RecorderCoordinator.getInstance().stopForUser(user.getUsername());
 
-        return new TabHeader(title, onClose, onStopRecording);
+        return new TabHeader(title, tabContent, onClose, onStopRecording);
     }
 
     public BrowserServiceImpl getBrowserService() {
@@ -181,15 +182,18 @@ public class RightDrawer extends JPanel {
     }
 
     // --- Tab-Header mit rotem Aufnahmepunkt ---
-    private static final class TabHeader extends JPanel {
+    private final class TabHeader extends JPanel {
         private final JLabel recDot = new JLabel("●"); // roter Punkt
         private final JLabel titleLabel = new JLabel();
         private final JButton closeButton = new JButton("×");
         private boolean recording = false;
+        private final RecorderTab associatedTab;
 
-        TabHeader(String title, Runnable onClose, Runnable onStopRecordingClick) {
+        TabHeader(String title, RecorderTab associatedTab, Runnable onClose, Runnable onStopRecordingClick) {
             super(new FlowLayout(FlowLayout.LEFT, 4, 0));
             setOpaque(false);
+
+            this.associatedTab = associatedTab;
 
             // roter Punkt (anfangs unsichtbar)
             recDot.setForeground(Color.RED);
@@ -211,6 +215,20 @@ public class RightDrawer extends JPanel {
             closeButton.setContentAreaFilled(false);
             closeButton.setToolTipText("Tab schließen");
             closeButton.addActionListener(e -> { if (onClose != null) onClose.run(); });
+
+            // When clicking on the header or title label, select the associated tab.
+            MouseAdapter selectOnClick = new MouseAdapter() {
+                @Override public void mousePressed(java.awt.event.MouseEvent e) {
+                    int idx = recorderTabs.indexOfComponent(TabHeader.this.associatedTab);
+                    if (idx >= 0) recorderTabs.setSelectedIndex(idx);
+                }
+                @Override public void mouseClicked(java.awt.event.MouseEvent e) {
+                    int idx = recorderTabs.indexOfComponent(TabHeader.this.associatedTab);
+                    if (idx >= 0) recorderTabs.setSelectedIndex(idx);
+                }
+            };
+            this.addMouseListener(selectOnClick);
+            titleLabel.addMouseListener(selectOnClick);
 
             add(recDot);
             add(titleLabel);

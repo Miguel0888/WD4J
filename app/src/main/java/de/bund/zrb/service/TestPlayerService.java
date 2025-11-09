@@ -38,6 +38,35 @@ public class TestPlayerService {
 
     private static final int QUIET_MS = 500; // 400–600ms hat sich bewährt
     private static final String TYPE_PRECONDITION_REF = "preconditionRef";
+    // --- Centralized constants (avoid magic literals throughout the class) ---
+    private static final long DEFAULT_ASSERT_GROUP_WAIT_MS = 3000L; // fallback if Settings missing
+    private static final long DEFAULT_ASSERT_EACH_WAIT_MS  = 0L;
+
+    private static final String LOG_LABEL_AFTER  = "AFTER";
+    private static final String LOG_LABEL_EXPECT = "EXPECT";
+    private static final String LOG_LABEL_ASSERT = "ASSERT";
+
+    private static final String AFTER_ASSERTIONS_FAILED_MSG = "After-Assertions fehlgeschlagen";
+
+    private static final String NO_TAB_FOR_USER_MSG = "Kein Tab für den im Testfall eingestellten User verfügbar (%s).";
+
+    private static final String SCREENSHOT_TOOL_BASE = "tool";
+    private static final String SCREENSHOT_SHOT_BASE = "shot";
+    private static final String SCREENSHOT_CASE_BASE = "case";
+
+    private static final String PRECONDITION_PREFIX = "Precondition: ";
+    private static final String GIVEN_PREFIX = "Given: ";
+
+    private static final String CASE_SETUP_FAILED_MSG  = "Case-Setup fehlgeschlagen";
+    private static final String SUITE_SETUP_FAILED_MSG = "Suite-Setup fehlgeschlagen";
+    private static final String PLAYBACK_ABORTED_MSG   = "⏹ Playback abgebrochen!";
+
+    private static final String SCREENSHOT_LABEL = "Screenshot";
+
+    private static final String UNSUPPORTED_ACTION_MSG = "⚠️ Nicht unterstützte Action: %s";
+
+    private static final String DEFAULT_USERNAME = "default";
+
     private final RuntimeVariableContext runtimeCtx =
             new RuntimeVariableContext(ExpressionRegistryImpl.getInstance());
 
@@ -80,7 +109,7 @@ public class TestPlayerService {
         TestNode start = resolveStartNode();
         runNodeStepByStep(start);
 
-        if (stopped) logger.append(new SuiteLog("⏹ Playback abgebrochen!"));
+        if (stopped) logger.append(new SuiteLog(PLAYBACK_ABORTED_MSG));
 
         OverlayBridge.clearSubtitle();
         OverlayBridge.clearCaption();
@@ -117,6 +146,29 @@ public class TestPlayerService {
         boolean ok;
         String err = null;
         try {
+            // Setup minimal case scope if action is run standalone (parent case exists)
+            TestNode caseNode = (TestNode) node.getParent();
+            if (caseNode != null && caseNode.getModelRef() instanceof TestCase) {
+                TestCase tc = (TestCase) caseNode.getModelRef();
+                // Clear case-scope and evaluate only Case-level Before and Templates
+                runtimeCtx.enterCase();
+
+                // Pre-set username to resolve expressions that use {{user}}
+                String effectiveUser = resolveEffectiveUserForAction(action);
+                if (effectiveUser != null && effectiveUser.trim().length() > 0) {
+                    runtimeCtx.setCaseVar("username", effectiveUser.trim());
+                }
+
+                // Evaluate case-level Befores without suite/root
+                ValueScope actionOnlyScope = runtimeCtx.buildCaseScopeForActionOnly();
+                runUnchecked(new ThrowingRunnable() {
+                    @Override public void run() throws Exception {
+                        evaluateExpressionMapNowWithScope(tc.getBefore(), tc.getBeforeEnabled(), actionOnlyScope, runtimeCtx);
+                    }
+                });
+                runtimeCtx.fillCaseTemplatesFromMap(filterEnabled(tc.getTemplates(), tc.getTemplatesEnabled()));
+            }
+
             ok = playSingleAction(action, stepLog);
             if (!ok) err = "Action returned false";
         } catch (RuntimeException ex) {
@@ -143,10 +195,18 @@ public class TestPlayerService {
         logger.append(caseLog); // show header immediately
 
         try {
+            // Ensure suite/root befores/templates are initialized so that BeforeEach has {{user}} available
+            TestNode parentNode = (TestNode) node.getParent();
+            TestSuite parentSuite = (parentNode != null && parentNode.getModelRef() instanceof TestSuite)
+                    ? (TestSuite) parentNode.getModelRef() : null;
+            if (parentSuite != null) {
+                initSuiteSymbols(parentSuite);
+            }
+
             initCaseSymbols(node, testCase); // may throw -> fail case
         } catch (Exception ex) {
             caseLog.setStatus(false);
-            caseLog.setError("Case-Setup fehlgeschlagen: " + safeMsg(ex));
+            caseLog.setError(CASE_SETUP_FAILED_MSG + ": " + safeMsg(ex));
             drawerRef.updateSuiteStatus(node);
             return caseLog; // do not run children/then
         }
@@ -202,7 +262,7 @@ public class TestPlayerService {
             OverlayBridge.clearSubtitle();
 
             suiteLog.setStatus(false);
-            suiteLog.setError("Suite-Setup fehlgeschlagen: " + safeMsg(ex));
+            suiteLog.setError(SUITE_SETUP_FAILED_MSG + ": " + safeMsg(ex));
             drawerRef.updateSuiteStatus(node);
             return suiteLog; // do not run children
         }
@@ -274,9 +334,9 @@ public class TestPlayerService {
             if (TYPE_PRECONDITION_REF.equals(given.getType())) {
                 String id = parseIdFromValue(given.getValue());
                 String name = resolvePreconditionName(id);
-                logText = "Precondition: " + name;
+                logText = PRECONDITION_PREFIX + name;
             } else {
-                logText = "Given: " + given.getType();
+                logText = GIVEN_PREFIX + given.getType();
             }
 
             StepLog givenLog = new StepLog(label, logText);
@@ -357,14 +417,14 @@ public class TestPlayerService {
                 if (u != null && !u.isEmpty()) return u;
             }
         }
-        return (lastUsernameUsed != null && !lastUsernameUsed.isEmpty()) ? lastUsernameUsed : "default";
+        return (lastUsernameUsed != null && !lastUsernameUsed.isEmpty()) ? lastUsernameUsed : DEFAULT_USERNAME;
     }
 
     // --- Public API for tools: save screenshot into report and return relative path (for <img src=...>) ---
     public String saveScreenshotFromTool(byte[] png, String baseName) throws Exception {
         initReportIfNeeded();
         if (baseName == null || baseName.trim().isEmpty()) {
-            baseName = "tool";
+            baseName = SCREENSHOT_TOOL_BASE;
         }
         Path file = saveScreenshotBytes(png, baseName);
         return relToHtml(file);
@@ -375,7 +435,7 @@ public class TestPlayerService {
      * Keep it lightweight; tools can call this after saveScreenshotFromTool.
      */
     public void logScreenshotFromTool(String label, String relImagePath, boolean ok, String errorMsg) {
-        StepLog log = new StepLog("ASSERT", (label == null || label.trim().isEmpty()) ? "Screenshot" : label);
+        StepLog log = new StepLog(LOG_LABEL_ASSERT, (label == null || label.trim().isEmpty()) ? SCREENSHOT_LABEL : label);
         log.setStatus(ok);
         if (!ok && errorMsg != null && errorMsg.trim().length() > 0) {
             log.setError(errorMsg.trim());
@@ -407,7 +467,7 @@ public class TestPlayerService {
             } else {
                 JOptionPane.showMessageDialog(
                         null,
-                        "Kein Tab für den im Testfall eingestellten User verfügbar (" + effectiveUser + ")."
+                        String.format(NO_TAB_FOR_USER_MSG, effectiveUser)
                 );
                 return false;
             }
@@ -515,7 +575,7 @@ public class TestPlayerService {
                 case "screenshot": {
                     byte[] png = screenshotAfterWait(action.getTimeout(), page);
 
-                    String baseName = (stepLog.getName() == null) ? "case" : stepLog.getName();
+                    String baseName = (stepLog.getName() == null) ? SCREENSHOT_CASE_BASE : stepLog.getName();
                     Path file = saveScreenshotBytes(png, baseName);
                     String rel = relToHtml(file);
 
@@ -558,11 +618,11 @@ public class TestPlayerService {
                 }
 
                 default:
-                    System.out.println("⚠️ Nicht unterstützte Action: " + act);
+                    System.out.println(String.format(UNSUPPORTED_ACTION_MSG, act));
                     return false;
             }
 
-        } catch (ActionEvaluationRuntimeException aerx) {
+         } catch (ActionEvaluationRuntimeException aerx) {
             Throwable cause = (aerx.getCause() != null) ? aerx.getCause() : aerx;
             System.err.println("❌ Evaluation failed: " + cause.getMessage());
             cause.printStackTrace();
@@ -631,7 +691,7 @@ public class TestPlayerService {
     private Path saveScreenshotBytes(byte[] png, String baseName) throws Exception {
         initReportIfNeeded();
         String safe = (baseName == null || baseName.trim().isEmpty())
-                ? "shot"
+                ? SCREENSHOT_SHOT_BASE
                 : baseName.replaceAll("[^a-zA-Z0-9._-]", "_");
         String fileName = String.format("%03d-%s.png", ++screenshotCounter, safe);
         Path file = reportImagesDir.resolve(fileName);
@@ -827,6 +887,32 @@ public class TestPlayerService {
         return out;
     }
 
+    private Map<String,String> evaluateExpressionMapNowWithScope(
+            Map<String,String> src,
+            Map<String, Boolean> enabled,
+            ValueScope scope,
+            RuntimeVariableContext ctx
+    ) throws Exception {
+        java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<String,String>();
+        if (src == null) return out;
+
+        for (java.util.Map.Entry<String,String> e : src.entrySet()) {
+            String key = e.getKey();
+            String exprText = e.getValue();
+            if (!isEnabled(enabled, key)) continue;
+
+            String resolved = ActionRuntimeEvaluator.evaluateActionValue(exprText, scope);
+            if (resolved == null) resolved = "";
+
+            out.put(key, resolved);
+
+            // Shadow immediately in case scope for subsequent keys
+            ctx.setCaseVar(key, resolved);
+        }
+
+        return out;
+    }
+
     private Map<String,String> filterEnabled(Map<String,String> src, Map<String, Boolean> enabled) {
         java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<String,String>();
         if (src == null) return out;
@@ -903,10 +989,21 @@ public class TestPlayerService {
             if (collected.isEmpty()) return out;
 
             // Group log header
-            SuiteLog afterLog = new SuiteLog("AFTER");
+            SuiteLog afterLog = new SuiteLog(LOG_LABEL_AFTER);
             afterLog.setParent(parentLog);
             logger.append(afterLog);
             out.add(afterLog);
+
+            // Global wait before evaluating the group of assertions (respect new setting)
+            Integer globalCfg = SettingsService.getInstance().get("assertion.groupWaitMs", Integer.class);
+            long globalWaitMs = (globalCfg != null) ? globalCfg.longValue() : DEFAULT_ASSERT_GROUP_WAIT_MS;
+            if (globalWaitMs > 0) {
+                try {
+                    Thread.sleep(globalWaitMs);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+            }
 
             // Evaluate each
             for (java.util.Map.Entry<String,String> e : collected.entrySet()) {
@@ -919,10 +1016,20 @@ public class TestPlayerService {
                         ? (name + " → " + desc)
                         : (name + " → " + shortExpr(expr));
 
-                StepLog assertionLog = new StepLog("EXPECT", displayText);
+                StepLog assertionLog = new StepLog(LOG_LABEL_EXPECT, displayText);
                 assertionLog.setParent(afterLog);
 
                 try {
+                    // Per-assertion wait (may be 0)
+                    Integer eachCfg = SettingsService.getInstance().get("assertion.eachWaitMs", Integer.class);
+                    long waitMs = (eachCfg != null) ? eachCfg.longValue() : DEFAULT_ASSERT_EACH_WAIT_MS;
+                    if (waitMs > 0) {
+                        try {
+                            Thread.sleep(waitMs);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
                     String result = ActionRuntimeEvaluator.evaluateActionValue(expr, scope);
                     String t = (result == null) ? null : result.trim();
 
@@ -944,7 +1051,7 @@ public class TestPlayerService {
 
         } catch (Exception ex) {
             // Defensive – ein Fehler hier soll den Case nicht crashen
-            StepLog err = new StepLog("AFTER", "After-Assertions fehlgeschlagen");
+            StepLog err = new StepLog(LOG_LABEL_AFTER, AFTER_ASSERTIONS_FAILED_MSG);
             err.setStatus(false);
             err.setError(safeMsg(ex));
             err.setParent(parentLog);

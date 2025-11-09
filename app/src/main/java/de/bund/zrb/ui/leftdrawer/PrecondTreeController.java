@@ -26,8 +26,15 @@ public class PrecondTreeController {
 
     private final JTree precondTree;
 
+    // Optionaler Handler, um einen Node in einem neuen (persistenten) Tab zu öffnen
+    private NodeOpenHandler openHandler;
+
     public PrecondTreeController(JTree precondTree) {
         this.precondTree = precondTree;
+    }
+
+    public void setOpenHandler(NodeOpenHandler openHandler) {
+        this.openHandler = openHandler;
     }
 
     // ========================= Preconditions tab =========================
@@ -119,6 +126,14 @@ public class PrecondTreeController {
         }
 
         Object ref = clicked.getModelRef();
+
+        // Einheitliche Öffnen-Aktion (persistenter Tab) – hier sinnvoll für Steps
+        if (openHandler != null && (ref instanceof TestAction || ref instanceof Precondition)) {
+            JMenuItem openPersistent = new JMenuItem("In neuem Tab öffnen");
+            openPersistent.addActionListener(evt -> openHandler.openInNewTab(clicked));
+            menu.add(openPersistent);
+            menu.addSeparator();
+        }
 
         if (ref instanceof Precondition) {
             JMenuItem newPre = new JMenuItem("Neue Precondition");

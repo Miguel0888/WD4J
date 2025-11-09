@@ -9,9 +9,7 @@ import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
 /**
  * Assertions table UI with four columns:
@@ -94,7 +92,7 @@ public class AssertionTablePanel extends JPanel {
                 }
                 // Expression monospaced
                 if (column == 2) {
-                    return new MapTablePanel.MultiLineMonoRenderer();
+                    return new ExpressionRenderers.ExpressionRenderer();
                 }
                 return super.getCellRenderer(row, column);
             }

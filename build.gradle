@@ -1,3 +1,11 @@
+plugins {
+//    id "com.appland.appmap" version "1.2.0"
+}
+
+def userHome = System.getProperty('user.home')
+def defaultAppmapJar = "${userHome}/.appmap/lib/java/appmap.jar"
+def appmapJar = System.getenv('APPMAP_JAR') ?: defaultAppmapJar
+
 // Root-Buildscript
 allprojects {
     group = 'de.zrb.bund'
@@ -18,6 +26,7 @@ subprojects {
     plugins.withId('java') {
         dependencies {
             compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+            implementation "com.appland:appmap-agent:1.28.0"
         }
     }
 }

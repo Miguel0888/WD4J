@@ -79,7 +79,7 @@ public class SuiteScopeEditorTab extends JPanel {
         }
         String scopeLabel = "Suite " + safe(suite.getName());
         GivenListEditorTab preconditionsTab = new GivenListEditorTab(scopeLabel, preconditions);
-        innerTabs.insertTab("Preconditions", null, preconditionsTab, "Suite Preconditions");
+        innerTabs.insertTab("Preconditions", null, preconditionsTab, "Suite Preconditions", 0);
 
         boolean preconditionsValid = true;
         try {
@@ -124,4 +124,3 @@ public class SuiteScopeEditorTab extends JPanel {
         }
     }
 }
-

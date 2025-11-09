@@ -1,0 +1,138 @@
+[
+  {
+    "caller": "com/microsoft/playwright/impl",
+    "callee": "de/bund/zrb"
+  },
+  {
+    "caller": "de/bund/zrb",
+    "callee": "de/bund/zrb/manager"
+  },
+  {
+    "caller": "de/bund/zrb",
+    "callee": "de/bund/zrb/service"
+  },
+  {
+    "caller": "de/bund/zrb",
+    "callee": "de/bund/zrb/ui"
+  },
+  {
+    "caller": "de/bund/zrb",
+    "callee": "de/bund/zrb/ui/state"
+  },
+  {
+    "caller": "de/bund/zrb/manager",
+    "callee": "de/bund/zrb"
+  },
+  {
+    "caller": "de/bund/zrb/runtime",
+    "callee": "de/bund/zrb/ui/settings"
+  },
+  {
+    "caller": "de/bund/zrb/service",
+    "callee": "com/microsoft/playwright"
+  },
+  {
+    "caller": "de/bund/zrb/service",
+    "callee": "com/microsoft/playwright/impl"
+  },
+  {
+    "caller": "de/bund/zrb/service",
+    "callee": "de/bund/zrb"
+  },
+  {
+    "caller": "de/bund/zrb/service",
+    "callee": "de/bund/zrb/event"
+  },
+  {
+    "caller": "de/bund/zrb/service",
+    "callee": "de/bund/zrb/ui/debug"
+  },
+  {
+    "caller": "de/bund/zrb/tools",
+    "callee": "de/bund/zrb/expressions/builtins/tooling"
+  },
+  {
+    "caller": "de/bund/zrb/ui",
+    "callee": "de/bund/zrb/event"
+  },
+  {
+    "caller": "de/bund/zrb/ui",
+    "callee": "de/bund/zrb/expressions/builtins"
+  },
+  {
+    "caller": "de/bund/zrb/ui",
+    "callee": "de/bund/zrb/expressions/builtins/tooling"
+  },
+  {
+    "caller": "de/bund/zrb/ui",
+    "callee": "de/bund/zrb/model"
+  },
+  {
+    "caller": "de/bund/zrb/ui",
+    "callee": "de/bund/zrb/runtime"
+  },
+  {
+    "caller": "de/bund/zrb/ui",
+    "callee": "de/bund/zrb/service"
+  },
+  {
+    "caller": "de/bund/zrb/ui",
+    "callee": "de/bund/zrb/tools"
+  },
+  {
+    "caller": "de/bund/zrb/ui",
+    "callee": "de/bund/zrb/ui/commandframework"
+  },
+  {
+    "caller": "de/bund/zrb/ui",
+    "callee": "de/bund/zrb/ui/leftdrawer"
+  },
+  {
+    "caller": "de/bund/zrb/ui",
+    "callee": "de/bund/zrb/ui/state"
+  },
+  {
+    "caller": "de/bund/zrb/ui",
+    "callee": "de/bund/zrb/ui/status"
+  },
+  {
+    "caller": "de/bund/zrb/ui",
+    "callee": "de/bund/zrb/ui/util"
+  },
+  {
+    "caller": "de/bund/zrb/ui",
+    "callee": "de/bund/zrb/ui/widgets"
+  },
+  {
+    "caller": "de/bund/zrb/ui/commandframework",
+    "callee": "de/bund/zrb/service"
+  },
+  {
+    "caller": "de/bund/zrb/ui/debug",
+    "callee": "de/bund/zrb/websocket"
+  },
+  {
+    "caller": "de/bund/zrb/ui/leftdrawer",
+    "callee": "de/bund/zrb/service"
+  },
+  {
+    "caller": "de/bund/zrb/ui/leftdrawer",
+    "callee": "de/bund/zrb/ui/celleditors"
+  },
+  {
+    "caller": "de/bund/zrb/ui/leftdrawer",
+    "callee": "de/bund/zrb/ui/dialogs"
+  },
+  {
+    "caller": "de/bund/zrb/ui/leftdrawer",
+    "callee": "de/bund/zrb/ui/giveneditor"
+  },
+  {
+    "caller": "de/bund/zrb/ui/leftdrawer",
+    "callee": "de/bund/zrb/ui/tabs"
+  },
+  {
+    "caller": "de/bund/zrb/ui/state",
+    "callee": "de/bund/zrb/service"
+  }
+]

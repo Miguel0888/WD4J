@@ -26,15 +26,17 @@ public class NavigationTool extends AbstractUserTool implements BuiltinTool {
     /**
      * Navigiert die Seite des aktuellen Benutzers zur konfigurierten Startseite.
      */
-    public void navigateToStartPage() {
+    public String navigateToStartPage() {
         UserRegistry.User currentUser = getCurrentUserOrFail();
-        navigateToStartPage(currentUser);
+        return navigateToStartPage(currentUser);
     }
 
     /**
      * Navigiert die Seite des angegebenen Benutzers zur konfigurierten Startseite.
+     *
+     * @return
      */
-    public void navigateToStartPage(UserRegistry.User user) {
+    public String navigateToStartPage(UserRegistry.User user) {
         if (user == null) {
             throw new IllegalArgumentException("Benutzer darf nicht null sein.");
         }
@@ -51,6 +53,7 @@ public class NavigationTool extends AbstractUserTool implements BuiltinTool {
 
         System.out.println("🌐 Navigiere Benutzer '" + user.getUsername() + "' zu: " + startPage);
         page.navigate(startPage);
+        return startPage;
     }
 
     /**
@@ -125,6 +128,24 @@ public class NavigationTool extends AbstractUserTool implements BuiltinTool {
                         String url = args.get(1);
                         UserRegistry.User user = resolveUserByName(userName);
                         return navigate(user, url);
+                    }
+                }
+        ));
+
+        // 3) navigateToStartPage(userName) -> String : navigate the given user's page to their configured startPage
+        list.add(new ToolExpressionFunction(
+                ToolExpressionFunction.meta(
+                        "navigateToStartPage",
+                        "Navigate specified user to their configured start page and return the URL.",
+                        ToolExpressionFunction.params("userName"),
+                        Arrays.asList("Registered user name.")
+                ),
+                1, 1,
+                new ToolExpressionFunction.Invoker() {
+                    public String invoke(List<String> args, FunctionContext ctx) throws Exception {
+                        String userName = args.get(0);
+                        UserRegistry.User user = resolveUserByName(userName);
+                        return navigateToStartPage(user);
                     }
                 }
         ));

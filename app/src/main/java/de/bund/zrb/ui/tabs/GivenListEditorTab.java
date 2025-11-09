@@ -162,8 +162,11 @@ public class GivenListEditorTab extends JPanel {
         listModel.addElement(gc);
         list.setSelectedValue(gc, true);
 
-        // Optional: direkt Editor öffnen, wenn du das alte Verhalten behalten willst
-        openEditorFor(gc);
+        // Previously: openEditorFor(gc);
+        // New behavior: wenn es kein Precondition-Ref ist, öffnen wir den Editor als Dialog
+        if (!PreconditionListUtil.TYPE_PRECONDITION_REF.equals(gc.getType())) {
+            openEditorDialogFor(gc);
+        }
 
     }
 
@@ -186,8 +189,8 @@ public class GivenListEditorTab extends JPanel {
                 list.repaint();
             }
         } else {
-            // Standard Given → open rich editor tab
-            openEditorFor(sel);
+            // Standard Given → open rich editor dialog (statt neuer Tab)
+            openEditorDialogFor(sel);
         }
     }
 
@@ -227,16 +230,30 @@ public class GivenListEditorTab extends JPanel {
     // -------------------- Helpers --------------------
 
     private void openEditorFor(Precondtion given) {
-        // Find a top-level tabbed pane and open GivenConditionEditorTab
-        Component parent = SwingUtilities.getWindowAncestor(this);
-        if (parent instanceof JFrame) {
-            JTabbedPane tabs = UIHelper.findTabbedPane((JFrame) parent);
-            if (tabs != null) {
-                GivenConditionEditorTab tab = new GivenConditionEditorTab(given);
-                tabs.addTab("Given: " + given.getType(), tab);
-                tabs.setSelectedComponent(tab);
-            }
-        }
+        // Legacy kept for callers; no-op now to avoid opening top-level tabs
+    }
+
+    /** New: open a modal dialog containing the GivenConditionEditorTab UI so the user can edit without creating a top-level tab. */
+    private void openEditorDialogFor(Precondtion given) {
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        JFrame frame = (owner instanceof JFrame) ? (JFrame) owner : null;
+        JDialog dlg = new JDialog(frame, "Given bearbeiten", Dialog.ModalityType.APPLICATION_MODAL);
+        GivenConditionEditorTab content = new GivenConditionEditorTab(given);
+        dlg.getContentPane().setLayout(new BorderLayout());
+        dlg.getContentPane().add(content, BorderLayout.CENTER);
+        JButton save = new JButton("Speichern");
+        save.addActionListener(e -> {
+            // Trigger save on content and close dialog
+            // content.save() existiert nicht öffentlich; rely on parent saving later or TestRegistry
+            TestRegistry.getInstance().save();
+            dlg.dispose();
+        });
+        JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        south.add(save);
+        dlg.getContentPane().add(south, BorderLayout.SOUTH);
+        dlg.pack();
+        dlg.setLocationRelativeTo(owner);
+        dlg.setVisible(true);
     }
 
     // -------------------- Renderer --------------------
@@ -278,4 +295,3 @@ public class GivenListEditorTab extends JPanel {
                    .replace(">", "&gt;");
     }
 }
-

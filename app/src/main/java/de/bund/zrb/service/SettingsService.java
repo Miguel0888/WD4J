@@ -142,6 +142,11 @@ public class SettingsService {
         if (!settingsCache.containsKey("auth.sessionCookie")) settingsCache.put("auth.sessionCookie", "JSESSIONID");
         if (!settingsCache.containsKey("auth.redirectStatus")) settingsCache.put("auth.redirectStatus", java.util.Arrays.asList(301,302,303,307,308));
         if (!settingsCache.containsKey("auth.loginUrlPrefixes")) settingsCache.put("auth.loginUrlPrefixes", java.util.Arrays.asList("/login", "/signin"));
+        // Defaults: separate waits for Assertions
+        // - assertion.groupWaitMs: global wait before the group of assertions (ms)
+        // - assertion.eachWaitMs: per-assertion wait (ms)
+        if (!settingsCache.containsKey("assertion.groupWaitMs")) settingsCache.put("assertion.groupWaitMs", 3000);
+        if (!settingsCache.containsKey("assertion.eachWaitMs"))  settingsCache.put("assertion.eachWaitMs", 0);
     }
 
     /** Persist the global settings.json to disk. */

@@ -19,6 +19,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
     private static final double DEFAULT_WS_TIMEOUT_MS = 30_000.0;
     private static final int DEFAULT_KEY_DOWN_MS = 10;
     private static final int DEFAULT_KEY_UP_MS   = 30;
+    // Assertion wait defaults (ms)
+    private static final int DEFAULT_ASSERT_GROUP_WAIT_MS = 3000; // global wait before group
+    private static final int DEFAULT_ASSERT_EACH_WAIT_MS  = 0;    // per-assertion wait
 
     // Video defaults
     private static final boolean DEFAULT_VIDEO_ENABLED = false;
@@ -29,6 +32,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
     private JCheckBox cbContextMode;
     private JSpinner spKeyDown;
     private JSpinner spKeyUp;
+    private JSpinner spAssertionGroupWait;
+    private JSpinner spAssertionEachWait;
 
     // Video
     private JCheckBox cbVideoEnabled;
@@ -49,7 +54,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         // bestehend
         Double  wsTimeout   = SettingsService.getInstance().get("websocketTimeout", Double.class);
         String  reportDir   = SettingsService.getInstance().get("reportBaseDir", String.class);
-        Boolean ctxMode     = SettingsService.getInstance().get("recording.contextMode", Boolean.class);
+        Boolean ctxMode     = SettingsService.getInstance().get("recording.context.mode", Boolean.class);
         Integer kdDelay     = SettingsService.getInstance().get("input.keyDownDelayMs", Integer.class);
         Integer kuDelay     = SettingsService.getInstance().get("input.keyUpDelayMs", Integer.class);
 
@@ -57,6 +62,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
         Boolean videoEnabled = SettingsService.getInstance().get("video.enabled", Boolean.class);
         Integer videoFps     = SettingsService.getInstance().get("video.fps", Integer.class);
         String  videoDir     = SettingsService.getInstance().get("video.reportsDir", String.class);
+
+        Integer groupWaitMs = SettingsService.getInstance().get("assertion.groupWaitMs", Integer.class);
+        Integer eachWaitMs  = SettingsService.getInstance().get("assertion.eachWaitMs", Integer.class);
 
         double  initialWsTimeout = wsTimeout != null ? wsTimeout : DEFAULT_WS_TIMEOUT_MS;
         String  initialReportDir = (reportDir != null && !reportDir.trim().isEmpty()) ? reportDir : "C:/Reports";
@@ -70,6 +78,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
                 ? videoDir
                 : initialReportDir; // Default: nimm Report-Ordner
 
+        double initialAssertGroupWaitS = groupWaitMs != null ? groupWaitMs / 1000.0 : DEFAULT_ASSERT_GROUP_WAIT_MS / 1000.0;
+        double initialAssertEachWaitS  = eachWaitMs  != null ? eachWaitMs  / 1000.0 : DEFAULT_ASSERT_EACH_WAIT_MS  / 1000.0;
+
         dialog = new JDialog((Frame) null, "Einstellungen", true);
         dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         dialog.setContentPane(buildContentPanel(
@@ -81,6 +92,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
                 initialVideoEnabled,
                 initialVideoFps,
                 initialVideoDir
+                , initialAssertGroupWaitS
+                , initialAssertEachWaitS
         ));
         dialog.pack();
         dialog.setLocationRelativeTo(null);
@@ -94,7 +107,10 @@ public class SettingsCommand extends ShortcutMenuCommand {
                                      int ku,
                                      boolean videoEnabled,
                                      int videoFps,
-                                     String videoDir) {
+                                     String videoDir,
+                                     double assertionGroupWaitS,
+                                     double assertionEachWaitS
+    ) {
         JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(10, 12, 10, 12));
 
@@ -103,7 +119,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         // --- Recording ---
         JPanel pnlRecording = new JPanel(new GridBagLayout());
-        pnlRecording.setBorder(sectionBorder("Recording"));
+        pnlRecording.setBorder(sectionBorder("Aufnahme"));
         GridBagConstraints g1 = gbc();
 
         int row = 0;
@@ -171,7 +187,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         // --- Eingabe ---
         JPanel pnlInput = new JPanel(new GridBagLayout());
-        pnlInput.setBorder(sectionBorder("Eingabe (Keyboard)"));
+        pnlInput.setBorder(sectionBorder("Wiedergabe"));
         GridBagConstraints g2 = gbc();
 
         spKeyDown = new JSpinner(new SpinnerNumberModel(kd, 0, 2000, 1));
@@ -194,6 +210,31 @@ public class SettingsCommand extends ShortcutMenuCommand {
         g2.gridx = 1; g2.gridy = 1; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
         pnlInput.add(spKeyUp, g2);
 
+        // --- Assertion waits (UI in Sekunden, internally ms) ---
+        JLabel lbAssertGroup = new JLabel("Wartezeit vor allen Assertions (s):");
+        spAssertionGroupWait = new JSpinner(new SpinnerNumberModel(assertionGroupWaitS, 0.0, Double.MAX_VALUE, 1.0));
+        spAssertionGroupWait.setPreferredSize(spSz);
+        JSpinner.NumberEditor groupEditor = new JSpinner.NumberEditor(spAssertionGroupWait, "0.###");
+        spAssertionGroupWait.setEditor(groupEditor);
+        spAssertionGroupWait.setToolTipText("Globale Wartezeit vor der Auswertung aller Assertions (Sekunden). Schritt: 1 s.");
+
+        JLabel lbAssertEach = new JLabel("Wartezeit zwischen Assertions (s):");
+        spAssertionEachWait = new JSpinner(new SpinnerNumberModel(assertionEachWaitS, 0.0, Double.MAX_VALUE, 1.0));
+        spAssertionEachWait.setPreferredSize(spSz);
+        JSpinner.NumberEditor eachEditor = new JSpinner.NumberEditor(spAssertionEachWait, "0.###");
+        spAssertionEachWait.setEditor(eachEditor);
+        spAssertionEachWait.setToolTipText("Wartezeit zwischen einzelnen Assertions (Sekunden). Schritt: 1 s. Setze 0 für kein zusätzliches Warten.");
+
+        g2.gridx = 0; g2.gridy = 2; g2.anchor = GridBagConstraints.WEST; g2.weightx = 0;
+        pnlInput.add(lbAssertGroup, g2);
+        g2.gridx = 1; g2.gridy = 2; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
+        pnlInput.add(spAssertionGroupWait, g2);
+
+        g2.gridx = 0; g2.gridy = 3; g2.anchor = GridBagConstraints.WEST; g2.weightx = 0;
+        pnlInput.add(lbAssertEach, g2);
+        g2.gridx = 1; g2.gridy = 3; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
+        pnlInput.add(spAssertionEachWait, g2);
+
         // --- Netzwerk ---
         JPanel pnlNet = new JPanel(new GridBagLayout());
         pnlNet.setBorder(sectionBorder("Netzwerk"));
@@ -212,7 +253,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         // --- Reporting ---
         JPanel pnlReport = new JPanel(new GridBagLayout());
-        pnlReport.setBorder(sectionBorder("Reporting"));
+        pnlReport.setBorder(sectionBorder("Bericht"));
         GridBagConstraints g4 = gbc();
 
         tfReportDir = new JTextField(reportDir, 28);
@@ -316,6 +357,14 @@ public class SettingsCommand extends ShortcutMenuCommand {
         int kuVal = ((Number) spKeyUp.getValue()).intValue();
         if (kdVal < 0 || kuVal < 0) { error("Delays dürfen nicht negativ sein."); return; }
 
+        double groupWaitS = ((Number) spAssertionGroupWait.getValue()).doubleValue();
+        if (groupWaitS < 0) { error("Globale Wartezeit darf nicht negativ sein."); return; }
+        int groupWaitMs = (int) Math.round(groupWaitS * 1000.0);
+
+        double eachWaitS = ((Number) spAssertionEachWait.getValue()).doubleValue();
+        if (eachWaitS < 0) { error("Wartezeit zwischen Assertions darf nicht negativ sein."); return; }
+        int eachWaitMs = (int) Math.round(eachWaitS * 1000.0);
+
         String reportDir = tfReportDir.getText().trim();
         if (reportDir.isEmpty()) { error("Bitte ein Report-Verzeichnis angeben."); return; }
 
@@ -332,6 +381,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
         s.put("recording.contextMode", cbContextMode.isSelected());
         s.put("input.keyDownDelayMs", kdVal);
         s.put("input.keyUpDelayMs",   kuVal);
+        // Assertion waits (ms)
+        s.put("assertion.groupWaitMs", groupWaitMs);
+        s.put("assertion.eachWaitMs", eachWaitMs);
 
         // Video-Settings persistieren
         s.put("video.enabled",   videoEnabled);
@@ -346,6 +398,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         VideoConfig.setEnabled(videoEnabled);
         VideoConfig.setFps(fps);
         VideoConfig.setReportsDir(videoDir);
+        // Keine separate Config-Klasse für assertion.waitMs vorhanden – Setting ist persistent via SettingsService
 
         if (closeAfter) dialog.dispose();
     }

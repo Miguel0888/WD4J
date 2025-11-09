@@ -1,5 +1,7 @@
 package de.bund.zrb.ui.tabs;
 
+import de.bund.zrb.ui.tabs.ClosableTabHeader;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -41,7 +43,9 @@ public abstract class AbstractEditorTab<T> extends JPanel {
                             tabHeader.add(label);
                             tabHeader.add(closeButton);
 
-                            tabbedPane.setTabComponentAt(index, tabHeader);
+                            // Use the centralized ClosableTabHeader so clicks on the label select the tab
+                            tabbedPane.setTabComponentAt(index,
+                                    new ClosableTabHeader(tabbedPane, AbstractEditorTab.this, title));
                         }
                     }
                 }

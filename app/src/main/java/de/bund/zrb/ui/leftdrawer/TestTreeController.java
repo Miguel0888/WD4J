@@ -40,8 +40,15 @@ public class TestTreeController {
 
     private final JTree testTree;
 
+    // Optionaler Handler, um einen Node in einem neuen (persistenten) Tab zu öffnen
+    private NodeOpenHandler openHandler;
+
     public TestTreeController(JTree testTree) {
         this.testTree = testTree;
+    }
+
+    public void setOpenHandler(NodeOpenHandler openHandler) {
+        this.openHandler = openHandler;
     }
 
     // ========================= Build & Refresh =========================
@@ -167,6 +174,14 @@ public class TestTreeController {
         }
 
         Object ref = clicked.getModelRef();
+
+        // Einheitliche Öffnen-Aktion (persistenter Tab) für unterstützte Typen
+        if (openHandler != null && (ref instanceof RootNode || ref instanceof TestSuite || ref instanceof TestCase || ref instanceof TestAction)) {
+            JMenuItem openPersistent = new JMenuItem("In neuem Tab öffnen");
+            openPersistent.addActionListener(evt -> openHandler.openInNewTab(clicked));
+            menu.add(openPersistent);
+            menu.addSeparator();
+        }
 
         if (ref instanceof TestSuite) {
             JMenuItem newSuite = new JMenuItem("Neue Testsuite");
