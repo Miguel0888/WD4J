@@ -37,6 +37,7 @@ public class TabManager implements NodeOpenHandler {
     private final JTabbedPane editorTabs;
     private final Component parent;
     private final List<TabEntry> entries = new ArrayList<>();
+    private TabEntry previewEntry; // explizite Referenz statt Suche
 
     public TabManager(Component parent, JTabbedPane editorTabs) {
         this.parent = parent;
@@ -52,37 +53,11 @@ public class TabManager implements NodeOpenHandler {
         if (ref == null) return;
 
         if (focusExistingPersistentTabIfPresent(ref)) {
-            return; // Bereits persistenter Tab vorhanden -> Fokus statt Preview
+            return; // persistenter Tab vorhanden -> kein Preview-Update nötig
         }
 
-        // Preview aktualisieren / erzeugen
-        TabEntry preview = getPreviewEntry();
-        Component panel = buildEditorPanelFor(ref);
-        if (panel == null) return;
-        String title = derivePreviewTitle(ref);
-
-        if (preview == null) {
-            preview = new TabEntry();
-            preview.component = panel;
-            preview.modelRef = ref;
-            preview.persistent = false;
-            preview.title = title;
-            entries.add(preview);
-            editorTabs.addTab(preview.title, preview.component);
-            int idx = editorTabs.indexOfComponent(preview.component);
-            editorTabs.setSelectedIndex(idx);
-            attachAutoPromoteListener(preview);
-        } else {
-            // ersetze Inhalt des bestehenden Preview-Tabs
-            int idx = editorTabs.indexOfComponent(preview.component);
-            preview.component = panel;
-            preview.modelRef = ref;
-            preview.title = title;
-            editorTabs.setComponentAt(idx, panel);
-            editorTabs.setTitleAt(idx, title);
-            editorTabs.setSelectedIndex(idx);
-            attachAutoPromoteListener(preview);
-        }
+        // Preview neu oder ersetzen
+        createOrReplacePreview(ref);
     }
 
     /** Öffnet einen persistenten Tab oder fokussiert existierenden. */
@@ -93,16 +68,13 @@ public class TabManager implements NodeOpenHandler {
         if (ref == null) return;
 
         if (focusExistingPersistentTabIfPresent(ref)) {
-            return; // Kein Duplikat erzeugen
+            return; // schon da
         }
-
-        // Falls Preview gerade denselben Ref zeigt -> promote statt neu anlegen
-        TabEntry preview = getPreviewEntry();
-        if (preview != null && Objects.equals(preview.modelRef, ref)) {
-            promotePreview(preview); // wandelt in persistenten Tab um
+        // Falls Preview den gleichen Ref zeigt -> Promotion
+        if (previewEntry != null && Objects.equals(previewEntry.modelRef, ref) && !previewEntry.persistent) {
+            promotePreview(previewEntry);
             return;
         }
-
         createPersistentTab(ref);
     }
 
@@ -114,11 +86,10 @@ public class TabManager implements NodeOpenHandler {
                 int idx = editorTabs.indexOfComponent(e.component);
                 if (idx >= 0) {
                     editorTabs.setSelectedIndex(idx);
-                    return true; // nur true, wenn Tab wirklich existiert
+                    return true;
                 } else {
-                    // verwaister Eintrag -> entfernen und weiter suchen
                     entries.remove(i);
-                    i--; // Index korrigieren nach Entfernen
+                    i--;
                 }
             }
         }
@@ -175,12 +146,7 @@ public class TabManager implements NodeOpenHandler {
 
     // ========================= Interne Hilfen =========================
 
-    private TabEntry getPreviewEntry() {
-        for (TabEntry e : entries) {
-            if (!e.persistent) return e;
-        }
-        return null;
-    }
+    private TabEntry getPreviewEntry() { return previewEntry; }
 
     private void promotePreview(TabEntry preview) {
         preview.persistent = true;
@@ -191,10 +157,41 @@ public class TabManager implements NodeOpenHandler {
                     editorTabs,
                     preview.component,
                     preview.title,
-                    () -> entries.remove(preview)
+                    () -> {
+                        entries.remove(preview);
+                        if (previewEntry == preview) previewEntry = null; // sicherheit
+                    }
             ));
         }
-        // Neuer Preview-Tab wird erst wieder angelegt bei nächstem showInPreview für anderen Node
+        // Preview-Eintrag loslösen
+        if (previewEntry == preview) previewEntry = null;
+    }
+
+    private void createOrReplacePreview(Object ref) {
+        Component panel = buildEditorPanelFor(ref);
+        if (panel == null) return;
+        String title = derivePreviewTitle(ref);
+
+        if (previewEntry == null || editorTabs.indexOfComponent(previewEntry.component) < 0) {
+            previewEntry = new TabEntry();
+            previewEntry.component = panel;
+            previewEntry.modelRef = ref;
+            previewEntry.persistent = false;
+            previewEntry.title = title;
+            entries.add(previewEntry);
+            editorTabs.addTab(previewEntry.title, previewEntry.component);
+            editorTabs.setSelectedIndex(editorTabs.indexOfComponent(previewEntry.component));
+            attachAutoPromoteListener(previewEntry);
+        } else {
+            int idx = editorTabs.indexOfComponent(previewEntry.component);
+            previewEntry.component = panel; // neue Komponente setzen
+            previewEntry.modelRef = ref;
+            previewEntry.title = title;
+            editorTabs.setComponentAt(idx, panel);
+            editorTabs.setTitleAt(idx, title);
+            editorTabs.setSelectedIndex(idx);
+            attachAutoPromoteListener(previewEntry);
+        }
     }
 
     private void createPersistentTab(Object ref) {
