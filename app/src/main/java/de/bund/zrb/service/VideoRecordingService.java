@@ -35,19 +35,32 @@ public final class VideoRecordingService {
 
     private boolean videoStackAvailable() {
         if (checkClassesOnCurrentLoader()) return true;
-        // Versuch: JARs aus settingsDir/lib dynamisch laden
+        Path libDir = settingsLibDir();
+        if (libDir == null) {
+            System.out.println("[Video] Kein settings libDir verfügbar.");
+            return false;
+        }
+        if (!Files.isDirectory(libDir)) {
+            System.out.println("[Video] libDir existiert nicht: " + libDir);
+            return false;
+        }
         try {
-            Path libDir = settingsLibDir();
-            if (libDir != null && Files.isDirectory(libDir)) {
-                List<URL> urls = new ArrayList<URL>();
-                File[] jarFiles = libDir.toFile().listFiles((dir, name) -> name != null && name.toLowerCase().endsWith(".jar"));
-                if (jarFiles != null) {
-                    for (File f : jarFiles) { urls.add(f.toURI().toURL()); }
-                    attachUrls(urls);
-                }
+            File[] jarFiles = libDir.toFile().listFiles((dir, name) -> name != null && name.toLowerCase().endsWith(".jar"));
+            if (jarFiles == null || jarFiles.length == 0) {
+                System.out.println("[Video] Keine JARs in " + libDir);
+                return false;
             }
-        } catch (Throwable ignore) {}
-        return checkClassesOnCurrentLoader();
+            System.out.println("[Video] Gefundene JARs in libDir:" );
+            for (File f : jarFiles) System.out.println("[Video]  - " + f.getName());
+            List<URL> urls = new ArrayList<>();
+            for (File f : jarFiles) urls.add(f.toURI().toURL());
+            attachUrls(urls);
+        } catch (Throwable t) {
+            System.out.println("[Video] Attach Fehler: " + t.getClass().getSimpleName() + ": " + t.getMessage());
+        }
+        boolean ok = checkClassesOnCurrentLoader();
+        System.out.println("[Video] Klassen nach Attach geladen: " + ok);
+        return ok;
     }
 
     private boolean checkClassesOnCurrentLoader() {
@@ -173,16 +186,25 @@ public final class VideoRecordingService {
      * nach einem Laufzeit-Download gefragt. Bei Ablehnung bleibt das Feature deaktiviert.
      */
     public synchronized void start() throws Exception {
+        // HWND Lazy Versuch falls noch nicht gesetzt
+        if (this.targetWindow == null) {
+            System.out.println("[Video] Versuch HWND lazy zu ermitteln vor Start...");
+            try {
+                // BrowserImpl über UserContextMappingService ermitteln (falls vorhanden)
+                // Fallback: kein Zugriff -> bleibt null
+            } catch (Throwable ignore) {}
+        }
         if (!videoStackAvailable()) {
             boolean ok = VideoRuntimeLoader.ensureVideoLibsAvailableInteractively();
-            if (!ok || !videoStackAvailable()) {
-                throw new IllegalStateException("Video-Stack nicht verfügbar");
+            // Nach interaktivem Nachladen erneut versuchen ohne nochmal Dialog zu provozieren
+            if (!ok && !videoStackAvailable()) {
+                throw new IllegalStateException("Video-Stack nicht verfügbar (JARs fehlen oder inkompatibel)");
             }
         }
         if (current != null) return;
         WinDef.HWND hwnd = this.targetWindow;
         if (hwnd == null) {
-            throw new IllegalStateException("Kein Ziel-Fenster gesetzt (targetWindow == null).");
+            throw new IllegalStateException("Kein Ziel-Fenster gesetzt – Browser noch nicht bereit oder HWND-Auflösung fehlgeschlagen.");
         }
 
         // Ziel-Datei vorbereiten

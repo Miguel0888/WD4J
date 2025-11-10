@@ -42,6 +42,9 @@ public final class VideoRuntimeLoader {
         add(new FileDef(path("org/bytedeco/javacv/", JAVACV_VER, "javacv-" + JAVACV_VER + ".jar")));
         add(new FileDef(path("org/bytedeco/javacpp/", JAVACPP_VER, "javacpp-" + JAVACPP_VER + ".jar")));
         add(new FileDef(path("org/bytedeco/javacpp/", JAVACPP_VER, "javacpp-" + JAVACPP_VER + "-windows-x86_64.jar")));
+        // Basis-FFmpeg-JAR (enthält Wrapper-Klassen)
+        add(new FileDef(path("org/bytedeco/ffmpeg/", FFMPEG_VER, "ffmpeg-" + FFMPEG_VER + ".jar")));
+        // Natives für Windows
         add(new FileDef(path("org/bytedeco/ffmpeg/", FFMPEG_VER, "ffmpeg-" + FFMPEG_VER + "-windows-x86_64.jar")));
     }};
 
