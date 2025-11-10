@@ -38,20 +38,11 @@ public final class VideoRecordingService {
     }
 
     /**
-     * Integration-Hook aus der App-Schicht.
-     * - Ermittelt das HWND aus dem BrowserImpl (lazy, cached dort)
-     * - Setzt das Ziel-Fenster
-     * - Startet optional automatisch, falls in VideoConfig aktiviert
+     * Integration-Hook aus der App-Schicht: setzt nur das Ziel-Fenster und versucht einen Auto-Start,
+     * wenn der Video-Stack bereits verfügbar ist. Kein interaktives Nachladen an dieser Stelle
+     * (um Prompts beim App-Start zu vermeiden).
      */
     public synchronized void init(BrowserImpl browser) {
-        if (!videoStackAvailable()) {
-            // Interaktives Nachladen anbieten
-            boolean ok = VideoRuntimeLoader.ensureVideoLibsAvailableInteractively();
-            if (!ok || !videoStackAvailable()) {
-                System.err.println("[Video] Optionaler Video-Stack nicht verfügbar – Funktionen deaktiviert.");
-                return;
-            }
-        }
         if (browser == null) {
             System.err.println("[Video] init(): BrowserImpl == null");
             return;
@@ -63,15 +54,19 @@ public final class VideoRecordingService {
                 return;
             }
             setTargetWindow(hwnd);
-            autostartIfConfigured();
+            if (videoStackAvailable()) {
+                autostartIfConfigured();
+            } else {
+                System.out.println("[Video] Optionaler Video-Stack nicht vorhanden – Auto-Start wird übersprungen.");
+            }
         } catch (Throwable t) {
             System.err.println("[Video] init() Fehler: " + t.getMessage());
         }
     }
 
-    /** Versucht einen Auto-Start, wenn in den Settings aktiviert; idempotent. */
+    /** Versucht einen Auto-Start, wenn in den Settings aktiviert; idempotent. Lädt NICHT nach. */
     public synchronized void autostartIfConfigured() {
-        if (!videoStackAvailable()) return;
+        if (!videoStackAvailable()) return; // kein Nachladen hier
         if (!VideoConfig.isEnabled()) return;
         if (isRecording()) return;
         try {
@@ -83,9 +78,7 @@ public final class VideoRecordingService {
     }
 
     /** Ziel-Fenster setzen (Integration von außen). */
-    public synchronized void setTargetWindow(WinDef.HWND hwnd) {
-        this.targetWindow = hwnd;
-    }
+    public synchronized void setTargetWindow(WinDef.HWND hwnd) { this.targetWindow = hwnd; }
 
     /** Optionaler Getter (falls benötigt). */
     public WinDef.HWND getTargetWindow() { return targetWindow; }
@@ -93,9 +86,17 @@ public final class VideoRecordingService {
     /** Läuft eine Aufnahme? */
     public boolean isRecording() { return current != null; }
 
-    /** Startet die Aufnahme (falls nicht bereits laufend). */
+    /**
+     * Startet die Aufnahme. Wenn der Video-Stack fehlt, wird der Nutzer hier (und nur hier)
+     * nach einem Laufzeit-Download gefragt. Bei Ablehnung bleibt das Feature deaktiviert.
+     */
     public synchronized void start() throws Exception {
-        if (!videoStackAvailable()) throw new IllegalStateException("Video-Stack nicht verfügbar");
+        if (!videoStackAvailable()) {
+            boolean ok = VideoRuntimeLoader.ensureVideoLibsAvailableInteractively();
+            if (!ok || !videoStackAvailable()) {
+                throw new IllegalStateException("Video-Stack nicht verfügbar");
+            }
+        }
         if (current != null) return;
         WinDef.HWND hwnd = this.targetWindow;
         if (hwnd == null) {
