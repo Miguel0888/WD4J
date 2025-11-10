@@ -1,5 +1,7 @@
 package de.bund.zrb.service;
 
+import de.bund.zrb.event.ApplicationEventBus;
+import de.bund.zrb.event.BrowserLifecycleEvent;
 import com.microsoft.playwright.*;
 import de.bund.zrb.*;
 import de.bund.zrb.auth.LoginRedirectSentry;
@@ -37,6 +39,7 @@ public class BrowserServiceImpl implements BrowserService {
 
     @Override
     public void launchBrowser(BrowserConfig config) {
+        ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.STARTING, "🚀 Browser wird gestartet…")));
         try {
             playwright = Playwright.create();
             BrowserType.LaunchOptions options = new BrowserType.LaunchOptions().setHeadless(config.isHeadless());
@@ -79,7 +82,9 @@ public class BrowserServiceImpl implements BrowserService {
             BrowserTypeImpl browserType = BrowserTypeImpl.newFirefoxInstance((PlaywrightImpl) playwright);
             browser = (BrowserImpl) browserType.launch(options);
             configureServices();
+            ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.STARTED, "✅ Browser gestartet")));
         } catch (Exception ex) {
+            ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.ERROR, "❌ Browser-Start fehlgeschlagen", ex)));
             throw new RuntimeException("Fehler beim Starten des Browsers", ex);
         }
     }
@@ -129,12 +134,14 @@ public class BrowserServiceImpl implements BrowserService {
 
     @Override
     public void terminateBrowser() {
+        ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.STOPPING, "🛑 Browser wird beendet…")));
         if (browser != null) {
             browser.close();
             playwright.close();
             browser = null;
             playwright = null;
         }
+        ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.STOPPED, "🛑 Browser beendet")));
     }
 
     @Override

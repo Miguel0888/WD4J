@@ -1,5 +1,7 @@
 package de.bund.zrb.ui;
 
+import de.bund.zrb.event.ApplicationEventBus;
+import de.bund.zrb.event.BrowserLifecycleEvent;
 import de.bund.zrb.service.BrowserConfig;
 import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.service.UserRegistry;
@@ -157,14 +159,24 @@ public class MainWindow {
         frame.add(statusBar, BorderLayout.SOUTH);
         StatusTicker.getInstance().attach(statusBar); // activate event queue
 
+        // Status-Messages aus dem Service konsumieren
+        ApplicationEventBus.getInstance().subscribe(BrowserLifecycleEvent.class, ev -> {
+            BrowserLifecycleEvent.Payload p = ev.getPayload();
+            if (p != null && p.getMessage() != null) {
+                SwingUtilities.invokeLater(() -> statusBar.setMessage(p.getMessage()));
+            }
+            if (p != null && p.getKind() == BrowserLifecycleEvent.Kind.ERROR && p.getError() != null) {
+                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(frame,
+                        "Fehler beim Starten des Browsers:\n" + p.getError().getMessage(),
+                        "Browser-Start fehlgeschlagen", JOptionPane.ERROR_MESSAGE));
+            }
+        });
+
         // Browser erst nach Statusbar, wie gehabt
-        statusBar.setMessage("🚀 Browser wird gestartet…");
         try {
             browserService.launchDefaultBrowser();
-            statusBar.setMessage("✅ Browser gestartet");
         } catch (Exception ex) {
-            statusBar.setMessage("❌ Browser-Start fehlgeschlagen");
-            JOptionPane.showMessageDialog(frame, "Fehler beim Starten des Browsers:\n" + ex.getMessage(), "Browser-Start fehlgeschlagen", JOptionPane.ERROR_MESSAGE);
+            // Fehlerdialog wird bereits via EventBus gezeigt; hier nur Fallback
         }
 
         // Frame anzeigen, Layout ausführen lassen
@@ -226,7 +238,6 @@ public class MainWindow {
 
                 uiStateService.persist();
 
-                statusBar.setMessage("🛑 Browser wird beendet…");
                 browserService.terminateBrowser();
             }
         });
