@@ -1105,8 +1105,9 @@ public class TestPlayerService {
         boolean any = false;
         for (String altRaw : alternatives) {
             String alt = altRaw.trim();
-            if (alt.isEmpty() && (t.equals("regex") || t.equals("fullregex"))) {
-                any = true; // leeres Pattern gilt als PASS
+            // Leeres Pattern: nur für 'regex' automatisch PASS, nicht für 'fullregex'
+            if (alt.isEmpty() && t.equals("regex")) {
+                any = true;
                 break;
             }
             boolean single;
