@@ -17,7 +17,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static de.bund.zrb.settings.SettingsBootstrap.ensureUserSettingsPresent;
+
 public class Main {
+    {
+        ensureUserSettingsPresent();
+    }
 
     public static final String RECORD_FLAG = "-d";
     public static final String ALT_RECORD_FLAG = "--debug";
