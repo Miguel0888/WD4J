@@ -1,5 +1,6 @@
 package de.bund.zrb;
 
+import de.bund.zrb.bootstrap.AppBootstrap;
 import de.bund.zrb.service.RecorderEventBridge;
 import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.service.TestRegistry;
@@ -77,9 +78,7 @@ public class Main {
         }
 
         // Normaler Start (zweiter Prozess mit Agent, oder ohne Debug)
-        RecorderEventBridge.install();
-        SettingsService.initAdapter();
-        installInfoShutdownHook();
+        AppBootstrap.initialize();
 
         SwingUtilities.invokeLater(new Runnable() {
             @Override
@@ -295,19 +294,6 @@ public class Main {
         }
 
         System.exit(0);
-    }
-
-    private static void installInfoShutdownHook() {
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            @Override
-            public void run() {
-                String baseDir = System.getProperty("user.dir");
-                String recordingDir = baseDir
-                        + File.separator + "tmp"
-                        + File.separator + "appmap";
-                System.out.println("AppMap recordings directory: " + recordingDir);
-            }
-        }));
     }
 
     private static void closeQuietly(InputStream in) {
