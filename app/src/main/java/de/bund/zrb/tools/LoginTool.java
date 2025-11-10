@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LoginTool extends AbstractUserTool implements BuiltinTool {
 
@@ -142,10 +143,14 @@ public class LoginTool extends AbstractUserTool implements BuiltinTool {
                 if (isManualPasswordCompliant(entered, user.getUsername(), oldPassword)) {
                     newPassword = entered;
                 } else {
-                    JOptionPane.showMessageDialog(null,
-                            "Eingegebenes Passwort erfüllt nicht alle Regeln – Vorschlag wird verwendet.",
-                            "Ungültiges Passwort",
-                            JOptionPane.WARNING_MESSAGE);
+                    try {
+                        JOptionPane.showMessageDialog(null,
+                                "Eingegebenes Passwort erfüllt nicht alle Regeln – Vorschlag wird verwendet.",
+                                "Ungültiges Passwort",
+                                JOptionPane.WARNING_MESSAGE);
+                    } catch (Exception ignored) {
+                        // Headless: einfach fortfahren
+                    }
                 }
             }
         }
@@ -159,13 +164,25 @@ public class LoginTool extends AbstractUserTool implements BuiltinTool {
         // Absenden
         page.click(submitSel);
 
-        // Benutzer mit neuem Passwort aktualisieren (verschlüsselt) und persistieren
+        // Vor dem Speichern: Nutzer explizit bestätigen lassen (Button 3 Sekunden deaktiviert)
+        boolean shouldPersist = false;
         try {
-            user.setEncryptedPassword(WindowsCryptoUtil.encrypt(newPassword));
-            UserRegistry.getInstance().save();
-            System.out.println("✅ Neues Passwort gesetzt und gespeichert (8 Zeichen).");
+            shouldPersist = confirmSaveWithDelay();
         } catch (Exception e) {
-            System.out.println("⚠️ Neues Passwort konnte nicht gespeichert werden: " + e.getMessage());
+            System.out.println("ℹ️ Bestätigungsdialog nicht verfügbar, speichere NICHT automatisch.");
+        }
+
+        // Benutzer mit neuem Passwort aktualisieren (verschlüsselt) und persistieren
+        if (shouldPersist) {
+            try {
+                user.setEncryptedPassword(WindowsCryptoUtil.encrypt(newPassword));
+                UserRegistry.getInstance().save();
+                System.out.println("✅ Neues Passwort gesetzt und gespeichert (8 Zeichen).");
+            } catch (Exception e) {
+                System.out.println("⚠️ Neues Passwort konnte nicht gespeichert werden: " + e.getMessage());
+            }
+        } else {
+            System.out.println("↩️ Passwort wurde nicht persistent gespeichert (Benutzer hat nicht bestätigt).");
         }
     }
 
@@ -267,6 +284,55 @@ public class LoginTool extends AbstractUserTool implements BuiltinTool {
             if (ascRun > maxAllowedRunLength || descRun > maxAllowedRunLength) return true;
         }
         return false;
+    }
+
+    private static boolean confirmSaveWithDelay() throws Exception {
+        // Führt einen modalen Dialog aus, bei dem der "Speichern"-Button erst nach 3 Sekunden aktiv wird.
+        final AtomicBoolean result = new AtomicBoolean(false);
+        Runnable uiTask = () -> {
+            final JDialog dialog = new JDialog((java.awt.Frame) null, "Passwort speichern?", true);
+            dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+
+            JLabel msg = new JLabel("<html>Die Passwortänderung wurde abgesendet.<br/>Soll das neue Passwort gespeichert werden?</html>");
+            JButton btnSave = new JButton("Speichern");
+            JButton btnCancel = new JButton("Nicht speichern");
+            btnSave.setEnabled(false);
+
+            btnSave.addActionListener(e -> { result.set(true); dialog.dispose(); });
+            btnCancel.addActionListener(e -> { result.set(false); dialog.dispose(); });
+
+            JPanel btnPanel = new JPanel();
+            btnPanel.add(btnCancel);
+            btnPanel.add(btnSave);
+
+            JPanel root = new JPanel();
+            root.setLayout(new BoxLayout(root, BoxLayout.Y_AXIS));
+            msg.setAlignmentX(0.5f);
+            btnPanel.setAlignmentX(0.5f);
+            root.add(Box.createVerticalStrut(10));
+            root.add(msg);
+            root.add(Box.createVerticalStrut(10));
+            root.add(btnPanel);
+            root.add(Box.createVerticalStrut(10));
+
+            dialog.setContentPane(root);
+            dialog.pack();
+            dialog.setLocationRelativeTo(null);
+
+            // Timer: 3 Sekunden später aktivieren
+            Timer t = new Timer(3000, ev -> btnSave.setEnabled(true));
+            t.setRepeats(false);
+            t.start();
+
+            dialog.setVisible(true);
+        };
+
+        if (SwingUtilities.isEventDispatchThread()) {
+            uiTask.run();
+        } else {
+            SwingUtilities.invokeAndWait(uiTask);
+        }
+        return result.get();
     }
 
     public String login(String user, String pass) {
