@@ -9,16 +9,14 @@ version = '2.0.0'
 sourceCompatibility = 1.8
 
 application {
-    mainClassName = 'de.bund.zrb.Main'
+    // Gradle 8+ API
+    mainClass = 'de.bund.zrb.Main'
 }
 
-repositories {
-    mavenCentral()
-}
+// Property-Schalter für optionale Video-Libs (Default: false)
+def includeVideo = project.hasProperty('includeVideo') && project.property('includeVideo') == 'true'
 
-configurations {
-    videoRuntime
-}
+configurations { videoRuntime }
 
 dependencies {
     implementation project(':wd4j')
@@ -47,51 +45,79 @@ dependencies {
 
     implementation 'com.google.googlejavaformat:google-java-format:1.7'
 
-    // Optional video stack (Windows x86_64 only, shipped in libs-video)
-    videoRuntime 'org.bytedeco:javacv:1.5.10'
-    videoRuntime 'org.bytedeco:javacv:1.5.10:windows-x86_64'
+    // Optional Video / Natives (nur laden wenn includeVideo gesetzt)
+    videoRuntime 'org.bytedeco:javacv-platform:1.5.10'
+    videoRuntime 'org.bytedeco:ffmpeg:6.1.1-1.5.10:windows-x86_64'
 }
 
-// Copy core runtime classpath jars into dist/libs
+// Core Lib Kopie
 task copyRuntimeLibsCore(type: Copy) {
     from configurations.runtimeClasspath
-    into '$buildDir/dist/libs'
+    into "$buildDir/dist/libs"
 }
 
-// Copy optional video jars into dist/libs-video (Windows-only)
+def selectWinVideoFiles(Set<File> files) {
+    files.findAll { File f ->
+        def n = f.name
+        // Behalte nur: javacv-*.jar, javacpp-*.jar (base oder windows), ffmpeg-*-windows-*.jar
+        (n.startsWith('javacv-') && n.endsWith('.jar')) ||
+        (n.startsWith('javacpp-') && n.endsWith('.jar') && (n.contains('windows-') || !(n.contains('-android-') || n.contains('-linux') || n.contains('-macosx') || n.contains('-ios')))) ||
+        (n.startsWith('ffmpeg-') && n.contains('windows-') && n.endsWith('.jar'))
+    }
+}
+
+// Video Lib Kopie (nur wenn eingeschaltet)
 task copyVideoLibs(type: Copy) {
-    from configurations.videoRuntime
-    into '$buildDir/dist/libs-video'
+    onlyIf { includeVideo }
+    from {
+        def files = configurations.videoRuntime.files
+        selectWinVideoFiles(files)
+    }
+    into "$buildDir/dist/libs-video"
 }
 
 jar {
     doFirst {
         def coreJars = configurations.runtimeClasspath.files.collect { 'libs/' + it.name }
-        def videoJars = configurations.videoRuntime.files.collect { 'libs-video/' + it.name }
+        def videoJars = []
+        if (includeVideo) {
+            def selected = selectWinVideoFiles(configurations.videoRuntime.files)
+            videoJars = selected.collect { 'libs-video/' + it.name }
+        }
         manifest {
             attributes(
-                'Main-Class': mainClassName,
+                'Main-Class': application.mainClass.get(),
                 'Class-Path': (coreJars + videoJars).join(' ')
             )
         }
     }
 }
 
-if (tasks.findByName('assembleDist') == null) {
-    task assembleDist(type: Copy) {
-        dependsOn jar, copyRuntimeLibsCore, copyVideoLibs
+// Minimale Distribution (ohne Video) – verwendet includeVideo=false
+task assembleDistMinimal(type: Copy) {
+    // Explizit sicherstellen
+    dependsOn jar, copyRuntimeLibsCore
+    from("$buildDir/libs/${project.name}-${version}.jar") { rename { 'app.jar' } }
+    from("$buildDir/dist/libs") { into 'libs' }
+    // Kein libs-video
+    into "$buildDir/dist/minimal"
+}
 
-        from('$buildDir/libs/' + project.name + '-' + version + '.jar') {
-            rename { 'app.jar' }
-        }
-        from('$buildDir/dist/libs') {
-            into 'libs'
-        }
-        from('$buildDir/dist/libs-video') {
-            into 'libs-video'
-        }
-        into '$buildDir/dist'
+// Volle Distribution (mit Video) – benötigt -PincludeVideo=true
+task assembleDistFull(type: Copy) {
+    dependsOn jar, copyRuntimeLibsCore, copyVideoLibs
+    from("$buildDir/libs/${project.name}-${version}.jar") { rename { 'app.jar' } }
+    from("$buildDir/dist/libs") { into 'libs' }
+    from("$buildDir/dist/libs-video") { into 'libs-video' }
+    into "$buildDir/dist/full"
+}
+
+// Legacy assembleDist (kompatibel, verweist je nach Flag auf passend)
+if (tasks.findByName('assembleDist') == null) {
+    task assembleDist {
+        dependsOn(includeVideo ? 'assembleDistFull' : 'assembleDistMinimal')
     }
 }
 
+// build hängt an assembleDist (bleibt gleich)
 build.dependsOn 'assembleDist'

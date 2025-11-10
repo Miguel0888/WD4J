@@ -57,7 +57,9 @@
               <option value="618cf79c-4a61-44e2-a659-450de8a2bd30" />
               <option value="64fd40cf-fa5b-4fc4-8ce7-9d473bdf6b39" />
               <option value="6e497f13-54f9-4ab6-9c30-5e0c101fbfd2" />
+              <option value="8131a6e9-1542-4a54-b66f-b197a2c5ea85" />
               <option value="899040c3-7de9-4055-9997-9a6ff88df8f4" />
+              <option value="8d36cc97-3a7c-41fb-a994-e168887c3972" />
               <option value="9d748b8d-7d13-4b78-84a3-9327eb606d2e" />
               <option value="a04243df-b339-450f-a53d-c125cf636647" />
               <option value="a1d8ed67-5145-412c-ad63-960947b3ab39" />
@@ -163,6 +165,8 @@
           <option value="file://$PROJECT_DIR$/app/build.gradle" />
           <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/service/VideoRecordingService.java" />
           <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/compiler/InMemoryJavaCompiler.java" />
+          <option value="file://$PROJECT_DIR$/playwright-adapter/build.gradle" />
+          <option value="file://$PROJECT_DIR$/wd4j/build.gradle" />
         </set>
       </entry>
     </pendingWorkingSetItems>
