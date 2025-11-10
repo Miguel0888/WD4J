@@ -17,8 +17,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-import static java.lang.Thread.sleep;
-
 /**
  * Low-level dispatcher for WebDriver BiDi events.
  * Keep type-based fan-out and add optional context-based fan-out.
@@ -111,12 +109,6 @@ public class WDEventDispatcher {
     public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> listener, WDSessionManager sessionManager) {
         // Keep original behavior: subscribe at BiDi for the given request
         WDSessionResult.SubscribeResult result = sessionManager.subscribe(subscriptionRequest);
-        // ToDo: Fix this!
-        try {
-            sleep(3000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
         WDSubscription subscription = (result != null) ? result.getSubscription() : null;
 
         // Register listener per event type (enum key)
