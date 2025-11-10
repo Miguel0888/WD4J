@@ -12,10 +12,7 @@ import de.bund.zrb.websocket.WDErrorResponse;
 import de.bund.zrb.api.WDWebSocketManager;
 
 import java.lang.reflect.Type;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -26,6 +23,19 @@ import java.util.function.Predicate;
  *
  */
 public class WDWebSocketManagerImpl implements WDWebSocketManager {
+    private static final long ERROR_RETRY_TIMEOUT_MILLIS = 30_000L;
+
+    // Single scheduler for all timeouts (Java 8 kompatibel)
+    private static final ScheduledExecutorService ERROR_TIMEOUT_SCHEDULER =
+            Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread t = new Thread(r, "wd4j-ws-error-timeout");
+                    t.setDaemon(true);
+                    return t;
+                }
+            });
+
     private final Gson gson = GsonMapperFactory.getGson(); // ✅ Nutzt zentrale Fabrik
 
     private final WDWebSocketImpl webSocket; // ToDo: Should be WebSocket instead of WebSocketImpl
@@ -152,18 +162,46 @@ public class WDWebSocketManagerImpl implements WDWebSocketManager {
 
                 // 🛠 Falls der Frame ein Fehler ist, direkt in `ErrorResponse` mappen
                 if (json.has("type") && "error".equals(json.get("type").getAsString())) {
-                    WDErrorResponse WDErrorResponse = gson.fromJson(frame.text(), WDErrorResponse.class);
+                    WDErrorResponse error = gson.fromJson(frame.text(), WDErrorResponse.class);
 
-                    if (throwError) {
-                        future.completeExceptionally(WDErrorResponse); // ✅ Werfe Exception
-                    } else {
-                        future.complete(responseType.cast(WDErrorResponse)); // ✅ Gib `ErrorResponse` als DTO zurück
+                    if (!throwError) {
+                        // Caller will Fehlerobjekt direkt, kein Retry
+                        completeOnce(future, responseType.cast(error), listenerRef, timeoutHandleRef);
+                        return;
                     }
-                    webSocket.offFrameReceived(listenerRef.get()); // Listener entfernen
+
+                    // Nur beim ersten Error das Timeout planen
+                    if (firstErrorRef.compareAndSet(null, error)) {
+                        ScheduledFuture<?> timeoutFuture = ERROR_TIMEOUT_SCHEDULER.schedule(
+                                new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (!future.isDone()) {
+                                            future.completeExceptionally(firstErrorRef.get());
+                                            removeListener(listenerRef);
+                                        }
+                                    }
+                                },
+                                ERROR_RETRY_TIMEOUT_MILLIS,
+                                TimeUnit.MILLISECONDS
+                        );
+                        timeoutHandleRef.set(timeoutFuture);
+                    }
+
+                    // Innerhalb der 30 Sekunden weiter auf einen gültigen Response warten
                     return;
                 }
 
-                // Falls Predicate erfüllt → Antwort parsen
+                // 2) Fachliche Fehler aus Skript / CallFunction -> sofort durchreichen
+                if ("exception".equals(type) && throwError) {
+                    WDErrorResponse error = gson.fromJson(text, WDErrorResponse.class);
+                    future.completeExceptionally(error);
+                    removeListener(listenerRef);
+                    cancelTimeout(timeoutHandleRef.get());
+                    return;
+                }
+
+                //  3) Falls Predicate erfüllt → Antwort parsen
                 if (predicate.test(frame)) {
                     // ✅ Falls `responseType == String.class`, einfach JSON-String direkt zurückgeben
                     T response;
@@ -218,5 +256,32 @@ public class WDWebSocketManagerImpl implements WDWebSocketManager {
         // ToDo: Check the session, too? (e.g. if the session is still alive, otherwise the user is not able to send commands)
         //  You may use a WebDriver BiDi command to check the session status?
         //  -> newSession() Command has to be send otherwise
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // HELPER:
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private <T> void completeOnce(CompletableFuture<T> future,
+                                  T value,
+                                  AtomicReference<Consumer<WebSocketFrame>> listenerRef,
+                                  AtomicReference<ScheduledFuture<?>> timeoutHandleRef) {
+        if (future.complete(value)) {
+            removeListener(listenerRef);
+            cancelTimeout(timeoutHandleRef.get());
+        }
+    }
+
+    private void removeListener(AtomicReference<Consumer<WebSocketFrame>> listenerRef) {
+        Consumer<WebSocketFrame> l = listenerRef.get();
+        if (l != null) {
+            webSocket.offFrameReceived(l);
+        }
+    }
+
+    private void cancelTimeout(ScheduledFuture<?> f) {
+        if (f != null) {
+            f.cancel(false);
+        }
     }
 }
