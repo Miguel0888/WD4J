@@ -12,12 +12,12 @@ import de.bund.zrb.support.ScriptHelper;
 import de.bund.zrb.command.response.WDBrowsingContextResult;
 import de.bund.zrb.command.response.WDScriptResult;
 import de.bund.zrb.type.script.*;
+import de.bund.zrb.websocket.WDErrorResponse;
 import de.bund.zrb.websocket.WDEventNames;
 import de.bund.zrb.event.WDScriptEvent;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.type.session.WDSubscription;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
-import de.bund.zrb.websocket.WDException;
 import de.bund.zrb.win.Win32Windows;
 
 import javax.swing.*;
@@ -189,7 +189,7 @@ public class BrowserImpl implements Browser {
                 UserContextImpl uc = new UserContextImpl(this, context.getUserContext());
                 userContextImpls.add(uc);
             });
-        } catch (WDException ignored) {}
+        } catch (WDErrorResponse ignored) {}
     }
 
     private void fetchDefaultBrowsingContexts() {
@@ -227,7 +227,7 @@ public class BrowserImpl implements Browser {
                 }
             });
 
-        } catch (WDException ex) {
+        } catch (WDErrorResponse ex) {
             ex.printStackTrace();
         }
     }

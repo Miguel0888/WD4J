@@ -9,7 +9,6 @@ import de.bund.zrb.service.WDEventDispatcher;
 import de.bund.zrb.support.mapping.GsonMapperFactory;
 import de.bund.zrb.api.WDCommand;
 import de.bund.zrb.websocket.WDErrorResponse;
-import de.bund.zrb.websocket.WDException;
 import de.bund.zrb.api.WDWebSocketManager;
 
 import java.lang.reflect.Type;
@@ -109,9 +108,9 @@ public class WDWebSocketManagerImpl implements WDWebSocketManager {
         }
         catch (InterruptedException | ExecutionException e)
         {
-            if(e.getCause() instanceof WDException)
+            if(e.getCause() instanceof WDErrorResponse)
             {
-                throw (WDException) e.getCause();
+                throw (WDErrorResponse) e.getCause();
             }
             throw new RuntimeException("Error while waiting for response.", e);
         }
@@ -123,7 +122,7 @@ public class WDWebSocketManagerImpl implements WDWebSocketManager {
      * @param predicate    Die Bedingung für die zu erwartende Nachricht.
      * @param responseType Die Klasse des erwarteten DTOs.
      * @param <T>          Der Typ der Antwort.
-     * @throws WDException Falls eine Fehlerantwort empfangen wird.
+     * @throws WDErrorResponse Falls eine Fehlerantwort empfangen wird.
      * @return Ein CompletableFuture mit der Antwort oder einem Fehler.
      */
     @Deprecated
@@ -139,7 +138,7 @@ public class WDWebSocketManagerImpl implements WDWebSocketManager {
      * @param responseType Die Klasse des erwarteten DTOs.
      * @param throwError   Falls `false`, wird keine Exception geworfen, sondern ein Fehler-DTO zurückgegeben.
      * @param <T>          Der Typ der Antwort.
-     * @throws WDException Falls `throwError == true` und eine Fehlerantwort empfangen wird.
+     * @throws WDErrorResponse Falls `throwError == true` und eine Fehlerantwort empfangen wird.
      * @return Ein CompletableFuture mit der Antwort oder einem Fehler.
      */
     public <T> CompletableFuture<T> receive(Predicate<WebSocketFrame> predicate, Class<T> responseType, boolean throwError) {
@@ -156,7 +155,7 @@ public class WDWebSocketManagerImpl implements WDWebSocketManager {
                     WDErrorResponse WDErrorResponse = gson.fromJson(frame.text(), WDErrorResponse.class);
 
                     if (throwError) {
-                        future.completeExceptionally(new WDException(WDErrorResponse)); // ✅ Werfe Exception
+                        future.completeExceptionally(WDErrorResponse); // ✅ Werfe Exception
                     } else {
                         future.complete(responseType.cast(WDErrorResponse)); // ✅ Gib `ErrorResponse` als DTO zurück
                     }
