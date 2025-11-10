@@ -434,6 +434,7 @@ public class MainWindow {
         commandRegistry.register(new CycleUserCommand());
         commandRegistry.register(new NavigationHomeCommand());
         commandRegistry.register(new LoginUserCommand());
+        commandRegistry.register(new ChangePasswordCommand());
 
         commandRegistry.register(new ToggleLeftDrawerCommand(this));
         commandRegistry.register(new ToggleRightDrawerCommand(this));

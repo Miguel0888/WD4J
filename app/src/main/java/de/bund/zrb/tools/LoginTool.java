@@ -9,7 +9,6 @@ import de.bund.zrb.expressions.domain.FunctionContext;
 import de.bund.zrb.service.BrowserService;
 import de.bund.zrb.service.TotpService;
 import de.bund.zrb.service.UserRegistry;
-import de.bund.zrb.tools.AbstractUserTool;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -68,6 +67,56 @@ public class LoginTool extends AbstractUserTool implements BuiltinTool {
             System.out.println("🔢 OTP-Code: " + otp);
             // → ggf. weitere Verarbeitung, je nach Zielseite
         }
+    }
+
+    /**
+     * Führt einen Passwort-Änderungsflow aus: Seite aufrufen (falls konfiguriert), Felder füllen und absenden.
+     * Aktuell werden neues Passwort und Wiederholung mit dem gespeicherten Benutzerpasswort befüllt.
+     */
+    public void changePasswordForCurrentUser() {
+        UserRegistry.User user = getCurrentUserOrFail();
+        changePassword(user, null);
+    }
+
+    public void changePassword(UserRegistry.User user, Page page) {
+        LoginConfig cfg = user.getLoginConfig();
+        if (cfg == null) {
+            throw new IllegalStateException("LoginConfig fehlt für Benutzer: " + user.getUsername());
+        }
+
+        // Seite öffnen, falls vorhanden
+        String pwChangeUrl = cfg.getPasswordChangePage();
+        if (page == null) {
+            page = browserService.getActivePage(user.getUsername());
+            if (pwChangeUrl != null && !pwChangeUrl.trim().isEmpty()) {
+                page.navigate(pwChangeUrl);
+            }
+        }
+
+        String curSel   = cfg.getCurrentPasswordSelector();
+        String newSel   = cfg.getNewPasswordSelector();
+        String repSel   = cfg.getRepeatPasswordSelector();
+        String submitSel= cfg.getChangeSubmitSelector();
+
+        if (newSel == null || repSel == null || submitSel == null) {
+            throw new IllegalStateException("Passwort-Änderungs-Konfiguration unvollständig (neues/Repeat/Submit) für Benutzer: " + user.getUsername());
+        }
+
+        System.out.println("🔏 Passwort-Änderung für " + user.getUsername());
+
+        // Optional: aktuelles Passwort füllen, wenn Feld existiert
+        if (curSel != null && !curSel.trim().isEmpty()) {
+            page.locator(curSel).waitFor();
+            page.fill(curSel, user.getDecryptedPassword());
+        }
+
+        // Neues Passwort + Wiederholung befüllen (hier gleich dem gespeicherten Passwort)
+        page.locator(newSel).waitFor();
+        page.fill(newSel, user.getDecryptedPassword());
+        page.locator(repSel).waitFor();
+        page.fill(repSel, user.getDecryptedPassword());
+
+        page.click(submitSel);
     }
 
     public String login(String user, String pass) {
