@@ -9,95 +9,89 @@ version = '2.0.0'
 sourceCompatibility = 1.8
 
 application {
-    mainClass = 'de.bund.zrb.Main'
+    mainClassName = 'de.bund.zrb.Main'
 }
 
 repositories {
     mavenCentral()
 }
 
-// Separate configuration for optional video dependencies
 configurations {
     videoRuntime
 }
 
 dependencies {
-    // Projekt-Module (transitive Kernabhängigkeiten)
     implementation project(':wd4j')
     implementation project(':playwright-adapter')
     implementation project(':playwright-java')
 
-    // Logging / Core
     implementation 'org.slf4j:slf4j-api:1.7.36'
     implementation 'ch.qos.logback:logback-classic:1.2.11'
 
-    // WebSocket / HTTP / JSON / Reflections
     implementation 'org.java-websocket:Java-WebSocket:1.5.2'
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.4.1'
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'org.reflections:reflections:0.10.2'
 
-    // PDF
     implementation 'org.apache.pdfbox:pdfbox:2.0.27'
 
-    // Code-Editor
     implementation 'com.fifesoft:rsyntaxtextarea:3.3.3'
     implementation 'com.fifesoft:autocomplete:3.3.1'
 
-    // JavaScript (GraalVM JS für Java 8 kompatible Version)
     implementation 'org.graalvm.js:js:22.3.0'
 
-    // Optional: OTP Auth
     implementation 'com.warrenstrange:googleauth:1.4.0'
 
-    // JNA für Windows Crypto & native Integrationen (Core)
     implementation 'net.java.dev.jna:jna:5.13.0'
     implementation 'net.java.dev.jna:jna-platform:5.13.0'
 
-    // Google Java Format (für ExpressionEditorPanel)
     implementation 'com.google.googlejavaformat:google-java-format:1.7'
 
-    // Optional Video / Natives (separat ausgelagert)
-    videoRuntime 'org.bytedeco:javacv-platform:1.5.10'
+    // Optional video stack (Windows x86_64 only, shipped in libs-video)
+    videoRuntime 'org.bytedeco:javacv:1.5.10'
+    videoRuntime 'org.bytedeco:javacv:1.5.10:windows-x86_64'
 }
 
 // Copy core runtime classpath jars into dist/libs
 task copyRuntimeLibsCore(type: Copy) {
     from configurations.runtimeClasspath
-    into "$buildDir/dist/libs"
+    into '$buildDir/dist/libs'
 }
 
 // Copy optional video jars into dist/libs-video (Windows-only)
 task copyVideoLibs(type: Copy) {
     from configurations.videoRuntime
-    into "$buildDir/dist/libs-video"
+    into '$buildDir/dist/libs-video'
 }
 
 jar {
     doFirst {
         def coreJars = configurations.runtimeClasspath.files.collect { 'libs/' + it.name }
+        def videoJars = configurations.videoRuntime.files.collect { 'libs-video/' + it.name }
         manifest {
             attributes(
-                'Main-Class': application.mainClass.get(),
-                'Class-Path': coreJars.join(' ')
+                'Main-Class': mainClassName,
+                'Class-Path': (coreJars + videoJars).join(' ')
             )
         }
     }
 }
 
-// Assemble distribution layout under build/dist
-// - app.jar (runnable)
-// - libs/ (core)
-// - libs-video/ (optional video stack, Windows-only)
 if (tasks.findByName('assembleDist') == null) {
     task assembleDist(type: Copy) {
         dependsOn jar, copyRuntimeLibsCore, copyVideoLibs
 
-        from("$buildDir/libs/${project.name}-${version}.jar") { rename { 'app.jar' } }
-        from("$buildDir/dist/libs") { into 'libs' }
-        from("$buildDir/dist/libs-video") { into 'libs-video' }
-        into "$buildDir/dist"
+        from('$buildDir/libs/' + project.name + '-' + version + '.jar') {
+            rename { 'app.jar' }
+        }
+        from('$buildDir/dist/libs') {
+            into 'libs'
+        }
+        from('$buildDir/dist/libs-video') {
+            into 'libs-video'
+        }
+        into '$buildDir/dist'
     }
 }
-// Ensure build depends on assembleDist only once
+
 build.dependsOn 'assembleDist'
