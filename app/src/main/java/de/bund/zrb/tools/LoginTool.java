@@ -11,6 +11,7 @@ import de.bund.zrb.service.TotpService;
 import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.util.WindowsCryptoUtil;
 
+import javax.swing.*; // für einfachen Input-Dialog
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -22,6 +23,9 @@ public class LoginTool extends AbstractUserTool implements BuiltinTool {
 
     private final BrowserService browserService;
     private final TotpService totpService;
+
+    private static final String ALLOWED_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.<>*%_?=#$-+";
+    private static final int PASSWORD_LENGTH = 8;
 
     public LoginTool(BrowserService browserService, TotpService totpService) {
         this.browserService = browserService;
@@ -113,11 +117,40 @@ public class LoginTool extends AbstractUserTool implements BuiltinTool {
             page.fill(curSel, user.getDecryptedPassword());
         }
 
-        // Neues Passwort generieren (genau 8 Zeichen)
         String oldPassword = user.getDecryptedPassword();
-        String newPassword = generateCompliantPassword8(user, oldPassword);
+        String suggested = generateCompliantPassword8(user, oldPassword); // Vorschlag erzeugen
 
-        // Neues Passwort + Wiederholung befüllen
+        // Nutzer nach Passwort fragen (GUI-Dialog) – Vorschlag vorausgefüllt
+        String entered = null;
+        try {
+            entered = (String) JOptionPane.showInputDialog(null,
+                    "Neues Passwort (8 Zeichen) eingeben oder Vorschlag übernehmen:",
+                    "Passwort ändern",
+                    JOptionPane.PLAIN_MESSAGE,
+                    null,
+                    null,
+                    suggested);
+        } catch (Exception e) {
+            // Falls UI im Headless-Modus nicht verfügbar ist – wir nutzen den Vorschlag
+            System.out.println("ℹ️ Eingabedialog nicht verfügbar, verwende vorgeschlagenes Passwort.");
+        }
+
+        String newPassword = suggested; // Default
+        if (entered != null) {
+            entered = entered.trim();
+            if (!entered.isEmpty()) {
+                if (isManualPasswordCompliant(entered, user.getUsername(), oldPassword)) {
+                    newPassword = entered;
+                } else {
+                    JOptionPane.showMessageDialog(null,
+                            "Eingegebenes Passwort erfüllt nicht alle Regeln – Vorschlag wird verwendet.",
+                            "Ungültiges Passwort",
+                            JOptionPane.WARNING_MESSAGE);
+                }
+            }
+        }
+
+        // Felder füllen
         page.locator(newSel).waitFor();
         page.fill(newSel, newPassword);
         page.locator(repSel).waitFor();
@@ -136,29 +169,55 @@ public class LoginTool extends AbstractUserTool implements BuiltinTool {
         }
     }
 
-    private static String generateCompliantPassword8(UserRegistry.User user, String oldPassword) {
-        final String allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.<>*%_?=#$-+";
-        final int LENGTH = 8;
-        SecureRandom rnd = new SecureRandom();
-        String username = user.getUsername() == null ? "" : user.getUsername();
-        String old = oldPassword == null ? "" : oldPassword;
-
-        // Dynamische verbotene Teilstrings: aktueller Monat & Jahr zweistellig
+    private static boolean isManualPasswordCompliant(String candidate, String username, String oldPassword) {
+        if (candidate == null || candidate.length() != PASSWORD_LENGTH) return false;
+        // Zeichen prüfen
+        for (char c : candidate.toCharArray()) {
+            if (ALLOWED_CHARS.indexOf(c) < 0) return false;
+        }
+        // Monat/Jahr (zweistellig) verbieten
         LocalDate now = LocalDate.now();
         String month2 = String.format("%02d", now.getMonthValue());
         String year2 = String.format("%02d", now.getYear() % 100);
+        if (candidate.contains(month2) || candidate.contains(year2)) return false;
 
+        // Max 3 Zeichen aus Username
+        int userCharCount = 0;
+        if (username != null) {
+            for (char c : candidate.toCharArray()) {
+                if (username.indexOf(c) >= 0) {
+                    userCharCount++;
+                    if (userCharCount > 3) return false;
+                }
+            }
+        }
+        // Sequenzen
+        if (hasNumericAscendingOrDescendingRun(candidate, 3)) return false;
+        // Ab Index 3 keine Übereinstimmung mit altem Passwort
+        if (oldPassword != null) {
+            for (int i = 3; i < PASSWORD_LENGTH && i < oldPassword.length(); i++) {
+                if (candidate.charAt(i) == oldPassword.charAt(i)) return false;
+            }
+        }
+        return true;
+    }
+
+    private static String generateCompliantPassword8(UserRegistry.User user, String oldPassword) {
+        final String allowed = ALLOWED_CHARS;
+        final int LENGTH = PASSWORD_LENGTH;
+        SecureRandom rnd = new SecureRandom();
+        String username = user.getUsername() == null ? "" : user.getUsername();
+        String old = oldPassword == null ? "" : oldPassword;
+        LocalDate now = LocalDate.now();
+        String month2 = String.format("%02d", now.getMonthValue());
+        String year2 = String.format("%02d", now.getYear() % 100);
         for (int attempt = 0; attempt < 1000; attempt++) {
             StringBuilder sb = new StringBuilder(LENGTH);
             for (int i = 0; i < LENGTH; i++) {
                 sb.append(allowed.charAt(rnd.nextInt(allowed.length())));
             }
             String candidate = sb.toString();
-
-            // Regel 1: keine Monats-/Zweier-Jahreszahl enthalten
             if (candidate.contains(month2) || candidate.contains(year2)) continue;
-
-            // Regel 2: höchstens 3 Zeichen aus Username
             int userCharCount = 0;
             for (char c : candidate.toCharArray()) {
                 if (username.indexOf(c) >= 0) {
@@ -167,18 +226,10 @@ public class LoginTool extends AbstractUserTool implements BuiltinTool {
                 }
             }
             if (userCharCount > 3) continue;
-
-            // Regel 3: maximal 3-stellige auf- oder absteigende Ziffern-Sequenzen erlaubt (z.B. 123 ok, 1234 nicht)
             if (hasNumericAscendingOrDescendingRun(candidate, 3)) continue;
-
-            // Regel 4: nur die ersten 3 Positionen dürfen mit altem Passwort übereinstimmen
             boolean invalidOldMatch = false;
-            for (int i = 0; i < LENGTH; i++) {
-                if (i < 3) continue; // erste 3 Positionen dürfen gleich sein
-                if (i < old.length() && candidate.charAt(i) == old.charAt(i)) {
-                    invalidOldMatch = true;
-                    break;
-                }
+            for (int i = 3; i < LENGTH; i++) {
+                if (i < old.length() && candidate.charAt(i) == old.charAt(i)) { invalidOldMatch = true; break; }
             }
             if (invalidOldMatch) continue;
 
