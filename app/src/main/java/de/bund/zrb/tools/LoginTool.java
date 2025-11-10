@@ -9,7 +9,10 @@ import de.bund.zrb.expressions.domain.FunctionContext;
 import de.bund.zrb.service.BrowserService;
 import de.bund.zrb.service.TotpService;
 import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.util.WindowsCryptoUtil;
 
+import java.security.SecureRandom;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -71,7 +74,7 @@ public class LoginTool extends AbstractUserTool implements BuiltinTool {
 
     /**
      * Führt einen Passwort-Änderungsflow aus: Seite aufrufen (falls konfiguriert), Felder füllen und absenden.
-     * Aktuell werden neues Passwort und Wiederholung mit dem gespeicherten Benutzerpasswort befüllt.
+     * Neues Passwort wird automatisch generiert (genau 8 Zeichen) und anschließend im User gespeichert.
      */
     public void changePasswordForCurrentUser() {
         UserRegistry.User user = getCurrentUserOrFail();
@@ -110,13 +113,109 @@ public class LoginTool extends AbstractUserTool implements BuiltinTool {
             page.fill(curSel, user.getDecryptedPassword());
         }
 
-        // Neues Passwort + Wiederholung befüllen (hier gleich dem gespeicherten Passwort)
-        page.locator(newSel).waitFor();
-        page.fill(newSel, user.getDecryptedPassword());
-        page.locator(repSel).waitFor();
-        page.fill(repSel, user.getDecryptedPassword());
+        // Neues Passwort generieren (genau 8 Zeichen)
+        String oldPassword = user.getDecryptedPassword();
+        String newPassword = generateCompliantPassword8(user, oldPassword);
 
+        // Neues Passwort + Wiederholung befüllen
+        page.locator(newSel).waitFor();
+        page.fill(newSel, newPassword);
+        page.locator(repSel).waitFor();
+        page.fill(repSel, newPassword);
+
+        // Absenden
         page.click(submitSel);
+
+        // Benutzer mit neuem Passwort aktualisieren (verschlüsselt) und persistieren
+        try {
+            user.setEncryptedPassword(WindowsCryptoUtil.encrypt(newPassword));
+            UserRegistry.getInstance().save();
+            System.out.println("✅ Neues Passwort gesetzt und gespeichert (8 Zeichen).");
+        } catch (Exception e) {
+            System.out.println("⚠️ Neues Passwort konnte nicht gespeichert werden: " + e.getMessage());
+        }
+    }
+
+    private static String generateCompliantPassword8(UserRegistry.User user, String oldPassword) {
+        final String allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.<>*%_?=#$-+";
+        final int LENGTH = 8;
+        SecureRandom rnd = new SecureRandom();
+        String username = user.getUsername() == null ? "" : user.getUsername();
+        String old = oldPassword == null ? "" : oldPassword;
+
+        // Dynamische verbotene Teilstrings: aktueller Monat & Jahr zweistellig
+        LocalDate now = LocalDate.now();
+        String month2 = String.format("%02d", now.getMonthValue());
+        String year2 = String.format("%02d", now.getYear() % 100);
+
+        for (int attempt = 0; attempt < 1000; attempt++) {
+            StringBuilder sb = new StringBuilder(LENGTH);
+            for (int i = 0; i < LENGTH; i++) {
+                sb.append(allowed.charAt(rnd.nextInt(allowed.length())));
+            }
+            String candidate = sb.toString();
+
+            // Regel 1: keine Monats-/Zweier-Jahreszahl enthalten
+            if (candidate.contains(month2) || candidate.contains(year2)) continue;
+
+            // Regel 2: höchstens 3 Zeichen aus Username
+            int userCharCount = 0;
+            for (char c : candidate.toCharArray()) {
+                if (username.indexOf(c) >= 0) {
+                    userCharCount++;
+                    if (userCharCount > 3) break;
+                }
+            }
+            if (userCharCount > 3) continue;
+
+            // Regel 3: maximal 3-stellige auf- oder absteigende Ziffern-Sequenzen erlaubt (z.B. 123 ok, 1234 nicht)
+            if (hasNumericAscendingOrDescendingRun(candidate, 3)) continue;
+
+            // Regel 4: nur die ersten 3 Positionen dürfen mit altem Passwort übereinstimmen
+            boolean invalidOldMatch = false;
+            for (int i = 0; i < LENGTH; i++) {
+                if (i < 3) continue; // erste 3 Positionen dürfen gleich sein
+                if (i < old.length() && candidate.charAt(i) == old.charAt(i)) {
+                    invalidOldMatch = true;
+                    break;
+                }
+            }
+            if (invalidOldMatch) continue;
+
+            return candidate;
+        }
+        throw new IllegalStateException("Konnte nach 1000 Versuchen kein gültiges Passwort erzeugen");
+    }
+
+    private static boolean hasNumericAscendingOrDescendingRun(String s, int maxAllowedRunLength) {
+        // true -> es existiert eine auf/absteigende Ziffern-Sequenz, die länger als maxAllowedRunLength ist
+        if (s == null || s.length() <= 1) return false;
+        int ascRun = 1;
+        int descRun = 1;
+        for (int i = 1; i < s.length(); i++) {
+            char prev = s.charAt(i - 1);
+            char cur = s.charAt(i);
+            boolean bothDigits = Character.isDigit(prev) && Character.isDigit(cur);
+            if (!bothDigits) {
+                ascRun = 1;
+                descRun = 1;
+                continue;
+            }
+            int dp = prev - '0';
+            int dc = cur - '0';
+            if (dc == dp + 1) {
+                ascRun++;
+                descRun = 1;
+            } else if (dc == dp - 1) {
+                descRun++;
+                ascRun = 1;
+            } else {
+                ascRun = 1;
+                descRun = 1;
+            }
+            if (ascRun > maxAllowedRunLength || descRun > maxAllowedRunLength) return true;
+        }
+        return false;
     }
 
     public String login(String user, String pass) {

@@ -43,11 +43,17 @@
             <set>
               <option value="12333e83-86a5-4fa1-8136-33848723391c" />
               <option value="1cfc83e0-964a-4724-b6c4-564f1753ff77" />
+              <option value="29ecbf8e-ee17-4bbd-805f-14d322f2a29e" />
               <option value="47b5e6dd-05a0-449d-b8b0-9d879d345fbb" />
               <option value="618cf79c-4a61-44e2-a659-450de8a2bd30" />
+              <option value="64fd40cf-fa5b-4fc4-8ce7-9d473bdf6b39" />
               <option value="6e497f13-54f9-4ab6-9c30-5e0c101fbfd2" />
+              <option value="a04243df-b339-450f-a53d-c125cf636647" />
               <option value="a1d8ed67-5145-412c-ad63-960947b3ab39" />
+              <option value="a29851a1-63c2-4ad1-b9a0-1550411e9f2b" />
+              <option value="a4b3ae9d-8693-44cb-b917-01078a058429" />
               <option value="a4db1152-3a36-45e5-ae44-a0ecf808d79d" />
+              <option value="b3ac5da6-bf4f-4499-b747-0733d1dd7d63" />
               <option value="bb7ed624-1c11-4d5f-bd72-987e9b011198" />
               <option value="bbe845a9-bfa1-4116-b997-feb5fa993c2f" />
               <option value="c79aa2e9-b529-499e-93a7-83bcc56cb4d1" />
@@ -124,10 +130,7 @@
       <entry key="05224ff9-5831-40e4-9ce0-c1057f8fbb33" />
       <entry key="10d8b19c-816c-42ff-a02e-23368f329400">
         <set>
-          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/tabs/TabManager.java" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/tabs/AbstractEditorTab.java" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/config/LoginConfig.java" />
-          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/UserManagementDialog.java" />
+          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/tools/LoginTool.java" />
         </set>
       </entry>
     </pendingWorkingSetItems>
