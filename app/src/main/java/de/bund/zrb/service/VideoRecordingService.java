@@ -27,6 +27,16 @@ public final class VideoRecordingService {
 
     private VideoRecordingService() {}
 
+    private boolean videoStackAvailable() {
+        try {
+            Class.forName("com.sun.jna.platform.win32.WinDef");
+            Class.forName("org.bytedeco.javacv.FFmpegFrameRecorder");
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     /**
      * Integration-Hook aus der App-Schicht.
      * - Ermittelt das HWND aus dem BrowserImpl (lazy, cached dort)
@@ -34,6 +44,10 @@ public final class VideoRecordingService {
      * - Startet optional automatisch, falls in VideoConfig aktiviert
      */
     public synchronized void init(BrowserImpl browser) {
+        if (!videoStackAvailable()) {
+            System.err.println("[Video] Optionaler Video-Stack nicht verfügbar – Funktionen deaktiviert.");
+            return;
+        }
         if (browser == null) {
             System.err.println("[Video] init(): BrowserImpl == null");
             return;
@@ -53,6 +67,7 @@ public final class VideoRecordingService {
 
     /** Versucht einen Auto-Start, wenn in den Settings aktiviert; idempotent. */
     public synchronized void autostartIfConfigured() {
+        if (!videoStackAvailable()) return;
         if (!VideoConfig.isEnabled()) return;
         if (isRecording()) return;
         try {
@@ -76,6 +91,7 @@ public final class VideoRecordingService {
 
     /** Startet die Aufnahme (falls nicht bereits laufend). */
     public synchronized void start() throws Exception {
+        if (!videoStackAvailable()) throw new IllegalStateException("Video-Stack nicht verfügbar");
         if (current != null) return;
         WinDef.HWND hwnd = this.targetWindow;
         if (hwnd == null) {

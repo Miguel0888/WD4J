@@ -64,13 +64,16 @@
               <option value="a29851a1-63c2-4ad1-b9a0-1550411e9f2b" />
               <option value="a4b3ae9d-8693-44cb-b917-01078a058429" />
               <option value="a4db1152-3a36-45e5-ae44-a0ecf808d79d" />
+              <option value="b346be33-e99f-4aae-b506-01fb4dc65e10" />
               <option value="b3ac5da6-bf4f-4499-b747-0733d1dd7d63" />
               <option value="bb7ed624-1c11-4d5f-bd72-987e9b011198" />
               <option value="bbe845a9-bfa1-4116-b997-feb5fa993c2f" />
               <option value="bcfbdb0a-cdcc-4c13-848e-be14b3ab56e4" />
               <option value="c79aa2e9-b529-499e-93a7-83bcc56cb4d1" />
               <option value="cd5b50bc-2072-4343-90ff-9103c53ec9b0" />
+              <option value="d4d71e40-0201-4a87-9281-c2f5700f6718" />
               <option value="db15a60f-7318-463b-bc98-54c65795d865" />
+              <option value="e327955d-4804-4382-b069-bd5a7ded105f" />
               <option value="f7115731-da49-4ccf-adf7-84fc44697251" />
             </set>
           </value>
@@ -157,6 +160,9 @@
           <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/service/TestPlayerService.java" />
           <option value="file://$PROJECT_DIR$/app/src/test/java/de/bund/zrb/service/TestPlayerServiceValidatorTest.java" />
           <option value="file://$PROJECT_DIR$/app/src/test/java/de/bund/zrb/service/TestPlayerServiceAssertionsIntegrationTest.java" />
+          <option value="file://$PROJECT_DIR$/app/build.gradle" />
+          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/service/VideoRecordingService.java" />
+          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/compiler/InMemoryJavaCompiler.java" />
         </set>
       </entry>
     </pendingWorkingSetItems>

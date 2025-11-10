@@ -174,23 +174,19 @@ public class AssertionTablePanel extends JPanel {
             }
         };
 
-        // Table UX
-        table.setFillsViewportHeight(true);
-        table.setSurrendersFocusOnKeystroke(true);
+        // Preview Panel unter Tabelle für Live-Status
+        JLabel livePreview = new JLabel("Validator Vorschau: (kein Eintrag selektiert)");
+        livePreview.setBorder(BorderFactory.createEmptyBorder(4,8,4,8));
+        livePreview.setFont(livePreview.getFont().deriveFont(Font.ITALIC, livePreview.getFont().getSize2D()));
+
+        // Selection Listener zur Aktualisierung
+        table.getSelectionModel().addListSelectionListener(e -> {
+            if (e.getValueIsAdjusting()) return;
+            updateLivePreview(table, livePreview);
+        });
+
+        // Editor Commit Hook: nach Edit Update
         table.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
-        ToolTipManager.sharedInstance().registerComponent(table);
-
-        int fmH = table.getFontMetrics(table.getFont()).getHeight();
-        table.setRowHeight(Math.max(table.getRowHeight(), 3 * fmH + 8));
-
-        // Sizes
-        if (table.getColumnModel().getColumnCount() > 5) {
-            table.getColumnModel().getColumn(2).setPreferredWidth(360); // Expression
-            table.getColumnModel().getColumn(3).setPreferredWidth(140); // ValidatorType
-            table.getColumnModel().getColumn(4).setPreferredWidth(320); // ValidatorValue
-            table.getColumnModel().getColumn(5).setPreferredWidth(240); // Description
-        }
-        table.getColumnModel().getColumn(0).setMaxWidth(90); // Enabled
 
         // Toolbar
         JToolBar bar = new JToolBar();
@@ -232,14 +228,32 @@ public class AssertionTablePanel extends JPanel {
         saveBtn.setToolTipText("Speichern");
         saveBtn.addActionListener(e -> TestRegistry.getInstance().save());
 
+        JButton suggestRegexBtn = new JButton("⚙ Regex Vorschlag");
+        suggestRegexBtn.setToolTipText("Erzeugt aus dem aktuellen Expression-Wert einen Regex-Vorschlag und setzt Typ=regex.");
+        suggestRegexBtn.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row < 0) return;
+            // Expression holen
+            Object exprVal = table.getValueAt(row, 2);
+            if (exprVal == null) return;
+            String expr = String.valueOf(exprVal);
+            if (expr.trim().isEmpty()) return;
+            String pattern = buildRegexSuggestion(expr.trim());
+            table.setValueAt("regex", row, 3); // Typ
+            table.setValueAt(pattern, row, 4);  // Value
+            updateLivePreview(table, livePreview);
+        });
+
         bar.add(addBtn);
         bar.add(delBtn);
         bar.add(editBtn);
+        bar.add(suggestRegexBtn);
         bar.addSeparator();
         bar.add(saveBtn);
 
         add(bar, BorderLayout.NORTH);
         add(new JScrollPane(table), BorderLayout.CENTER);
+        add(livePreview, BorderLayout.SOUTH);
 
         if (needImmediateSave) {
             try { TestRegistry.getInstance().save(); } catch (Throwable ignore) { }
@@ -256,5 +270,72 @@ public class AssertionTablePanel extends JPanel {
             c.setFont(c.getFont().deriveFont(Font.ITALIC));
             return c;
         }
+    }
+
+    private void updateLivePreview(JTable table, JLabel livePreview) {
+        int row = table.getSelectedRow();
+        if (row < 0) { livePreview.setText("Validator Vorschau: (kein Eintrag selektiert)"); return; }
+        Object typeObj = table.getValueAt(row, 3);
+        Object valueObj = table.getValueAt(row, 4);
+        String type = typeObj == null ? "" : typeObj.toString().trim();
+        String val  = valueObj == null ? "" : valueObj.toString();
+        if (type.isEmpty()) {
+            livePreview.setText("Validator Vorschau: Kein Typ gesetzt – Assertion ist immer PASS.");
+            return;
+        }
+        if (type.equals("regex") || type.equals("fullregex")) {
+            try {
+                java.util.regex.Pattern.compile(val);
+                livePreview.setText("Validator Vorschau: Pattern gültig ✔ (" + (type.equals("fullregex")?"vollständiger":"Teil") + " Match)");
+            } catch (Exception ex) {
+                livePreview.setText("Validator Vorschau: Pattern ungültig ❌ " + ex.getMessage());
+            }
+            return;
+        }
+        if (type.equals("contains")) {
+            livePreview.setText("Validator Vorschau: enthält(\"" + val + "\") – PASS wenn Wert diese Sequenz enthält");
+        } else if (type.equals("equals")) {
+            livePreview.setText("Validator Vorschau: equals(\"" + val + "\") – PASS bei exakter Gleichheit");
+        } else if (type.equals("starts")) {
+            livePreview.setText("Validator Vorschau: startsWith(\"" + val + "\")");
+        } else if (type.equals("ends")) {
+            livePreview.setText("Validator Vorschau: endsWith(\"" + val + "\")");
+        } else if (type.equals("range")) {
+            livePreview.setText("Validator Vorschau: range " + val + " – Format min:max, inklusiv");
+        } else if (type.equals("len")) {
+            livePreview.setText("Validator Vorschau: Länge prüfen " + val + " (n | >=n | <=n)");
+        } else if (type.startsWith("!")) {
+            livePreview.setText("Validator Vorschau: Negationstyp '" + type + "' – Ergebnis wird invertiert");
+        } else {
+            livePreview.setText("Validator Vorschau: unbekannter Typ '" + type + "' – wird immer FAIL ergeben");
+        }
+    }
+
+    private String buildRegexSuggestion(String sample) {
+        // Einfache Heuristik: Zahlenblöcke -> \d+, UUID -> [0-9a-fA-F-]{36}, Datum yyyy-MM-dd -> \d{4}-\d{2}-\d{2}
+        String s = sample;
+        // UUID Ersetzung
+        s = s.replaceAll("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", "[0-9a-fA-F-]{36}");
+        // Datum yyyy-MM-dd
+        s = s.replaceAll("\\b(20[0-9]{2})-([0-1][0-9])-([0-3][0-9])\\b", "\\d{4}-\\d{2}-\\d{2}");
+        // Zahlenblöcke
+        s = s.replaceAll("[0-9]+", "\\\\d+");
+        // Replace whitespace with \s+
+        s = s.replaceAll("\\s+", "\\\\s+");
+        // Escape regex special chars except our replacements
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (".[]{}()^$?+|".indexOf(c) >= 0) {
+                out.append('\\').append(c);
+            } else {
+                out.append(c);
+            }
+        }
+        String pattern = out.toString();
+        // Kleine Optimierung: mehrere \s+ hintereinander -> \s+
+        pattern = pattern.replaceAll("(\\\\s\\\\+){2,}", "\\\\s+");
+        // Füge Anchors hinzu für fullregex typische Nutzung
+        return "^" + pattern + "$";
     }
 }
