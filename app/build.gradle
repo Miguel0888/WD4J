@@ -9,11 +9,13 @@ version = '2.0.0'
 sourceCompatibility = 1.8
 
 application {
-    // Gradle 8+ API
-    mainClass = 'de.bund.zrb.Main'
+    // Keep Java 8 / older Gradle compatible style
+    mainClassName = 'de.bund.zrb.Main'
 }
 
-repositories { mavenCentral() }
+repositories {
+    mavenCentral()
+}
 
 dependencies {
     implementation project(':wd4j')
@@ -42,12 +44,14 @@ dependencies {
 
     implementation 'com.google.googlejavaformat:google-java-format:1.7'
 
-    // Video libs werden zur Laufzeit geladen (kein compile/runtime Eintrag hier)
+    // Note: Video libraries are loaded on demand at runtime via VideoRuntimeLoader;
+    // do not add heavy video dependencies here as implementation/runtime.
 }
 
+// Copy core runtime classpath jars into dist/libs for distribution
 task copyRuntimeLibs(type: Copy) {
     from configurations.runtimeClasspath
-    into "$buildDir/dist/libs"
+    into '$buildDir/dist/libs'
 }
 
 jar {
@@ -55,20 +59,27 @@ jar {
         def coreJars = configurations.runtimeClasspath.files.collect { 'libs/' + it.name }
         manifest {
             attributes(
-                'Main-Class': application.mainClass.get(),
+                'Main-Class': mainClassName,
                 'Class-Path': coreJars.join(' ')
             )
         }
     }
 }
 
-// Einheitliche Distribution: build/dist/app.jar + build/dist/libs/
-// Verwende eindeutigen Tasknamen, um Kollisionen zu vermeiden
+// Build distribution folder: build/dist/app.jar + build/dist/libs/
+// Users start the app via: java -jar app.jar (Java 8 compatible)
 tasks.register('dist', Copy) {
     dependsOn jar, copyRuntimeLibs
-    from("$buildDir/libs/${project.name}-${version}.jar") { rename { 'app.jar' } }
-    from("$buildDir/dist/libs") { into 'libs' }
-    into "$buildDir/dist"
+
+    from('$buildDir/libs/' + project.name + '-' + version + '.jar') {
+        rename { 'app.jar' }
+    }
+
+    from('$buildDir/dist/libs') {
+        into 'libs'
+    }
+
+    into '$buildDir/dist'
 }
 
 build.dependsOn 'dist'
