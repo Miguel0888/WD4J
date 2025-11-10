@@ -91,8 +91,19 @@ public class BrowserServiceImpl implements BrowserService {
             });
             ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.STARTED, "✅ Browser gestartet")));
         } catch (Exception ex) {
-            ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.ERROR, "❌ Browser-Start fehlgeschlagen", ex)));
-            throw new RuntimeException("Fehler beim Starten des Browsers", ex);
+            // StatusBar-Fehler inkl. Retry-Button
+            ApplicationEventBus.getInstance().publish(
+                    new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(
+                            BrowserLifecycleEvent.Kind.ERROR,
+                            "❌ Browser-Start fehlgeschlagen: " + (ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage()),
+                            ex,
+                            new BrowserLifecycleEvent.Action("Erneut versuchen", () -> {
+                                try { launchBrowser(config); } catch (Throwable t) { /* erneuter Fehler wird separat via Event gemeldet */ }
+                            })
+                    ))
+            );
+            // Kein Throw mehr – UI bleibt stabil, Event informiert Benutzer
+            return;
         }
     }
 
@@ -160,10 +171,19 @@ public class BrowserServiceImpl implements BrowserService {
     @Override
     public void terminateBrowser() {
         ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.STOPPING, "🛑 Browser wird beendet…")));
-        if (browser != null) {
-            browser.close();
-            playwright.close();
+        // NPE-sicheres Beenden – getrennte Null-Checks und try-catch
+        try {
+            if (browser != null) {
+                try { browser.close(); } catch (Throwable ignore) {}
+            }
+        } finally {
             browser = null;
+        }
+        try {
+            if (playwright != null) {
+                try { playwright.close(); } catch (Throwable ignore) {}
+            }
+        } finally {
             playwright = null;
         }
         ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.STOPPED, "🛑 Browser beendet")));
