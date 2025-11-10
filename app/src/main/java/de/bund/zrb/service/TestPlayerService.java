@@ -953,7 +953,13 @@ public class TestPlayerService {
         try {
             final ValueScope scope = runtimeCtx.buildCaseScope();
             RootNode root = TestRegistry.getInstance().getRoot();
-            TestSuite suite = (TestSuite) ((TestNode) caseNode.getParent()).getModelRef();
+            TestSuite suite = null;
+            if (caseNode.getParent() instanceof TestNode) {
+                Object parentModel = ((TestNode) caseNode.getParent()).getModelRef();
+                if (parentModel instanceof TestSuite) {
+                    suite = (TestSuite) parentModel;
+                }
+            }
 
             java.util.LinkedHashMap<String,String> collected = new java.util.LinkedHashMap<String,String>();
             java.util.LinkedHashMap<String,String> descriptions = new java.util.LinkedHashMap<String,String>();
@@ -1050,9 +1056,10 @@ public class TestPlayerService {
                     String errorMsg = null;
 
                     if (isBlank(vType)) {
-                        // Keine Validierung konfiguriert -> immer PASS, Ausdruck nur informativ
                         ok = true;
-                        // Optional: kein errorMsg setzen, raw value könnte später für Anzeige genutzt werden
+                        if (trimmed != null && trimmed.length() > 0) {
+                            assertionLog.setHtmlAppend("<small style='color:#666'>Wert: " + trimmed.replace("<","&lt;").replace(">","&gt;") + "</small>");
+                        }
                     } else {
                         ok = validateValue(vType, vVal, trimmed);
                         if (!ok) {
@@ -1086,51 +1093,64 @@ public class TestPlayerService {
     }
 
     private boolean validateValue(String type, String expected, String actual) {
-        String t = (type == null) ? "" : type.trim().toLowerCase();
+        if (type == null) type = "";
+        boolean negate = false;
+        if (type.startsWith("!")) { negate = true; type = type.substring(1); }
+        String t = type.trim().toLowerCase();
         String exp = expected == null ? "" : expected.trim();
         String act = actual == null ? "" : actual.trim();
 
-        switch (t) {
-            case "regex": {
-                if (exp.isEmpty()) return true; // nichts zu prüfen
-                try { return java.util.regex.Pattern.compile(exp).matcher(act).find(); } catch (Exception ignore) { return false; }
+        // Alternativen aufsplitten (||)
+        String[] alternatives = exp.contains("||") ? exp.split("\\|\\|") : new String[]{exp};
+        boolean any = false;
+        for (String altRaw : alternatives) {
+            String alt = altRaw.trim();
+            if (alt.isEmpty() && (t.equals("regex") || t.equals("fullregex"))) {
+                any = true; // leeres Pattern gilt als PASS
+                break;
             }
-            case "fullregex": {
-                if (exp.isEmpty()) return act.isEmpty();
-                try { return java.util.regex.Pattern.compile(exp).matcher(act).matches(); } catch (Exception ignore) { return false; }
+            boolean single;
+            switch (t) {
+                case "regex": {
+                    try { single = java.util.regex.Pattern.compile(alt).matcher(act).find(); } catch (Exception ignore) { single = false; }
+                    break; }
+                case "fullregex": {
+                    if (alt.isEmpty()) { single = act.isEmpty(); } else { try { single = java.util.regex.Pattern.compile(alt).matcher(act).matches(); } catch (Exception ignore) { single = false; } }
+                    break; }
+                case "contains": single = act.contains(alt); break;
+                case "equals": single = act.equals(alt); break;
+                case "starts": single = act.startsWith(alt); break;
+                case "ends": single = act.endsWith(alt); break;
+                case "range": {
+                    try {
+                        String[] parts = alt.split(":", 2);
+                        double min = Double.parseDouble(parts[0]);
+                        double max = Double.parseDouble(parts[1]);
+                        double val = Double.parseDouble(act);
+                        single = val >= min && val <= max;
+                    } catch (Exception ignore) { single = false; }
+                    break; }
+                case "len": {
+                    try {
+                        if (alt.startsWith(">=")) {
+                            int n = Integer.parseInt(alt.substring(2));
+                            single = act.length() >= n;
+                        } else if (alt.startsWith("<=")) {
+                            int n = Integer.parseInt(alt.substring(2));
+                            single = act.length() <= n;
+                        } else {
+                            int n = Integer.parseInt(alt);
+                            single = act.length() == n;
+                        }
+                    } catch (Exception ignore) { single = false; }
+                    break; }
+                default: single = false; // unbekannt
             }
-            case "contains": return act.contains(exp);
-            case "equals": return act.equals(exp);
-            case "starts": return act.startsWith(exp);
-            case "ends": return act.endsWith(exp);
-            case "range": {
-                // format: min:max (numeric double)
-                try {
-                    String[] parts = exp.split(":", 2);
-                    double min = Double.parseDouble(parts[0]);
-                    double max = Double.parseDouble(parts[1]);
-                    double val = Double.parseDouble(act);
-                    return val >= min && val <= max;
-                } catch (Exception ignore) { return false; }
-            }
-            case "len": {
-                // formats: number | >=n | <=n
-                try {
-                    if (exp.startsWith(">=")) {
-                        int n = Integer.parseInt(exp.substring(2));
-                        return act.length() >= n;
-                    } else if (exp.startsWith("<=")) {
-                        int n = Integer.parseInt(exp.substring(2));
-                        return act.length() <= n;
-                    } else {
-                        int n = Integer.parseInt(exp);
-                        return act.length() == n;
-                    }
-                } catch (Exception ignore) { return false; }
-            }
-            default: // unbekannter Typ -> fail konservativ
-                return false;
+            if (single) { any = true; break; }
         }
+        boolean result = any;
+        if (negate) result = !result;
+        return result;
     }
 
     private static boolean isBlank(String s) { return s == null || s.trim().isEmpty(); }
@@ -1140,4 +1160,6 @@ public class TestPlayerService {
     @FunctionalInterface private interface ThrowingRunnable { void run() throws Exception; }
     private void runUnchecked(ThrowingRunnable op) { try { op.run(); } catch (RuntimeException re) { throw re; } catch (Exception ex) { throw new ActionEvaluationRuntimeException(ex); } }
     private String safeMsg(Throwable t) { return (t == null) ? "" : (t.getMessage() != null ? t.getMessage() : t.toString()); }
+    // Test-Hook: Initialisiert Case-Scope ohne vollständige Ausführung.
+    void _testInitCaseScope() { runtimeCtx.enterCase(); }
 }

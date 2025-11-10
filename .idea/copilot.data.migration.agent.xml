@@ -42,6 +42,7 @@
           <value>
             <set>
               <option value="093140d5-45e3-4f88-a3dc-8d6d9b90f163" />
+              <option value="0be0c681-f55a-48b2-8fed-e2029531a1d1" />
               <option value="12333e83-86a5-4fa1-8136-33848723391c" />
               <option value="188b9cee-cfcd-4d9c-b68c-012b179eb58e" />
               <option value="1ba1bf78-fc0c-4bd1-a61c-5a67bb241cfc" />
@@ -49,6 +50,7 @@
               <option value="1d4eb0d0-dc12-474d-9b66-07b7f34c84a1" />
               <option value="25a98224-13d2-41c2-8355-61f911cc281a" />
               <option value="29ecbf8e-ee17-4bbd-805f-14d322f2a29e" />
+              <option value="3a09207b-4215-48ec-9575-e6fcb07c300a" />
               <option value="47b5e6dd-05a0-449d-b8b0-9d879d345fbb" />
               <option value="4da4dfdc-c3a9-4744-9416-33c820094525" />
               <option value="4f1a2ff6-449e-4b56-a182-6341199b337d" />
@@ -68,6 +70,7 @@
               <option value="bcfbdb0a-cdcc-4c13-848e-be14b3ab56e4" />
               <option value="c79aa2e9-b529-499e-93a7-83bcc56cb4d1" />
               <option value="cd5b50bc-2072-4343-90ff-9103c53ec9b0" />
+              <option value="db15a60f-7318-463b-bc98-54c65795d865" />
               <option value="f7115731-da49-4ccf-adf7-84fc44697251" />
             </set>
           </value>
@@ -153,6 +156,7 @@
           <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/giveneditor/CaseScopeEditorTab.java" />
           <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/service/TestPlayerService.java" />
           <option value="file://$PROJECT_DIR$/app/src/test/java/de/bund/zrb/service/TestPlayerServiceValidatorTest.java" />
+          <option value="file://$PROJECT_DIR$/app/src/test/java/de/bund/zrb/service/TestPlayerServiceAssertionsIntegrationTest.java" />
         </set>
       </entry>
     </pendingWorkingSetItems>
