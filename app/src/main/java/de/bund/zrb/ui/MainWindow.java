@@ -169,7 +169,8 @@ public class MainWindow {
                     SwingUtilities.invokeLater(() -> statusBar.setMessage(p.getMessage()));
                 }
             }
-            if (p != null && p.getKind() == BrowserLifecycleEvent.Kind.ERROR && p.getError() != null) {
+            // Dialog nur, wenn keine Aktion vorhanden ist (unbehandelte Fehler)
+            if (p != null && p.getKind() == BrowserLifecycleEvent.Kind.ERROR && p.getError() != null && p.getAction() == null) {
                 SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(frame,
                         "Fehler beim Starten des Browsers:\n" + p.getError().getMessage(),
                         "Browser-Start fehlgeschlagen", JOptionPane.ERROR_MESSAGE));
