@@ -5,10 +5,12 @@ build/
 !**/src/test/**/build/
 
 ### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
+# Alles unter .idea ignorieren, außer Run Configurations
+.idea/*
+!.idea/runConfigurations/
+!.idea/runConfigurations/*.xml
+
+# Projektdateien, die außerhalb von .idea liegen, weiterhin ignorieren
 *.iws
 *.iml
 *.ipr
