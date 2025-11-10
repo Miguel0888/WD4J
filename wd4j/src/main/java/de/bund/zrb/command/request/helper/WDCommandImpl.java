@@ -8,6 +8,10 @@ public class WDCommandImpl<T extends WDCommand.Params> implements WDCommand {
     private final String method;
     protected T params;
 
+    // Retry-Metadaten:
+    private final long firstTimestamp = System.currentTimeMillis();
+    private int retryCount = 0;
+
     public WDCommandImpl(String method, T params) {
         this.method = method;
         this.params = params;
@@ -21,6 +25,21 @@ public class WDCommandImpl<T extends WDCommand.Params> implements WDCommand {
 
     public Integer getId() {
         return id;
+    }
+
+    @Override
+    public long getFirstTimestamp() {
+        return firstTimestamp;
+    }
+
+    @Override
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    @Override
+    public void incrementRetryCount() {
+        retryCount++;
     }
 
     /**

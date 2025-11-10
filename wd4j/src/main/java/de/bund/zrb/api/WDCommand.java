@@ -28,6 +28,12 @@ public interface WDCommand extends WDType {
         return gson.toJsonTree(this).getAsJsonObject();
     }
 
+    long getFirstTimestamp();
+
+    int getRetryCount();
+
+    void incrementRetryCount();
+
     /**
      * Interface for command parameters.
      */
