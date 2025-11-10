@@ -5,10 +5,16 @@ import de.bund.zrb.BrowserImpl;
 import de.bund.zrb.config.VideoConfig;
 import de.bund.zrb.video.WindowRecorder;
 
+import java.io.File;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Kleiner Singleton zum manuellen Start/Stop der Fenster-Videoaufnahme.
@@ -28,6 +34,23 @@ public final class VideoRecordingService {
     private VideoRecordingService() {}
 
     private boolean videoStackAvailable() {
+        if (checkClassesOnCurrentLoader()) return true;
+        // Versuch: JARs aus settingsDir/lib dynamisch laden
+        try {
+            Path libDir = settingsLibDir();
+            if (libDir != null && Files.isDirectory(libDir)) {
+                List<URL> urls = new ArrayList<URL>();
+                File[] jarFiles = libDir.toFile().listFiles((dir, name) -> name != null && name.toLowerCase().endsWith(".jar"));
+                if (jarFiles != null) {
+                    for (File f : jarFiles) { urls.add(f.toURI().toURL()); }
+                    attachUrls(urls);
+                }
+            }
+        } catch (Throwable ignore) {}
+        return checkClassesOnCurrentLoader();
+    }
+
+    private boolean checkClassesOnCurrentLoader() {
         try {
             Class.forName("com.sun.jna.platform.win32.WinDef");
             Class.forName("org.bytedeco.javacv.FFmpegFrameRecorder");
@@ -35,6 +58,65 @@ public final class VideoRecordingService {
         } catch (Throwable t) {
             return false;
         }
+    }
+
+    private static Path settingsLibDir() {
+        Path base = resolveSettingsDirSafe();
+        if (base == null) return null;
+        Path lib = base.resolve("lib");
+        try { Files.createDirectories(lib); } catch (Throwable ignore) {}
+        return lib;
+    }
+
+    private static Path resolveSettingsDirSafe() {
+        // Versuche SettingsService-reflection
+        try {
+            Class<?> cls = Class.forName("de.bund.zrb.service.SettingsService");
+            Method getInst = cls.getMethod("getInstance");
+            Object inst = getInst.invoke(null);
+            for (String m : new String[]{"getSettingsPath", "getWorkingDirectory", "getBasePath"}) {
+                try {
+                    Method gm = cls.getMethod(m);
+                    Object r = gm.invoke(inst);
+                    if (r instanceof String && !((String) r).trim().isEmpty()) {
+                        Path p = Paths.get(((String) r).trim());
+                        if (Files.exists(p)) return p;
+                    }
+                    if (r instanceof Path) {
+                        Path p = (Path) r;
+                        if (Files.exists(p)) return p;
+                    }
+                } catch (Throwable ignore) {}
+            }
+        } catch (Throwable ignore) {}
+        // Fallback
+        try {
+            Path p = Paths.get(System.getProperty("user.home"), ".wd4j");
+            Files.createDirectories(p);
+            return p;
+        } catch (Throwable t) { return null; }
+    }
+
+    private static void attachUrls(List<URL> urls) throws Exception {
+        // 1) Versuche SystemClassLoader (Java 8)
+        ClassLoader sys = ClassLoader.getSystemClassLoader();
+        tryAttachToUrlCl(sys, urls);
+        // 2) Versuche Loader dieser Klasse
+        ClassLoader own = VideoRecordingService.class.getClassLoader();
+        if (own != sys) tryAttachToUrlCl(own, urls);
+        // 3) Setze TCCL Child-Loader, damit abhängige Lookups funktionieren
+        URLClassLoader child = new URLClassLoader(urls.toArray(new URL[0]), Thread.currentThread().getContextClassLoader());
+        Thread.currentThread().setContextClassLoader(child);
+    }
+
+    private static void tryAttachToUrlCl(ClassLoader cl, List<URL> urls) {
+        try {
+            if (cl instanceof URLClassLoader) {
+                Method addURL = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+                addURL.setAccessible(true);
+                for (URL u : urls) addURL.invoke(cl, u);
+            }
+        } catch (Throwable ignore) {}
     }
 
     /**
