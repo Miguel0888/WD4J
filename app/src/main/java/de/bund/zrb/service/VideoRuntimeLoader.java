@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 /**
  * Lädt bei Bedarf (zur Laufzeit) die minimal notwendigen Video-Libs (JavaCV/FFmpeg/Javacpp)
@@ -133,6 +134,8 @@ public final class VideoRuntimeLoader {
         }
         center.add(Box.createVerticalStrut(8));
         center.add(new JLabel("Hinweis: Download ~50-100 MB insgesamt."));
+        center.add(Box.createVerticalStrut(6));
+        center.add(new JLabel("Tipp: Für die manuelle Auswahl mehrere Dateien mit STRG-Klick markieren."));
         panel.add(center, BorderLayout.CENTER);
 
         JButton autoBtn = new JButton("Automatisch herunterladen");
@@ -213,7 +216,16 @@ public final class VideoRuntimeLoader {
     private static boolean performManualSelection() {
         JFileChooser chooser = new JFileChooser();
         chooser.setMultiSelectionEnabled(true);
+        chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        chooser.setAcceptAllFileFilterUsed(true);
         chooser.setDialogTitle("JAR-Dateien auswählen (alle benötigten Video-JARs)");
+        // JAR-Filter
+        FileNameExtensionFilter jarFilter = new FileNameExtensionFilter("JAR-Dateien (*.jar)", "jar");
+        chooser.setFileFilter(jarFilter);
+        // Start im typischen Download-Ordner, falls vorhanden
+        File downloads = new File(System.getProperty("user.home"), "Downloads");
+        if (downloads.exists()) chooser.setCurrentDirectory(downloads);
+
         int rc = chooser.showOpenDialog(null);
         if (rc != JFileChooser.APPROVE_OPTION) return false;
         File[] files = chooser.getSelectedFiles();
@@ -221,14 +233,31 @@ public final class VideoRuntimeLoader {
         // Validierung grob: Alle benötigten Namen müssen vorkommen
         List<String> need = WINDOWS_FILES.stream().map(FileDef::fileName).collect(Collectors.toList());
         List<String> chosen = Arrays.stream(files).map(f -> f.getName()).collect(Collectors.toList());
-        for (String n : need) {
-            if (!chosen.contains(n)) {
-                JOptionPane.showMessageDialog(null,
-                        "Es fehlen benötigte Dateien: " + n,
-                        "Validierungsfehler",
-                        JOptionPane.WARNING_MESSAGE);
-                return false;
+
+        // Falls nicht alle ausgewählt wurden, versuche dieselben im selben Ordner der ersten Auswahl zu finden
+        File baseDir = files[0].getParentFile();
+        for (String n : new ArrayList<String>(need)) {
+            if (!chosen.contains(n) && baseDir != null) {
+                File candidate = new File(baseDir, n);
+                if (candidate.exists()) {
+                    // virtuell zur Auswahl hinzufügen
+                    files = Arrays.copyOf(files, files.length + 1);
+                    files[files.length - 1] = candidate;
+                    chosen.add(n);
+                }
             }
+        }
+
+        List<String> missing = new ArrayList<>();
+        for (String n : need) {
+            if (!chosen.contains(n)) missing.add(n);
+        }
+        if (!missing.isEmpty()) {
+            JOptionPane.showMessageDialog(null,
+                    "Es fehlen benötigte Dateien:\n - " + String.join("\n - ", missing),
+                    "Validierungsfehler",
+                    JOptionPane.WARNING_MESSAGE);
+            return false;
         }
         Path dir = persistentLibDir();
         List<Path> copied = new ArrayList<>();
