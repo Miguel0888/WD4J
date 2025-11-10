@@ -110,25 +110,14 @@ public class WDEventDispatcher {
     @SuppressWarnings("unchecked")
     public <T> WDSubscription addEventListener(WDSubscriptionRequest subscriptionRequest, Consumer<T> listener, WDSessionManager sessionManager) {
         // Keep original behavior: subscribe at BiDi for the given request
-        WDSubscription subscription = null;
-        boolean success = false;
-        while (!success) {
-            try {
-                WDSessionResult.SubscribeResult result = sessionManager.subscribe(subscriptionRequest);
-                subscription = (result != null) ? result.getSubscription() : null;
-                success = true; // abort
-            } catch (Exception e) {
-                // ToDo: Fix this!
-                System.err.println("[ERROR] Exception during subscription: " + e.getMessage());
-                try {
-                    sleep(3000);
-                } catch (InterruptedException e2) {
-                    throw new RuntimeException(e2);
-                }
-            }
+        WDSessionResult.SubscribeResult result = sessionManager.subscribe(subscriptionRequest);
+        // ToDo: Fix this!
+        try {
+            sleep(3000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
-
-
+        WDSubscription subscription = (result != null) ? result.getSubscription() : null;
 
         // Register listener per event type (enum key)
         for (String eventName : subscriptionRequest.getEvents()) {
