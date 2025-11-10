@@ -45,8 +45,12 @@ public final class VideoRecordingService {
      */
     public synchronized void init(BrowserImpl browser) {
         if (!videoStackAvailable()) {
-            System.err.println("[Video] Optionaler Video-Stack nicht verfügbar – Funktionen deaktiviert.");
-            return;
+            // Interaktives Nachladen anbieten
+            boolean ok = VideoRuntimeLoader.ensureVideoLibsAvailableInteractively();
+            if (!ok || !videoStackAvailable()) {
+                System.err.println("[Video] Optionaler Video-Stack nicht verfügbar – Funktionen deaktiviert.");
+                return;
+            }
         }
         if (browser == null) {
             System.err.println("[Video] init(): BrowserImpl == null");
@@ -133,5 +137,15 @@ public final class VideoRecordingService {
     public Path getCurrentOutput() {
         WindowRecorder wr = current;
         return (wr != null) ? wr.getEffectiveOutput() : null;
+    }
+
+    static boolean quickCheckAvailable() {
+        try {
+            Class.forName("com.sun.jna.platform.win32.WinDef");
+            Class.forName("org.bytedeco.javacv.FFmpegFrameRecorder");
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 }
