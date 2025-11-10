@@ -97,11 +97,15 @@ public class BrowserServiceImpl implements BrowserService {
     }
 
     private void handleExternalBrowserClosed() {
-        // Event publizieren für StatusBar
+        // Event mit Restart-Button publizieren
         ApplicationEventBus.getInstance().publish(
                 new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(
                         BrowserLifecycleEvent.Kind.EXTERNALLY_CLOSED,
-                        "🔌 Browser-Fenster wurde extern geschlossen"))
+                        "🔌 Browser-Fenster wurde extern geschlossen",
+                        new BrowserLifecycleEvent.Action("Neu starten", () -> {
+                            try { launchDefaultBrowser(); } catch (Throwable t) { /* Fehler werden separat über Events gemeldet */ }
+                        })
+                ))
         );
         // Aufräumen, aber idempotent
         try { if (browser != null) { try { browser.close(); } catch (Throwable ignore) {} } } catch (Throwable ignore) {}

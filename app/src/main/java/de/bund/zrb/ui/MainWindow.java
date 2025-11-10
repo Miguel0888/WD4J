@@ -162,8 +162,12 @@ public class MainWindow {
         // Status-Messages aus dem Service konsumieren
         ApplicationEventBus.getInstance().subscribe(BrowserLifecycleEvent.class, ev -> {
             BrowserLifecycleEvent.Payload p = ev.getPayload();
-            if (p != null && p.getMessage() != null) {
-                SwingUtilities.invokeLater(() -> statusBar.setMessage(p.getMessage()));
+            if (p != null) {
+                if (p.getAction() != null) {
+                    SwingUtilities.invokeLater(() -> statusBar.setMessageWithAction(p.getMessage(), p.getAction().getLabel(), p.getAction().getRunnable()));
+                } else if (p.getMessage() != null) {
+                    SwingUtilities.invokeLater(() -> statusBar.setMessage(p.getMessage()));
+                }
             }
             if (p != null && p.getKind() == BrowserLifecycleEvent.Kind.ERROR && p.getError() != null) {
                 SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(frame,
