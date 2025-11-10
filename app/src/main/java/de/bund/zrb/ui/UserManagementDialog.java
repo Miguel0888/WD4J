@@ -26,7 +26,7 @@ public class UserManagementDialog extends JDialog {
     public UserManagementDialog(Frame owner) {
         super(owner, "Benutzerverwaltung", true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setSize(520, 360);
+        setSize(520, 400);
         setLocationRelativeTo(owner);
 
         comboModel = new DefaultComboBoxModel<>();
@@ -96,8 +96,14 @@ public class UserManagementDialog extends JDialog {
         row++;
         gbc.gridx = 0; gbc.gridy = row;
         content.add(new JLabel("Passwort-Änderungs-Seite (optional):"), gbc);
+        JPanel pwChangePanel = new JPanel(new BorderLayout(5, 0));
+        pwChangePanel.add(passwordChangePageField, BorderLayout.CENTER);
+        JButton pwChangeConfigBtn = new JButton("🛠");
+        pwChangeConfigBtn.setToolTipText("Selectors für Passwort-Änderung konfigurieren");
+        pwChangeConfigBtn.setMargin(new Insets(2, 6, 2, 6));
+        pwChangePanel.add(pwChangeConfigBtn, BorderLayout.EAST);
         gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
-        content.add(passwordChangePageField, gbc);
+        content.add(pwChangePanel, gbc);
 
         // 2FA
         row++;
@@ -163,8 +169,6 @@ public class UserManagementDialog extends JDialog {
             lc.setPasswordChangePage(passwordChangePageField.getText().trim());
 
             UserRegistry.getInstance().save();
-            //DEBUG
-//            JOptionPane.showMessageDialog(this, "Benutzer gespeichert!");
         });
 
         deleteButton.addActionListener(e -> {
@@ -174,7 +178,7 @@ public class UserManagementDialog extends JDialog {
             refreshUserList();
         });
 
-        // 🛠 Selektoren konfigurieren
+        // 🛠 Selektoren konfigurieren (Login)
         configButton.addActionListener(e -> {
             UserRegistry.User u = (UserRegistry.User) userCombo.getSelectedItem();
             if (u == null) return;
@@ -197,6 +201,36 @@ public class UserManagementDialog extends JDialog {
                 config.setUsernameSelector(usernameSel.getText().trim());
                 config.setPasswordSelector(passwordSel.getText().trim());
                 config.setSubmitSelector(submitSel.getText().trim());
+            }
+        });
+
+        // 🛠 Selektoren konfigurieren (Passwort-Änderung)
+        pwChangeConfigBtn.addActionListener(e -> {
+            UserRegistry.User u = (UserRegistry.User) userCombo.getSelectedItem();
+            if (u == null) return;
+            LoginConfig config = u.getLoginConfig();
+
+            JTextField currentPwSel = new JTextField(config.getCurrentPasswordSelector(), 25);
+            JTextField newPwSel     = new JTextField(config.getNewPasswordSelector(), 25);
+            JTextField repeatPwSel  = new JTextField(config.getRepeatPasswordSelector(), 25);
+            JTextField submitSel    = new JTextField(config.getChangeSubmitSelector(), 25);
+
+            JPanel panel = new JPanel(new GridLayout(0, 1, 4, 4));
+            panel.add(new JLabel("Aktuelles Passwort (Selector, optional):"));
+            panel.add(currentPwSel);
+            panel.add(new JLabel("Neues Passwort (Selector):"));
+            panel.add(newPwSel);
+            panel.add(new JLabel("Neues Passwort wiederholen (Selector):"));
+            panel.add(repeatPwSel);
+            panel.add(new JLabel("Änderung absenden (Selector):"));
+            panel.add(submitSel);
+
+            int result = JOptionPane.showConfirmDialog(this, panel, "Passwort-Änderung – Konfiguration", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.OK_OPTION) {
+                config.setCurrentPasswordSelector(currentPwSel.getText().trim());
+                config.setNewPasswordSelector(newPwSel.getText().trim());
+                config.setRepeatPasswordSelector(repeatPwSel.getText().trim());
+                config.setChangeSubmitSelector(submitSel.getText().trim());
             }
         });
 

@@ -48,7 +48,9 @@
               <option value="6e497f13-54f9-4ab6-9c30-5e0c101fbfd2" />
               <option value="a1d8ed67-5145-412c-ad63-960947b3ab39" />
               <option value="a4db1152-3a36-45e5-ae44-a0ecf808d79d" />
+              <option value="bb7ed624-1c11-4d5f-bd72-987e9b011198" />
               <option value="bbe845a9-bfa1-4116-b997-feb5fa993c2f" />
+              <option value="c79aa2e9-b529-499e-93a7-83bcc56cb4d1" />
             </set>
           </value>
         </entry>
@@ -124,6 +126,8 @@
         <set>
           <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/tabs/TabManager.java" />
           <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/tabs/AbstractEditorTab.java" />
+          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/config/LoginConfig.java" />
+          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/UserManagementDialog.java" />
         </set>
       </entry>
     </pendingWorkingSetItems>

@@ -26,6 +26,12 @@ public final class LoginConfig {
     /** Optional: Seite für erzwungene Passwort-Änderung nach Login (Vorbereitung) */
     private String passwordChangePage;
 
+    // Selektoren für Passwort-Änderungsseite
+    private String currentPasswordSelector; // aktuelles Password (optional)
+    private String newPasswordSelector;     // neues Password
+    private String repeatPasswordSelector;  // neues Password wiederholen
+    private String changeSubmitSelector;    // Submit-Button
+
     // --- Detection (ehem. AuthDetectionConfig) ---
     private Boolean enabled;
     private String sessionCookieName;
@@ -59,6 +65,15 @@ public final class LoginConfig {
 
     public String getPasswordChangePage() { return passwordChangePage; }
     public void setPasswordChangePage(String passwordChangePage) { this.passwordChangePage = passwordChangePage; }
+
+    public String getCurrentPasswordSelector() { return currentPasswordSelector; }
+    public void setCurrentPasswordSelector(String s) { this.currentPasswordSelector = s; }
+    public String getNewPasswordSelector() { return newPasswordSelector; }
+    public void setNewPasswordSelector(String s) { this.newPasswordSelector = s; }
+    public String getRepeatPasswordSelector() { return repeatPasswordSelector; }
+    public void setRepeatPasswordSelector(String s) { this.repeatPasswordSelector = s; }
+    public String getChangeSubmitSelector() { return changeSubmitSelector; }
+    public void setChangeSubmitSelector(String s) { this.changeSubmitSelector = s; }
 
     // ---------- Getters / Setters (Detection) ----------
     public boolean isEnabled() { return enabled == null || enabled; }
