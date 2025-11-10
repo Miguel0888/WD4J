@@ -12,8 +12,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Assertions table UI with four columns:
- * [Enabled ✓] | Name | Expression | Description
+ * Assertions table UI with six columns:
+ * [Enabled ✓] | Name | Expression | ValidatorType | ValidatorValue | Description
  *
  * Behavior:
  * - Pinned row (index 0 when pinnedKey != null):
@@ -28,7 +28,9 @@ public class AssertionTablePanel extends JPanel {
 
     public AssertionTablePanel(final Map<String, String> backingExpressions,
                                final Map<String, Boolean> backingEnabled,
-                               final Map<String, String> backingDescriptions, // NEW
+                               final Map<String, String> backingDescriptions,
+                               final Map<String, String> backingValidatorTypes,
+                               final Map<String, String> backingValidatorValues,
                                final String scopeName,
                                final String pinnedKey,
                                final String pinnedValue) {
@@ -42,7 +44,13 @@ public class AssertionTablePanel extends JPanel {
             backingExpressions.put(pinnedKey, pinnedValue != null ? pinnedValue : "");
             if (backingEnabled != null) backingEnabled.put(pinnedKey, Boolean.TRUE);
             if (backingDescriptions != null && !backingDescriptions.containsKey(pinnedKey)) {
-                backingDescriptions.put(pinnedKey, ""); // allow editable description
+                backingDescriptions.put(pinnedKey, "");
+            }
+            if (backingValidatorTypes != null && !backingValidatorTypes.containsKey(pinnedKey)) {
+                backingValidatorTypes.put(pinnedKey, "");
+            }
+            if (backingValidatorValues != null && !backingValidatorValues.containsKey(pinnedKey)) {
+                backingValidatorValues.put(pinnedKey, "");
             }
             needImmediateSave = true;
         }
@@ -51,9 +59,15 @@ public class AssertionTablePanel extends JPanel {
         final Map<String,String> descMap = (backingDescriptions != null)
                 ? backingDescriptions
                 : new LinkedHashMap<String,String>();
+        final Map<String,String> vtMap = (backingValidatorTypes != null)
+                ? backingValidatorTypes
+                : new LinkedHashMap<String,String>();
+        final Map<String,String> vvMap = (backingValidatorValues != null)
+                ? backingValidatorValues
+                : new LinkedHashMap<String,String>();
 
         final AssertionTableModel model =
-                new AssertionTableModel(backingExpressions, backingEnabled, descMap, includePinnedRow, pinnedKey);
+                new AssertionTableModel(backingExpressions, backingEnabled, descMap, vtMap, vvMap, includePinnedRow, pinnedKey);
 
         final JTable table = new JTable(model) {
 
@@ -63,6 +77,10 @@ public class AssertionTablePanel extends JPanel {
                             MapTablePanelFactories.fnSupplier(),
                             MapTablePanelFactories.rxSupplier()
                     );
+
+            private final DefaultCellEditor validatorTypeEditor = new DefaultCellEditor(new JComboBox<>(
+                    new String[]{"", "regex", "fullregex", "contains", "equals", "starts", "ends", "range", "len"}
+            ));
 
             @Override
             public TableCellEditor getCellEditor(int row, int column) {
@@ -78,8 +96,14 @@ public class AssertionTablePanel extends JPanel {
                     return exprEditor;
                 }
 
-                // Column 3: Description -> always editable text
-                if (column == 3) return super.getCellEditor(row, column);
+                // Column 3: ValidatorType -> dropdown
+                if (column == 3) return validatorTypeEditor;
+
+                // Column 4: ValidatorValue -> default text editor
+                if (column == 4) return super.getCellEditor(row, column);
+
+                // Column 5: Description -> default editor
+                if (column == 5) return super.getCellEditor(row, column);
 
                 return super.getCellEditor(row, column);
             }
@@ -92,6 +116,10 @@ public class AssertionTablePanel extends JPanel {
                 }
                 // Expression monospaced
                 if (column == 2) {
+                    return new ExpressionRenderers.ExpressionRenderer();
+                }
+                // ValidatorValue monospaced for regex readability
+                if (column == 4) {
                     return new ExpressionRenderers.ExpressionRenderer();
                 }
                 return super.getCellRenderer(row, column);
@@ -107,9 +135,11 @@ public class AssertionTablePanel extends JPanel {
         table.setRowHeight(Math.max(table.getRowHeight(), 3 * fmH + 8));
 
         // Sizes
-        if (table.getColumnModel().getColumnCount() > 3) {
-            table.getColumnModel().getColumn(2).setPreferredWidth(480); // Expression
-            table.getColumnModel().getColumn(3).setPreferredWidth(320); // Description
+        if (table.getColumnModel().getColumnCount() > 5) {
+            table.getColumnModel().getColumn(2).setPreferredWidth(360); // Expression
+            table.getColumnModel().getColumn(3).setPreferredWidth(120); // ValidatorType
+            table.getColumnModel().getColumn(4).setPreferredWidth(280); // ValidatorValue
+            table.getColumnModel().getColumn(5).setPreferredWidth(240); // Description
         }
         table.getColumnModel().getColumn(0).setMaxWidth(90); // Enabled
 

@@ -40,6 +40,8 @@ public class TestSuite {
     private final java.util.Map<String,String> afterAll   = new java.util.LinkedHashMap<>();
     private final Map<String, Boolean> afterAllEnabled = new HashMap<>();
     private final Map<String, String> afterAllDesc = new HashMap<>();
+    private final Map<String,String> afterAllValidatorType = new HashMap<>();
+    private final Map<String,String> afterAllValidatorValue = new HashMap<>();
 
     private List<Precondtion> preconditions = new ArrayList<Precondtion>();
 
@@ -89,6 +91,9 @@ public class TestSuite {
         return afterAllDesc;
     }
 
+    public Map<String,String> getAfterAllValidatorType() { return afterAllValidatorType; }
+    public Map<String,String> getAfterAllValidatorValue() { return afterAllValidatorValue; }
+
     public List<Precondtion> getPreconditions() {
         return preconditions;
     }
@@ -97,4 +102,3 @@ public class TestSuite {
         this.preconditions = (preconditions != null) ? preconditions : new ArrayList<Precondtion>();
     }
 }
-

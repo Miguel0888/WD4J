@@ -25,6 +25,8 @@ public class TestCase {
     private final java.util.Map<String,String> after    = new java.util.LinkedHashMap<>();
     private final Map<String, Boolean> afterEnabled = new HashMap<>();
     private final Map<String, String> afterDesc = new HashMap<>();
+    private final Map<String,String> afterValidatorType = new HashMap<>();
+    private final Map<String,String> afterValidatorValue = new HashMap<>();
 
     private List<Precondtion> preconditions = new ArrayList<Precondtion>();
 
@@ -66,6 +68,9 @@ public class TestCase {
         return afterDesc;
     }
 
+    public Map<String,String> getAfterValidatorType() { return afterValidatorType; }
+    public Map<String,String> getAfterValidatorValue() { return afterValidatorValue; }
+
     public List<Precondtion> getPreconditions() {
         return preconditions;
     }
@@ -74,4 +79,3 @@ public class TestCase {
         this.preconditions = (preconditions != null) ? preconditions : new ArrayList<Precondtion>();
     }
 }
-

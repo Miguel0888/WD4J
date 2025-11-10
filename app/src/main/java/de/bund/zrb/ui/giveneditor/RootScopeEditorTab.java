@@ -124,7 +124,9 @@ public class RootScopeEditorTab extends JPanel {
         String pinnedKey   = "screenshot";
         String pinnedValue = "{{screenshotfor({{user}})}}"; // Built-in-Function
         innerTabs.addTab("AfterEach",
-                new AssertionTablePanel(root.getAfterEach(), root.getAfterEachEnabled(), root.getAfterEachDesc(), "AfterEach", pinnedKey, pinnedValue));
+                new AssertionTablePanel(root.getAfterEach(), root.getAfterEachEnabled(), root.getAfterEachDesc(),
+                        root.getAfterEachValidatorType(), root.getAfterEachValidatorValue(),
+                        "AfterEach", pinnedKey, pinnedValue));
 
         add(innerTabs, BorderLayout.CENTER);
 

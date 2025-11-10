@@ -90,7 +90,9 @@ public class CaseScopeEditorTab extends JPanel {
 
         // After (Case) – frei editierbar, kein Pin
         innerTabs.addTab("After",
-                new AssertionTablePanel(testCase.getAfter(), testCase.getAfterEnabled(), testCase.getAfterDesc(), "After", null, null));
+                new AssertionTablePanel(testCase.getAfter(), testCase.getAfterEnabled(), testCase.getAfterDesc(),
+                        testCase.getAfterValidatorType(), testCase.getAfterValidatorValue(),
+                        "After", null, null));
 
         add(innerTabs, BorderLayout.CENTER);
 

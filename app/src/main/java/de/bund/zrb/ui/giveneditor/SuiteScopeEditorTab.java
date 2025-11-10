@@ -102,9 +102,10 @@ public class SuiteScopeEditorTab extends JPanel {
         innerTabs.addTab("Templates",
                 new MapTablePanel(suite.getTemplates(), suite.getTemplatesEnabled(), "Templates", null));
 
-        // AfterAll (Suite) – kein Pin nötig per se, kann aber ergänzt werden
         innerTabs.addTab("AfterAll",
-                new AssertionTablePanel(suite.getAfterAll(), suite.getAfterAllEnabled(), suite.getAfterAllDesc(), "AfterAll", null, null));
+                new AssertionTablePanel(suite.getAfterAll(), suite.getAfterAllEnabled(), suite.getAfterAllDesc(),
+                        suite.getAfterAllValidatorType(), suite.getAfterAllValidatorValue(),
+                        "AfterAll", null, null));
 
         add(innerTabs, BorderLayout.CENTER);
 

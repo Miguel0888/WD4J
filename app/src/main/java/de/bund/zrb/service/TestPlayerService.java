@@ -951,20 +951,20 @@ public class TestPlayerService {
     private List<LogComponent> executeAfterAssertions(TestNode caseNode, TestCase testCase, SuiteLog parentLog) {
         List<LogComponent> out = new ArrayList<LogComponent>();
         try {
-            // Build scope
             final ValueScope scope = runtimeCtx.buildCaseScope();
-
-            // Collect assertions + descriptions: Root.AfterEach + Suite.AfterAll + Case.After (enabled only)
             RootNode root = TestRegistry.getInstance().getRoot();
             TestSuite suite = (TestSuite) ((TestNode) caseNode.getParent()).getModelRef();
 
-            // Expressions
             java.util.LinkedHashMap<String,String> collected = new java.util.LinkedHashMap<String,String>();
-            // Descriptions (parallel key: "Root/<k>", "Suite/<k>", "Case/<k>")
             java.util.LinkedHashMap<String,String> descriptions = new java.util.LinkedHashMap<String,String>();
+            // NEW: validator type/value maps parallel
+            java.util.LinkedHashMap<String,String> validatorTypes = new java.util.LinkedHashMap<String,String>();
+            java.util.LinkedHashMap<String,String> validatorValues = new java.util.LinkedHashMap<String,String>();
 
             if (root != null && root.getAfterEach() != null && root.getAfterEachEnabled() != null) {
                 Map<String,String> descMap = safeMap(root.getAfterEachDesc());
+                Map<String,String> vtMap = safeMap(root.getAfterEachValidatorType());
+                Map<String,String> vvMap = safeMap(root.getAfterEachValidatorValue());
                 for (java.util.Map.Entry<String,String> e : root.getAfterEach().entrySet()) {
                     String k = e.getKey();
                     Boolean en = root.getAfterEachEnabled().get(k);
@@ -972,11 +972,15 @@ public class TestPlayerService {
                         String fqk = "Root/" + k;
                         collected.put(fqk, e.getValue());
                         descriptions.put(fqk, trimToNull(descMap.get(k)));
+                        validatorTypes.put(fqk, trimToNull(vtMap.get(k)));
+                        validatorValues.put(fqk, trimToNull(vvMap.get(k)));
                     }
                 }
             }
             if (suite != null && suite.getAfterAll() != null && suite.getAfterAllEnabled() != null) {
                 Map<String,String> descMap = safeMap(suite.getAfterAllDesc());
+                Map<String,String> vtMap = safeMap(suite.getAfterAllValidatorType());
+                Map<String,String> vvMap = safeMap(suite.getAfterAllValidatorValue());
                 for (java.util.Map.Entry<String,String> e : suite.getAfterAll().entrySet()) {
                     String k = e.getKey();
                     Boolean en = suite.getAfterAllEnabled().get(k);
@@ -984,11 +988,15 @@ public class TestPlayerService {
                         String fqk = "Suite/" + k;
                         collected.put(fqk, e.getValue());
                         descriptions.put(fqk, trimToNull(descMap.get(k)));
+                        validatorTypes.put(fqk, trimToNull(vtMap.get(k)));
+                        validatorValues.put(fqk, trimToNull(vvMap.get(k)));
                     }
                 }
             }
             if (testCase.getAfter() != null && testCase.getAfterEnabled() != null) {
                 Map<String,String> descMap = safeMap(testCase.getAfterDesc());
+                Map<String,String> vtMap = safeMap(testCase.getAfterValidatorType());
+                Map<String,String> vvMap = safeMap(testCase.getAfterValidatorValue());
                 for (java.util.Map.Entry<String,String> e : testCase.getAfter().entrySet()) {
                     String k = e.getKey();
                     Boolean en = testCase.getAfterEnabled().get(k);
@@ -996,35 +1004,28 @@ public class TestPlayerService {
                         String fqk = "Case/" + k;
                         collected.put(fqk, e.getValue());
                         descriptions.put(fqk, trimToNull(descMap.get(k)));
+                        validatorTypes.put(fqk, trimToNull(vtMap.get(k)));
+                        validatorValues.put(fqk, trimToNull(vvMap.get(k)));
                     }
                 }
             }
 
             if (collected.isEmpty()) return out;
 
-            // Group log header
             SuiteLog afterLog = new SuiteLog(LOG_LABEL_AFTER);
             afterLog.setParent(parentLog);
             logger.append(afterLog);
             out.add(afterLog);
 
-            // Global wait before evaluating the group of assertions (respect new setting)
             Integer globalCfg = SettingsService.getInstance().get("assertion.groupWaitMs", Integer.class);
             long globalWaitMs = (globalCfg != null) ? globalCfg.longValue() : DEFAULT_ASSERT_GROUP_WAIT_MS;
             if (globalWaitMs > 0) {
-                try {
-                    Thread.sleep(globalWaitMs);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                }
+                try { Thread.sleep(globalWaitMs); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
             }
 
-            // Evaluate each
             for (java.util.Map.Entry<String,String> e : collected.entrySet()) {
-                final String name = e.getKey();   // e.g. "Root/screenshot"
+                final String name = e.getKey();
                 final String expr = e.getValue();
-
-                // Prefer human description if present; otherwise short form of expression
                 final String desc = descriptions.get(name);
                 final String displayText = (desc != null && desc.length() > 0)
                         ? (name + " → " + desc)
@@ -1034,25 +1035,34 @@ public class TestPlayerService {
                 assertionLog.setParent(afterLog);
 
                 try {
-                    // Per-assertion wait (may be 0)
                     Integer eachCfg = SettingsService.getInstance().get("assertion.eachWaitMs", Integer.class);
                     long waitMs = (eachCfg != null) ? eachCfg.longValue() : DEFAULT_ASSERT_EACH_WAIT_MS;
                     if (waitMs > 0) {
-                        try {
-                            Thread.sleep(waitMs);
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                        }
+                        try { Thread.sleep(waitMs); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
                     }
                     String result = ActionRuntimeEvaluator.evaluateActionValue(expr, scope);
-                    String t = (result == null) ? null : result.trim();
+                    String trimmed = (result == null) ? null : result.trim();
 
-                    boolean ok = (t == null) || (t.length() == 0) || "true".equalsIgnoreCase(t);
+                    String vType = validatorTypes.get(name); // may be null
+                    String vVal  = validatorValues.get(name); // may be null
+
+                    boolean ok;
+                    String errorMsg = null;
+
+                    if (isBlank(vType)) {
+                        // Keine Validierung konfiguriert -> immer PASS, Ausdruck nur informativ
+                        ok = true;
+                        // Optional: kein errorMsg setzen, raw value könnte später für Anzeige genutzt werden
+                    } else {
+                        ok = validateValue(vType, vVal, trimmed);
+                        if (!ok) {
+                            errorMsg = "Validation failed (" + vType + ")" + (trimmed != null ? ": " + trimmed : " (null)");
+                        }
+                    }
+
                     assertionLog.setStatus(ok);
-
-                    if (!ok) {
-                        // Fail: show the raw error text returned by expression
-                        assertionLog.setError(t);
+                    if (!ok && errorMsg != null) {
+                        assertionLog.setError(errorMsg);
                     }
                 } catch (Exception ex) {
                     assertionLog.setStatus(false);
@@ -1064,7 +1074,6 @@ public class TestPlayerService {
             }
 
         } catch (Exception ex) {
-            // Defensive – ein Fehler hier soll den Case nicht crashen
             StepLog err = new StepLog(LOG_LABEL_AFTER, AFTER_ASSERTIONS_FAILED_MSG);
             err.setStatus(false);
             err.setError(safeMsg(ex));
@@ -1076,42 +1085,59 @@ public class TestPlayerService {
         return out;
     }
 
-// --- small helpers (package-private/private in same class) ---
+    private boolean validateValue(String type, String expected, String actual) {
+        String t = (type == null) ? "" : type.trim().toLowerCase();
+        String exp = expected == null ? "" : expected.trim();
+        String act = actual == null ? "" : actual.trim();
 
-    private static Map<String,String> safeMap(Map<String,String> m) {
-        return (m != null) ? m : java.util.Collections.<String,String>emptyMap();
-    }
-
-    private static String trimToNull(String s) {
-        if (s == null) return null;
-        String t = s.trim();
-        return t.length() == 0 ? null : t;
-    }
-
-    private String shortExpr(String expr) {
-        if (expr == null) return "";
-        String t = expr.trim();
-        if (t.length() <= 120) return t;
-        return t.substring(0, 117) + "...";
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // ThrowingRunnable-Unterstützung
-    ////////////////////////////////////////////////////////////////////////////////
-
-    // Comment: Execute ThrowingRunnable and convert checked exceptions into RuntimeException
-    private void runUnchecked(ThrowingRunnable op) {
-        try {
-            op.run();
-        } catch (RuntimeException re) {
-            throw re;
-        } catch (Exception ex) {
-            throw new ActionEvaluationRuntimeException(ex);
+        switch (t) {
+            case "regex": {
+                if (exp.isEmpty()) return true; // nichts zu prüfen
+                try { return java.util.regex.Pattern.compile(exp).matcher(act).find(); } catch (Exception ignore) { return false; }
+            }
+            case "fullregex": {
+                if (exp.isEmpty()) return act.isEmpty();
+                try { return java.util.regex.Pattern.compile(exp).matcher(act).matches(); } catch (Exception ignore) { return false; }
+            }
+            case "contains": return act.contains(exp);
+            case "equals": return act.equals(exp);
+            case "starts": return act.startsWith(exp);
+            case "ends": return act.endsWith(exp);
+            case "range": {
+                // format: min:max (numeric double)
+                try {
+                    String[] parts = exp.split(":", 2);
+                    double min = Double.parseDouble(parts[0]);
+                    double max = Double.parseDouble(parts[1]);
+                    double val = Double.parseDouble(act);
+                    return val >= min && val <= max;
+                } catch (Exception ignore) { return false; }
+            }
+            case "len": {
+                // formats: number | >=n | <=n
+                try {
+                    if (exp.startsWith(">=")) {
+                        int n = Integer.parseInt(exp.substring(2));
+                        return act.length() >= n;
+                    } else if (exp.startsWith("<=")) {
+                        int n = Integer.parseInt(exp.substring(2));
+                        return act.length() <= n;
+                    } else {
+                        int n = Integer.parseInt(exp);
+                        return act.length() == n;
+                    }
+                } catch (Exception ignore) { return false; }
+            }
+            default: // unbekannter Typ -> fail konservativ
+                return false;
         }
     }
 
-    // Utility: keep error messages compact
-    private String safeMsg(Throwable t) {
-        return (t == null) ? "" : (t.getMessage() != null ? t.getMessage() : t.toString());
-    }
+    private static boolean isBlank(String s) { return s == null || s.trim().isEmpty(); }
+    private static String trimToNull(String s) { if (s == null) return null; String t = s.trim(); return t.isEmpty() ? null : t; }
+    private String shortExpr(String expr) { if (expr == null) return ""; String t = expr.trim(); return (t.length() <= 120) ? t : t.substring(0,117)+"..."; }
+    private static Map<String,String> safeMap(Map<String,String> m) { return (m != null) ? m : java.util.Collections.<String,String>emptyMap(); }
+    @FunctionalInterface private interface ThrowingRunnable { void run() throws Exception; }
+    private void runUnchecked(ThrowingRunnable op) { try { op.run(); } catch (RuntimeException re) { throw re; } catch (Exception ex) { throw new ActionEvaluationRuntimeException(ex); } }
+    private String safeMsg(Throwable t) { return (t == null) ? "" : (t.getMessage() != null ? t.getMessage() : t.toString()); }
 }

@@ -29,6 +29,9 @@ public class RootNode {
     private final java.util.Map<String,String> afterEach   = new java.util.LinkedHashMap<>();
     private final Map<String, Boolean> afterEachEnabled = new HashMap<>();
     private final Map<String,String> afterEachDesc = new HashMap<>();
+    // NEW: Validator Typ + Wert Maps (optional)
+    private final Map<String,String> afterEachValidatorType = new HashMap<>();
+    private final Map<String,String> afterEachValidatorValue = new HashMap<>();
 
     private List<Precondtion> preconditions = new ArrayList<>();
 
@@ -80,6 +83,10 @@ public class RootNode {
         return afterEachDesc;
     }
 
+    // NEW getters
+    public Map<String,String> getAfterEachValidatorType() { return afterEachValidatorType; }
+    public Map<String,String> getAfterEachValidatorValue() { return afterEachValidatorValue; }
+
     public List<Precondtion> getPreconditions() {
         return preconditions;
     }
@@ -88,4 +95,3 @@ public class RootNode {
         this.preconditions = (preconditions != null) ? preconditions : new ArrayList<Precondtion>();
     }
 }
-

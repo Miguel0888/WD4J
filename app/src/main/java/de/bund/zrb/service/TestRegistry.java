@@ -173,6 +173,8 @@ public class TestRegistry {
         forceInitMapIfNull(r, "templatesEnabled");
         forceInitMapIfNull(r, "afterEachEnabled");
         forceInitMapIfNull(r, "afterEachDesc");
+        forceInitMapIfNull(r, "afterEachValidatorType");
+        forceInitMapIfNull(r, "afterEachValidatorValue");
     }
 
     /**
@@ -234,6 +236,8 @@ public class TestRegistry {
             forceInitMapIfNull(suite, "templatesEnabled");
             forceInitMapIfNull(suite, "afterAllEnabled");
             forceInitMapIfNull(suite, "afterAllDesc");
+            forceInitMapIfNull(suite, "afterAllValidatorType");
+            forceInitMapIfNull(suite, "afterAllValidatorValue");
 
             List<TestCase> cases = suite.getTestCases();
             for (TestCase tc : cases) {
@@ -261,6 +265,8 @@ public class TestRegistry {
                 forceInitMapIfNull(tc, "templatesEnabled");
                 forceInitMapIfNull(tc, "afterEnabled");
                 forceInitMapIfNull(tc, "afterDesc");
+                forceInitMapIfNull(tc, "afterValidatorType");
+                forceInitMapIfNull(tc, "afterValidatorValue");
 
                 List<TestAction> steps = tc.getWhen();
                 for (TestAction a : steps) {
