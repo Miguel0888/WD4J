@@ -46,6 +46,16 @@ dependencies {
 
     // Note: Video libraries are loaded on demand at runtime via VideoRuntimeLoader;
     // do not add heavy video dependencies here as implementation/runtime.
+
+    // Test dependencies (JUnit 5 / Mockito) for app tests
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.mockito:mockito-core:3.12.4'
+}
+
+// Ensure JUnit 5 tests run correctly
+test {
+    useJUnitPlatform()
 }
 
 // Copy core runtime classpath jars into dist/libs for distribution
