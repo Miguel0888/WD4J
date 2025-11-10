@@ -6,7 +6,7 @@ package de.bund.zrb.event;
  */
 public final class BrowserLifecycleEvent implements ApplicationEvent<BrowserLifecycleEvent.Payload> {
 
-    public enum Kind { STARTING, STARTED, STOPPING, STOPPED, ERROR }
+    public enum Kind { STARTING, STARTED, STOPPING, STOPPED, ERROR, EXTERNALLY_CLOSED }
 
     public static final class Payload {
         private final Kind kind;
@@ -25,4 +25,3 @@ public final class BrowserLifecycleEvent implements ApplicationEvent<BrowserLife
     public BrowserLifecycleEvent(Payload payload) { this.payload = payload; }
     @Override public Payload getPayload() { return payload; }
 }
-

@@ -50,6 +50,8 @@ public class BrowserImpl implements Browser {
     // Top-Level Fensterhandle (Windows)
     private volatile WinDef.HWND topLevelHwnd;
 
+    private final List<Consumer<Browser>> disconnectListeners = new ArrayList<Consumer<Browser>>();
+
     public BrowserImpl(BrowserTypeImpl browserType, Process process, WDWebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
         router = new RecordingEventRouter(this); // ToDo
 
@@ -65,6 +67,17 @@ public class BrowserImpl implements Browser {
         fetchDefaultData();
 
         loadGlobalScripts(); // load JavaScript code relevant for the working Playwright API
+
+        // Prozess-Beobachtung: Wenn der externe Browser-Prozess endet, melden und räumen wir auf
+        new Thread(() -> {
+            try {
+                process.waitFor();
+                for (Consumer<Browser> l : new ArrayList<Consumer<Browser>>(disconnectListeners)) {
+                    try { l.accept(this); } catch (Throwable ignore) {}
+                }
+            } catch (InterruptedException ignored) {
+            }
+        }, "browser-proc-watcher").start();
     }
 
     /** Liefert das HWND des Top-Level Browserfensters (cached). */
@@ -243,12 +256,12 @@ public class BrowserImpl implements Browser {
 
     @Override
     public void onDisconnected(Consumer<Browser> handler) {
-        // ToDo: Implement
+        if (handler != null) disconnectListeners.add(handler);
     }
 
     @Override
     public void offDisconnected(Consumer<Browser> handler) {
-        // ToDo: Implement
+        if (handler != null) disconnectListeners.remove(handler);
     }
 
     @Override
@@ -261,6 +274,9 @@ public class BrowserImpl implements Browser {
         // ToDo: Implement options
         // ToDo: Implement Cleanup
         terminateProcess();
+        for (Consumer<Browser> l : new ArrayList<Consumer<Browser>>(disconnectListeners)) {
+            try { l.accept(this); } catch (Throwable ignore) {}
+        }
     }
 
     @Override

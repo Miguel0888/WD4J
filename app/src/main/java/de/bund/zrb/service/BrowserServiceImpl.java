@@ -82,11 +82,32 @@ public class BrowserServiceImpl implements BrowserService {
             BrowserTypeImpl browserType = BrowserTypeImpl.newFirefoxInstance((PlaywrightImpl) playwright);
             browser = (BrowserImpl) browserType.launch(options);
             configureServices();
+            // ↙︎ Externes Schließen erkennen
+            browser.onDisconnected(new java.util.function.Consumer<Browser>() {
+                @Override
+                public void accept(Browser b) {
+                    handleExternalBrowserClosed();
+                }
+            });
             ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.STARTED, "✅ Browser gestartet")));
         } catch (Exception ex) {
             ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.ERROR, "❌ Browser-Start fehlgeschlagen", ex)));
             throw new RuntimeException("Fehler beim Starten des Browsers", ex);
         }
+    }
+
+    private void handleExternalBrowserClosed() {
+        // Event publizieren für StatusBar
+        ApplicationEventBus.getInstance().publish(
+                new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(
+                        BrowserLifecycleEvent.Kind.EXTERNALLY_CLOSED,
+                        "🔌 Browser-Fenster wurde extern geschlossen"))
+        );
+        // Aufräumen, aber idempotent
+        try { if (browser != null) { try { browser.close(); } catch (Throwable ignore) {} } } catch (Throwable ignore) {}
+        try { if (playwright != null) { try { playwright.close(); } catch (Throwable ignore) {} } } catch (Throwable ignore) {}
+        browser = null;
+        playwright = null;
     }
 
     /**
