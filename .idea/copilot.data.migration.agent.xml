@@ -41,7 +41,9 @@
         <entry key="10d8b19c-816c-42ff-a02e-23368f329400">
           <value>
             <set>
+              <option value="12333e83-86a5-4fa1-8136-33848723391c" />
               <option value="1cfc83e0-964a-4724-b6c4-564f1753ff77" />
+              <option value="47b5e6dd-05a0-449d-b8b0-9d879d345fbb" />
               <option value="618cf79c-4a61-44e2-a659-450de8a2bd30" />
               <option value="6e497f13-54f9-4ab6-9c30-5e0c101fbfd2" />
               <option value="a1d8ed67-5145-412c-ad63-960947b3ab39" />
@@ -121,6 +123,7 @@
       <entry key="10d8b19c-816c-42ff-a02e-23368f329400">
         <set>
           <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/tabs/TabManager.java" />
+          <option value="file://$PROJECT_DIR$/app/src/main/java/de/bund/zrb/ui/tabs/AbstractEditorTab.java" />
         </set>
       </entry>
     </pendingWorkingSetItems>
