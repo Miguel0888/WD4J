@@ -137,6 +137,9 @@ dependencies {
 
     // JSON
     implementation 'com.google.code.gson:gson:2.10.1'
+
+    // JavaCV API nur zur Kompilierung, Runtime optional via Loader
+    compileOnly "org.bytedeco:javacv:1.5.10"
 }
 
 jar {
@@ -144,5 +147,15 @@ jar {
         attributes(
                 'Main-Class': 'de.bund.zrb.Main' // Die Main-Klasse, die gestartet werden soll
         )
+    }
+}
+
+shadowJar {
+    // Schließe sicherheitshalber platform/natives aus, falls transitive reinrutschen
+    dependencies {
+        exclude(dependency('org.bytedeco:.*-platform:.*'))
+        exclude(dependency('org.bytedeco:.*:.*:windows.*'))
+        exclude(dependency('org.bytedeco:.*:.*:linux.*'))
+        exclude(dependency('org.bytedeco:.*:.*:macosx.*'))
     }
 }
