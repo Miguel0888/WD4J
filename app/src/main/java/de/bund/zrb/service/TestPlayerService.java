@@ -84,6 +84,9 @@ public class TestPlayerService {
     private volatile boolean stopped = false;
     private String lastUsernameUsed = "default";
 
+    private boolean rootBeforeAllDone = false; // neu: verhindert Doppel-Ausführung
+    private final java.util.Set<String> suiteBeforeAllDone = new java.util.HashSet<>(); // neu pro Suite-ID
+
     private TestPlayerService() {}
 
     public static TestPlayerService getInstance() {
@@ -227,22 +230,52 @@ public class TestPlayerService {
         return caseLog;
     }
 
+    private void initSuiteSymbols(TestSuite suite) throws Exception {
+        RootNode rootModel = TestRegistry.getInstance().getRoot();
+        if (!rootBeforeAllDone) {
+            Map<String,String> evaluated = evaluateExpressionMapNow(
+                    rootModel.getBeforeAll(),
+                    rootModel.getBeforeAllEnabled(),
+                    runtimeCtx);
+            runtimeCtx.fillRootVarsFromMap(evaluated);
+            runtimeCtx.fillRootTemplatesFromMap(filterEnabled(rootModel.getTemplates(), rootModel.getTemplatesEnabled()));
+            rootBeforeAllDone = true;
+        }
+        if (suite != null && suite.getId() != null && !suiteBeforeAllDone.contains(suite.getId())) {
+            Map<String,String> suiteAllEval = evaluateExpressionMapNow(
+                    suite.getBeforeAll(),
+                    suite.getBeforeAllEnabled(),
+                    runtimeCtx);
+            runtimeCtx.fillSuiteVarsFromMap(suiteAllEval);
+            runtimeCtx.fillSuiteTemplatesFromMap(filterEnabled(suite.getTemplates(), suite.getTemplatesEnabled()));
+            suiteBeforeAllDone.add(suite.getId());
+        }
+    }
+
     private void initCaseSymbols(TestNode node, TestCase testCase) throws Exception {
         TestSuite parentSuite = (TestSuite) ((TestNode) node.getParent()).getModelRef();
         RootNode rootModel = TestRegistry.getInstance().getRoot();
 
-        runtimeCtx.fillCaseVarsFromMap(
-                evaluateExpressionMapNow(rootModel.getBeforeEach(), rootModel.getBeforeEachEnabled(), runtimeCtx)
-        );
-        runtimeCtx.fillCaseVarsFromMap(
-                evaluateExpressionMapNow(
-                        parentSuite != null ? parentSuite.getBeforeEach() : null,
+        // Reihenfolge: Root.BeforeEach -> Suite.BeforeEach -> Case.Before
+        java.util.List<ThrowingRunnable> beforeChain = new java.util.ArrayList<>();
+        beforeChain.add(() -> runtimeCtx.fillCaseVarsFromMap(
+                evaluateExpressionMapNow(rootModel.getBeforeEach(), rootModel.getBeforeEachEnabled(), runtimeCtx)));
+        beforeChain.add(() -> runtimeCtx.fillCaseVarsFromMap(
+                evaluateExpressionMapNow(parentSuite != null ? parentSuite.getBeforeEach() : null,
                         parentSuite != null ? parentSuite.getBeforeEachEnabled() : null,
-                        runtimeCtx)
-        );
-        runtimeCtx.fillCaseVarsFromMap(
-                evaluateExpressionMapNow(testCase.getBefore(), testCase.getBeforeEnabled(), runtimeCtx)
-        );
+                        runtimeCtx)));
+        beforeChain.add(() -> runtimeCtx.fillCaseVarsFromMap(
+                evaluateExpressionMapNow(testCase.getBefore(), testCase.getBeforeEnabled(), runtimeCtx)));
+
+        for (ThrowingRunnable r : beforeChain) {
+            runUnchecked(r);
+            // Wartezeit nach jeder Gruppe (Root/Suite/Case)
+            Integer waitCfg = SettingsService.getInstance().get("beforeEach.afterWaitMs", Integer.class);
+            long w = (waitCfg != null) ? waitCfg.longValue() : 0L;
+            if (w > 0) {
+                try { Thread.sleep(w); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+            }
+        }
         runtimeCtx.fillCaseTemplatesFromMap(filterEnabled(testCase.getTemplates(), testCase.getTemplatesEnabled()));
     }
 
@@ -279,25 +312,6 @@ public class TestPlayerService {
         return suiteLog;
     }
 
-    private void initSuiteSymbols(TestSuite suite) throws Exception {
-        RootNode rootModel = TestRegistry.getInstance().getRoot();
-        if (runtimeCtx.buildCaseScope().lookupVar("___rootInitMarker") == null) {
-            Map<String,String> evaluated = evaluateExpressionMapNow(
-                    rootModel.getBeforeAll(),
-                    rootModel.getBeforeAllEnabled(),
-                    runtimeCtx);
-            runtimeCtx.fillRootVarsFromMap(evaluated);
-            runtimeCtx.fillRootTemplatesFromMap(filterEnabled(rootModel.getTemplates(), rootModel.getTemplatesEnabled()));
-            runtimeCtx.setRootVar("___rootInitMarker", "done");
-        }
-
-        Map<String,String> suiteAllEval = evaluateExpressionMapNow(
-                suite.getBeforeAll(),
-                suite.getBeforeAllEnabled(),
-                runtimeCtx);
-        runtimeCtx.fillSuiteVarsFromMap(suiteAllEval);
-        runtimeCtx.fillSuiteTemplatesFromMap(filterEnabled(suite.getTemplates(), suite.getTemplatesEnabled()));
-    }
 
     private LogComponent executeGenericContainerNode(TestNode node) {
         SuiteLog suiteLog = new SuiteLog(node.toString());

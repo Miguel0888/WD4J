@@ -34,6 +34,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
     private JSpinner spKeyUp;
     private JSpinner spAssertionGroupWait;
     private JSpinner spAssertionEachWait;
+    private JSpinner spBeforeEachAfterWait; // NEU: Wartezeit nach jedem BeforeEach (Sekunden)
 
     // Video
     private JCheckBox cbVideoEnabled;
@@ -65,6 +66,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         Integer groupWaitMs = SettingsService.getInstance().get("assertion.groupWaitMs", Integer.class);
         Integer eachWaitMs  = SettingsService.getInstance().get("assertion.eachWaitMs", Integer.class);
+        Integer beforeEachAfterMs = SettingsService.getInstance().get("beforeEach.afterWaitMs", Integer.class); // neu
 
         double  initialWsTimeout = wsTimeout != null ? wsTimeout : DEFAULT_WS_TIMEOUT_MS;
         String  initialReportDir = (reportDir != null && !reportDir.trim().isEmpty()) ? reportDir : "C:/Reports";
@@ -80,6 +82,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         double initialAssertGroupWaitS = groupWaitMs != null ? groupWaitMs / 1000.0 : DEFAULT_ASSERT_GROUP_WAIT_MS / 1000.0;
         double initialAssertEachWaitS  = eachWaitMs  != null ? eachWaitMs  / 1000.0 : DEFAULT_ASSERT_EACH_WAIT_MS  / 1000.0;
+        double initialBeforeEachAfterWaitS = beforeEachAfterMs != null ? beforeEachAfterMs / 1000.0 : 0.0; // Default 0
 
         dialog = new JDialog((Frame) null, "Einstellungen", true);
         dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
@@ -91,9 +94,10 @@ public class SettingsCommand extends ShortcutMenuCommand {
                 initialKu,
                 initialVideoEnabled,
                 initialVideoFps,
-                initialVideoDir
-                , initialAssertGroupWaitS
-                , initialAssertEachWaitS
+                initialVideoDir,
+                initialAssertGroupWaitS,
+                initialAssertEachWaitS,
+                initialBeforeEachAfterWaitS // neu
         ));
         dialog.pack();
         dialog.setLocationRelativeTo(null);
@@ -109,7 +113,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
                                      int videoFps,
                                      String videoDir,
                                      double assertionGroupWaitS,
-                                     double assertionEachWaitS
+                                     double assertionEachWaitS,
+                                     double beforeEachAfterWaitS // neu
     ) {
         JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(10, 12, 10, 12));
@@ -225,6 +230,13 @@ public class SettingsCommand extends ShortcutMenuCommand {
         spAssertionEachWait.setEditor(eachEditor);
         spAssertionEachWait.setToolTipText("Wartezeit zwischen einzelnen Assertions (Sekunden). Schritt: 1 s. Setze 0 für kein zusätzliches Warten.");
 
+        JLabel lbBeforeEachAfter = new JLabel("Wartezeit nach BeforeEach (s):");
+        spBeforeEachAfterWait = new JSpinner(new SpinnerNumberModel(beforeEachAfterWaitS, 0.0, Double.MAX_VALUE, 1.0));
+        spBeforeEachAfterWait.setPreferredSize(spSz);
+        JSpinner.NumberEditor beEditor = new JSpinner.NumberEditor(spBeforeEachAfterWait, "0.###");
+        spBeforeEachAfterWait.setEditor(beEditor);
+        spBeforeEachAfterWait.setToolTipText("Pause nach Auswertung jeder BeforeEach-Gruppe (Root/Suite/Case) in Sekunden.");
+
         g2.gridx = 0; g2.gridy = 2; g2.anchor = GridBagConstraints.WEST; g2.weightx = 0;
         pnlInput.add(lbAssertGroup, g2);
         g2.gridx = 1; g2.gridy = 2; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
@@ -234,6 +246,11 @@ public class SettingsCommand extends ShortcutMenuCommand {
         pnlInput.add(lbAssertEach, g2);
         g2.gridx = 1; g2.gridy = 3; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
         pnlInput.add(spAssertionEachWait, g2);
+
+        g2.gridx = 0; g2.gridy = 4; g2.anchor = GridBagConstraints.WEST; g2.weightx = 0;
+        pnlInput.add(lbBeforeEachAfter, g2);
+        g2.gridx = 1; g2.gridy = 4; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
+        pnlInput.add(spBeforeEachAfterWait, g2);
 
         // --- Netzwerk ---
         JPanel pnlNet = new JPanel(new GridBagLayout());
@@ -365,6 +382,10 @@ public class SettingsCommand extends ShortcutMenuCommand {
         if (eachWaitS < 0) { error("Wartezeit zwischen Assertions darf nicht negativ sein."); return; }
         int eachWaitMs = (int) Math.round(eachWaitS * 1000.0);
 
+        double beforeEachAfterS = ((Number) spBeforeEachAfterWait.getValue()).doubleValue();
+        if (beforeEachAfterS < 0) { error("Wartezeit nach BeforeEach darf nicht negativ sein."); return; }
+        int beforeEachAfterMs = (int) Math.round(beforeEachAfterS * 1000.0);
+
         String reportDir = tfReportDir.getText().trim();
         if (reportDir.isEmpty()) { error("Bitte ein Report-Verzeichnis angeben."); return; }
 
@@ -384,6 +405,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         // Assertion waits (ms)
         s.put("assertion.groupWaitMs", groupWaitMs);
         s.put("assertion.eachWaitMs", eachWaitMs);
+        s.put("beforeEach.afterWaitMs", beforeEachAfterMs); // neu
 
         // Video-Settings persistieren
         s.put("video.enabled",   videoEnabled);
