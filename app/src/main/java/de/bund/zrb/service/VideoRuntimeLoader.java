@@ -1,19 +1,26 @@
 package de.bund.zrb.service;
 
 import javax.swing.*;
+import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.BufferedInputStream;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Lädt bei Bedarf (zur Laufzeit) die minimal notwendigen Video-Libs (JavaCV/FFmpeg/Javacpp)
@@ -48,6 +55,52 @@ public final class VideoRuntimeLoader {
         return dir;
     }
 
+    // Zielverzeichnis für persistente Libs (settingsDir/lib)
+    private static Path persistentLibDir() {
+        Path settingsDir = resolveSettingsDir();
+        Path libDir = settingsDir.resolve("lib");
+        try { Files.createDirectories(libDir); } catch (IOException ignore) {}
+        return libDir;
+    }
+
+    private static Path resolveSettingsDir() {
+        // Versuche SettingsService (falls vorhanden)
+        try {
+            Class<?> settingsSvcClass = Class.forName("de.bund.zrb.service.SettingsService");
+            Method m = settingsSvcClass.getMethod("getInstance");
+            Object inst = m.invoke(null);
+            // Heuristik: Methode getSettingsPath() oder getWorkingDirectory()
+            for (String candidate : new String[]{"getSettingsPath", "getWorkingDirectory", "getBasePath"}) {
+                try {
+                    Method mm = settingsSvcClass.getMethod(candidate);
+                    Object r = mm.invoke(inst);
+                    if (r instanceof String && !((String) r).trim().isEmpty()) {
+                        Path p = Paths.get(((String) r).trim());
+                        if (Files.exists(p)) return p;
+                    }
+                    if (r instanceof Path) {
+                        Path p = (Path) r;
+                        if (Files.exists(p)) return p;
+                    }
+                } catch (Throwable ignore) {}
+            }
+        } catch (Throwable ignore) {}
+        // Fallback Benutzerverzeichnis/.wd4j
+        Path fallback = Paths.get(System.getProperty("user.home"), ".wd4j");
+        try { Files.createDirectories(fallback); } catch (IOException ignore) {}
+        return fallback;
+    }
+
+    // Prüft, ob alle benötigten Artefakte bereits im persistenten Verzeichnis liegen
+    private static boolean allPersistedPresent() {
+        Path dir = persistentLibDir();
+        List<String> needed = WINDOWS_FILES.stream().map(FileDef::fileName).collect(Collectors.toList());
+        for (String n : needed) {
+            if (!Files.exists(dir.resolve(n))) return false;
+        }
+        return true;
+    }
+
     static class FileDef {
         final String url;
         FileDef(String url) { this.url = Objects.requireNonNull(url); }
@@ -55,20 +108,89 @@ public final class VideoRuntimeLoader {
     }
 
     public static boolean ensureVideoLibsAvailableInteractively() {
-        // Bereits verfügbar? (schnell)
+        // Bereits verfügbar (Klassen geladen) oder persistent vorhanden -> direkt versuchen zu attachen
         if (VideoRecordingService.quickCheckAvailable()) return true;
+        if (allPersistedPresent()) {
+            try {
+                attachToSystemClassLoader(WINDOWS_FILES.stream()
+                        .map(f -> persistentLibDir().resolve(f.fileName()))
+                        .collect(Collectors.toList()));
+                return VideoRecordingService.quickCheckAvailable();
+            } catch (Exception ex) {
+                // Falls Attach fehlschlägt, weiter zum Dialog
+            }
+        }
 
-        int choice = JOptionPane.showConfirmDialog(
-                null,
-                "Die Video-Funktion benötigt zusätzliche Bibliotheken (JavaCV/FFmpeg).\n" +
-                        "Sollen diese jetzt (~50-100 MB) heruntergeladen und installiert werden?",
-                "Video-Libs nachladen",
-                JOptionPane.OK_CANCEL_OPTION,
-                JOptionPane.QUESTION_MESSAGE
-        );
-        if (choice != JOptionPane.OK_OPTION) return false;
+        // Interaktiver Dialog mit Auswahlmöglichkeiten
+        JPanel panel = new JPanel(new BorderLayout(8,8));
+        panel.add(new JLabel("Video-Bibliotheken fehlen. Wähle eine Option:"), BorderLayout.NORTH);
 
-        Path dir = cacheDir();
+        JPanel center = new JPanel();
+        center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
+        center.add(new JLabel("Benötigt werden folgende Dateien:"));
+        for (FileDef f : WINDOWS_FILES) {
+            center.add(linkLabel(f.url));
+        }
+        center.add(Box.createVerticalStrut(8));
+        center.add(new JLabel("Hinweis: Download ~50-100 MB insgesamt."));
+        panel.add(center, BorderLayout.CENTER);
+
+        JButton autoBtn = new JButton("Automatisch herunterladen");
+        JButton manualBtn = new JButton("Manuell auswählen...");
+        JButton cancelBtn = new JButton("Abbrechen");
+
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        actions.add(autoBtn);
+        actions.add(manualBtn);
+        actions.add(cancelBtn);
+        panel.add(actions, BorderLayout.SOUTH);
+
+        final JDialog dialog = new JDialog((Frame) null, "Video-Libs nachladen", true);
+        dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+        dialog.setContentPane(panel);
+        dialog.pack();
+        dialog.setLocationRelativeTo(null);
+
+        final boolean[] result = new boolean[]{false};
+
+        autoBtn.addActionListener(e -> {
+            if (performAutoDownload()) {
+                result[0] = true;
+            }
+            dialog.dispose();
+        });
+        manualBtn.addActionListener(e -> {
+            if (performManualSelection()) {
+                result[0] = true;
+            }
+            dialog.dispose();
+        });
+        cancelBtn.addActionListener(e -> {
+            result[0] = false;
+            dialog.dispose();
+        });
+
+        dialog.setVisible(true);
+
+        if (!result[0]) return false;
+        return VideoRecordingService.quickCheckAvailable();
+    }
+
+    private static JLabel linkLabel(String url) {
+        JLabel lbl = new JLabel("<html><u>" + url + "</u></html>");
+        lbl.setForeground(new Color(0,102,204));
+        lbl.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        lbl.setToolTipText("Im Browser öffnen: " + url);
+        lbl.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                try { Desktop.getDesktop().browse(new URI(url)); } catch (Exception ex) { /* ignore */ }
+            }
+        });
+        return lbl;
+    }
+
+    private static boolean performAutoDownload() {
+        Path dir = persistentLibDir();
         List<Path> downloaded = new ArrayList<>();
         for (FileDef f : WINDOWS_FILES) {
             try {
@@ -85,9 +207,53 @@ public final class VideoRuntimeLoader {
                 return false;
             }
         }
+        return attach(downloaded);
+    }
 
+    private static boolean performManualSelection() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setMultiSelectionEnabled(true);
+        chooser.setDialogTitle("JAR-Dateien auswählen (alle benötigten Video-JARs)");
+        int rc = chooser.showOpenDialog(null);
+        if (rc != JFileChooser.APPROVE_OPTION) return false;
+        File[] files = chooser.getSelectedFiles();
+        if (files == null || files.length == 0) return false;
+        // Validierung grob: Alle benötigten Namen müssen vorkommen
+        List<String> need = WINDOWS_FILES.stream().map(FileDef::fileName).collect(Collectors.toList());
+        List<String> chosen = Arrays.stream(files).map(f -> f.getName()).collect(Collectors.toList());
+        for (String n : need) {
+            if (!chosen.contains(n)) {
+                JOptionPane.showMessageDialog(null,
+                        "Es fehlen benötigte Dateien: " + n,
+                        "Validierungsfehler",
+                        JOptionPane.WARNING_MESSAGE);
+                return false;
+            }
+        }
+        Path dir = persistentLibDir();
+        List<Path> copied = new ArrayList<>();
+        for (File f : files) {
+            try {
+                Path target = dir.resolve(f.getName());
+                if (!Files.exists(target)) {
+                    Files.copy(f.toPath(), target);
+                }
+                copied.add(target);
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(null,
+                        "Konnte Datei nicht kopieren: " + f.getName() + "\n" + ex.getMessage(),
+                        "Fehler",
+                        JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+        }
+        return attach(copied);
+    }
+
+    private static boolean attach(List<Path> jars) {
         try {
-            attachToSystemClassLoader(downloaded);
+            attachToSystemClassLoader(jars);
+            return true;
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(null,
                     "Konnte Bibliotheken nicht am Classpath anmelden:\n" + ex.getMessage(),
@@ -95,8 +261,6 @@ public final class VideoRuntimeLoader {
                     JOptionPane.ERROR_MESSAGE);
             return false;
         }
-
-        return VideoRecordingService.quickCheckAvailable();
     }
 
     private static void downloadToFile(String urlStr, Path target) throws IOException {
@@ -133,4 +297,3 @@ public final class VideoRuntimeLoader {
         }
     }
 }
-
