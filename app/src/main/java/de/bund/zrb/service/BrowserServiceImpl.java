@@ -84,6 +84,22 @@ public class BrowserServiceImpl implements BrowserService {
         }
     }
 
+    /**
+     * Startet den Browser mit einer vernünftigen Default-Konfiguration (Firefox, non-headless, Port 9222 etc.).
+     * Dient als Ersatz für die bisherige initBrowser()-Logik aus der UI.
+     */
+    public void launchDefaultBrowser() {
+        BrowserConfig config = new BrowserConfig();
+        config.setBrowserType("firefox");
+        config.setHeadless(false);
+        config.setNoRemote(false);
+        config.setDisableGpu(false);
+        config.setStartMaximized(true);
+        config.setUseProfile(false);
+        config.setPort(9222);
+        launchBrowser(config);
+    }
+
     private void configureServices() {
         NotificationService.getInstance(browser); // init
         GrowlNotificationPopupUtil.hook(browser); // <<< einmalig für notifications registrieren

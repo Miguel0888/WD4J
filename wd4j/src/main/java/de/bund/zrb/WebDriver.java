@@ -2,6 +2,7 @@ package de.bund.zrb;
 
 import de.bund.zrb.api.WDWebSocketManager;
 import de.bund.zrb.command.response.WDSessionResult;
+import de.bund.zrb.command.response.WDBrowsingContextResult;
 import de.bund.zrb.manager.*;
 import de.bund.zrb.service.WDEventDispatcher;
 import de.bund.zrb.type.session.WDSubscription;

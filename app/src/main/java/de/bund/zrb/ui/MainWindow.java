@@ -158,7 +158,14 @@ public class MainWindow {
         StatusTicker.getInstance().attach(statusBar); // activate event queue
 
         // Browser erst nach Statusbar, wie gehabt
-        initBrowser();
+        statusBar.setMessage("🚀 Browser wird gestartet…");
+        try {
+            browserService.launchDefaultBrowser();
+            statusBar.setMessage("✅ Browser gestartet");
+        } catch (Exception ex) {
+            statusBar.setMessage("❌ Browser-Start fehlgeschlagen");
+            JOptionPane.showMessageDialog(frame, "Fehler beim Starten des Browsers:\n" + ex.getMessage(), "Browser-Start fehlgeschlagen", JOptionPane.ERROR_MESSAGE);
+        }
 
         // Frame anzeigen, Layout ausführen lassen
         frame.setVisible(true);
@@ -362,32 +369,6 @@ public class MainWindow {
                         }
                     }
             );
-        }
-    }
-
-    private void initBrowser() {
-        BrowserConfig config = new BrowserConfig();
-        config.setBrowserType("firefox");
-        config.setHeadless(false);
-        config.setNoRemote(false);
-        config.setDisableGpu(false);
-        config.setStartMaximized(true);
-        config.setUseProfile(false);
-        config.setPort(9222);
-
-        try {
-            statusBar.setMessage("🚀 Browser wird gestartet…");
-            browserService.launchBrowser(config);
-            statusBar.setMessage("✅ Browser gestartet");
-        } catch (Exception e) {
-            statusBar.setMessage("❌ Browser-Start fehlgeschlagen");
-            JOptionPane.showMessageDialog(
-                    frame,
-                    "Fehler beim Starten des Browsers:\n" + e.getMessage(),
-                    "Browser-Start fehlgeschlagen",
-                    JOptionPane.ERROR_MESSAGE
-            );
-            e.printStackTrace();
         }
     }
 
