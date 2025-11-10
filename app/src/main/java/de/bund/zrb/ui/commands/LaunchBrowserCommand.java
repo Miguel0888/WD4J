@@ -1,39 +1,24 @@
 package de.bund.zrb.ui.commands;
 
-import de.bund.zrb.service.BrowserConfig;
-import de.bund.zrb.service.BrowserService;
-import de.bund.zrb.ui.commandframework.MenuCommand;
+import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 
 public class LaunchBrowserCommand extends ShortcutMenuCommand {
 
-    private final BrowserService browserService;
+    private final BrowserServiceImpl browserService;
 
-    public LaunchBrowserCommand(BrowserService browserService) {
+    public LaunchBrowserCommand(BrowserServiceImpl browserService) {
         this.browserService = browserService;
     }
 
     @Override
-    public String getId() {
-        return "browser.launch";
-    }
+    public String getId() { return "browser.launch"; }
 
     @Override
-    public String getLabel() {
-        return "Browser starten";
-    }
+    public String getLabel() { return "Browser starten"; }
 
     @Override
     public void perform() {
-        BrowserConfig config = new BrowserConfig();
-        config.setBrowserType("firefox");
-        config.setHeadless(false);
-        config.setNoRemote(false);
-        config.setDisableGpu(false);
-        config.setStartMaximized(true);
-        config.setUseProfile(false);
-        config.setPort(9222);
-
-        browserService.launchBrowser(config);
+        browserService.launchDefaultBrowser();
     }
 }
