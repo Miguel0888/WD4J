@@ -200,7 +200,7 @@ public class ExpressionEditorPanel extends JPanel {
     /** Build execution panel with params field (tooltip) + run button and result area. */
     private JComponent buildExecutionPanel() {
         JPanel exec = new JPanel(new BorderLayout(6, 6));
-        exec.setBorder(BorderFactory.createTitledBorder("Ausführen"));
+        exec.setBorder(BorderFactory.createTitledBorder("Test"));
 
         JPanel row = new JPanel(new BorderLayout(6, 0));
         row.add(new JLabel("Parameter:"), BorderLayout.WEST);
