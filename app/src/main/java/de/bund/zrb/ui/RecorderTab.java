@@ -90,11 +90,8 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         // --- Topbar ---
         JPanel topBar = new JPanel(new BorderLayout());
 
-        // WEST: Info + Suite + Case + Import
+        // WEST: Suite + Case + Import (Info-Button entfernt)
         JPanel west = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        JButton infoButton = buildHelpCornerButton();
-        west.add(infoButton);
-        west.add(Box.createHorizontalStrut(8));
         west.add(suiteSelector);
         west.add(caseDropdown);
         west.add(importButton);

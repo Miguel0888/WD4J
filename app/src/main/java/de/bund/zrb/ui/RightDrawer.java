@@ -29,6 +29,7 @@ public class RightDrawer extends JPanel {
         super(new BorderLayout(8, 8));
         this.browserService = browserService;
 
+        add(buildHeaderWithInfoButton(), BorderLayout.NORTH);
         add(recorderTabs, BorderLayout.CENTER);
 
         addPlusTab();
@@ -161,6 +162,55 @@ public class RightDrawer extends JPanel {
                 RecorderCoordinator.getInstance().stopForUser(user.getUsername());
 
         return new TabHeader(title, tabContent, onClose, onStopRecording);
+    }
+
+    private JComponent buildHeaderWithInfoButton() {
+        JPanel p = new JPanel(new BorderLayout());
+        p.setOpaque(false);
+        JButton info = new JButton("ℹ Recorder-Hilfe");
+        info.setFocusable(false);
+        info.setToolTipText("Hilfe zum Recorder anzeigen");
+        info.setBackground(new Color(0x1E88E5));
+        info.setForeground(Color.WHITE);
+        info.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0x1565C0)),
+                BorderFactory.createEmptyBorder(2,8,2,8)
+        ));
+        info.addActionListener(e -> {
+            String html = buildRecorderHelpHtmlGlobal();
+            JOptionPane.showMessageDialog(
+                    this,
+                    new JScrollPane(wrapHtmlGlobal(html)),
+                    "Hilfe – Recorder",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+        p.add(info, BorderLayout.EAST);
+        return p;
+    }
+
+    private String buildRecorderHelpHtmlGlobal() {
+        StringBuilder sb = new StringBuilder(800);
+        sb.append("<html><body style='font-family:sans-serif;padding:8px;'>");
+        sb.append("<h3 style='margin-top:0'>Recorder – Übersicht</h3>");
+        sb.append("<ul>");
+        sb.append("<li>Suite-Dropdown: <neu> für neue Suite, sonst Auswahl bestehender Suite.</li>");
+        sb.append("<li>Case-Dropdown: <neu> für neuen Case oder bestehende Auswahl zum Überschreiben/Import.</li>");
+        sb.append("<li>⤵ importiert den ausgewählten Case in die aktuelle Aufnahme.</li>");
+        sb.append("<li>+ fügt eine neue Action ein, 🗑 löscht markierte, ▲/▼ verschiebt markierte Reihen.</li>");
+        sb.append("<li>Speichern: legt Suite an oder speichert/überschreibt einen Case.</li>");
+        sb.append("</ul>");
+        sb.append("<p style='color:#555'>Alle Aktionen werden als WHEN behandelt; Case-Splitting entfällt.</p>");
+        sb.append("</body></html>");
+        return sb.toString();
+    }
+
+    private JEditorPane wrapHtmlGlobal(String html) {
+        JEditorPane pane = new JEditorPane("text/html", html);
+        pane.setEditable(false);
+        pane.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+        pane.setCaretPosition(0);
+        return pane;
     }
 
     public BrowserServiceImpl getBrowserService() {
