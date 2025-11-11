@@ -16,6 +16,7 @@ public class UserManagementDialog extends JDialog {
     private final JTextField usernameField;
     private final JPasswordField passwordField;
     private final JTextField startPageField;
+    private final JCheckBox autoOpenStartPageOnLaunchCheck;
 
     private final JTextField loginPageField;
     private final JTextField passwordChangePageField;
@@ -42,6 +43,7 @@ public class UserManagementDialog extends JDialog {
         passwordEchoChar = passwordField.getEchoChar();
 
         startPageField = new JTextField(20);
+        autoOpenStartPageOnLaunchCheck = new JCheckBox("Beim Browserstart automatisch zur Startseite navigieren (neuer Tab)");
         loginPageField = new JTextField(20);
         passwordChangePageField = new JTextField(20);
         otpField = new JTextField(20);
@@ -109,6 +111,11 @@ public class UserManagementDialog extends JDialog {
         content.add(new JLabel("Startseite:"), gbc);
         gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
         content.add(startPageField, gbc);
+
+        // Auto-Start-Navigation
+        row++;
+        gbc.gridx = 1; gbc.gridy = row; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+        content.add(autoOpenStartPageOnLaunchCheck, gbc);
 
         // Login-Seite (aus LoginConfig)
         row++;
@@ -179,6 +186,7 @@ public class UserManagementDialog extends JDialog {
             u.setUsername(usernameField.getText().trim());
             u.setEncryptedPassword(WindowsCryptoUtil.encrypt(new String(passwordField.getPassword())));
             u.setStartPage(startPageField.getText().trim());
+            u.setAutoOpenStartPageOnLaunch(autoOpenStartPageOnLaunchCheck.isSelected());
             u.setOtpSecret(otpField.getText().trim());
 
             LoginConfig lc = u.getLoginConfig();
@@ -272,6 +280,7 @@ public class UserManagementDialog extends JDialog {
             usernameField.setText("");
             passwordField.setText("");
             startPageField.setText("");
+            autoOpenStartPageOnLaunchCheck.setSelected(false);
             otpField.setText("");
             loginPageField.setText("");
             passwordChangePageField.setText("");
@@ -280,6 +289,7 @@ public class UserManagementDialog extends JDialog {
         usernameField.setText(u.getUsername());
         passwordField.setText(u.getDecryptedPassword());
         startPageField.setText(u.getStartPage());
+        autoOpenStartPageOnLaunchCheck.setSelected(u.isAutoOpenStartPageOnLaunch());
         otpField.setText(u.getOtpSecret());
 
         LoginConfig lc = u.getLoginConfig();

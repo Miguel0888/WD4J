@@ -58,6 +58,9 @@ public class UserRegistry {
         /** LoginConfig ist jetzt eine eigenständige Klasse (de.bund.zrb.config) */
         private LoginConfig loginConfig;
 
+        /** Optional: Bei Browserstart automatisch zur Startseite navigieren (neuen Tab öffnen). */
+        private boolean autoOpenStartPageOnLaunch = false;
+
         public User(String username, String encryptedPassword) {
             this.username = username;
             this.encryptedPassword = encryptedPassword;
@@ -91,6 +94,9 @@ public class UserRegistry {
             return loginConfig;
         }
         public void setLoginConfig(LoginConfig config) { this.loginConfig = config; }
+
+        public boolean isAutoOpenStartPageOnLaunch() { return autoOpenStartPageOnLaunch; }
+        public void setAutoOpenStartPageOnLaunch(boolean auto) { this.autoOpenStartPageOnLaunch = auto; }
 
         @Override
         public String toString() { return username; }

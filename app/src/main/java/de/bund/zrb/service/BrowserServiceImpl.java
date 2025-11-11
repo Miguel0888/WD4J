@@ -90,6 +90,21 @@ public class BrowserServiceImpl implements BrowserService {
                 }
             });
             ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.STARTED, "✅ Browser gestartet")));
+
+            // Optional: pro Benutzer automatisch Startseite öffnen (neuer Tab)
+            try {
+                for (UserRegistry.User u : UserRegistry.getInstance().getAll()) {
+                    if (u.isAutoOpenStartPageOnLaunch()) {
+                        String url = u.getStartPage();
+                        if (url != null && !url.trim().isEmpty()) {
+                          Page page = createNewTab(u.getUsername());
+                          if (page != null) page.navigate(url.trim());
+                        }
+                    }
+                }
+            } catch (Throwable t) {
+                logger.warn("Auto-Navigation zur Startseite fehlgeschlagen", t);
+            }
         } catch (Exception ex) {
             // StatusBar-Fehler inkl. Retry-Button
             ApplicationEventBus.getInstance().publish(
@@ -161,9 +176,7 @@ public class BrowserServiceImpl implements BrowserService {
             UserRegistry.User u = userForBrowsingContextId(ctxId); // User zum Kontext bestimmen
             SwingUtilities.invokeLater(() -> {
                 String name = (u == null) ? "<Keinen>" : u.getUsername();
-                // Falls du eine StatusBar-Instanz hier zur Hand hast:
-                // MainWindow o.ä. kann das auch per PropertyChangeListener machen
-                // statusBar.setMessage("Aktiver Benutzer: " + name);
+                // optional: StatusBar aktualisieren
             });
         });
     }
@@ -235,7 +248,7 @@ public class BrowserServiceImpl implements BrowserService {
     }
 
     @Override
-    public Page getActivePage(String username) {
+    public com.microsoft.playwright.Page getActivePage(String username) {
         BrowserContext context = getOrCreateUserContext(username);
         List<Page> pages = context.pages();
         if (pages.isEmpty()) {
@@ -245,12 +258,12 @@ public class BrowserServiceImpl implements BrowserService {
     }
 
     @Override
-    public Page getActivePage() {
+    public com.microsoft.playwright.Page getActivePage() {
         return browser.getActivePage();
     }
 
     @Override
-    public Page createNewTab(String username) {
+    public com.microsoft.playwright.Page createNewTab(String username) {
         BrowserContext context = getOrCreateUserContext(username);
         return context.newPage();
     }
@@ -431,3 +444,4 @@ public class BrowserServiceImpl implements BrowserService {
     }
 
 }
+
