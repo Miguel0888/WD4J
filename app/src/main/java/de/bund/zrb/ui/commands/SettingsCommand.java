@@ -193,7 +193,10 @@ public class SettingsCommand extends ShortcutMenuCommand {
         tfExtraArgs = new JTextField(SettingsService.getInstance().get("browser.extraArgs", String.class) != null ? SettingsService.getInstance().get("browser.extraArgs", String.class) : "", 28);
         tfExtraArgs.setToolTipText("Zusätzliche Startargumente (mit Leerzeichen getrennt)");
         cbConfirmTerminateRunning = new JCheckBox("Vor Start laufende Browser-Instanzen beenden (nach Rückfrage)");
-        cbConfirmTerminateRunning.setSelected(initialConfirmTerminate);
+        {
+            Boolean c = SettingsService.getInstance().get("browser.confirmTerminateRunning", Boolean.class);
+            cbConfirmTerminateRunning.setSelected(c != null ? c : true);
+        }
 
         int br = 0;
         gb.gridx = 0; gb.gridy = br; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(new JLabel("Browser:"), gb);
