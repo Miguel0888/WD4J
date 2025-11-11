@@ -12,6 +12,8 @@ import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
 import de.bund.zrb.type.script.WDRealmInfo;
 import de.bund.zrb.type.script.WDTarget;
 import de.bund.zrb.util.GrowlNotificationPopupUtil;
+import de.bund.zrb.win.BrowserProcessService;
+import de.bund.zrb.win.WindowsBrowserProcessService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,7 @@ public class BrowserServiceImpl implements BrowserService {
 
     private final List<ActivePageListener> activePageListeners = new ArrayList<>();
     private LoginRedirectSentry autoLogin;
+    private final BrowserProcessService browserProcessService = new WindowsBrowserProcessService();
 
     private BrowserServiceImpl() {}
 
@@ -457,5 +460,15 @@ public class BrowserServiceImpl implements BrowserService {
         return de.bund.zrb.service.UserContextMappingService.getInstance().getCurrentUser();
     }
 
-}
+    /** Ermittelt den erwarteten Executable-Pfad für den gewählten Browser anhand der System-Konfiguration. */
+    private String resolveExecutablePath(String browserType) {
+        if (browserType == null) return null;
+        switch (browserType.toLowerCase()) {
+            case "firefox": return de.bund.zrb.config.BrowserSystemConfig.getFirefoxPath();
+            case "chromium": return de.bund.zrb.config.BrowserSystemConfig.getChromiumPath();
+            case "edge": return de.bund.zrb.config.BrowserSystemConfig.getEdgePath();
+            default: return null;
+        }
+    }
 
+}
