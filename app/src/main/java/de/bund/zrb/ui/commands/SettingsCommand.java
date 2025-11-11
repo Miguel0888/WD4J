@@ -44,6 +44,18 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
     private JDialog dialog;
 
+    // Browser-Settings UI
+    private JComboBox<String> cbBrowserType;
+    private JSpinner spPort;
+    private JCheckBox cbHeadless;
+    private JCheckBox cbDisableGpu;
+    private JCheckBox cbNoRemote;
+    private JCheckBox cbStartMax;
+    private JCheckBox cbUseProfile;
+    private JTextField tfProfilePath;
+    private JButton btBrowseProfile;
+    private JTextField tfExtraArgs;
+
     @Override
     public String getId() { return "file.configure"; }
 
@@ -68,6 +80,17 @@ public class SettingsCommand extends ShortcutMenuCommand {
         Integer eachWaitMs  = SettingsService.getInstance().get("assertion.eachWaitMs", Integer.class);
         Integer beforeEachAfterMs = SettingsService.getInstance().get("beforeEach.afterWaitMs", Integer.class); // neu
 
+        // Browser (neu)
+        String  browserSel  = SettingsService.getInstance().get("browser.selected", String.class);
+        Integer portVal     = SettingsService.getInstance().get("browser.port", Integer.class);
+        Boolean headless    = SettingsService.getInstance().get("browser.headless", Boolean.class);
+        Boolean disableGpu  = SettingsService.getInstance().get("browser.disableGpu", Boolean.class);
+        Boolean noRemote    = SettingsService.getInstance().get("browser.noRemote", Boolean.class);
+        Boolean startMax    = SettingsService.getInstance().get("browser.startMaximized", Boolean.class);
+        Boolean useProfile  = SettingsService.getInstance().get("browser.useProfile", Boolean.class);
+        String  profilePath = SettingsService.getInstance().get("browser.profilePath", String.class);
+        String  extraArgs   = SettingsService.getInstance().get("browser.extraArgs", String.class);
+
         double  initialWsTimeout = wsTimeout != null ? wsTimeout : DEFAULT_WS_TIMEOUT_MS;
         String  initialReportDir = (reportDir != null && !reportDir.trim().isEmpty()) ? reportDir : "C:/Reports";
         boolean initialCtxMode   = ctxMode != null ? ctxMode : true;
@@ -79,6 +102,17 @@ public class SettingsCommand extends ShortcutMenuCommand {
         String  initialVideoDir     = (videoDir != null && !videoDir.trim().isEmpty())
                 ? videoDir
                 : initialReportDir; // Default: nimm Report-Ordner
+
+        // Browser defaults
+        String initialBrowserSel = (browserSel != null && !browserSel.isEmpty()) ? browserSel : "firefox";
+        int    initialPort       = portVal != null ? portVal : 9222;
+        boolean initialHeadless  = headless != null ? headless : false;
+        boolean initialDisable   = disableGpu != null ? disableGpu : false;
+        boolean initialNoRemote  = noRemote != null ? noRemote : false;
+        boolean initialStartMax  = startMax != null ? startMax : true;
+        boolean initialUseProf   = useProfile != null ? useProfile : false;
+        String  initialProfPath  = profilePath != null ? profilePath : "";
+        String  initialExtraArgs = extraArgs != null ? extraArgs : "";
 
         double initialAssertGroupWaitS = groupWaitMs != null ? groupWaitMs / 1000.0 : DEFAULT_ASSERT_GROUP_WAIT_MS / 1000.0;
         double initialAssertEachWaitS  = eachWaitMs  != null ? eachWaitMs  / 1000.0 : DEFAULT_ASSERT_EACH_WAIT_MS  / 1000.0;
@@ -122,6 +156,61 @@ public class SettingsCommand extends ShortcutMenuCommand {
         JPanel form = new JPanel();
         form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
 
+        // --- Browser ---
+        JPanel pnlBrowser = new JPanel(new GridBagLayout());
+        pnlBrowser.setBorder(sectionBorder("Browser"));
+        GridBagConstraints gb = gbc();
+
+        cbBrowserType = new JComboBox<>(new String[]{"firefox","chromium","edge"});
+        // Lade initial aus Settings
+        String sel = SettingsService.getInstance().get("browser.selected", String.class);
+        cbBrowserType.setSelectedItem(sel != null ? sel.toLowerCase() : "firefox");
+
+        spPort = new JSpinner(new SpinnerNumberModel(
+                (Number) (SettingsService.getInstance().get("browser.port", Integer.class) != null ? SettingsService.getInstance().get("browser.port", Integer.class) : 9222),
+                0, 65535, 1));
+        Dimension spSz = new Dimension(120, 26);
+        spPort.setPreferredSize(spSz);
+
+        cbHeadless = new JCheckBox("Headless");
+        cbHeadless.setSelected(Boolean.TRUE.equals(SettingsService.getInstance().get("browser.headless", Boolean.class)));
+        cbDisableGpu = new JCheckBox("GPU deaktivieren");
+        cbDisableGpu.setSelected(Boolean.TRUE.equals(SettingsService.getInstance().get("browser.disableGpu", Boolean.class)));
+        cbNoRemote = new JCheckBox("No-Remote");
+        cbNoRemote.setSelected(Boolean.TRUE.equals(SettingsService.getInstance().get("browser.noRemote", Boolean.class)));
+        cbStartMax = new JCheckBox("Maximiert starten");
+        Boolean sm = SettingsService.getInstance().get("browser.startMaximized", Boolean.class);
+        cbStartMax.setSelected(sm != null ? sm : true);
+        cbUseProfile = new JCheckBox("Profil verwenden");
+        cbUseProfile.setSelected(Boolean.TRUE.equals(SettingsService.getInstance().get("browser.useProfile", Boolean.class)));
+        tfProfilePath = new JTextField(SettingsService.getInstance().get("browser.profilePath", String.class) != null ? SettingsService.getInstance().get("browser.profilePath", String.class) : "", 24);
+        btBrowseProfile = new JButton("Durchsuchen…");
+        btBrowseProfile.setFocusable(false);
+        btBrowseProfile.addActionListener(e -> chooseDirInto(tfProfilePath));
+        tfExtraArgs = new JTextField(SettingsService.getInstance().get("browser.extraArgs", String.class) != null ? SettingsService.getInstance().get("browser.extraArgs", String.class) : "", 28);
+        tfExtraArgs.setToolTipText("Zusätzliche Startargumente (mit Leerzeichen getrennt)");
+
+        int br = 0;
+        gb.gridx = 0; gb.gridy = br; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(new JLabel("Browser:"), gb);
+        gb.gridx = 1; gb.gridy = br++; gb.anchor = GridBagConstraints.EAST; pnlBrowser.add(cbBrowserType, gb);
+        gb.gridx = 0; gb.gridy = br; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(new JLabel("Port:"), gb);
+        gb.gridx = 1; gb.gridy = br++; gb.anchor = GridBagConstraints.EAST; pnlBrowser.add(spPort, gb);
+
+        gb.gridx = 0; gb.gridy = br; gb.gridwidth = 2; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(cbHeadless, gb); br++;
+        gb.gridx = 0; gb.gridy = br; gb.gridwidth = 2; pnlBrowser.add(cbDisableGpu, gb); br++;
+        gb.gridx = 0; gb.gridy = br; gb.gridwidth = 2; pnlBrowser.add(cbNoRemote, gb); br++;
+        gb.gridx = 0; gb.gridy = br; gb.gridwidth = 2; pnlBrowser.add(cbStartMax, gb); br++;
+        gb.gridwidth = 1;
+
+        gb.gridx = 0; gb.gridy = br; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(cbUseProfile, gb);
+        gb.gridx = 1; gb.gridy = br++; gb.anchor = GridBagConstraints.EAST; pnlBrowser.add(new JLabel(""), gb);
+        gb.gridx = 0; gb.gridy = br; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(new JLabel("Profilpfad:"), gb);
+        gb.gridx = 1; gb.gridy = br++; gb.anchor = GridBagConstraints.EAST; pnlBrowser.add(tfProfilePath, gb);
+        gb.gridx = 1; gb.gridy = br++; gb.anchor = GridBagConstraints.EAST; pnlBrowser.add(btBrowseProfile, gb);
+
+        gb.gridx = 0; gb.gridy = br; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(new JLabel("Extra-Args:"), gb);
+        gb.gridx = 1; gb.gridy = br++; gb.anchor = GridBagConstraints.EAST; pnlBrowser.add(tfExtraArgs, gb);
+
         // --- Recording ---
         JPanel pnlRecording = new JPanel(new GridBagLayout());
         pnlRecording.setBorder(sectionBorder("Aufnahme"));
@@ -146,8 +235,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         JLabel lbFps = new JLabel("FPS:");
         spVideoFps = new JSpinner(new SpinnerNumberModel(videoFps, 1, 120, 1));
-        Dimension spSz = new Dimension(120, 26);
-        spVideoFps.setPreferredSize(spSz);
+        Dimension spSz2 = new Dimension(120, 26);
+        spVideoFps.setPreferredSize(spSz2);
         lbFps.setToolTipText("Bilder pro Sekunde für die Videoaufzeichnung (z. B. 15).");
         g1.gridx = 0; g1.gridy = row; g1.anchor = GridBagConstraints.WEST; g1.weightx = 0;
         pnlRecording.add(lbFps, g1);
@@ -292,6 +381,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
         pnlReport.add(btBrowse, g4);
 
         // zusammenbauen
+        form.add(pnlBrowser);
+        form.add(Box.createVerticalStrut(8));
         form.add(pnlRecording);
         form.add(Box.createVerticalStrut(8));
         form.add(pnlInput);
@@ -419,6 +510,17 @@ public class SettingsCommand extends ShortcutMenuCommand {
         s.put("video.enabled",   videoEnabled);
         s.put("video.fps",       fps);
         s.put("video.reportsDir", videoDir);
+
+        // Browser persistieren
+        s.put("browser.selected", String.valueOf(cbBrowserType.getSelectedItem()).toLowerCase());
+        s.put("browser.port", ((Number) spPort.getValue()).intValue());
+        s.put("browser.headless", cbHeadless.isSelected());
+        s.put("browser.disableGpu", cbDisableGpu.isSelected());
+        s.put("browser.noRemote", cbNoRemote.isSelected());
+        s.put("browser.startMaximized", cbStartMax.isSelected());
+        s.put("browser.useProfile", cbUseProfile.isSelected());
+        s.put("browser.profilePath", tfProfilePath.getText().trim());
+        s.put("browser.extraArgs", tfExtraArgs.getText().trim());
 
         s.forEach(SettingsService.getInstance()::set);
 

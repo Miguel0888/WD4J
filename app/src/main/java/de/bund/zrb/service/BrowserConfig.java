@@ -9,6 +9,7 @@ public class BrowserConfig {
     private boolean disableGpu;
     private boolean noRemote;
     private boolean startMaximized;
+    private String extraArgs; // zusätzliche Startargumente (space-separiert)
 
     // Getter und Setter
     public String getBrowserType() {
@@ -73,5 +74,13 @@ public class BrowserConfig {
 
     public void setStartMaximized(boolean startMaximized) {
         this.startMaximized = startMaximized;
+    }
+
+    public String getExtraArgs() {
+        return extraArgs;
+    }
+
+    public void setExtraArgs(String extraArgs) {
+        this.extraArgs = extraArgs;
     }
 }

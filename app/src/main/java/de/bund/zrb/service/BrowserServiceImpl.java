@@ -64,6 +64,11 @@ public class BrowserServiceImpl implements BrowserService {
                     args.add("--user-data-dir=" + System.getProperty("java.io.tmpdir") + "temp_profile_" + System.currentTimeMillis());
                 }
             }
+            if (config.getExtraArgs() != null && !config.getExtraArgs().trim().isEmpty()) {
+                for (String a : config.getExtraArgs().trim().split("\\s+")) {
+                    if (!a.isEmpty()) args.add(a);
+                }
+            }
 
             if (args.isEmpty()) {
                 throw new IllegalArgumentException("Keine Startargumente gesetzt. Stelle sicher, dass die UI-Optionen korrekt übergeben werden.");
@@ -79,7 +84,13 @@ public class BrowserServiceImpl implements BrowserService {
 
             Double websocketTimeout = SettingsService.getInstance().get("websocketTimeout", Double.class);
             options.setTimeout(websocketTimeout != null ? websocketTimeout : 0);
-            BrowserTypeImpl browserType = BrowserTypeImpl.newFirefoxInstance((PlaywrightImpl) playwright);
+            BrowserTypeImpl browserType;
+            switch (config.getBrowserType().toLowerCase()) {
+                case "chromium": browserType = BrowserTypeImpl.newChromiumInstance((PlaywrightImpl) playwright); break;
+                case "edge": browserType = BrowserTypeImpl.newEdgeInstance((PlaywrightImpl) playwright); break;
+                case "firefox":
+                default: browserType = BrowserTypeImpl.newFirefoxInstance((PlaywrightImpl) playwright); break;
+            }
             browser = (BrowserImpl) browserType.launch(options);
             configureServices();
             // ↙︎ Externes Schließen erkennen
@@ -117,8 +128,7 @@ public class BrowserServiceImpl implements BrowserService {
                             })
                     ))
             );
-            // Kein Throw mehr – UI bleibt stabil, Event informiert Benutzer
-            return;
+            return; // Entfernt Hinweis: notwendig hier für frühzeitiges Abbrechen
         }
     }
 
@@ -145,14 +155,18 @@ public class BrowserServiceImpl implements BrowserService {
      * Dient als Ersatz für die bisherige initBrowser()-Logik aus der UI.
      */
     public void launchDefaultBrowser() {
+        SettingsService s = SettingsService.getInstance();
         BrowserConfig config = new BrowserConfig();
-        config.setBrowserType("firefox");
-        config.setHeadless(false);
-        config.setNoRemote(false);
-        config.setDisableGpu(false);
-        config.setStartMaximized(true);
-        config.setUseProfile(false);
-        config.setPort(9222);
+        String sel = s.get("browser.selected", String.class);
+        config.setBrowserType(sel != null ? sel : "firefox");
+        Integer p = s.get("browser.port", Integer.class); config.setPort(p != null ? p : 9222);
+        Boolean headless = s.get("browser.headless", Boolean.class); config.setHeadless(headless != null ? headless : false);
+        Boolean disGpu = s.get("browser.disableGpu", Boolean.class); config.setDisableGpu(disGpu != null ? disGpu : false);
+        Boolean noRem = s.get("browser.noRemote", Boolean.class); config.setNoRemote(noRem != null ? noRem : false);
+        Boolean startMax = s.get("browser.startMaximized", Boolean.class); config.setStartMaximized(startMax != null ? startMax : true);
+        Boolean useProf = s.get("browser.useProfile", Boolean.class); config.setUseProfile(useProf != null ? useProf : false);
+        String profPath = s.get("browser.profilePath", String.class); config.setProfilePath(profPath);
+        String extra = s.get("browser.extraArgs", String.class); config.setExtraArgs(extra);
         launchBrowser(config);
     }
 
