@@ -150,6 +150,34 @@ public class TestAction {
         this.id = UUID.randomUUID().toString();
     }
 
+    /**
+     * Erzeugt eine tiefe Kopie dieser Action (inklusive Maps) mit gleicher ID.
+     * Wird genutzt, um Referenz-Sharing im Recorder zu vermeiden (selected-Flags laufen sonst mit).
+     */
+    public TestAction copy() {
+        TestAction c = new TestAction();
+        c.id = this.id; // identische ID behalten für Case-Speicherung / Vergleich
+        c.parentId = this.parentId;
+        c.user = this.user;
+        c.type = this.type;
+        c.selected = this.selected; // Flag explizit klonen
+        c.action = this.action;
+        c.selectedSelector = this.selectedSelector;
+        c.locatorType = this.locatorType;
+        c.timeout = this.timeout;
+        c.value = this.value;
+        c.locators = new LinkedHashMap<>(this.locators);
+        c.extractedValues = new LinkedHashMap<>(this.extractedValues);
+        c.extractedAttributes = new LinkedHashMap<>(this.extractedAttributes);
+        c.extractedTestIds = new LinkedHashMap<>(this.extractedTestIds);
+        c.extractedAriaRoles = new LinkedHashMap<>(this.extractedAriaRoles);
+        c.raw = this.raw; // Raw Event Referenz kann geteilt werden (read-only)
+        c.textContent = this.textContent;
+        c.role = this.role;
+        c.label = this.label;
+        return c;
+    }
+
     ////////////////////////////////////////////////////////////////////////////////
     // Accessors / Getters+Setters
     ////////////////////////////////////////////////////////////////////////////////

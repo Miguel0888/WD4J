@@ -392,7 +392,9 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         // Merge aktuelle Tabellen-Actions + importierter Case.
         List<TestAction> actions = snapshotActionsFromTable();
         if (actions == null) actions = new ArrayList<>();
-        actions.addAll(tc.getWhen());
+        for (TestAction original : tc.getWhen()) {
+            actions.add(original.copy());
+        }
         applyActions(actions);
     }
 
@@ -537,14 +539,16 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
      * Stellt sicher, dass laufende Cell-Edits committed werden.
      */
     private List<TestAction> snapshotActionsFromTable() {
-        // Laufende Editor-Session committen
         if (actionTable.isEditing()) {
             try { actionTable.getCellEditor().stopCellEditing(); } catch (Exception ignore) {}
         }
         List<TestAction> raw = actionTable.getActions();
         if (raw == null) return null;
-        // Flache Kopie reicht (Objekte selbst werden weiterverwendet) – falls Deep Copy nötig wäre, hier ergänzen.
-        return new ArrayList<>(raw);
+        List<TestAction> cloned = new ArrayList<>(raw.size());
+        for (TestAction a : raw) {
+            cloned.add(a.copy());
+        }
+        return cloned;
     }
 
     private TestSuite findSuiteByName(String name) {
