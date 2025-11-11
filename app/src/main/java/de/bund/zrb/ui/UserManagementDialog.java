@@ -43,7 +43,27 @@ public class UserManagementDialog extends JDialog {
         passwordEchoChar = passwordField.getEchoChar();
 
         startPageField = new JTextField(20);
-        autoOpenStartPageOnLaunchCheck = new JCheckBox("Beim Browserstart automatisch zur Startseite navigieren (neuer Tab)");
+        autoOpenStartPageOnLaunchCheck = new JCheckBox();
+        // Icon-Checkbox Styling (Haus-Symbol im Kreis)
+        autoOpenStartPageOnLaunchCheck.setToolTipText("Beim Browserstart automatisch neuen Tab mit der Startseite öffnen");
+        autoOpenStartPageOnLaunchCheck.setFocusPainted(false);
+        autoOpenStartPageOnLaunchCheck.setBorderPainted(false);
+        autoOpenStartPageOnLaunchCheck.setContentAreaFilled(false);
+        autoOpenStartPageOnLaunchCheck.setOpaque(false);
+        autoOpenStartPageOnLaunchCheck.setPreferredSize(new Dimension(28,28));
+        autoOpenStartPageOnLaunchCheck.getAccessibleContext().setAccessibleName("Auto-Startseite aktivieren");
+        // Initial Icons setzen
+        autoOpenStartPageOnLaunchCheck.setIcon(createCircleIcon(new Color(170,170,170), "🏠"));
+        autoOpenStartPageOnLaunchCheck.setSelectedIcon(createCircleIcon(new Color(0,150,0), "🏠"));
+        autoOpenStartPageOnLaunchCheck.addItemListener(e -> {
+            // Bei Änderung neu zeichnen (für High-DPI klare Darstellung)
+            if (autoOpenStartPageOnLaunchCheck.isSelected()) {
+                autoOpenStartPageOnLaunchCheck.setIcon(createCircleIcon(new Color(0,150,0), "🏠"));
+            } else {
+                autoOpenStartPageOnLaunchCheck.setIcon(createCircleIcon(new Color(170,170,170), "🏠"));
+            }
+        });
+
         loginPageField = new JTextField(20);
         passwordChangePageField = new JTextField(20);
         otpField = new JTextField(20);
@@ -314,5 +334,28 @@ public class UserManagementDialog extends JDialog {
             for (UserRegistry.User user : users) comboModel.addElement(user);
         }
         if (comboModel.getSize() > 0) userCombo.setSelectedIndex(0);
+    }
+
+    // Hilfsfunktion zum Erzeugen eines runden Icon-Buttons mit Unicode-Glyph
+    private static ImageIcon createCircleIcon(Color fill, String glyph) {
+        int size = 24; // Durchmesser
+        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        // Hintergrund transparent, Kreis zeichnen
+        g.setColor(fill);
+        g.fillOval(0,0,size-1,size-1);
+        // Glyph in Weiß zentriert
+        g.setColor(Color.WHITE);
+        Font font = new Font("SansSerif", Font.PLAIN, 13);
+        g.setFont(font);
+        FontMetrics fm = g.getFontMetrics();
+        int textW = fm.stringWidth(glyph);
+        int textH = fm.getAscent();
+        int x = (size - textW)/2;
+        int y = (size + textH)/2 - 3;
+        g.drawString(glyph, x, y);
+        g.dispose();
+        return new ImageIcon(img);
     }
 }
