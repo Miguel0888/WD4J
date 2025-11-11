@@ -129,22 +129,8 @@ public class UserManagementDialog extends JDialog {
 
         setContentPane(content);
 
-        // Laden
-        refreshUserList();
-
-        userCombo.addActionListener(e -> {
-            UserRegistry.User u = (UserRegistry.User) userCombo.getSelectedItem();
-            if (u != null) {
-                usernameField.setText(u.getUsername());
-                passwordField.setText(u.getDecryptedPassword());
-                startPageField.setText(u.getStartPage());
-                otpField.setText(u.getOtpSecret());
-
-                LoginConfig lc = u.getLoginConfig();
-                loginPageField.setText(lc.getLoginPage());
-                passwordChangePageField.setText(lc.getPasswordChangePage());
-            }
-        });
+        // Listener zuerst registrieren (wichtig: bevor die ComboModel befüllt wird)
+        userCombo.addActionListener(e -> loadSelectedUser());
 
         newButton.addActionListener(e -> {
             UserRegistry.User newUser = new UserRegistry.User(
@@ -243,12 +229,44 @@ public class UserManagementDialog extends JDialog {
             }
             new OtpTestDialog(this, u).setVisible(true);
         });
+
+        // Liste befüllen und initiale Auswahl laden
+        refreshUserList();
+        loadSelectedUser();
+    }
+
+    private void loadSelectedUser() {
+        UserRegistry.User u = (UserRegistry.User) userCombo.getSelectedItem();
+        if (u == null) {
+            usernameField.setText("");
+            passwordField.setText("");
+            startPageField.setText("");
+            otpField.setText("");
+            loginPageField.setText("");
+            passwordChangePageField.setText("");
+            return;
+        }
+        usernameField.setText(u.getUsername());
+        passwordField.setText(u.getDecryptedPassword());
+        startPageField.setText(u.getStartPage());
+        otpField.setText(u.getOtpSecret());
+
+        LoginConfig lc = u.getLoginConfig();
+        if (lc != null) {
+            loginPageField.setText(lc.getLoginPage());
+            passwordChangePageField.setText(lc.getPasswordChangePage());
+        } else {
+            loginPageField.setText("");
+            passwordChangePageField.setText("");
+        }
     }
 
     private void refreshUserList() {
         comboModel.removeAllElements();
         List<UserRegistry.User> users = UserRegistry.getInstance().getAll();
-        for (UserRegistry.User user : users) comboModel.addElement(user);
+        if (users != null) {
+            for (UserRegistry.User user : users) comboModel.addElement(user);
+        }
         if (comboModel.getSize() > 0) userCombo.setSelectedIndex(0);
     }
 }
