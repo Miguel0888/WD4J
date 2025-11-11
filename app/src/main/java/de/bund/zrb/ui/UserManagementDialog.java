@@ -51,6 +51,7 @@ public class UserManagementDialog extends JDialog {
         JButton saveButton = new JButton("Speichern");
         JButton newButton = new JButton("Neu");
         JButton deleteButton = new JButton("Löschen");
+        JButton okButton = new JButton("OK");
 
         JPanel content = new JPanel(new GridBagLayout());
         content.setBorder(new EmptyBorder(12, 12, 12, 12));
@@ -110,12 +111,12 @@ public class UserManagementDialog extends JDialog {
         gbc.gridx = 0; gbc.gridy = row;
         content.add(new JLabel("Startseite:"), gbc);
         gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
-        content.add(startPageField, gbc);
-
-        // Auto-Start-Navigation
-        row++;
-        gbc.gridx = 1; gbc.gridy = row; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
-        content.add(autoOpenStartPageOnLaunchCheck, gbc);
+        JPanel startPagePanel = new JPanel(new BorderLayout(5,0));
+        startPagePanel.add(startPageField, BorderLayout.CENTER);
+        autoOpenStartPageOnLaunchCheck.setText("");
+        autoOpenStartPageOnLaunchCheck.setToolTipText("Beim Browserstart automatisch neuen Tab mit der Startseite öffnen");
+        startPagePanel.add(autoOpenStartPageOnLaunchCheck, BorderLayout.EAST);
+        content.add(startPagePanel, gbc);
 
         // Login-Seite (aus LoginConfig)
         row++;
@@ -159,6 +160,8 @@ public class UserManagementDialog extends JDialog {
         // Buttons
         row++;
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        // OK ganz links: zuerst hinzufügen, aber FlowLayout RIGHT richtet rechts aus – daher eigene Reihenfolge
+        btns.add(okButton);
         btns.add(newButton);
         btns.add(deleteButton);
         btns.add(saveButton);
@@ -174,27 +177,29 @@ public class UserManagementDialog extends JDialog {
             UserRegistry.User newUser = new UserRegistry.User(
                     "Neuer Benutzer", "", "", "", new LoginConfig()
             );
+            newUser.setAutoOpenStartPageOnLaunch(true); // Default aktiv
             UserRegistry.getInstance().addUser(newUser);
             refreshUserList();
             userCombo.setSelectedItem(newUser);
         });
 
-        saveButton.addActionListener(e -> {
+        // Gemeinsame Speicher-Logik extrahiert
+        Runnable saveSelectedUser = () -> {
             UserRegistry.User u = (UserRegistry.User) userCombo.getSelectedItem();
             if (u == null) return;
-
             u.setUsername(usernameField.getText().trim());
             u.setEncryptedPassword(WindowsCryptoUtil.encrypt(new String(passwordField.getPassword())));
             u.setStartPage(startPageField.getText().trim());
             u.setAutoOpenStartPageOnLaunch(autoOpenStartPageOnLaunchCheck.isSelected());
             u.setOtpSecret(otpField.getText().trim());
-
             LoginConfig lc = u.getLoginConfig();
             lc.setLoginPage(loginPageField.getText().trim());
             lc.setPasswordChangePage(passwordChangePageField.getText().trim());
-
             UserRegistry.getInstance().save();
-        });
+        };
+
+        saveButton.addActionListener(e -> saveSelectedUser.run());
+        okButton.addActionListener(e -> { saveSelectedUser.run(); dispose(); });
 
         deleteButton.addActionListener(e -> {
             UserRegistry.User u = (UserRegistry.User) userCombo.getSelectedItem();
