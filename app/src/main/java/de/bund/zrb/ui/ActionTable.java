@@ -92,19 +92,18 @@ public class ActionTable extends JTable {
         columnModel.getColumn(0).setCellEditor(new DefaultCellEditor(new JCheckBox()));
         columnModel.getColumn(0).setCellRenderer(getDefaultRenderer(Boolean.class));
 
-        // Typen-Dropdown (GIVEN/WHEN/THEN)
-        JComboBox<TestAction.ActionType> typeComboBox = new JComboBox<>(TestAction.ActionType.values());
-        columnModel.getColumn(1).setCellEditor(new DefaultCellEditor(typeComboBox));
-
-        // Aktionen DropDown – neue Aktionen ergänzt
+        // Aktionen DropDown
         JComboBox<String> actionComboBox =
                 new JComboBox<>(new String[]{ "click", "input", "select", "check", "radio", "screenshot" });
-        columnModel.getColumn(2).setCellEditor(new DefaultCellEditor(actionComboBox));
+        columnModel.getColumn(1).setCellEditor(new DefaultCellEditor(actionComboBox));
 
-        // Wert-Editor: erlaubt Freitext und bietet „OTP“ zur Auswahl
+        // Locator-Typ Dropdown (Spalte 2)
+        // Wir lassen es beim freien Text-Key via TableModel, sofern separate Editor nicht nötig ist.
+
+        // Wert-Editor: erlaubt Freitext und bietet „OTP“ zur Auswahl (Spalte 4)
         JComboBox<String> valueComboBox = new JComboBox<>(new String[]{ "OTP" });
         valueComboBox.setEditable(true);
-        columnModel.getColumn(5).setCellEditor(new DefaultCellEditor(valueComboBox));
+        columnModel.getColumn(4).setCellEditor(new DefaultCellEditor(valueComboBox));
 
         // 🛠️ MouseListener für Klicks im Header hinzufügen
         JTableHeader header = getTableHeader();

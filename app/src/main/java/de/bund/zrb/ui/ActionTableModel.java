@@ -24,7 +24,6 @@ public class ActionTableModel extends AbstractTableModel {
     public ActionTableModel() {
         // 🔩 Erste festen Spalten
         addColumn("⚙");
-        addColumn("Typ");
         addColumn("Aktion");
         addColumn("Locator-Typ");
         addColumn("Selektor");
@@ -92,7 +91,6 @@ public class ActionTableModel extends AbstractTableModel {
     @Override
     public Class<?> getColumnClass(int columnIndex) {
         if (columnIndex == 0) return Boolean.class;
-        if (columnIndex == 1) return TestAction.ActionType.class;
         return String.class;
     }
 
@@ -101,15 +99,14 @@ public class ActionTableModel extends AbstractTableModel {
         TestAction action = actions.get(rowIndex);
         switch (columnIndex) {
             case 0: return action.isSelected();
-            case 1: return action.getType();
-            case 2: return action.getAction();
-            case 3: return action.getLocatorType() != null ? action.getLocatorType().getKey() : "";
-            case 4: return action.getSelectedSelector();
-            case 5: return action.getValue();
-            case 6: return action.getLocators().getOrDefault("xpath", "");
-            case 7: return action.getLocators().getOrDefault("css", "");
+            case 1: return action.getAction();
+            case 2: return action.getLocatorType() != null ? action.getLocatorType().getKey() : "";
+            case 3: return action.getSelectedSelector();
+            case 4: return action.getValue();
+            case 5: return action.getLocators().getOrDefault("xpath", "");
+            case 6: return action.getLocators().getOrDefault("css", "");
             default:
-                int mappingStart = 8;
+                int mappingStart = 7;
                 int mappingEnd = mappingStart + FIXED_COLUMNS.size();
                 if (columnIndex >= mappingStart && columnIndex < mappingEnd) {
                     String key = getFixedKeyByIndex(columnIndex - mappingStart);
@@ -132,19 +129,18 @@ public class ActionTableModel extends AbstractTableModel {
         TestAction action = actions.get(rowIndex);
         switch (columnIndex) {
             case 0: action.setSelected((Boolean) aValue); break;
-            case 1: action.setType((TestAction.ActionType) aValue); break;
-            case 2: action.setAction((String) aValue); break;
-            case 3:
+            case 1: action.setAction((String) aValue); break;
+            case 2:
                 LocatorType t =
                     LocatorType.fromKey(String.valueOf(aValue));
                 action.setLocatorType(t);
                 break;
-            case 4: action.setSelectedSelector((String) aValue); break;
-            case 5: action.setValue((String) aValue); break;
-            case 6: action.getLocators().put("xpath", (String) aValue); break;
-            case 7: action.getLocators().put("css", (String) aValue); break;
+            case 3: action.setSelectedSelector((String) aValue); break;
+            case 4: action.setValue((String) aValue); break;
+            case 5: action.getLocators().put("xpath", (String) aValue); break;
+            case 6: action.getLocators().put("css", (String) aValue); break;
             default:
-                int mappingStart = 8;
+                int mappingStart = 7;
                 int mappingEnd = mappingStart + FIXED_COLUMNS.size();
                 if (columnIndex >= mappingStart && columnIndex < mappingEnd) {
                     String key = getFixedKeyByIndex(columnIndex - mappingStart);
@@ -177,6 +173,8 @@ public class ActionTableModel extends AbstractTableModel {
     }
 
     public void addAction(TestAction action) {
+        // Immer auf WHEN setzen
+        action.setType(TestAction.ActionType.WHEN);
         actions.add(action);
         updateColumnNames();
         fireTableRowsInserted(actions.size() - 1, actions.size() - 1);
@@ -190,12 +188,18 @@ public class ActionTableModel extends AbstractTableModel {
 
     public void setRowData(List<TestAction> when) {
         actions.clear();
-        actions.addAll(when);
+        if (when != null) {
+            for (TestAction a : when) {
+                a.setType(TestAction.ActionType.WHEN);
+                actions.add(a);
+            }
+        }
         updateColumnNames();
         fireTableDataChanged();
     }
 
     public void insertActionAt(int index, TestAction action) {
+        action.setType(TestAction.ActionType.WHEN);
         actions.add(index, action);
         updateColumnNames();
         fireTableRowsInserted(index, index);
