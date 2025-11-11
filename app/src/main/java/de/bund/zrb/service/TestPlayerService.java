@@ -214,6 +214,17 @@ public class TestPlayerService {
             return caseLog; // do not run children/then
         }
 
+        // Execute Precondition references (if any) that are attached to Root/Suite/Case.
+        // Preconditions run in the Case-scope and may use variables set by BeforeEach/Before.
+        try {
+            executePreconditionsForCase(node, testCase, caseLog);
+        } catch (Exception ex) {
+            caseLog.setStatus(false);
+            caseLog.setError("Precondition execution failed: " + safeMsg(ex));
+            drawerRef.updateSuiteStatus(node);
+            return caseLog; // abort case execution
+        }
+
         String sub = (testCase.getName() != null) ? testCase.getName().trim() : "";
         OverlayBridge.setSubtitle(sub);
 
@@ -230,53 +241,91 @@ public class TestPlayerService {
         return caseLog;
     }
 
-    private void initSuiteSymbols(TestSuite suite) throws Exception {
-        RootNode rootModel = TestRegistry.getInstance().getRoot();
-        if (!rootBeforeAllDone) {
-            Map<String,String> evaluated = evaluateExpressionMapNow(
-                    rootModel.getBeforeAll(),
-                    rootModel.getBeforeAllEnabled(),
-                    runtimeCtx);
-            runtimeCtx.fillRootVarsFromMap(evaluated);
-            runtimeCtx.fillRootTemplatesFromMap(filterEnabled(rootModel.getTemplates(), rootModel.getTemplatesEnabled()));
-            rootBeforeAllDone = true;
+    /**
+     * Resolve and execute Precondition references attached to Root/Suite/Case.
+     * Each Precondition may contain Given entries (Precondtion) and action steps (TestAction).
+     * They are executed in the current case scope so they can use the same variables/templates.
+     */
+    private void executePreconditionsForCase(TestNode caseNode, TestCase testCase, SuiteLog parentLog) throws Exception {
+        if (testCase == null) return;
+
+        // Collect Precondition references in order: Root -> Suite -> Case
+        java.util.List<Precondtion> refs = new java.util.ArrayList<>();
+        RootNode root = TestRegistry.getInstance().getRoot();
+        if (root != null && root.getPreconditions() != null) refs.addAll(root.getPreconditions());
+
+        TestSuite suite = null;
+        if (caseNode.getParent() instanceof TestNode) {
+            Object parentModel = ((TestNode) caseNode.getParent()).getModelRef();
+            if (parentModel instanceof TestSuite) suite = (TestSuite) parentModel;
         }
-        if (suite != null && suite.getId() != null && !suiteBeforeAllDone.contains(suite.getId())) {
-            Map<String,String> suiteAllEval = evaluateExpressionMapNow(
-                    suite.getBeforeAll(),
-                    suite.getBeforeAllEnabled(),
-                    runtimeCtx);
-            runtimeCtx.fillSuiteVarsFromMap(suiteAllEval);
-            runtimeCtx.fillSuiteTemplatesFromMap(filterEnabled(suite.getTemplates(), suite.getTemplatesEnabled()));
-            suiteBeforeAllDone.add(suite.getId());
-        }
-    }
+        if (suite != null && suite.getPreconditions() != null) refs.addAll(suite.getPreconditions());
 
-    private void initCaseSymbols(TestNode node, TestCase testCase) throws Exception {
-        TestSuite parentSuite = (TestSuite) ((TestNode) node.getParent()).getModelRef();
-        RootNode rootModel = TestRegistry.getInstance().getRoot();
+        if (testCase.getPreconditions() != null) refs.addAll(testCase.getPreconditions());
 
-        // Reihenfolge: Root.BeforeEach -> Suite.BeforeEach -> Case.Before
-        java.util.List<ThrowingRunnable> beforeChain = new java.util.ArrayList<>();
-        beforeChain.add(() -> runtimeCtx.fillCaseVarsFromMap(
-                evaluateExpressionMapNow(rootModel.getBeforeEach(), rootModel.getBeforeEachEnabled(), runtimeCtx)));
-        beforeChain.add(() -> runtimeCtx.fillCaseVarsFromMap(
-                evaluateExpressionMapNow(parentSuite != null ? parentSuite.getBeforeEach() : null,
-                        parentSuite != null ? parentSuite.getBeforeEachEnabled() : null,
-                        runtimeCtx)));
-        beforeChain.add(() -> runtimeCtx.fillCaseVarsFromMap(
-                evaluateExpressionMapNow(testCase.getBefore(), testCase.getBeforeEnabled(), runtimeCtx)));
+        if (refs.isEmpty()) return;
 
-        for (ThrowingRunnable r : beforeChain) {
-            runUnchecked(r);
-            // Wartezeit nach jeder Gruppe (Root/Suite/Case)
-            Integer waitCfg = SettingsService.getInstance().get("beforeEach.afterWaitMs", Integer.class);
-            long w = (waitCfg != null) ? waitCfg.longValue() : 0L;
-            if (w > 0) {
-                try { Thread.sleep(w); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+        SuiteLog preLog = new SuiteLog(PRECONDITION_PREFIX.trim());
+        preLog.setParent(parentLog);
+        logger.append(preLog);
+
+        // For each precondition reference, try to resolve to a Precondition object
+        for (Precondtion ref : refs) {
+            if (ref == null) continue;
+            if (!TYPE_PRECONDITION_REF.equals(ref.getType())) {
+                // Treat as a normal Given entry
+                executeGivenList(java.util.Collections.singletonList(ref), preLog, PRECONDITION_PREFIX);
+                continue;
+            }
+
+            String id = parseIdFromValue(ref.getValue());
+            if (id == null || id.trim().isEmpty()) {
+                StepLog err = new StepLog(PRECONDITION_PREFIX, "Unbekannte Precondition-Referenz (keine id)");
+                err.setStatus(false);
+                err.setParent(preLog);
+                logger.append(err);
+                continue;
+            }
+
+            Precondition p = PreconditionRegistry.getInstance().getById(id);
+            String displayName = (p != null) ? (p.getName() != null ? p.getName() : id) : id;
+
+            // 1) Execute 'given' entries of the Precondition (these are Precondtion items)
+            if (p != null && p.getGiven() != null && !p.getGiven().isEmpty()) {
+                executeGivenList(p.getGiven(), preLog, PRECONDITION_PREFIX + displayName);
+            }
+
+            // 2) Execute action steps of the Precondition
+            if (p != null && p.getActions() != null && !p.getActions().isEmpty()) {
+                for (TestAction pa : p.getActions()) {
+                    StepLog stepLog = new StepLog("PRECOND", buildStepText(pa));
+                    try {
+                        // Ensure username in scope if action has user or fallback
+                        String effectiveUser = (pa.getUser() != null && pa.getUser().trim().length() > 0)
+                                ? pa.getUser().trim() : resolveUserForTestCase(caseNode);
+                        if (effectiveUser != null && effectiveUser.trim().length() > 0) {
+                            runtimeCtx.setCaseVar("username", effectiveUser.trim());
+                        }
+                        boolean ok = playSingleAction(pa, stepLog);
+                        stepLog.setStatus(ok);
+                        if (!ok) stepLog.setError("Precondition action failed");
+                    } catch (Exception ex) {
+                        stepLog.setStatus(false);
+                        stepLog.setError(safeMsg(ex));
+                    }
+                    stepLog.setParent(preLog);
+                    logger.append(stepLog);
+                }
+            } else {
+                // If Precondition object not found, log a warning
+                if (p == null) {
+                    StepLog warn = new StepLog(PRECONDITION_PREFIX, "Precondition not found: " + id);
+                    warn.setStatus(false);
+                    warn.setParent(preLog);
+                    logger.append(warn);
+                }
             }
         }
-        runtimeCtx.fillCaseTemplatesFromMap(filterEnabled(testCase.getTemplates(), testCase.getTemplatesEnabled()));
     }
 
     private LogComponent executeSuiteNode(TestNode node, TestSuite suite) {
@@ -1163,4 +1212,53 @@ public class TestPlayerService {
     private String safeMsg(Throwable t) { return (t == null) ? "" : (t.getMessage() != null ? t.getMessage() : t.toString()); }
     // Test-Hook: Initialisiert Case-Scope ohne vollständige Ausführung.
     void _testInitCaseScope() { runtimeCtx.enterCase(); }
+
+    private void initSuiteSymbols(TestSuite suite) throws Exception {
+        RootNode rootModel = TestRegistry.getInstance().getRoot();
+        if (!rootBeforeAllDone) {
+            Map<String,String> evaluated = evaluateExpressionMapNow(
+                    rootModel.getBeforeAll(),
+                    rootModel.getBeforeAllEnabled(),
+                    runtimeCtx);
+            runtimeCtx.fillRootVarsFromMap(evaluated);
+            runtimeCtx.fillRootTemplatesFromMap(filterEnabled(rootModel.getTemplates(), rootModel.getTemplatesEnabled()));
+            rootBeforeAllDone = true;
+        }
+        if (suite != null && suite.getId() != null && !suiteBeforeAllDone.contains(suite.getId())) {
+            Map<String,String> suiteAllEval = evaluateExpressionMapNow(
+                    suite.getBeforeAll(),
+                    suite.getBeforeAllEnabled(),
+                    runtimeCtx);
+            runtimeCtx.fillSuiteVarsFromMap(suiteAllEval);
+            runtimeCtx.fillSuiteTemplatesFromMap(filterEnabled(suite.getTemplates(), suite.getTemplatesEnabled()));
+            suiteBeforeAllDone.add(suite.getId());
+        }
+    }
+
+    private void initCaseSymbols(TestNode node, TestCase testCase) throws Exception {
+        TestSuite parentSuite = (TestSuite) ((TestNode) node.getParent()).getModelRef();
+        RootNode rootModel = TestRegistry.getInstance().getRoot();
+
+        // Reihenfolge: Root.BeforeEach -> Suite.BeforeEach -> Case.Before
+        java.util.List<ThrowingRunnable> beforeChain = new java.util.ArrayList<>();
+        beforeChain.add(() -> runtimeCtx.fillCaseVarsFromMap(
+                evaluateExpressionMapNow(rootModel.getBeforeEach(), rootModel.getBeforeEachEnabled(), runtimeCtx)));
+        beforeChain.add(() -> runtimeCtx.fillCaseVarsFromMap(
+                evaluateExpressionMapNow(parentSuite != null ? parentSuite.getBeforeEach() : null,
+                        parentSuite != null ? parentSuite.getBeforeEachEnabled() : null,
+                        runtimeCtx)));
+        beforeChain.add(() -> runtimeCtx.fillCaseVarsFromMap(
+                evaluateExpressionMapNow(testCase.getBefore(), testCase.getBeforeEnabled(), runtimeCtx)));
+
+        for (ThrowingRunnable r : beforeChain) {
+            runUnchecked(r);
+            // Wartezeit nach jeder Gruppe (Root/Suite/Case)
+            Integer waitCfg = SettingsService.getInstance().get("beforeEach.afterWaitMs", Integer.class);
+            long w = (waitCfg != null) ? waitCfg.longValue() : 0L;
+            if (w > 0) {
+                try { Thread.sleep(w); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+            }
+        }
+        runtimeCtx.fillCaseTemplatesFromMap(filterEnabled(testCase.getTemplates(), testCase.getTemplatesEnabled()));
+    }
 }
