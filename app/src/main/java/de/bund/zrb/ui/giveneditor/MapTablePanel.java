@@ -6,6 +6,7 @@ import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.runtime.ExpressionRegistryImpl;
 import de.bund.zrb.ui.celleditors.DescribedItem;
 import de.bund.zrb.ui.celleditors.ExpressionCellEditor;
+import de.bund.zrb.ui.components.RoundIconButton;
 
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
@@ -244,16 +245,8 @@ public class MapTablePanel extends JPanel {
 
     /** Erzeuge einen blauen Hilfe-Button mit verständlicher Erläuterung (Cucumber-artig). */
     private JButton buildHelpButton(final String scopeName) {
-        JButton b = new JButton("ℹ");
-        b.setToolTipText("Was bedeuten 'Before…' und 'Templates'?");
-        b.setForeground(Color.WHITE);
-        b.setBackground(new Color(0x1E88E5)); // Blau
-        b.setFocusPainted(false);
-        b.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0x1565C0)),
-                BorderFactory.createEmptyBorder(2, 8, 2, 8)
-        ));
-
+        RoundIconButton b = new RoundIconButton("?");
+        b.setToolTipText("Hilfe zu Before/Each/Templates anzeigen");
         b.addActionListener(e -> {
             String html = buildHelpHtml(scopeName);
             JOptionPane.showMessageDialog(
@@ -266,61 +259,70 @@ public class MapTablePanel extends JPanel {
         return b;
     }
 
-    /** Baue den erklärenden Text abhängig vom Scope-Namen. */
     private String buildHelpHtml(String scopeName) {
-        String scope = (scopeName == null) ? "" : scopeName.trim().toLowerCase();
-        // Wir zeigen für alle Scopes die vollständige Erklärung; die Beispiele nennen Root/Suite/Case explizit.
-
-        StringBuilder sb = new StringBuilder(1024);
+        StringBuilder sb = new StringBuilder(1600);
         sb.append("<html><body style='font-family:sans-serif; padding:8px;'>");
-        sb.append("<h3 style='margin-top:0'>Wie lese ich diese Tabellen?</h3>");
+        sb.append("<h2 style='margin-top:0'>" + scopeName + " – Hilfe</h2>");
+        sb.append("<p>In diesem Bereich verwaltest du <strong>Testdaten</strong> und <strong>Expressions</strong> in verschiedenen Auswertungsphasen. Die Struktur ist an Behavior-Driven-Ansätze angelehnt.</p>");
 
-        sb.append("<p><b>Idee (angelehnt an Cucumber):</b> ")
-          .append("Hier verwaltest du Testdaten und Bausteine in drei Ebenen – <i>Root</i>, <i>Suite</i> und <i>Case</i>. ")
-          .append("Die Werte werden je nach Tab zu unterschiedlichen Zeitpunkten berechnet (\"evaluiert\").</p>");
+        sb.append("<h3>1. Ebenen & Reihenfolge</h3>");
+        sb.append("<table border='0' cellpadding='4' cellspacing='0' style='border-collapse:collapse'>");
+        sb.append(row("Root → BeforeAll", "Einmal zu Laufbeginn (global)."));
+        sb.append(row("Root → BeforeEach", "Vor <em>jedem</em> TestCase (global frisch)."));
+        sb.append(row("Suite → BeforeAll", "Einmal je Suite (suite-spezifisch)."));
+        sb.append(row("Suite → BeforeEach", "Vor jedem Case der Suite (suite-frisch)."));
+        sb.append(row("Case → Before", "Einmal direkt vor dem Case (case-spezifisch)."));
+        sb.append("</table>");
+        sb.append("<p style='color:#555'>Shadow-Reihenfolge beim Zugriff: <code>Case → Suite → Root</code>.</p>");
 
-        sb.append("<h4>Tabs & Auswertungszeitpunkte</h4>");
+        sb.append("<h3>2. Variablen vs. Templates</h3>");
         sb.append("<ul>");
-        sb.append("<li><b>Root → BeforeAll:</b> wird genau <u>einmal beim ersten Suite-Start</u> evaluiert. ")
-          .append("Typisch für dauerhafte Dinge wie Basis-URLs, Mandanten, Feature-Flags.</li>");
-        sb.append("<li><b>Root → BeforeEach:</b> wird <u>vor jedem TestCase</u> evaluiert. ")
-          .append("Gut für Werte, die pro Testlauf frisch sein sollen (z. B. Datum, zufällige IDs).</li>");
-        sb.append("<li><b>Suite → BeforeAll:</b> wird <u>einmal pro Suite</u> evaluiert. ")
-          .append("Nutze es für suite-spezifische Konstanten.</li>");
-        sb.append("<li><b>Suite → BeforeEach:</b> wird <u>vor jedem Case der Suite</u> evaluiert. ")
-          .append("Hier z. B. Logins oder vorbereitende Daten für die Suite.</li>");
-        sb.append("<li><b>Case → Before:</b> existiert nur auf Case-Ebene und wird <u>einmal zu Beginn des Cases</u> evaluiert. ")
-          .append("Damit überschreibst oder ergänzt du Werte gezielt für diesen einen Case.</li>");
+        sb.append(li("<b>Variablen</b>", "werden zum jeweiligen Before-Zeitpunkt ausgewertet und als String abgelegt. Zugriff in Actions via <code>{{name}}</code>."));
+        sb.append(li("<b>Templates</b>", "werden <em>lazy</em> erst bei Nutzung in einer Action berechnet. Ideal für zeit- oder kontextabhängige Werte (OTP, Timestamp, dynamische IDs)."));
         sb.append("</ul>");
 
-        sb.append("<h4>Templates (lazy)</h4>");
-        sb.append("<p><b>Templates</b> sind wie Funktionsbausteine: Sie werden <i>nicht sofort</i> berechnet, ")
-          .append("sondern erst <u>im Moment der Verwendung</u> in einer Action (lazy). ")
-          .append("So kannst du zeitkritische Dinge genau dann erzeugen, wenn sie gebraucht werden.</p>");
-        sb.append("<p><b>Beispiel:</b> Das Template <code>OTP</code> könnte so definiert sein: ")
-          .append("<code>{{OTP({{user}})}}</code>. ")
-          .append("Wenn eine Action das Template nutzt (z. B. beim Button-Klick), wird der OTP-Code ")
-          .append("erst dann mit dem <i>aktuellen</i> User berechnet.</p>");
+        sb.append("<h3>3. Beispiele</h3>");
+        sb.append("<pre style='background:#f5f5f5;padding:8px;border:1px solid #ddd;'>" + escape("Root.BeforeAll: baseUrl = https://test/app\nRoot.Templates: OTP = {{otp({{user}})}}\nSuite.BeforeEach: loginToken = {{fetchLoginToken({{user}})}}\nCase.Before: documentId = {{generateDocId()}}") + "</pre>");
+        sb.append("<p><b>In einer Action:</b> Value = <code>{{loginToken}}</code> oder Auswahl des Templates <code>OTP</code> → ersetzt automatisch den Ausdruck.</p>");
 
-        sb.append("<h4>Variablen vs. Templates</h4>");
+        sb.append("<h3>4. Gültigkeit & Überschreiben</h3>");
+        sb.append("<p>Definierst du einen Namen mehrfach (z. B. einmal in Root.BeforeAll und erneut in Case.Before), gewinnt die <em>nächstliegende</em> Ebene (Case vor Suite vor Root)." );
+        sb.append("<h3>5. Best Practices</h3>");
         sb.append("<ul>");
-        sb.append("<li><b>Variablen</b> (in <i>Before…</i> Tabellen) werden zum jeweiligen Zeitpunkt evaluiert und als fester String abgelegt. ")
-          .append("In Actions greifst du mit <code>{{variablenName}}</code> darauf zu.</li>");
-        sb.append("<li><b>Templates</b> bleiben Ausdrücke und werden bei Benutzung aufgelöst. ")
-          .append("In Actions wählst du das Template im Dropdown, und der vollständige Ausdruck wird in das Value-Feld übernommen.</li>");
+        sb.append(li("Konstanten", "in Root.BeforeAll: Basis-URLs, statische Feature-Flags."));
+        sb.append(li("Schnell veraltende Werte", "in Root/Suite BeforeEach: Zeitstempel, Session-Tokens."));
+        sb.append(li("Case-spezifische Overrides", "in Case.Before: gezielte Testszenario-Isolation."));
+        sb.append(li("Komplexe dynamische Konstruktion", "als Templates (lazy)."));
         sb.append("</ul>");
 
-        sb.append("<h4>Auflösung in der Laufzeit</h4>");
-        sb.append("<p>Die Laufzeit löst Werte in folgender Reihenfolge auf (Schatten-Prinzip): ")
-          .append("<i>Case → Suite → Root</i>. ")
-          .append("So kann ein Case einen Wert aus Suite/Root überschreiben.</p>");
+        sb.append("<h3>6. Fehlerquellen</h3>");
+        sb.append("<ul>");
+        sb.append(li("Namens-Kollisionen", "führen zu unerwarteten Überschreibungen – eindeutige Präfixe nutzen (z. B. <code>suite_</code>, <code>case_</code>)."));
+        sb.append(li("Zu frühe Auswertung", "wenn dynamische Werte fälschlich in BeforeAll stehen – dann Template oder BeforeEach nutzen."));
+        sb.append(li("Unnötige Templates", "für einfache Konstanten – lieber direkte Variablen nehmen."));
+        sb.append("</ul>");
 
-        sb.append("<p style='margin-top:10px;color:#555'><i>Hinweis:</i> Details zur Auswertung findest du im Player (")
-          .append("<code>TestPlayerService</code>), dort wird z. B. <i>Root.BeforeAll</i> nur ein einziges Mal initialisiert, ")
-          .append("während <i>BeforeEach</i> je TestCase frisch berechnet wird.</p>");
+        sb.append("<h3>7. Laufzeitverhalten</h3>");
+        sb.append("<p>Die Engine initialisiert einmal Root.BeforeAll, dann pro Case Root.BeforeEach, Suite.BeforeEach und Case.Before. Templates expandieren bei Nutzung in WHEN/THEN-Actions.</p>");
 
+        sb.append("<p style='margin-top:12px;color:#666'><i>Siehe auch TestPlayerService für die genaue Reihenfolge und Scope-Vererbung.</i></p>");
         sb.append("</body></html>");
         return sb.toString();
+    }
+
+    // Hilfsfunktionen für strukturierten HTML-Aufbau
+    private String row(String left, String right) {
+        return "<tr><td style='padding:2px 6px;font-weight:bold;white-space:nowrap;'>"
+                + escape(left) + "</td><td style='padding:2px 6px;'>" + escape(right) + "</td></tr>";
+    }
+    private String li(String left, String right) {
+        return "<li style='margin-bottom:4px'><b>" + escape(left) + ":</b> " + escape(right) + "</li>";
+    }
+    private String escape(String text) {
+        if (text == null) return "";
+        return text.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
     }
 
     private JEditorPane wrapAsHtmlPane(String html) {

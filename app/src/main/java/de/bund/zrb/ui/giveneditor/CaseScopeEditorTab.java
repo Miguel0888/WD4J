@@ -4,6 +4,8 @@ import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
+import de.bund.zrb.ui.components.RoundIconButton;
 import de.bund.zrb.ui.tabs.GivenListEditorTab;
 import de.bund.zrb.ui.tabs.PreconditionListValidator;
 
@@ -24,7 +26,7 @@ import java.util.List;
 public class CaseScopeEditorTab extends JPanel {
 
     private final TestCase testCase;
-    private final JTabbedPane innerTabs = new JTabbedPane();
+    private final JTabbedPaneWithHelp innerTabs = new JTabbedPaneWithHelp();
 
     public CaseScopeEditorTab(TestCase testCase) {
         super(new BorderLayout());
@@ -95,6 +97,7 @@ public class CaseScopeEditorTab extends JPanel {
                         "After", null, null));
 
         add(innerTabs, BorderLayout.CENTER);
+        installHelpButton();
 
         if (!preconditionsValid) {
             disableTabsFromIndex(1);
@@ -110,5 +113,43 @@ public class CaseScopeEditorTab extends JPanel {
         for (int i = startIndex; i < innerTabs.getTabCount(); i++) {
             innerTabs.setEnabledAt(i, false);
         }
+    }
+
+    private void installHelpButton() {
+        RoundIconButton help = new RoundIconButton("?");
+        help.setToolTipText("Hilfe zum Case-Scope anzeigen");
+        help.addActionListener(e -> {
+            String html = buildCaseHelpHtml();
+            JOptionPane.showMessageDialog(
+                    this,
+                    new JScrollPane(wrapHtml(html)),
+                    "Hilfe – Case-Scope",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+        innerTabs.setHelpComponent(help);
+    }
+
+    private String buildCaseHelpHtml() {
+        StringBuilder sb = new StringBuilder(1200);
+        sb.append("<html><body style='font-family:sans-serif;padding:8px;'>");
+        sb.append("<h3 style='margin-top:0'>Case-Scope</h3>");
+        sb.append("<ul>");
+        sb.append("<li><b>Preconditions</b>: werden vor den WHEN-Schritten ausgeführt und erben den Variablen-Scope.</li>");
+        sb.append("<li><b>Before</b>: Variablen für diesen Case (einmalig, vor Start des Cases).</li>");
+        sb.append("<li><b>Templates</b>: lazy Expressions, die erst bei Nutzung expandieren (z. B. OTP, Zeitstempel).</li>");
+        sb.append("<li><b>After</b>: Assertions/Checks nach dem Case (mit Validator-Typ/Value).</li>");
+        sb.append("</ul>");
+        sb.append("<p>Shadow-Reihenfolge beim Zugriff: <code>Case → Suite → Root</code>. Case-Werte überschreiben Suite/Root.</p>");
+        sb.append("</body></html>");
+        return sb.toString();
+    }
+
+    private JEditorPane wrapHtml(String html) {
+        JEditorPane pane = new JEditorPane("text/html", html);
+        pane.setEditable(false);
+        pane.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+        pane.setCaretPosition(0);
+        return pane;
     }
 }

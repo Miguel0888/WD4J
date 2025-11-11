@@ -4,6 +4,8 @@ import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.RootNode;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
+import de.bund.zrb.ui.components.RoundIconButton;
 import de.bund.zrb.ui.tabs.GivenListEditorTab;
 import de.bund.zrb.ui.tabs.PreconditionListValidator;
 
@@ -39,7 +41,7 @@ import java.util.List;
 public class RootScopeEditorTab extends JPanel {
 
     private final RootNode root;
-    private final JTabbedPane innerTabs = new JTabbedPane();
+    private final JTabbedPaneWithHelp innerTabs = new JTabbedPaneWithHelp();
 
     public RootScopeEditorTab(RootNode root) {
         super(new BorderLayout());
@@ -129,6 +131,7 @@ public class RootScopeEditorTab extends JPanel {
                         "AfterEach", pinnedKey, pinnedValue));
 
         add(innerTabs, BorderLayout.CENTER);
+        installHelpButton();
 
         if (!preconditionsValid) {
             disableTabsFromIndex(1);
@@ -140,6 +143,45 @@ public class RootScopeEditorTab extends JPanel {
         for (int i = startIndex; i < innerTabs.getTabCount(); i++) {
             innerTabs.setEnabledAt(i, false);
         }
+    }
+
+    private void installHelpButton() {
+        RoundIconButton help = new RoundIconButton("?");
+        help.setToolTipText("Hilfe zum Root-Scope anzeigen");
+        help.addActionListener(e -> {
+            String html = buildRootHelpHtml();
+            JOptionPane.showMessageDialog(
+                    this,
+                    new JScrollPane(wrapHtml(html)),
+                    "Hilfe – Root-Scope",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+        innerTabs.setHelpComponent(help);
+    }
+
+    private String buildRootHelpHtml() {
+        StringBuilder sb = new StringBuilder(1200);
+        sb.append("<html><body style='font-family:sans-serif;padding:8px;'>");
+        sb.append("<h3 style='margin-top:0'>Root-Scope</h3>");
+        sb.append("<ul>");
+        sb.append("<li><b>Preconditions</b>: globale Vorbedingungen (vor WHEN), gelten für alle Suites/Cases.</li>");
+        sb.append("<li><b>BeforeAll</b>: einmal zu Laufbeginn (globale Konstanten).</li>");
+        sb.append("<li><b>BeforeEach</b>: vor jedem Case einmal (globale, frische Werte je Case).</li>");
+        sb.append("<li><b>Templates</b>: lazy Expressions für globale Wiederverwendung (z. B. OTP).</li>");
+        sb.append("<li><b>AfterEach</b>: Assertions nach jedem Case (Validator-Typ/Value).</li>");
+        sb.append("</ul>");
+        sb.append("<p>Shadow-Reihenfolge: <code>Case → Suite → Root</code>. Root ist die unterste Ebene.</p>");
+        sb.append("</body></html>");
+        return sb.toString();
+    }
+
+    private JEditorPane wrapHtml(String html) {
+        JEditorPane pane = new JEditorPane("text/html", html);
+        pane.setEditable(false);
+        pane.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+        pane.setCaretPosition(0);
+        return pane;
     }
 
 }

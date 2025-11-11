@@ -4,6 +4,8 @@ import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
+import de.bund.zrb.ui.components.RoundIconButton;
 import de.bund.zrb.ui.tabs.GivenListEditorTab;
 import de.bund.zrb.ui.tabs.PreconditionListValidator;
 
@@ -26,7 +28,7 @@ import java.util.List;
 public class SuiteScopeEditorTab extends JPanel {
 
     private final TestSuite suite;
-    private final JTabbedPane innerTabs = new JTabbedPane();
+    private final JTabbedPaneWithHelp innerTabs = new JTabbedPaneWithHelp();
 
     public SuiteScopeEditorTab(TestSuite suite) {
         super(new BorderLayout());
@@ -108,6 +110,7 @@ public class SuiteScopeEditorTab extends JPanel {
                         "AfterAll", null, null));
 
         add(innerTabs, BorderLayout.CENTER);
+        installHelpButton();
 
         if (!preconditionsValid) {
             disableTabsFromIndex(1);
@@ -123,5 +126,44 @@ public class SuiteScopeEditorTab extends JPanel {
         for (int i = startIndex; i < innerTabs.getTabCount(); i++) {
             innerTabs.setEnabledAt(i, false);
         }
+    }
+
+    private void installHelpButton() {
+        RoundIconButton help = new RoundIconButton("?");
+        help.setToolTipText("Hilfe zum Suite-Scope anzeigen");
+        help.addActionListener(e -> {
+            String html = buildSuiteHelpHtml();
+            JOptionPane.showMessageDialog(
+                    this,
+                    new JScrollPane(wrapHtml(html)),
+                    "Hilfe – Suite-Scope",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+        innerTabs.setHelpComponent(help);
+    }
+
+    private String buildSuiteHelpHtml() {
+        StringBuilder sb = new StringBuilder(1200);
+        sb.append("<html><body style='font-family:sans-serif;padding:8px;'>");
+        sb.append("<h3 style='margin-top:0'>Suite-Scope</h3>");
+        sb.append("<ul>");
+        sb.append("<li><b>Preconditions</b>: gelten für die Suite (vor WHEN), erben Root-Variablen; Case kann überschreiben.</li>");
+        sb.append("<li><b>BeforeAll</b>: einmal je Suite (Konstanten / Konfigurationswerte).</li>");
+        sb.append("<li><b>BeforeEach</b>: pro Case der Suite (frische Werte je Case, z. B. Login, Token).</li>");
+        sb.append("<li><b>Templates</b>: lazy berechnet bei Nutzung.</li>");
+        sb.append("<li><b>AfterAll</b>: Assertions über die Suite hinweg (mit Validatoren).</li>");
+        sb.append("</ul>");
+        sb.append("<p>Shadow-Reihenfolge beim Zugriff: <code>Case → Suite → Root</code>.</p>");
+        sb.append("</body></html>");
+        return sb.toString();
+    }
+
+    private JEditorPane wrapHtml(String html) {
+        JEditorPane pane = new JEditorPane("text/html", html);
+        pane.setEditable(false);
+        pane.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+        pane.setCaretPosition(0);
+        return pane;
     }
 }
