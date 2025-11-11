@@ -5,6 +5,7 @@ import de.bund.zrb.UserContextImpl;
 import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.type.browsingContext.WDBrowsingContext;
 import de.bund.zrb.ui.commandframework.MenuCommand;
+import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 
 import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
@@ -13,7 +14,7 @@ import java.awt.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class SwitchTabCommand implements MenuCommand {
+public class SwitchTabCommand extends ShortcutMenuCommand {
 
     private final BrowserServiceImpl browserService;
 

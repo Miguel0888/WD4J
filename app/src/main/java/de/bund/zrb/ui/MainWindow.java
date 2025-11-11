@@ -415,6 +415,7 @@ public class MainWindow {
         commandRegistry.register(new SwitchTabCommand(browserService));
         commandRegistry.register(new NewTabCommand(browserService));
         commandRegistry.register(new CloseTabCommand(browserService));
+        commandRegistry.register(new CloseEditorTabCommand(tabbedPane));
         commandRegistry.register(new ReloadTabCommand(browserService));
         commandRegistry.register(new GoBackCommand(browserService));
         commandRegistry.register(new GoForwardCommand(browserService));
