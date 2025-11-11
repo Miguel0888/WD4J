@@ -26,6 +26,7 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BrowserImpl implements Browser {
     public static final String CHANNEL_FOCUS_EVENTS = "focus-events-channel";
@@ -50,6 +51,7 @@ public class BrowserImpl implements Browser {
     private volatile WinDef.HWND topLevelHwnd;
 
     private final List<Consumer<Browser>> disconnectListeners = new ArrayList<Consumer<Browser>>();
+    private final AtomicBoolean disconnected = new AtomicBoolean(false); // verhindert mehrfachen Disconnect-Flow
 
     public BrowserImpl(BrowserTypeImpl browserType, Process process, WDWebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
         router = new RecordingEventRouter(this); // ToDo
@@ -69,9 +71,7 @@ public class BrowserImpl implements Browser {
         new Thread(() -> {
             try {
                 process.waitFor();
-                for (Consumer<Browser> l : new ArrayList<Consumer<Browser>>(disconnectListeners)) {
-                    try { l.accept(this); } catch (Throwable ignore) {}
-                }
+                fireDisconnectedOnce("process-exit");
             } catch (InterruptedException ignored) {
             }
         }, "browser-proc-watcher").start();
@@ -246,6 +246,16 @@ public class BrowserImpl implements Browser {
             }
         }
     }
+    /** Notifiziert Disconnect-Listener genau einmal. */
+    private void fireDisconnectedOnce(String origin) {
+        if (!disconnected.compareAndSet(false, true)) {
+            return; // bereits ausgelöst
+        }
+        System.out.println("[BrowserImpl] Disconnected (origin=" + origin + ")");
+        for (Consumer<Browser> l : new ArrayList<Consumer<Browser>>(disconnectListeners)) {
+            try { l.accept(this); } catch (Throwable ignore) {}
+        }
+    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// Method Overrides
@@ -271,9 +281,7 @@ public class BrowserImpl implements Browser {
         // ToDo: Implement options
         // ToDo: Implement Cleanup
         terminateProcess();
-        for (Consumer<Browser> l : new ArrayList<Consumer<Browser>>(disconnectListeners)) {
-            try { l.accept(this); } catch (Throwable ignore) {}
-        }
+        fireDisconnectedOnce("explicit-close");
     }
 
     @Override
