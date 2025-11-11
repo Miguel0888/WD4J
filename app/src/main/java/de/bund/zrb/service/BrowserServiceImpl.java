@@ -12,7 +12,9 @@ import de.bund.zrb.type.script.WDPrimitiveProtocolValue;
 import de.bund.zrb.type.script.WDRealmInfo;
 import de.bund.zrb.type.script.WDTarget;
 import de.bund.zrb.util.GrowlNotificationPopupUtil;
+import de.bund.zrb.win.BrowserInstanceState;
 import de.bund.zrb.win.BrowserProcessService;
+import de.bund.zrb.win.BrowserTerminationResult;
 import de.bund.zrb.win.WindowsBrowserProcessService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +46,13 @@ public class BrowserServiceImpl implements BrowserService {
     public void launchBrowser(BrowserConfig config) {
         ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.STARTING, "🚀 Browser wird gestartet…")));
         try {
+            // 1) Vor jeglichem Start prüfen & ggf. terminieren
+            if (!detectAndOptionallyTerminateRunningBrowser(config)) {
+                // Benutzer hat abgebrochen
+                return;
+            }
+
+            // 2) Playwright initialisieren erst nach Freigabe
             playwright = Playwright.create();
             BrowserType.LaunchOptions options = new BrowserType.LaunchOptions().setHeadless(config.isHeadless());
 
@@ -469,6 +478,46 @@ public class BrowserServiceImpl implements BrowserService {
             case "edge": return de.bund.zrb.config.BrowserSystemConfig.getEdgePath();
             default: return null;
         }
+    }
+
+    /** Prüft, ob eine Instanz läuft und beendet sie ggf. nach Rückfrage. Liefert false bei Abbruch. */
+    private boolean detectAndOptionallyTerminateRunningBrowser(BrowserConfig config) {
+        String exePath = resolveExecutablePath(config.getBrowserType());
+        if (exePath == null || exePath.trim().isEmpty()) {
+            return true; // nichts prüfbar
+        }
+        BrowserInstanceState state = browserProcessService.detectBrowserInstanceState(exePath);
+        if (state != BrowserInstanceState.RUNNING) {
+            return true; // nichts zu tun
+        }
+        Boolean confirmSetting = SettingsService.getInstance().get("browser.confirmTerminateRunning", Boolean.class);
+        boolean askUser = confirmSetting == null ? true : confirmSetting;
+        boolean doTerminate = askUser;
+        if (askUser) {
+            int choice = JOptionPane.showConfirmDialog(null,
+                    "Es läuft bereits eine Instanz von '" + config.getBrowserType() + "'.\n" +
+                            "Alle Instanzen beenden und neu starten?",
+                    "Laufende Instanz erkannt",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (choice != JOptionPane.YES_OPTION) {
+                ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.ERROR, "Start abgebrochen (Instanz läuft weiter)")));
+                return false; // Abbruch
+            }
+        }
+        if (doTerminate) {
+            BrowserTerminationResult tr = browserProcessService.terminateBrowserInstances(exePath);
+            if (tr.isDetectionFailed()) {
+                ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.ERROR, "⚠ Prozess-Erkennung fehlgeschlagen – versuche trotzdem zu starten")));
+            } else if (tr.hasAnyFailure()) {
+                ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.ERROR, "⚠ Einige Prozesse konnten nicht beendet werden")));
+            } else if (tr.hasAnyTermination()) {
+                ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.STOPPED, "Alte Instanzen beendet: " + tr.getTerminatedCount())));
+            }
+            // Kleines Delay, damit OS Freigabe des Ports vollzieht
+            try { Thread.sleep(300); } catch (InterruptedException ignore) {}
+        }
+        return true;
     }
 
 }

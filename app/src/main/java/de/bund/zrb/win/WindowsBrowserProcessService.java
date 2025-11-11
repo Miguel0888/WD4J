@@ -2,6 +2,7 @@ package de.bund.zrb.win;
 
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.platform.win32.*;
+import com.sun.jna.Native;
 
 import java.util.Locale;
 
@@ -13,6 +14,7 @@ public class WindowsBrowserProcessService implements BrowserProcessService {
             throw new IllegalArgumentException("Executable path must not be null.");
         }
         String normalizedExpected = normalizePath(expectedExecutablePath);
+        String expectedFileName = extractFileName(normalizedExpected);
 
         WinNT.HANDLE snapshot = Kernel32.INSTANCE.CreateToolhelp32Snapshot(
                 Tlhelp32.TH32CS_SNAPPROCESS,
@@ -30,9 +32,16 @@ public class WindowsBrowserProcessService implements BrowserProcessService {
                 int pid = entry.th32ProcessID.intValue();
                 if (pid == 0) continue;
                 String imagePath = queryProcessImagePath(pid);
-                if (imagePath == null) continue;
-                if (normalizePath(imagePath).equals(normalizedExpected)) {
-                    return BrowserInstanceState.RUNNING;
+                if (imagePath != null) {
+                    if (normalizePath(imagePath).equals(normalizedExpected)) {
+                        return BrowserInstanceState.RUNNING;
+                    }
+                } else {
+                    // Fallback: Nur Dateiname vergleichen wenn Pfad nicht ermittelbar
+                    String procExeName = extractExeName(entry.szExeFile);
+                    if (procExeName != null && procExeName.equals(expectedFileName)) {
+                        return BrowserInstanceState.RUNNING;
+                    }
                 }
             } while (Kernel32.INSTANCE.Process32Next(snapshot, entry));
             return BrowserInstanceState.NOT_RUNNING;
@@ -49,6 +58,7 @@ public class WindowsBrowserProcessService implements BrowserProcessService {
             throw new IllegalArgumentException("Executable path must not be null.");
         }
         String normalizedExpected = normalizePath(expectedExecutablePath);
+        String expectedFileName = extractFileName(normalizedExpected);
         WinNT.HANDLE snapshot = Kernel32.INSTANCE.CreateToolhelp32Snapshot(
                 Tlhelp32.TH32CS_SNAPPROCESS,
                 new WinDef.DWORD(0)
@@ -68,8 +78,14 @@ public class WindowsBrowserProcessService implements BrowserProcessService {
                 int pid = entry.th32ProcessID.intValue();
                 if (pid == 0) continue;
                 String imagePath = queryProcessImagePath(pid);
-                if (imagePath == null) continue;
-                if (!normalizePath(imagePath).equals(normalizedExpected)) continue;
+                boolean match = false;
+                if (imagePath != null) {
+                    match = normalizePath(imagePath).equals(normalizedExpected);
+                } else if (entry.szExeFile != null) {
+                    String procExeName = extractExeName(entry.szExeFile);
+                    match = procExeName != null && procExeName.equals(expectedFileName);
+                }
+                if (!match) continue;
                 boolean terminated = terminateProcessByPid(pid);
                 if (terminated) terminatedCount++; else failureCount++;
             } while (Kernel32.INSTANCE.Process32Next(snapshot, entry));
@@ -121,5 +137,17 @@ public class WindowsBrowserProcessService implements BrowserProcessService {
     private String normalizePath(String path) {
         return path.replace('/', '\\').toLowerCase(Locale.ROOT).trim();
     }
-}
 
+    private String extractFileName(String normalizedPath) {
+        if (normalizedPath == null) return null;
+        int idx = normalizedPath.lastIndexOf('\\');
+        return idx >= 0 ? normalizedPath.substring(idx + 1) : normalizedPath;
+    }
+
+    private String extractExeName(char[] nameChars) {
+        if (nameChars == null) return null;
+        String s = Native.toString(nameChars);
+        if (s == null) return null;
+        return s.toLowerCase(Locale.ROOT).trim();
+    }
+}
