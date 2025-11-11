@@ -265,8 +265,8 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     // ---------- UI-Operationen (Delegation zur Session) ----------
 
     private void saveAsNewTestSuite() {
-        List<TestAction> actions = session.getAllTestActionsForDrawer();
-        if (actions == null) actions = new ArrayList<TestAction>();
+        List<TestAction> actions = snapshotActionsFromTable();
+        if (actions == null) actions = new ArrayList<>();
 
         String name = JOptionPane.showInputDialog(this, "Name der Testsuite eingeben:",
                 "Neue Testsuite speichern", JOptionPane.PLAIN_MESSAGE);
@@ -306,7 +306,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
             JOptionPane.showMessageDialog(this, "Suite nicht gefunden: " + suiteName, "Fehler", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        List<TestAction> actions = session.getAllTestActionsForDrawer();
+        List<TestAction> actions = snapshotActionsFromTable();
         if (actions == null) actions = new ArrayList<>();
 
         String selectedCase = (String) caseDropdown.getSelectedItem();
@@ -377,10 +377,12 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         TestCase tc = findCaseByName(suite, caseName);
         if (tc == null) return;
 
-        List<TestAction> actions = session.getAllTestActionsForDrawer();
+        // Merge aktuelle Tabellen-Actions + importierter Case.
+        List<TestAction> actions = snapshotActionsFromTable();
         if (actions == null) actions = new ArrayList<>();
         actions.addAll(tc.getWhen());
         session.setRecordedActions(actions);
+        setActions(actions); // Tabelle aktualisieren
     }
 
     // ---------- Dropdown Refresh & Lookups ----------
@@ -435,7 +437,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
     // ---------- Re-added helper methods (previously removed) ----------
     private void insertRow() {
-        List<TestAction> actions = session.getAllTestActionsForDrawer();
+        List<TestAction> actions = snapshotActionsFromTable();
         if (actions == null) actions = new ArrayList<>();
         TestAction newAction = new TestAction();
         newAction.setType(TestAction.ActionType.WHEN);
@@ -450,7 +452,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     }
 
     private void deleteSelectedRows() {
-        List<TestAction> actions = session.getAllTestActionsForDrawer();
+        List<TestAction> actions = snapshotActionsFromTable();
         if (actions == null || actions.isEmpty()) return;
         boolean anySelected = false;
         for (TestAction ta : actions) { if (ta.isSelected()) { anySelected = true; break; } }
@@ -472,7 +474,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     }
 
     private void moveSelectedRows(int direction) {
-        List<TestAction> actions = session.getAllTestActionsForDrawer();
+        List<TestAction> actions = snapshotActionsFromTable();
         if (actions == null || actions.isEmpty()) return;
         boolean changed = false;
         if (direction < 0) {
@@ -500,6 +502,21 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         TestCase single = new TestCase(baseName + "_1", new ArrayList<>(actions));
         testCases.add(single);
         return testCases;
+    }
+
+    /**
+     * Liefert eine frische Kopie der im UI sichtbaren Actions.
+     * Stellt sicher, dass laufende Cell-Edits committed werden.
+     */
+    private List<TestAction> snapshotActionsFromTable() {
+        // Laufende Editor-Session committen
+        if (actionTable.isEditing()) {
+            try { actionTable.getCellEditor().stopCellEditing(); } catch (Exception ignore) {}
+        }
+        List<TestAction> raw = actionTable.getActions();
+        if (raw == null) return null;
+        // Flache Kopie reicht (Objekte selbst werden weiterverwendet) – falls Deep Copy nötig wäre, hier ergänzen.
+        return new ArrayList<>(raw);
     }
 
     private TestSuite findSuiteByName(String name) {
