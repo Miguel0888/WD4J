@@ -5,6 +5,7 @@ import de.bund.zrb.service.RecorderCoordinator;
 import de.bund.zrb.service.UserContextMappingService;
 import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
+import de.bund.zrb.ui.components.RoundIconButton;
 
 import javax.swing.*;
 import java.awt.*;
@@ -222,45 +223,6 @@ public class RightDrawer extends JPanel {
         });
     }
 
-    // Kleiner runder Icon-Button (blauer Kreis, weißes '?')
-    private static final class RoundIconButton extends JButton {
-        RoundIconButton(String text) {
-            super(text);
-            setOpaque(false);
-            setFocusPainted(false);
-            setBorderPainted(false);
-            setContentAreaFilled(false);
-            setForeground(Color.WHITE);
-            setFont(getFont().deriveFont(Font.BOLD));
-            setPreferredSize(new Dimension(22, 22));
-            setMinimumSize(new Dimension(22, 22));
-            setMaximumSize(new Dimension(22, 22));
-            setMargin(new Insets(0,0,0,0));
-            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        }
-        @Override protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            try {
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int w = getWidth();
-                int h = getHeight();
-                // Hintergrund (blauer Kreis)
-                g2.setColor(new Color(0x1E88E5));
-                g2.fillOval(0, 0, w - 1, h - 1);
-                // Fragezeichen mittig
-                String txt = getText();
-                FontMetrics fm = g2.getFontMetrics();
-                int tw = fm.stringWidth(txt);
-                int th = fm.getAscent();
-                int x = (w - tw) / 2;
-                int y = (h + th) / 2 - 2;
-                g2.setColor(Color.WHITE);
-                g2.drawString(txt, x, y);
-            } finally {
-                g2.dispose();
-            }
-        }
-    }
 
     // --- Tab-Header mit rotem Aufnahmepunkt ---
     private final class TabHeader extends JPanel {

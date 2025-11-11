@@ -9,6 +9,8 @@ import de.bund.zrb.ui.tabs.TabManager;
 import de.bund.zrb.ui.leftdrawer.PrecondTreeController;
 import de.bund.zrb.ui.leftdrawer.TestTreeCellRenderer;
 import de.bund.zrb.ui.leftdrawer.TestTreeController;
+import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
+import de.bund.zrb.ui.components.RoundIconButton;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -24,7 +26,7 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
 
     private final JTree testTree;
     private final JTree precondTree;
-    private final JTabbedPane leftTabs;
+    private final JTabbedPaneWithHelp leftTabs;
 
     // Controllers (extracted)
     private final TestTreeController testCtrl;
@@ -74,9 +76,10 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
         // Wrap in Tabs
         JScrollPane testScroll = new JScrollPane(testTree);
         JScrollPane precondScroll = new JScrollPane(precondTree);
-        leftTabs = new JTabbedPane();
+        leftTabs = new JTabbedPaneWithHelp();
         leftTabs.addTab("Tests", testScroll);
         leftTabs.addTab("Preconditions", precondScroll);
+        installHelpButton();
         add(leftTabs, BorderLayout.CENTER);
 
         // Events für Refresh
@@ -146,5 +149,51 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
     @Override
     public List<TestSuite> getSelectedSuites() {
         return testCtrl.getSelectedSuites();
+    }
+
+    private void installHelpButton() {
+        RoundIconButton help = new RoundIconButton("?");
+        help.setToolTipText("Hilfe zum Test-/Precondition-Baum anzeigen");
+        help.addActionListener(e -> showLeftDrawerHelp());
+        leftTabs.setHelpComponent(help);
+    }
+
+    private void showLeftDrawerHelp() {
+        String html = buildLeftDrawerHelpHtml();
+        JOptionPane.showMessageDialog(
+                this,
+                new JScrollPane(wrapHtml(html)),
+                "Hilfe – Tests & Preconditions",
+                JOptionPane.INFORMATION_MESSAGE
+        );
+    }
+
+    private String buildLeftDrawerHelpHtml() {
+        StringBuilder sb = new StringBuilder(900);
+        sb.append("<html><body style='font-family:sans-serif;padding:8px;'>");
+        sb.append("<h3 style='margin-top:0'>Tests & Preconditions – Überblick</h3>");
+        sb.append("<ul>");
+        sb.append("<li><b>Tests</b>-Tab zeigt die Test-Suite-Hierarchie: Root → Suites → Cases → Actions.</li>");
+        sb.append("<li><b>Preconditions</b>-Tab listet wiederverwendbare Vorbedingungen (Given-Blöcke / vorbereitende Aktionen).</li>");
+        sb.append("<li><b>Preview</b>: Einfachklick oder ENTER/SPACE auf einen Knoten öffnet dessen Inhalt im Preview-Tab (kein persistentes Tab).</li>");
+        sb.append("<li><b>Persistente Tabs</b>: Kontextmenü → 'In neuem Tab öffnen' oder wenn im Preview-Inhalt Änderungen vorgenommen werden.</li>");
+        sb.append("<li><b>Pinning</b>: Ein bereits geöffneter persistenter Tab wird beim Klick auf denselben Knoten fokussiert statt Preview zu überschreiben.</li>");
+        sb.append("<li><b>Drag & Drop</b>: Tests können per Drag & Drop innerhalb des Baums umsortiert werden (Suite-/Case-Ebene).</li>");
+        sb.append("<li><b>Context-Menü</b>: Rechtsklick auf Nodes für Aktionen wie 'In neuem Tab öffnen'.</li>");
+        sb.append("<li><b>Preconditions</b>: Referenzen im Case/Suite/Root werden vor den WHEN-Schritten ausgeführt und erben den Variablen-Scope.</li>");
+        sb.append("<li><b>Status</b>: Erfolgs-/Fehlerstatus eines Case/Suite wird nach Ausführung im Baum aktualisiert.</li>");
+        sb.append("<li><b>Tastatur</b>: ↑/↓ Navigation, ENTER/SPACE für Preview, Kontextmenü via Shift+F10 (je nach OS).</li>");
+        sb.append("</ul>");
+        sb.append("<p style='color:#555'>Hinweis: Der Preview-Tab bleibt flüchtig. Änderungen darin fördern automatisch zu einem persistenten Tab.</p>");
+        sb.append("</body></html>");
+        return sb.toString();
+    }
+
+    private JEditorPane wrapHtml(String html) {
+        JEditorPane pane = new JEditorPane("text/html", html);
+        pane.setEditable(false);
+        pane.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+        pane.setCaretPosition(0);
+        return pane;
     }
 }
