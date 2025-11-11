@@ -146,10 +146,14 @@ public class TabManager implements NodeOpenHandler {
             previewId = id;
             editorTabs.addTab(title, panel);
             int idx = editorTabs.indexOfComponent(panel);
-            // Sicherstellen: kein ClosableTabHeader am Preview
-            if (editorTabs.getTabComponentAt(idx) instanceof ClosableTabHeader) {
-                editorTabs.setTabComponentAt(idx, null);
-            }
+            // Sicherstellen: eigener Header mit Pin-Button und ohne Close
+            PreviewTabHeader header = new PreviewTabHeader(editorTabs, panel, title, () -> {
+                if (previewEntry != null && !previewEntry.persistent) {
+                    // Promotion des aktuellen Preview-Tabs zu persistent
+                    promotePreviewToPersistent(previewEntry.id);
+                }
+            });
+            editorTabs.setTabComponentAt(idx, header);
             editorTabs.setSelectedIndex(idx);
             System.out.println("[TabManager] createOrUpdatePreview: new preview tab idx=" + idx);
         } else {
@@ -161,10 +165,17 @@ public class TabManager implements NodeOpenHandler {
             previewId = id;
             editorTabs.setComponentAt(idx, panel);
             editorTabs.setTitleAt(idx, title);
-            // Entferne evtl. persistenten Header (falls versehentlich vorhanden)
-            if (editorTabs.getTabComponentAt(idx) instanceof ClosableTabHeader) {
-                System.out.println("[TabManager] createOrUpdatePreview: removed closable header from preview idx=" + idx);
-                editorTabs.setTabComponentAt(idx, null);
+            // Header aktualisieren oder neu setzen
+            java.awt.Component existingHeader = editorTabs.getTabComponentAt(idx);
+            if (existingHeader instanceof PreviewTabHeader) {
+                ((PreviewTabHeader) existingHeader).setTitle(title);
+            } else {
+                PreviewTabHeader header = new PreviewTabHeader(editorTabs, panel, title, () -> {
+                    if (previewEntry != null && !previewEntry.persistent) {
+                        promotePreviewToPersistent(previewEntry.id);
+                    }
+                });
+                editorTabs.setTabComponentAt(idx, header);
             }
             editorTabs.setSelectedIndex(idx);
             System.out.println("[TabManager] createOrUpdatePreview: replaced preview tab idx=" + idx);
