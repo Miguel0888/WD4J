@@ -4,6 +4,7 @@ import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.service.RecorderCoordinator;
 import de.bund.zrb.service.UserContextMappingService;
 import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,7 +18,7 @@ import java.util.Map;
 public class RightDrawer extends JPanel {
 
     private final BrowserServiceImpl browserService;
-    private final JTabbedPane recorderTabs = new JTabbedPane();
+    private final JTabbedPaneWithHelp recorderTabs = new JTabbedPaneWithHelp();
 
     // Mappe User → RecorderTab, damit wir schnell selektieren können
     private final Map<UserRegistry.User, RecorderTab> tabsByUser = new IdentityHashMap<>();
@@ -28,6 +29,11 @@ public class RightDrawer extends JPanel {
     public RightDrawer(BrowserServiceImpl browserService) {
         super(new BorderLayout(8, 8));
         this.browserService = browserService;
+
+        RoundIconButton helpButton = new RoundIconButton("?");
+        helpButton.setToolTipText("Hilfe zum Recorder anzeigen");
+        helpButton.addActionListener(e -> showRecorderHelp());
+        recorderTabs.setHelpComponent(helpButton);
 
         // Info-Button nicht darüber, sondern in der Tabzeile (siehe addPlusTab)
         add(recorderTabs, BorderLayout.CENTER);
@@ -156,12 +162,7 @@ public class RightDrawer extends JPanel {
         openButton.setToolTipText("Neuen Recorder-Tab öffnen");
         openButton.addActionListener(e -> addNewRecorderSession());
 
-        RoundIconButton helpButton = new RoundIconButton("?");
-        helpButton.setToolTipText("Hilfe zum Recorder anzeigen");
-        helpButton.addActionListener(e -> showRecorderHelp());
-
         tabPanel.add(openButton);
-        tabPanel.add(helpButton);
 
         int insertIndex = Math.max(recorderTabs.getTabCount() - 1, 0);
         recorderTabs.insertTab(null, null, null, null, insertIndex);
