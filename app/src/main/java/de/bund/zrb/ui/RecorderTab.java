@@ -22,11 +22,8 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     private final UserRegistry.User selectedUser;
 
     private final ActionTable actionTable = new ActionTable();
-    // ...existing code...
     private final JComboBox<String> suiteSelector = new JComboBox<>();
-    // Anzeige der Cases innerhalb der ausgewählten Suite
     private final JComboBox<String> caseDropdown = new JComboBox<>();
-
     /** Der alte EventService wurde ersetzt – dieser Feldname bleibt zur Kompatibilität.
      *  Es handelt sich um den leichten Shim, der Events aus dem Dispatcher abonniert,
      *  in die Session schreibt und UI-Labels erzeugt. */
@@ -54,7 +51,6 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
             public void popupMenuCanceled(javax.swing.event.PopupMenuEvent e) { }
         });
 
-        // Case-Dropdown initial leer; beim Öffnen aktualisieren
         caseDropdown.setPrototypeDisplayValue("(Case)");
         caseDropdown.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
             public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) { refreshCaseDropdown(); }
@@ -63,7 +59,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         });
 
         JButton saveButton = new JButton("Speichern");
-        saveButton.setToolTipText("Speichert die aufgezeichneten Schritte: bei Suite 'neu' als neue Testsuite, sonst als einzelnen Case in der gewählten Suite");
+        saveButton.setToolTipText("Speichert: Suite <neu> → neue Suite; sonst als einzelner Case in ausgewählter Suite");
         saveButton.addActionListener(e -> onSaveClicked());
 
         JButton addButton = new JButton("+");
@@ -91,45 +87,42 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         importButton.setToolTipText("Ausgewählten Case importieren und Recorder füllen");
         importButton.addActionListener(e -> importCase());
 
-        JButton exportButton = new JButton("⤴");
-        exportButton.setFocusable(false);
-        exportButton.setToolTipText("Recorder-Inhalt in den ausgewählten Case/Suite exportieren");
-        exportButton.addActionListener(e -> exportCase());
-
-        // --- Topbar: links Bedienelemente, rechts Hilfe ---
+        // --- Topbar ---
         JPanel topBar = new JPanel(new BorderLayout());
-        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
-        // Suite-Auswahl (+ neu) und Speichern
-        left.add(suiteSelector);
-        left.add(saveButton);
-        left.add(addButton);
-        left.add(deleteButton);
-        left.add(upButton);
-        left.add(downButton);
+        // WEST: Info + Suite + Case + Import
+        JPanel west = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JButton infoButton = buildHelpCornerButton();
+        west.add(infoButton);
+        west.add(Box.createHorizontalStrut(8));
+        west.add(suiteSelector);
+        west.add(caseDropdown);
+        west.add(importButton);
 
-        left.add(Box.createHorizontalStrut(24));
-        // Case-Auswahl innerhalb Suite
-        left.add(caseDropdown);
-        left.add(importButton);
-        left.add(exportButton);
+        // CENTER: Steuer-Buttons mittig
+        JPanel middle = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+        middle.add(addButton);
+        middle.add(deleteButton);
+        middle.add(upButton);
+        middle.add(downButton);
 
-        topBar.add(left, BorderLayout.CENTER);
+        // EAST: Speichern ganz rechts
+        JPanel east = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        east.add(saveButton);
 
-        // Right-aligned help button (blue ℹ)
-        topBar.add(buildHelpCornerButton(), BorderLayout.EAST);
+        topBar.add(west, BorderLayout.WEST);
+        topBar.add(middle, BorderLayout.CENTER);
+        topBar.add(east, BorderLayout.EAST);
 
         add(topBar, BorderLayout.NORTH);
 
-        // Center: nur noch die Actions-Tabelle (Meta/Events-Drawer entfernt)
+        // Center: Tabelle
         JScrollPane actionsScroll = new JScrollPane(actionTable);
         add(actionsScroll, BorderLayout.CENTER);
 
-        // Tab registrieren (liefert die RecordingSession)
         this.session = RecorderCoordinator.getInstance()
                 .registerTab(selectedUser.getUsername(), this, rightDrawer.getBrowserService());
 
-        // Leichter Event-Bridge-Service (Shim), der die Dispatcher-Events konsumiert
         this.recorderEventController = new RecorderEventController(this, session);
         if (myUserContextId != null && !myUserContextId.isEmpty()) {
             this.recorderEventController.setUserContextFilter(myUserContextId);
@@ -170,8 +163,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         sb.append("<li><b>🗑</b> löscht markierte Zeilen. Sind keine markiert, wird angeboten, alle zu löschen.</li>");
         sb.append("<li><b>▲/▼</b> verschiebt markierte Zeilen.</li>");
         sb.append("<li><b>⤵</b> importiert den ausgewählten Case in den Recorder.</li>");
-        sb.append("<li><b>⤴</b> exportiert die Recorder-Inhalte in den ausgewählten Case (oder legt einen neuen Case an).</li>");
-        sb.append("<li><b>Speichern</b>: Wenn Suite = neu → neue Testsuite anlegen; sonst die Recorder-Aktionen als einzelnen Case in der Suite speichern.</li>");
+        sb.append("<li><b>Speichern</b>: Suite &lt;neu&gt; → neue Testsuite; sonst die Recorder-Aktionen als einzelnen Case in der Suite speichern.</li>");
         sb.append("</ul>");
         sb.append("<p style='color:#555'>Tipp: Markierungen erfolgen über die Auswahl-Flags der Actions; die Tabelle spiegelt das im Modell.</p>");
         sb.append("</body></html>");
@@ -301,7 +293,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     // Speichern-Button: je nach Suite-Auswahl neue Suite oder einzelner Case in vorhandener Suite
     private void onSaveClicked() {
         String suiteName = (String) suiteSelector.getSelectedItem();
-        if (suiteName == null || suiteName.trim().isEmpty() || "neu".equalsIgnoreCase(suiteName.trim())) {
+        if (suiteName == null || suiteName.trim().isEmpty() || "<neu>".equalsIgnoreCase(suiteName.trim())) {
             saveAsNewTestSuite();
             refreshSuiteSelector();
             refreshCaseDropdown();
@@ -320,126 +312,67 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         List<TestAction> actions = session.getAllTestActionsForDrawer();
         if (actions == null) actions = new ArrayList<>();
 
-        // Case-Namen abfragen; Default aus caseDropdown, falls vorhanden
-        String defaultName = (String) caseDropdown.getSelectedItem();
-        if (defaultName == null || defaultName.trim().isEmpty()) {
-            defaultName = suiteName + "_Case";
+        String selectedCase = (String) caseDropdown.getSelectedItem();
+        if (selectedCase != null && !selectedCase.trim().isEmpty() && !"<neu>".equalsIgnoreCase(selectedCase.trim())) {
+            // Überschreiben-Logik für bestehenden Case
+            TestCase existing = findCaseByName(suite, selectedCase.trim());
+            if (existing == null) {
+                JOptionPane.showMessageDialog(this, "Case nicht gefunden: " + selectedCase, "Fehler", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            int ovw = JOptionPane.showConfirmDialog(this,
+                    "Case '" + selectedCase + "' überschreiben?",
+                    "Überschreiben?",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (ovw != JOptionPane.YES_OPTION) return;
+
+            existing.getWhen().clear();
+            existing.getWhen().addAll(actions);
+            de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(existing);
+            RecorderService.wireSuite(suite);
+            TestRegistry.getInstance().save();
+            ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
+            return;
         }
+
+        // Neuer Case: Namen abfragen
+        String defaultName = suiteName + "_Case";
         String caseName = JOptionPane.showInputDialog(this, "Name des TestCase:", defaultName);
         if (caseName == null || caseName.trim().isEmpty()) return;
         caseName = caseName.trim();
 
-        // Neuen Case mit ALLEN Recorder-Schritten anlegen
-        TestCase newCase = new TestCase(caseName, new ArrayList<>(actions));
-
-        // User-Infos konsolidieren
-        de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(newCase);
-
-        // In Suite einfügen oder existierenden Case mit gleichem Namen ersetzen
         TestCase existing = findCaseByName(suite, caseName);
         if (existing != null) {
             int ovw = JOptionPane.showConfirmDialog(this,
                     "Ein Case namens '" + caseName + "' existiert bereits. Überschreiben?",
-                    "Bestehenden Case überschreiben?",
+                    "Überschreiben?",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE);
             if (ovw != JOptionPane.YES_OPTION) return;
-            suite.getTestCases().remove(existing);
+            existing.getWhen().clear();
+            existing.getWhen().addAll(actions);
+            de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(existing);
+        } else {
+            TestCase newCase = new TestCase(caseName, new ArrayList<>(actions));
+            de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(newCase);
+            suite.getTestCases().add(newCase);
         }
-        suite.getTestCases().add(newCase);
 
         RecorderService.wireSuite(suite);
         TestRegistry.getInstance().save();
         ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
     }
 
-    private void exportCase() {
-        String suiteName = (String) suiteSelector.getSelectedItem();
-        if (suiteName == null || suiteName.trim().isEmpty() || "neu".equalsIgnoreCase(suiteName.trim())) {
-            JOptionPane.showMessageDialog(this, "Bitte zuerst eine bestehende Suite auswählen.", "Hinweis", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-        TestSuite suite = findSuiteByName(suiteName);
-        if (suite == null) return;
-
-        String currentCaseName = (String) caseDropdown.getSelectedItem();
-        if (currentCaseName == null || currentCaseName.trim().isEmpty()) {
-            // Kein Case ausgewählt: wir lassen den Nutzer einen Namen wählen (Neuanlage)
-            currentCaseName = suiteName + "_Case";
-        }
-
-        List<TestAction> actions = session.getAllTestActionsForDrawer();
-        if (actions == null) actions = new ArrayList<>();
-
-        // Namensdialog mit Overwrite-Loop
-        while (true) {
-            String name = JOptionPane.showInputDialog(this, "Case-Name für Export:", currentCaseName);
-            if (name == null || name.trim().isEmpty()) return; // abgebrochen
-            name = name.trim();
-
-            TestCase existing = findCaseByName(suite, name);
-            if (existing != null && name.equals(currentCaseName)) {
-                int ovw = JOptionPane.showConfirmDialog(this,
-                        "Case '" + name + "' existiert. Überschreiben?",
-                        "Überschreiben?",
-                        JOptionPane.YES_NO_OPTION,
-                        JOptionPane.WARNING_MESSAGE);
-                if (ovw != JOptionPane.YES_OPTION) {
-                    // erneut versuchen (zurück in die Eingabe)
-                    continue;
-                }
-                // Überschreiben
-                existing.getWhen().clear();
-                existing.getWhen().addAll(actions);
-                de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(existing);
-                RecorderService.wireSuite(suite);
-                TestRegistry.getInstance().save();
-                ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
-                refreshCaseDropdown();
-                return;
-            }
-
-            if (existing != null && !name.equals(currentCaseName)) {
-                // Name belegt, aber anderer als selektierter -> ebenfalls nachfragen
-                int ovw2 = JOptionPane.showConfirmDialog(this,
-                        "Ein Case namens '" + name + "' existiert bereits. Überschreiben?",
-                        "Überschreiben?",
-                        JOptionPane.YES_NO_OPTION,
-                        JOptionPane.WARNING_MESSAGE);
-                if (ovw2 != JOptionPane.YES_OPTION) {
-                    continue; // nochmal fragen
-                }
-                existing.getWhen().clear();
-                existing.getWhen().addAll(actions);
-                de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(existing);
-                RecorderService.wireSuite(suite);
-                TestRegistry.getInstance().save();
-                ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
-                refreshCaseDropdown();
-                return;
-            }
-
-            // Neu anlegen
-            TestCase newCase = new TestCase(name, new ArrayList<>(actions));
-            de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(newCase);
-            suite.getTestCases().add(newCase);
-            RecorderService.wireSuite(suite);
-            TestRegistry.getInstance().save();
-            ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
-            refreshCaseDropdown();
-            return;
-        }
-    }
-
     private void importCase() {
         String suiteName = (String) suiteSelector.getSelectedItem();
-        if (suiteName == null || suiteName.trim().isEmpty() || "neu".equalsIgnoreCase(suiteName.trim())) {
+        if (suiteName == null || suiteName.trim().isEmpty() || "<neu>".equalsIgnoreCase(suiteName.trim())) {
             JOptionPane.showMessageDialog(this, "Bitte zuerst eine Suite auswählen.", "Hinweis", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
         String caseName = (String) caseDropdown.getSelectedItem();
-        if (caseName == null || caseName.trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Bitte einen Case auswählen.", "Hinweis", JOptionPane.INFORMATION_MESSAGE);
+        if (caseName == null || caseName.trim().isEmpty() || "<neu>".equalsIgnoreCase(caseName.trim())) {
+            JOptionPane.showMessageDialog(this, "Bitte einen existierenden Case auswählen.", "Hinweis", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
         TestSuite suite = findSuiteByName(suiteName);
@@ -453,15 +386,63 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         session.setRecordedActions(actions);
     }
 
+    // ---------- Dropdown Refresh & Lookups ----------
+    private void refreshSuiteSelector() {
+        Object sel = suiteSelector.getSelectedItem();
+        suiteSelector.removeAllItems();
+        suiteSelector.addItem("<neu>");
+        for (TestSuite s : TestRegistry.getInstance().getAll()) {
+            if (s != null && s.getName() != null) suiteSelector.addItem(s.getName());
+        }
+        if (sel != null && existsInCombo(suiteSelector, sel.toString())) {
+            suiteSelector.setSelectedItem(sel);
+        } else {
+            suiteSelector.setSelectedItem("<neu>");
+        }
+    }
+
+    private void refreshCaseDropdown() {
+        caseDropdown.removeAllItems();
+        String suiteName = (String) suiteSelector.getSelectedItem();
+        if (suiteName == null || suiteName.trim().isEmpty() || "<neu>".equalsIgnoreCase(suiteName.trim())) {
+            return; // keine Suite gewählt
+        }
+        caseDropdown.addItem("<neu>");
+        TestSuite s = findSuiteByName(suiteName);
+        if (s == null) return;
+        for (TestCase tc : s.getTestCases()) {
+            if (tc != null && tc.getName() != null) caseDropdown.addItem(tc.getName());
+        }
+        caseDropdown.setSelectedItem("<neu>");
+    }
+
+    private boolean existsInCombo(JComboBox<String> combo, String value) {
+        for (int i = 0; i < combo.getItemCount(); i++) {
+            if (value.equals(combo.getItemAt(i))) return true;
+        }
+        return false;
+    }
+
+    // ---------- Private Helpers ----------
+
+    /** UserContext-ID für den Username auflösen (falls schon verfügbar). */
+    private static String resolveUserContextId(String username) {
+        BrowserContext ctx = UserContextMappingService.getInstance().getContextForUser(username);
+        if (ctx instanceof de.bund.zrb.UserContextImpl) {
+            try {
+                return ((de.bund.zrb.UserContextImpl) ctx).getUserContext().value();
+            } catch (Throwable ignore) { }
+        }
+        return null;
+    }
+
+    // ---------- Re-added helper methods (previously removed) ----------
     private void insertRow() {
         List<TestAction> actions = session.getAllTestActionsForDrawer();
         if (actions == null) actions = new ArrayList<>();
-
         TestAction newAction = new TestAction();
-        newAction.setType(TestAction.ActionType.THEN);
-        // Set default action to "click"
+        newAction.setType(TestAction.ActionType.WHEN);
         newAction.setAction("click");
-
         int selectedRow = actionTable.getSelectedRow();
         if (selectedRow < 0 || selectedRow >= actions.size()) {
             actions.add(newAction);
@@ -471,24 +452,12 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         session.setRecordedActions(actions);
     }
 
-    // Delete selected rows; if none selected, ask to delete all
     private void deleteSelectedRows() {
-        java.util.List<TestAction> actions = session.getAllTestActionsForDrawer();
-        if (actions == null || actions.isEmpty()) {
-            return;
-        }
-
-        // Check selection state
+        List<TestAction> actions = session.getAllTestActionsForDrawer();
+        if (actions == null || actions.isEmpty()) return;
         boolean anySelected = false;
-        for (int i = 0; i < actions.size(); i++) {
-            if (actions.get(i).isSelected()) {
-                anySelected = true;
-                break;
-            }
-        }
-
+        for (TestAction ta : actions) { if (ta.isSelected()) { anySelected = true; break; } }
         if (!anySelected) {
-            // Ask if all rows should be deleted
             int choice = JOptionPane.showConfirmDialog(
                     this,
                     "Es ist keine Zeile markiert.\nSollen wirklich alle Zeilen gelöscht werden?",
@@ -496,29 +465,18 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE
             );
-            if (choice != JOptionPane.YES_OPTION) {
-                return; // Do nothing on "No"
-            }
-            // Clear all actions
+            if (choice != JOptionPane.YES_OPTION) return;
             actions.clear();
             session.setRecordedActions(actions);
             return;
         }
-
-        // Remove only selected actions
-        java.util.Iterator<TestAction> it = actions.iterator();
-        while (it.hasNext()) {
-            if (it.next().isSelected()) {
-                it.remove();
-            }
-        }
+        actions.removeIf(TestAction::isSelected);
         session.setRecordedActions(actions);
     }
 
     private void moveSelectedRows(int direction) {
         List<TestAction> actions = session.getAllTestActionsForDrawer();
-        if (actions == null) return;
-
+        if (actions == null || actions.isEmpty()) return;
         boolean changed = false;
         if (direction < 0) {
             for (int i = 1; i < actions.size(); i++) {
@@ -538,29 +496,13 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         if (changed) session.setRecordedActions(actions);
     }
 
-    // ---------- Dropdown Refresh & Lookups ----------
-    private void refreshSuiteSelector() {
-        Object sel = suiteSelector.getSelectedItem();
-        suiteSelector.removeAllItems();
-        suiteSelector.addItem("neu");
-        for (TestSuite s : TestRegistry.getInstance().getAll()) {
-            if (s != null && s.getName() != null) suiteSelector.addItem(s.getName());
-        }
-        // Versuch, vorherige Auswahl beizubehalten
-        if (sel != null) suiteSelector.setSelectedItem(sel);
-    }
-
-    private void refreshCaseDropdown() {
-        caseDropdown.removeAllItems();
-        String suiteName = (String) suiteSelector.getSelectedItem();
-        if (suiteName == null || suiteName.trim().isEmpty() || "neu".equalsIgnoreCase(suiteName.trim())) {
-            return; // keine Suite gewählt
-        }
-        TestSuite s = findSuiteByName(suiteName);
-        if (s == null) return;
-        for (TestCase tc : s.getTestCases()) {
-            if (tc != null && tc.getName() != null) caseDropdown.addItem(tc.getName());
-        }
+    private List<TestCase> splitIntoTestCases(List<TestAction> actions, String baseName) {
+        List<TestCase> testCases = new ArrayList<>();
+        if (actions == null) return testCases;
+        // Alte Logik: trennt bei GIVEN/THEN – jetzt sind alles WHEN, also ein Case
+        TestCase single = new TestCase(baseName + "_1", new ArrayList<>(actions));
+        testCases.add(single);
+        return testCases;
     }
 
     private TestSuite findSuiteByName(String name) {
@@ -579,51 +521,11 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         return null;
     }
 
-    private List<TestCase> splitIntoTestCases(List<TestAction> actions, String baseName) {
-        List<TestCase> testCases = new ArrayList<>();
-        List<TestAction> current = new ArrayList<>();
-        int counter = 1;
-
-        for (TestAction action : actions) {
-            current.add(action);
-            if (action.getType() == TestAction.ActionType.GIVEN
-                    || action.getType() == TestAction.ActionType.THEN) {
-                if (!current.isEmpty()) {
-                    testCases.add(new TestCase(baseName + "_" + (counter++), new ArrayList<>(current)));
-                    current.clear();
-                }
-            }
-        }
-        if (!current.isEmpty()) {
-            testCases.add(new TestCase(baseName + "_" + counter, new ArrayList<>(current)));
-        }
-        return testCases;
-    }
-
     public void unregister() {
         if (session != null) {
-            try {
-                if (session.isRecording()) {
-                    session.stop(); // Ensure stop recording before closing
-                }
-            } catch (Exception ignore) {
-                // Swallow to not block tab closing
-            }
+            try { if (session.isRecording()) session.stop(); } catch (Exception ignore) {}
             RecorderCoordinator.getInstance().unregisterTab(this);
             session = null;
         }
-    }
-
-    // ---------- Private Helpers ----------
-
-    /** UserContext-ID für den Username auflösen (falls schon verfügbar). */
-    private static String resolveUserContextId(String username) {
-        BrowserContext ctx = UserContextMappingService.getInstance().getContextForUser(username);
-        if (ctx instanceof de.bund.zrb.UserContextImpl) {
-            try {
-                return ((de.bund.zrb.UserContextImpl) ctx).getUserContext().value();
-            } catch (Throwable ignore) { }
-        }
-        return null;
     }
 }
