@@ -23,6 +23,10 @@ public class UserManagementDialog extends JDialog {
     private final JTextField otpField;
     private final DefaultComboBoxModel<UserRegistry.User> comboModel;
 
+    // Passwort-UI State
+    private boolean passwordVisible = false;
+    private char passwordEchoChar;
+
     public UserManagementDialog(Frame owner) {
         super(owner, "Benutzerverwaltung", true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -34,6 +38,9 @@ public class UserManagementDialog extends JDialog {
 
         usernameField = new JTextField(20);
         passwordField = new JPasswordField(20);
+        // Merke das Standard-Echo-Char, damit wir es beim Verbergen wiederherstellen können
+        passwordEchoChar = passwordField.getEchoChar();
+
         startPageField = new JTextField(20);
         loginPageField = new JTextField(20);
         passwordChangePageField = new JTextField(20);
@@ -65,12 +72,36 @@ public class UserManagementDialog extends JDialog {
         gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
         content.add(usernameField, gbc);
 
-        // Passwort
+        // Passwort (mit Einblenden-Button)
         row++;
         gbc.gridx = 0; gbc.gridy = row;
         content.add(new JLabel("Passwort:"), gbc);
         gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
-        content.add(passwordField, gbc);
+        // Panel mit Passwortfeld und Button ähnlich zu anderen Konfig-Buttons
+        JPanel pwPanel = new JPanel(new BorderLayout(5, 0));
+        pwPanel.add(passwordField, BorderLayout.CENTER);
+        JButton showPasswordBtn = new JButton("👁");
+        showPasswordBtn.setToolTipText("Passwort einblenden");
+        showPasswordBtn.setMargin(new Insets(2, 6, 2, 6));
+        pwPanel.add(showPasswordBtn, BorderLayout.EAST);
+        content.add(pwPanel, gbc);
+
+        // Listener für Ein-/Ausblenden
+        showPasswordBtn.addActionListener(e -> {
+            if (!passwordVisible) {
+                // sichtbar: Echo entfernen
+                passwordField.setEchoChar((char) 0);
+                showPasswordBtn.setText("🙈");
+                showPasswordBtn.setToolTipText("Passwort verbergen");
+                passwordVisible = true;
+            } else {
+                // verbergen: ursprüngliches Echo wiederherstellen
+                passwordField.setEchoChar(passwordEchoChar);
+                showPasswordBtn.setText("👁");
+                showPasswordBtn.setToolTipText("Passwort einblenden");
+                passwordVisible = false;
+            }
+        });
 
         // Startseite
         row++;
