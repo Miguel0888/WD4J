@@ -174,16 +174,22 @@ public class TestTreeController {
         JPopupMenu menu = new JPopupMenu();
 
         if (clicked == null) {
-            // Klick ins Leere -> neue Suite anlegen
             JMenuItem newSuite = new JMenuItem("Neue Testsuite");
-            newSuite.addActionListener(evt -> createNewSuiteAfter(null));
+            newSuite.addActionListener(evt -> createNewSuiteAtFront());
             menu.add(newSuite);
             return menu;
         }
 
         Object ref = clicked.getModelRef();
 
-        // Einheitliche Öffnen-Aktion (persistenter Tab) für unterstützte Typen
+        // RootNode: Neue Suite direkt vorne
+        if (ref instanceof RootNode) {
+            JMenuItem newSuiteFront = new JMenuItem("Neue Testsuite");
+            newSuiteFront.addActionListener(evt -> createNewSuiteAtFront());
+            menu.add(newSuiteFront);
+            menu.addSeparator();
+        }
+
         if (openHandler != null && (ref instanceof RootNode || ref instanceof TestSuite || ref instanceof TestCase || ref instanceof TestAction)) {
             JMenuItem openPersistent = new JMenuItem("In neuem Tab öffnen");
             openPersistent.addActionListener(evt -> openHandler.openInNewTab(clicked));
@@ -192,9 +198,9 @@ public class TestTreeController {
         }
 
         if (ref instanceof TestSuite) {
-            JMenuItem newSuite = new JMenuItem("Neue Testsuite");
-            newSuite.addActionListener(evt -> createNewSuiteAfter(clicked));
-            menu.add(newSuite);
+            JMenuItem newCaseFront = new JMenuItem("Neuer TestCase");
+            newCaseFront.addActionListener(evt -> createNewCaseUnderSuite(clicked));
+            menu.add(newCaseFront);
 
             JMenuItem dupSuite = new JMenuItem("Kopie von Testsuite");
             dupSuite.addActionListener(evt -> duplicateSuiteAfter(clicked));
@@ -210,9 +216,9 @@ public class TestTreeController {
         }
 
         if (ref instanceof TestCase) {
-            JMenuItem newCase = new JMenuItem("Neuer TestCase");
-            newCase.addActionListener(evt -> createNewCase(clicked));
-            menu.add(newCase);
+            JMenuItem newStepFront = new JMenuItem("Neuer Schritt");
+            newStepFront.addActionListener(evt -> createNewStepUnderCase(clicked));
+            menu.add(newStepFront);
 
             JMenuItem dupCase = new JMenuItem("Kopie von TestCase");
             dupCase.addActionListener(evt -> duplicateCaseAfter(clicked));
@@ -228,7 +234,7 @@ public class TestTreeController {
         }
 
         if (ref instanceof TestAction) {
-            JMenuItem newStep = new JMenuItem("Neuer Schritt");
+            JMenuItem newStep = new JMenuItem("Neuer Schritt nach diesem");
             newStep.addActionListener(evt -> createNewStep(clicked));
             menu.add(newStep);
 
@@ -241,7 +247,6 @@ public class TestTreeController {
             return menu;
         }
 
-        // Fallback
         addCommonMenuItems(menu, clicked);
         return menu;
     }
@@ -578,6 +583,83 @@ public class TestTreeController {
 
         // 8. (Optional) neue Suite direkt selektieren
         selectNodeByModelRef(newSuite);
+    }
+
+    private void createNewSuiteAtFront() {
+        String name = JOptionPane.showInputDialog(
+                testTree,
+                "Name der neuen Testsuite:",
+                "Neue Testsuite",
+                JOptionPane.PLAIN_MESSAGE
+        );
+        if (name == null || name.trim().isEmpty()) return;
+        String trimmed = name.trim();
+        TestRegistry reg = TestRegistry.getInstance();
+        RootNode rootModel = reg.getRoot();
+        List<TestSuite> suites = rootModel.getTestSuites();
+        if (suites == null) {
+            suites = new ArrayList<>();
+            rootModel.setTestSuites(suites);
+        }
+        TestSuite newSuite = new TestSuite(trimmed, new ArrayList<>());
+        newSuite.setId(newUuid());
+        newSuite.setParentId(rootModel.getId());
+        newSuite.setDescription("");
+        suites.add(0, newSuite);
+        reg.save();
+        refreshTestTree();
+        selectNodeByModelRef(newSuite);
+    }
+
+    private void createNewCaseUnderSuite(TestNode suiteNode) {
+        if (suiteNode == null || !(suiteNode.getModelRef() instanceof TestSuite)) return;
+        String name = JOptionPane.showInputDialog(
+                testTree,
+                "Name des neuen TestCase:",
+                "Neuer TestCase",
+                JOptionPane.PLAIN_MESSAGE
+        );
+        if (name == null || name.trim().isEmpty()) return;
+        String trimmed = name.trim();
+        TestSuite suiteModel = (TestSuite) suiteNode.getModelRef();
+        List<TestCase> cases = suiteModel.getTestCases();
+        if (cases == null) {
+            cases = new ArrayList<>();
+            // falls Setter vorhanden: suiteModel.setTestCases(cases);
+        }
+        TestCase newCase = new TestCase(trimmed, new ArrayList<>());
+        newCase.setId(newUuid());
+        newCase.setParentId(suiteModel.getId());
+        cases.add(0, newCase);
+        TestRegistry.getInstance().save();
+        refreshTestTree();
+        selectNodeByModelRef(newCase);
+    }
+
+    private void createNewStepUnderCase(TestNode caseNode) {
+        if (caseNode == null || !(caseNode.getModelRef() instanceof TestCase)) return;
+        Window owner = SwingUtilities.getWindowAncestor(testTree);
+        ActionPickerDialog dlg = new ActionPickerDialog(owner, "Neuer Schritt", "click");
+        dlg.setVisible(true);
+        if (!dlg.isConfirmed()) return;
+        String actionName = dlg.getChosenAction();
+        if (actionName == null || actionName.isEmpty()) return;
+        TestCase caseModel = (TestCase) caseNode.getModelRef();
+        List<TestAction> steps = caseModel.getWhen();
+        if (steps == null) {
+            steps = new ArrayList<>();
+            // falls Setter vorhanden: caseModel.setWhen(steps);
+        }
+        TestAction newAction = new TestAction();
+        newAction.setId(newUuid());
+        newAction.setParentId(caseModel.getId());
+        newAction.setAction(actionName);
+        newAction.setType(TestAction.ActionType.WHEN);
+        newAction.setTimeout(30000);
+        steps.add(0, newAction);
+        TestRegistry.getInstance().save();
+        refreshTestTree();
+        selectNodeByModelRef(newAction);
     }
 
     /**
