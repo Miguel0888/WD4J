@@ -7,7 +7,6 @@ import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.platform.win32.WinNT;
 import de.bund.zrb.manager.WDInputManager;
 import de.bund.zrb.manager.WDScriptManager;
-import de.bund.zrb.api.WDWebSocketManager;
 import de.bund.zrb.support.ScriptHelper;
 import de.bund.zrb.command.response.WDBrowsingContextResult;
 import de.bund.zrb.command.response.WDScriptResult;
@@ -57,16 +56,14 @@ public class BrowserImpl implements Browser {
 
         this.browserType = browserType;
         this.process = process;
+        this.webDriver = new WebDriver(webSocketImpl).connect(browserType.name());
 
-        // ToDo: May be moved to WD4J partly
-        WDWebSocketManager webSocketManager = new WDWebSocketManagerImpl(webSocketImpl);
-        this.webDriver = new WebDriver(webSocketManager).connect(browserType.name());
+        fetchDefaultData();
+        loadGlobalScripts(); // load JavaScript code relevant for the working Playwright API
 
+        // Events
         onContextSwitch(this::setActivePageId);
         onRecordingEvent(BrowserImpl.CHANNEL_RECORDING_EVENTS, this::handleRecordingEvent);
-        fetchDefaultData();
-
-        loadGlobalScripts(); // load JavaScript code relevant for the working Playwright API
 
         // Prozess-Beobachtung: Wenn der externe Browser-Prozess endet, melden und räumen wir auf
         new Thread(() -> {

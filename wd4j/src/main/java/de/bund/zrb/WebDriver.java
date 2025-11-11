@@ -2,7 +2,6 @@ package de.bund.zrb;
 
 import de.bund.zrb.api.WDWebSocketManager;
 import de.bund.zrb.command.response.WDSessionResult;
-import de.bund.zrb.command.response.WDBrowsingContextResult;
 import de.bund.zrb.manager.*;
 import de.bund.zrb.service.WDEventDispatcher;
 import de.bund.zrb.type.session.WDSubscription;
@@ -28,7 +27,7 @@ import java.util.function.Consumer;
  */
 public class WebDriver {
 
-    private final WDWebSocketManager WDWebSocketManager;
+    private final WDWebSocketManager webSocketManager;
 
     private WDBrowserManager browser;
     private WDSessionManager session;
@@ -45,13 +44,13 @@ public class WebDriver {
     private final WDEventDispatcher dispatcher;
 
     // ToDo: Use WebSocket Interface instead of WebSocketImpl, here !!!
-    public WebDriver(WDWebSocketManager webSocketManager) throws ExecutionException, InterruptedException {
-        this(webSocketManager, new WDEventDispatcher());
+    public WebDriver(WDWebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
+        this(webSocketImpl, new WDEventDispatcher());
     }
 
     // ToDo: Use WebSocket Interface instead of WebSocketImpl, here !!!
-    public WebDriver(WDWebSocketManager webSocketManager, WDEventDispatcher dispatcher) throws ExecutionException, InterruptedException {
-        this.WDWebSocketManager = webSocketManager;
+    public WebDriver(WDWebSocketImpl webSocketImpl, WDEventDispatcher dispatcher) throws ExecutionException, InterruptedException {
+        this.webSocketManager = new WDWebSocketManagerImpl(webSocketImpl);
 
         this.browser = new WDBrowserManager(webSocketManager);
         this.session = new WDSessionManager(webSocketManager);
@@ -173,7 +172,7 @@ public class WebDriver {
 
 
     public boolean isConnected() {
-        return WDWebSocketManager.isConnected();
+        return webSocketManager.isConnected();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

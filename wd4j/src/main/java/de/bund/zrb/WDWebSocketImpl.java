@@ -212,6 +212,12 @@ public class WDWebSocketImpl implements WDWebSocket {
         this.timeout = timeout;
         // Connection-Lost-Detection-Intervall auf 0 setzen → dann wird keine Ping/Pong-Prüfung gemacht:
         webSocketClient.setConnectionLostTimeout((int) Math.round(timeout / 1000.0));
+
+        try {
+            connect();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
@@ -262,7 +268,7 @@ public class WDWebSocketImpl implements WDWebSocket {
         };
     }
 
-    public void connect() throws InterruptedException {
+    private void connect() throws InterruptedException {
         webSocketClient.connectBlocking();
     }
 

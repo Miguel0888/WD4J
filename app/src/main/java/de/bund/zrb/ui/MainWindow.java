@@ -177,13 +177,6 @@ public class MainWindow {
             }
         });
 
-        // Browser erst nach Statusbar, wie gehabt
-        try {
-            browserService.launchDefaultBrowser();
-        } catch (Exception ex) {
-            // Fehlerdialog wird bereits via EventBus gezeigt; hier nur Fallback
-        }
-
         // Frame anzeigen, Layout ausführen lassen
         frame.setVisible(true);
         frame.validate(); // Stelle sicher, dass innerSplit Größen hat
@@ -246,6 +239,13 @@ public class MainWindow {
                 browserService.terminateBrowser();
             }
         });
+
+        // Browser erst nach Statusbar, wie gehabt
+        try {
+            browserService.launchDefaultBrowser();
+        } catch (Exception ex) {
+            // Fehlerdialog wird bereits via EventBus gezeigt; hier nur Fallback
+        }
 
         // Convert old format to new one automatically:
 //        de.bund.zrb.service.TestRegistry.getInstance().save();

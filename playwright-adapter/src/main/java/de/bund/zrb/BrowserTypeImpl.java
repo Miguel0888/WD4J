@@ -129,15 +129,9 @@ public class BrowserTypeImpl implements BrowserType {
         return name;
     }
 
-    // ToDo: Obwohl diese Methode "connect" heißt, wird hier eigentlich nur ein Browser-Objekt erstellt und zurückgegeben.
     @Override
     public Browser connect(String wsEndpoint, ConnectOptions options) {
         WDWebSocketImpl webSocketImpl = new WDWebSocketImpl(URI.create(wsEndpoint), options.timeout);
-        try {
-            webSocketImpl.connect();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
 
         try {
             BrowserImpl browser = new BrowserImpl(this, process, webSocketImpl); // Playwright API forces Browser to know BrowserType
