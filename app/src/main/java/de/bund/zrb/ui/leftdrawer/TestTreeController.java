@@ -73,6 +73,10 @@ public class TestTreeController {
      * und hängt ihn in das existierende JTree rein.
      */
     public void refreshTreeFromRegistry() {
+        // Zustand sichern
+        Set<String> expanded = captureExpandedKeys();
+        String selectedKey = captureSelectedKey();
+
         TestRegistry reg = TestRegistry.getInstance();
         RootNode rootModel = reg.getRoot();
 
@@ -81,6 +85,10 @@ public class TestTreeController {
         DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
         model.setRoot(newRootUi);
         model.reload();
+
+        // Zustand wiederherstellen
+        restoreExpanded(expanded);
+        restoreSelection(selectedKey);
     }
 
     /**
@@ -1052,6 +1060,10 @@ public class TestTreeController {
      * Dazu setzen wir die neuen/alten Felder (Status, modelRef) wie gehabt.
      */
     public void refreshTestTree() {
+        // Zustand sichern
+        Set<String> expanded = captureExpandedKeys();
+        String selectedKey = captureSelectedKey();
+
         // Hole das echte Modell
         RootNode rootModel = TestRegistry.getInstance().getRoot();
 
@@ -1084,13 +1096,100 @@ public class TestTreeController {
         model.setRoot(uiRoot);
         model.reload();
 
-        // optional: Root aufgeklappt lassen, Komfort
-        testTree.expandPath(new TreePath(uiRoot.getPath()));
+        // Zustand wiederherstellen (inkl. Root)
+        restoreExpanded(expanded);
+        if (expanded.isEmpty()) {
+            testTree.expandPath(new TreePath(uiRoot.getPath()));
+        }
+        restoreSelection(selectedKey);
     }
+
+    // ===== Expand/Selection State Helpers =====
+    private Set<String> captureExpandedKeys() {
+        Set<String> out = new java.util.HashSet<>();
+        int rows = testTree.getRowCount();
+        for (int i = 0; i < rows; i++) {
+            TreePath p = testTree.getPathForRow(i);
+            if (p == null) continue;
+            Object last = p.getLastPathComponent();
+            if (!(last instanceof TestNode)) continue;
+            String key = keyForModel(((TestNode) last).getModelRef());
+            if (key != null && testTree.isExpanded(p)) out.add(key);
+        }
+        return out;
+    }
+
+    private String captureSelectedKey() {
+        TestNode sel = getSelectedNode();
+        if (sel == null) return null;
+        return keyForModel(sel.getModelRef());
+    }
+
+    private void restoreExpanded(Set<String> keys) {
+        if (keys == null || keys.isEmpty()) return;
+        Object rootObj = ((DefaultTreeModel) testTree.getModel()).getRoot();
+        if (!(rootObj instanceof TestNode)) return;
+        TestNode root = (TestNode) rootObj;
+        expandMatchingRecursive(root, keys);
+    }
+
+    private void expandMatchingRecursive(TestNode node, Set<String> keys) {
+        String key = keyForModel(node.getModelRef());
+        if (key != null && keys.contains(key)) {
+            testTree.expandPath(new TreePath(node.getPath()));
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            Object ch = node.getChildAt(i);
+            if (ch instanceof TestNode) expandMatchingRecursive((TestNode) ch, keys);
+        }
+    }
+
+    private void restoreSelection(String key) {
+        if (key == null) return;
+        Object rootObj = ((DefaultTreeModel) testTree.getModel()).getRoot();
+        if (!(rootObj instanceof TestNode)) return;
+        TestNode root = (TestNode) rootObj;
+        TestNode match = findNodeByKey(root, key);
+        if (match != null) selectNode(match);
+    }
+
+    private TestNode findNodeByKey(TestNode node, String key) {
+        String k = keyForModel(node.getModelRef());
+        if (key.equals(k)) return node;
+        for (int i = 0; i < node.getChildCount(); i++) {
+            Object ch = node.getChildAt(i);
+            if (ch instanceof TestNode) {
+                TestNode found = findNodeByKey((TestNode) ch, key);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private String keyForModel(Object ref) {
+        if (ref instanceof RootNode) {
+            String id = ((RootNode) ref).getId();
+            return id != null ? ("root:" + id) : "root";
+        }
+        if (ref instanceof TestSuite) {
+            String id = ((TestSuite) ref).getId();
+            return id != null ? ("suite:" + id) : null;
+        }
+        if (ref instanceof TestCase) {
+            String id = ((TestCase) ref).getId();
+            return id != null ? ("case:" + id) : null;
+        }
+        if (ref instanceof TestAction) {
+            String id = ((TestAction) ref).getId();
+            return id != null ? ("act:" + id) : null;
+        }
+        return null;
+    }
+
+    // ==== Missing helpers restored (clone/insert for duplicate operations) ====
 
     private TestAction cloneActionShallowForDuplicate(TestAction src, String newParentCaseId) {
         if (src == null) return null;
-
         TestAction copy = new TestAction();
         copy.setId(UUID.randomUUID().toString());
         copy.setParentId(newParentCaseId);
@@ -1098,7 +1197,7 @@ public class TestTreeController {
         // Metadaten
         copy.setUser(src.getUser());
         copy.setType(src.getType() != null ? src.getType() : TestAction.ActionType.WHEN);
-        copy.setSelected(false); // du kannst auch src.getSelected() kopieren, aber "false" ist meistens sinnvoller
+        copy.setSelected(false);
 
         // Playback-Infos
         copy.setAction(src.getAction());
@@ -1107,7 +1206,7 @@ public class TestTreeController {
         copy.setTimeout(src.getTimeout());
         copy.setValue(src.getValue());
 
-        // Locator-Hints etc.
+        // Locator-Hints und Extraktionen
         copy.setLocators(new LinkedHashMap<>(src.getLocators()));
         copy.setExtractedValues(new LinkedHashMap<>(src.getExtractedValues()));
         copy.setExtractedAttributes(new LinkedHashMap<>(src.getExtractedAttributes()));
@@ -1117,162 +1216,93 @@ public class TestTreeController {
         copy.setText(src.getText());
         copy.setRole(src.getRole());
         copy.setLabel(src.getLabel());
-
         return copy;
     }
 
     private TestCase cloneCaseDeepForDuplicate(TestCase original, String newParentSuiteId) {
         if (original == null) return null;
-
         TestCase copy = new TestCase();
         copy.setId(UUID.randomUUID().toString());
         copy.setParentId(newParentSuiteId);
 
-        // Name eindeutiger machen
-        String baseName = safeName(original.getName());
-        copy.setName("copy of " + baseName);
+        // Name (vorläufig, wird ggf. später unique gemacht)
+        copy.setName(safeName(original.getName()));
 
-        // BEFORE (Scope-Variablen) ist jetzt Map<String,String>
-        // => tief kopieren (neue Map, gleiche Keys/Werte)
-        if (original.getBefore() != null) {
-            copy.getBefore().putAll(original.getBefore());
-        }
-        if (original.getBeforeEnabled() != null) {
-            copy.getBeforeEnabled().putAll(original.getBeforeEnabled());
-        }
-        if (original.getTemplates() != null) {
-            copy.getTemplates().putAll(original.getTemplates());
-        }
-        if (original.getTemplatesEnabled() != null) {
-            copy.getTemplatesEnabled().putAll(original.getTemplatesEnabled());
-        }
-        if (original.getAfter() != null) {
-            copy.getAfter().putAll(original.getAfter());
-        }
-        if (original.getAfterEnabled() != null) {
-            copy.getAfterEnabled().putAll(original.getAfterEnabled());
-        }
-        if (original.getAfterDesc() != null) {
-            copy.getAfterDesc().putAll(original.getAfterDesc());
-        }
+        // Scopes tief kopieren (Maps)
+        if (original.getBefore() != null) copy.getBefore().putAll(original.getBefore());
+        if (original.getBeforeEnabled() != null) copy.getBeforeEnabled().putAll(original.getBeforeEnabled());
+        if (original.getTemplates() != null) copy.getTemplates().putAll(original.getTemplates());
+        if (original.getTemplatesEnabled() != null) copy.getTemplatesEnabled().putAll(original.getTemplatesEnabled());
+        if (original.getAfter() != null) copy.getAfter().putAll(original.getAfter());
+        if (original.getAfterEnabled() != null) copy.getAfterEnabled().putAll(original.getAfterEnabled());
+        if (original.getAfterDesc() != null) copy.getAfterDesc().putAll(original.getAfterDesc());
 
-        // THEN-Schritte: das hängt davon ab, was deine Then-Struktur ist
-        // Wenn Then noch eine List<ThenExpectation> ist, wie vorher:
-        if (original.getThen() != null) {
-            copy.getThen().addAll(original.getThen());
-        }
+        // Then (falls noch als Liste genutzt)
+        if (original.getThen() != null) copy.getThen().addAll(original.getThen());
 
-        // WHEN Actions: jede Action klonen mit neuer ID/parentId
-        for (TestAction step : original.getWhen()) {
-            TestAction clonedStep = cloneActionShallowForDuplicate(step, copy.getId());
-            copy.getWhen().add(clonedStep);
+        // WHEN-Actions shallow klonen mit neuer ID/Parent
+        if (original.getWhen() != null) {
+            for (TestAction step : original.getWhen()) {
+                TestAction cloned = cloneActionShallowForDuplicate(step, copy.getId());
+                copy.getWhen().add(cloned);
+            }
         }
-
         return copy;
     }
 
     private TestSuite cloneSuiteDeepForDuplicate(TestSuite original, RootNode rootModel) {
         if (original == null) return null;
-
         TestSuite copy = new TestSuite();
         copy.setId(UUID.randomUUID().toString());
-        copy.setParentId(rootModel.getId());
+        copy.setParentId(rootModel != null ? rootModel.getId() : null);
 
         // Name eindeutiger machen
         String baseName = safeName(original.getName());
         copy.setName(uniqueSuiteName("copy of " + baseName));
 
-        // description übernehmen
+        // Beschreibung
         copy.setDescription(original.getDescription());
 
-        // suite.getGiven() / suite.getBeforeEach() / suite.getTemplates() …
-        // Diese Bereiche sind jetzt Maps.
-        // Wir klonen die Maps deep (putAll), NICHT alls List<GivenCondition>.
-        if (original.getBeforeAll() != null) {
-            copy.getBeforeAll().putAll(original.getBeforeAll());
-        }
-        if (original.getBeforeAllEnabled() != null) {
-            copy.getBeforeAllEnabled().putAll(original.getBeforeAllEnabled());
-        }
-        if (original.getBeforeEach() != null) {
-            copy.getBeforeEach().putAll(original.getBeforeEach());
-        }
-        if (original.getBeforeEachEnabled() != null) {
-            copy.getBeforeEachEnabled().putAll(original.getBeforeEachEnabled());
-        }
-        if (original.getTemplates() != null) {
-            copy.getTemplates().putAll(original.getTemplates());
-        }
-        if (original.getTemplatesEnabled() != null) {
-            copy.getTemplatesEnabled().putAll(original.getTemplatesEnabled());
-        }
-        if (original.getAfterAll() != null) {
-            copy.getAfterAll().putAll(original.getAfterAll());
-        }
-        if (original.getAfterAllEnabled() != null) {
-            copy.getAfterAllEnabled().putAll(original.getAfterAllEnabled());
-        }
-        if (original.getAfterAllDesc() != null) {
-            copy.getAfterAllDesc().putAll(original.getAfterAllDesc());
-        }
+        // Suite-Scopes
+        if (original.getBeforeAll() != null) copy.getBeforeAll().putAll(original.getBeforeAll());
+        if (original.getBeforeAllEnabled() != null) copy.getBeforeAllEnabled().putAll(original.getBeforeAllEnabled());
+        if (original.getBeforeEach() != null) copy.getBeforeEach().putAll(original.getBeforeEach());
+        if (original.getBeforeEachEnabled() != null) copy.getBeforeEachEnabled().putAll(original.getBeforeEachEnabled());
+        if (original.getTemplates() != null) copy.getTemplates().putAll(original.getTemplates());
+        if (original.getTemplatesEnabled() != null) copy.getTemplatesEnabled().putAll(original.getTemplatesEnabled());
+        if (original.getAfterAll() != null) copy.getAfterAll().putAll(original.getAfterAll());
+        if (original.getAfterAllEnabled() != null) copy.getAfterAllEnabled().putAll(original.getAfterAllEnabled());
+        if (original.getAfterAllDesc() != null) copy.getAfterAllDesc().putAll(original.getAfterAllDesc());
 
-        // Then-Expectations (wenn noch vorhanden als Liste)
+        // Then-Liste übernehmen
         copy.getThen().addAll(original.getThen());
 
         // Cases tief kopieren
-        for (TestCase srcCase : original.getTestCases()) {
-            TestCase caseCopy = cloneCaseDeepForDuplicate(srcCase, copy.getId());
-
-            // in der Suite muss der Name pro Suite eindeutig sein
-            caseCopy.setName(uniqueCaseName(copy, caseCopy.getName()));
-
-            copy.getTestCases().add(caseCopy);
+        if (original.getTestCases() != null) {
+            for (TestCase srcCase : original.getTestCases()) {
+                TestCase caseCopy = cloneCaseDeepForDuplicate(srcCase, copy.getId());
+                caseCopy.setName(uniqueCaseName(copy, caseCopy.getName()));
+                copy.getTestCases().add(caseCopy);
+            }
         }
-
         return copy;
     }
 
-    private void insertSuiteCopyAfter(TestSuite originalSuite,
-                                      TestSuite newSuite,
-                                      RootNode rootModel) {
-
-        List<TestSuite> suites = rootModel.getTestSuites();
+    private void insertSuiteCopyAfter(TestSuite originalSuite, TestSuite newSuite, RootNode rootModel) {
+        List<TestSuite> suites = TestRegistry.getInstance().getRoot().getTestSuites();
         int insertIndex = suites.indexOf(originalSuite);
-        if (insertIndex < 0) {
-            // falls aus irgendeinem Grund nicht gefunden -> häng ans Ende
-            suites.add(newSuite);
-        } else {
-            suites.add(insertIndex + 1, newSuite);
-        }
+        if (insertIndex < 0) suites.add(newSuite); else suites.add(insertIndex + 1, newSuite);
     }
 
-    private void insertCaseCopyAfter(TestCase originalCase,
-                                     TestCase newCase,
-                                     TestSuite parentSuite) {
-
+    private void insertCaseCopyAfter(TestCase originalCase, TestCase newCase, TestSuite parentSuite) {
         List<TestCase> cases = parentSuite.getTestCases();
         int insertIndex = cases.indexOf(originalCase);
-        if (insertIndex < 0) {
-            cases.add(newCase);
-        } else {
-            cases.add(insertIndex + 1, newCase);
-        }
+        if (insertIndex < 0) cases.add(newCase); else cases.add(insertIndex + 1, newCase);
     }
 
-    private void insertActionCopyAfter(TestAction originalAction,
-                                       TestAction newAction,
-                                       TestCase parentCase) {
-
+    private void insertActionCopyAfter(TestAction originalAction, TestAction newAction, TestCase parentCase) {
         List<TestAction> steps = parentCase.getWhen();
         int insertIndex = steps.indexOf(originalAction);
-        if (insertIndex < 0) {
-            steps.add(newAction);
-        } else {
-            steps.add(insertIndex + 1, newAction);
-        }
+        if (insertIndex < 0) steps.add(newAction); else steps.add(insertIndex + 1, newAction);
     }
-
-
-
-
 }

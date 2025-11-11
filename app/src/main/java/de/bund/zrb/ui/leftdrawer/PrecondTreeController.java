@@ -45,16 +45,13 @@ public class PrecondTreeController {
     }
 
     public void refreshPreconditions() {
+        Set<String> expanded = captureExpandedKeys();
+        String selectedKey = captureSelectedKey();
+
         TestNode root = new TestNode("Preconditions");
-
         for (Precondition p : PreconditionRegistry.getInstance().getAll()) {
-            // Show name; optionally include (id) to help debugging
-            String display = (p.getName() != null && !p.getName().trim().isEmpty())
-                    ? p.getName().trim()
-                    : "(unnamed)";
+            String display = (p.getName() != null && !p.getName().trim().isEmpty()) ? p.getName().trim() : "(unnamed)";
             TestNode preNode = new TestNode(display, p);
-
-            // List actions (When) as children
             if (p.getActions() != null) {
                 for (TestAction action : p.getActions()) {
                     String label = renderActionLabel(action);
@@ -62,15 +59,86 @@ public class PrecondTreeController {
                     preNode.add(stepNode);
                 }
             }
-
             root.add(preNode);
         }
-
         DefaultTreeModel model = (DefaultTreeModel) precondTree.getModel();
         model.setRoot(root);
         model.reload();
-        // Expand root for better visibility
-        precondTree.expandPath(new TreePath(root.getPath()));
+        restoreExpanded(expanded);
+        if (expanded.isEmpty()) precondTree.expandPath(new TreePath(root.getPath()));
+        restoreSelection(selectedKey);
+    }
+
+    // ===== Expand/Selection Helpers =====
+    private Set<String> captureExpandedKeys() {
+        Set<String> out = new HashSet<>();
+        int rows = precondTree.getRowCount();
+        for (int i = 0; i < rows; i++) {
+            TreePath p = precondTree.getPathForRow(i);
+            if (p == null) continue;
+            Object last = p.getLastPathComponent();
+            if (!(last instanceof TestNode)) continue;
+            String k = keyForModel(((TestNode) last).getModelRef());
+            if (k != null && precondTree.isExpanded(p)) out.add(k);
+        }
+        return out;
+    }
+
+    private String captureSelectedKey() {
+        TestNode sel = (TestNode) precondTree.getLastSelectedPathComponent();
+        if (sel == null) return null;
+        return keyForModel(sel.getModelRef());
+    }
+
+    private void restoreExpanded(Set<String> keys) {
+        if (keys == null || keys.isEmpty()) return;
+        Object r = ((DefaultTreeModel) precondTree.getModel()).getRoot();
+        if (!(r instanceof TestNode)) return;
+        expandRecursive((TestNode) r, keys);
+    }
+
+    private void expandRecursive(TestNode node, Set<String> keys) {
+        String k = keyForModel(node.getModelRef());
+        if (k != null && keys.contains(k)) {
+            precondTree.expandPath(new TreePath(node.getPath()));
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            Object ch = node.getChildAt(i);
+            if (ch instanceof TestNode) expandRecursive((TestNode) ch, keys);
+        }
+    }
+
+    private void restoreSelection(String key) {
+        if (key == null) return;
+        Object r = ((DefaultTreeModel) precondTree.getModel()).getRoot();
+        if (!(r instanceof TestNode)) return;
+        TestNode match = findByKey((TestNode) r, key);
+        if (match != null) selectNode(match);
+    }
+
+    private TestNode findByKey(TestNode node, String key) {
+        String k = keyForModel(node.getModelRef());
+        if (key.equals(k)) return node;
+        for (int i = 0; i < node.getChildCount(); i++) {
+            Object ch = node.getChildAt(i);
+            if (ch instanceof TestNode) {
+                TestNode found = findByKey((TestNode) ch, key);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private String keyForModel(Object ref) {
+        if (ref instanceof Precondition) {
+            String id = ((Precondition) ref).getId();
+            return id != null ? ("pre:" + id) : null;
+        }
+        if (ref instanceof TestAction) {
+            String id = ((TestAction) ref).getId();
+            return id != null ? ("act:" + id) : null;
+        }
+        return null;
     }
 
     public String renderActionLabel(TestAction action) {
