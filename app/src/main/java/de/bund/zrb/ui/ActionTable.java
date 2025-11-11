@@ -88,9 +88,9 @@ public class ActionTable extends JTable {
     private void setUpEditors() {
         TableColumnModel columnModel = getColumnModel();
 
-        // Checkbox-Editor setzen
-        columnModel.getColumn(0).setCellEditor(new DefaultCellEditor(new JCheckBox()));
-        columnModel.getColumn(0).setCellRenderer(getDefaultRenderer(Boolean.class));
+        // Checkbox-Renderer & Editor stabil (zentriert, kein Springen)
+        columnModel.getColumn(0).setCellRenderer(new CenteredBooleanRenderer());
+        columnModel.getColumn(0).setCellEditor(new CenteredBooleanEditor());
 
         // Aktionen DropDown
         JComboBox<String> actionComboBox =
@@ -160,6 +160,53 @@ public class ActionTable extends JTable {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             return this;
+        }
+    }
+
+    // Zentrierter Renderer verhindert "Springen" beim gedrückten Mausklick
+    private static class CenteredBooleanRenderer extends JCheckBox implements TableCellRenderer {
+        CenteredBooleanRenderer() {
+            setHorizontalAlignment(SwingConstants.CENTER);
+            setOpaque(true); // konsistente Hintergrundfarbe
+            setBorderPainted(false);
+            setFocusPainted(false);
+            setMargin(new java.awt.Insets(0,0,0,0));
+        }
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+            setSelected(Boolean.TRUE.equals(value));
+            if (isSelected) {
+                setBackground(table.getSelectionBackground());
+            } else {
+                setBackground(table.getBackground());
+            }
+            return this;
+        }
+    }
+
+    // Stabiler Editor – nutzt dasselbe zentrierte Checkbox-Widget
+    private static class CenteredBooleanEditor extends AbstractCellEditor implements TableCellEditor {
+        private final JCheckBox check = new JCheckBox();
+        CenteredBooleanEditor() {
+            check.setHorizontalAlignment(SwingConstants.CENTER);
+            check.setOpaque(true);
+            check.setBorderPainted(false);
+            check.setFocusPainted(false);
+            check.setMargin(new java.awt.Insets(0,0,0,0));
+            // Direkt nach Klick edit beenden → vermeidet Mehrfach-Layout während Press
+            check.addActionListener(e -> stopCellEditing());
+        }
+        @Override
+        public Object getCellEditorValue() { return check.isSelected(); }
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+            check.setSelected(Boolean.TRUE.equals(value));
+            if (isSelected) {
+                check.setBackground(table.getSelectionBackground());
+            } else {
+                check.setBackground(table.getBackground());
+            }
+            return check;
         }
     }
 }
