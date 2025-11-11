@@ -310,6 +310,14 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         left.add(btOpenAppFolder);
+        JButton btSystem = new JButton("Systemeinstellungen");
+        btSystem.setToolTipText("Browser-Pfade, Profile und WebSocket-Defaults konfigurieren");
+        btSystem.setFocusable(false);
+        btSystem.addActionListener(e -> {
+            Window owner = SwingUtilities.getWindowAncestor(dialog);
+            new de.bund.zrb.ui.system.BrowserSystemSettingsDialog(owner).setVisible(true);
+        });
+        left.add(btSystem);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         JButton btApply = new JButton("Übernehmen");

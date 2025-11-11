@@ -8,6 +8,7 @@ import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.Kernel32;
 import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.platform.win32.WinNT;
+import de.bund.zrb.config.BrowserSystemConfig;
 import de.bund.zrb.config.VideoConfig;
 import de.bund.zrb.video.WindowRecorder;
 import de.bund.zrb.win.Win32Windows;
@@ -71,15 +72,33 @@ public class BrowserTypeImpl implements BrowserType {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static BrowserTypeImpl newFirefoxInstance(PlaywrightImpl playwright) {
-        return new BrowserTypeImpl(playwright, "firefox","C:\\Program Files\\Mozilla Firefox\\firefox.exe", "C:\\FirefoxProfile", "/session");
+        return new BrowserTypeImpl(
+                playwright,
+                "firefox",
+                BrowserSystemConfig.getFirefoxPath(),
+                BrowserSystemConfig.getFirefoxProfile(),
+                BrowserSystemConfig.getWsEndpoint()
+        );
     }
 
     public static BrowserTypeImpl newChromiumInstance(PlaywrightImpl playwright) {
-        return new BrowserTypeImpl(playwright,"chromium" ,"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\ChromeProfile", "");
+        return new BrowserTypeImpl(
+                playwright,
+                "chromium",
+                BrowserSystemConfig.getChromiumPath(),
+                BrowserSystemConfig.getChromiumProfile(),
+                BrowserSystemConfig.getWsEndpoint()
+        );
     }
 
     public static BrowserTypeImpl newEdgeInstance(PlaywrightImpl playwright) {
-        return new BrowserTypeImpl(playwright,"edge","C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe", "C:\\EdgeProfile", "");
+        return new BrowserTypeImpl(
+                playwright,
+                "edge",
+                BrowserSystemConfig.getEdgePath(),
+                BrowserSystemConfig.getEdgeProfile(),
+                BrowserSystemConfig.getWsEndpoint()
+        );
     }
 
     public static BrowserTypeImpl newWebkitInstance(PlaywrightImpl playwright) {
@@ -159,6 +178,8 @@ public class BrowserTypeImpl implements BrowserType {
     // Hilfsmethode zum Starten eines Prozesses mit Protokollierung
     protected void startProcess(List<String> commandLineArgs) throws Exception {
         String logPrefix = "[" + name() + "]";
+        // URL und Port ggf. aktualisieren aus SystemConfig
+        this.websocketUrl = BrowserSystemConfig.getDefaultUrl() + ":" + BrowserSystemConfig.getDefaultPort();
         ProcessBuilder builder = new ProcessBuilder(commandLineArgs);
 
         builder.redirectErrorStream(true);
