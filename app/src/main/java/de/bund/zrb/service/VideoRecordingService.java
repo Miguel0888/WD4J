@@ -244,7 +244,7 @@ public final class VideoRecordingService {
         return (wr != null) ? wr.getEffectiveOutput() : null;
     }
 
-    static boolean quickCheckAvailable() {
+    public static boolean quickCheckAvailable() {
         try {
             Class.forName("com.sun.jna.platform.win32.WinDef");
             Class.forName("org.bytedeco.javacv.FFmpegFrameRecorder");

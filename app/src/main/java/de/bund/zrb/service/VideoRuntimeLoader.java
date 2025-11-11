@@ -160,13 +160,20 @@ public final class VideoRuntimeLoader {
         final boolean[] result = new boolean[]{false};
 
         autoBtn.addActionListener(e -> {
+            // Nachfrage vor automatischem Download
+            int conf = JOptionPane.showConfirmDialog(dialog,
+                    "Möchten Sie die Video-Bibliotheken automatisch herunterladen? (ca. 50-100 MB)",
+                    "Download bestätigen",
+                    JOptionPane.YES_NO_OPTION);
+            if (conf != JOptionPane.YES_OPTION) return; // Dialog bleibt offen
+
             if (performAutoDownload()) {
                 result[0] = true;
             }
             dialog.dispose();
         });
         manualBtn.addActionListener(e -> {
-            if (performManualSelection()) {
+            if (performManualSelection(dialog)) {
                 result[0] = true;
             }
             dialog.dispose();
@@ -180,6 +187,21 @@ public final class VideoRuntimeLoader {
 
         if (!result[0]) return false;
         return VideoRecordingService.quickCheckAvailable();
+    }
+
+    // Öffentliche Wrapper, damit andere Komponenten (z. B. Commands) gezielt Aktionen auslösen können
+    public static boolean tryAutoDownloadWithConfirmation(Component parent) {
+        int conf = JOptionPane.showConfirmDialog(parent,
+                "Möchten Sie die Video-Bibliotheken automatisch herunterladen? (ca. 50-100 MB)",
+                "Download bestätigen",
+                JOptionPane.YES_NO_OPTION);
+        if (conf != JOptionPane.YES_OPTION) return false;
+        return performAutoDownload();
+    }
+
+    public static boolean tryManualSelection(Component parent) {
+        // performManualSelection verwendet JFileChooser und zeigt eigene Dialoge
+        return performManualSelection(parent);
     }
 
     private static JLabel linkLabel(String url) {
@@ -216,7 +238,7 @@ public final class VideoRuntimeLoader {
         return attach(downloaded);
     }
 
-    private static boolean performManualSelection() {
+    private static boolean performManualSelection(Component parent) {
         JFileChooser chooser = new JFileChooser();
         chooser.setMultiSelectionEnabled(true);
         chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
@@ -229,7 +251,7 @@ public final class VideoRuntimeLoader {
         File downloads = new File(System.getProperty("user.home"), "Downloads");
         if (downloads.exists()) chooser.setCurrentDirectory(downloads);
 
-        int rc = chooser.showOpenDialog(null);
+        int rc = chooser.showOpenDialog(parent);
         if (rc != JFileChooser.APPROVE_OPTION) return false;
         File[] files = chooser.getSelectedFiles();
         if (files == null || files.length == 0) return false;
