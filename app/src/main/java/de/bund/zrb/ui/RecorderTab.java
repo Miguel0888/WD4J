@@ -264,6 +264,18 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
     // ---------- UI-Operationen (Delegation zur Session) ----------
 
+    /**
+     * Wendet die neuen Actions auf die aktuelle Session an. Wenn gerade nicht aufgenommen wird,
+     * aktualisieren wir direkt die Tabelle, damit Offlinedits funktionieren.
+     */
+    private void applyActions(List<TestAction> actions) {
+        if (session != null && session.isRecording()) {
+            session.setRecordedActions(actions);
+        } else {
+            setActions(actions);
+        }
+    }
+
     private void saveAsNewTestSuite() {
         List<TestAction> actions = snapshotActionsFromTable();
         if (actions == null) actions = new ArrayList<>();
@@ -381,8 +393,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         List<TestAction> actions = snapshotActionsFromTable();
         if (actions == null) actions = new ArrayList<>();
         actions.addAll(tc.getWhen());
-        session.setRecordedActions(actions);
-        setActions(actions); // Tabelle aktualisieren
+        applyActions(actions);
     }
 
     // ---------- Dropdown Refresh & Lookups ----------
@@ -448,29 +459,46 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         } else {
             actions.add(selectedRow, newAction);
         }
-        session.setRecordedActions(actions);
+        applyActions(actions);
     }
 
     private void deleteSelectedRows() {
         List<TestAction> actions = snapshotActionsFromTable();
         if (actions == null || actions.isEmpty()) return;
-        boolean anySelected = false;
-        for (TestAction ta : actions) { if (ta.isSelected()) { anySelected = true; break; } }
-        if (!anySelected) {
-            int choice = JOptionPane.showConfirmDialog(
-                    this,
-                    "Es ist keine Zeile markiert.\nSollen wirklich alle Zeilen gelöscht werden?",
-                    "Alle Zeilen löschen?",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE
-            );
-            if (choice != JOptionPane.YES_OPTION) return;
-            actions.clear();
-            session.setRecordedActions(actions);
+        // 1) Bevorzugt Checkbox-Markierungen (Model-Flag "selected")
+        boolean anyFlag = false;
+        for (TestAction ta : actions) { if (Boolean.TRUE.equals(ta.isSelected())) { anyFlag = true; break; } }
+
+        if (anyFlag) {
+            actions.removeIf(TestAction::isSelected);
+            applyActions(actions);
             return;
         }
-        actions.removeIf(TestAction::isSelected);
-        session.setRecordedActions(actions);
+
+        // 2) Falls keine Checkboxen gesetzt sind, nutze Tabellen-Selektionen (Zeilenmarkierung)
+        int[] selRows = actionTable.getSelectedRows();
+        if (selRows != null && selRows.length > 0) {
+            // in absteigender Reihenfolge löschen, damit Indizes stabil bleiben
+            java.util.Arrays.sort(selRows);
+            for (int i = selRows.length - 1; i >= 0; i--) {
+                int idx = selRows[i];
+                if (idx >= 0 && idx < actions.size()) actions.remove(idx);
+            }
+            applyActions(actions);
+            return;
+        }
+
+        // 3) Weder Checkbox- noch Zeilenselektion → optional alles löschen
+        int choice = JOptionPane.showConfirmDialog(
+                this,
+                "Es ist keine Zeile markiert.\nSollen wirklich alle Zeilen gelöscht werden?",
+                "Alle Zeilen löschen?",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+        if (choice != JOptionPane.YES_OPTION) return;
+        actions.clear();
+        applyActions(actions);
     }
 
     private void moveSelectedRows(int direction) {
@@ -492,7 +520,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
                 }
             }
         }
-        if (changed) session.setRecordedActions(actions);
+        if (changed) applyActions(actions);
     }
 
     private List<TestCase> splitIntoTestCases(List<TestAction> actions, String baseName) {
