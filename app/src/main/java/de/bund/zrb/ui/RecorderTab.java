@@ -22,7 +22,10 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     private final UserRegistry.User selectedUser;
 
     private final ActionTable actionTable = new ActionTable();
-    private final JComboBox<String> suiteDropdown = new JComboBox<>();
+    // ...existing code...
+    private final JComboBox<String> suiteSelector = new JComboBox<>();
+    // Anzeige der Cases innerhalb der ausgewählten Suite
+    private final JComboBox<String> caseDropdown = new JComboBox<>();
 
     /** Der alte EventService wurde ersetzt – dieser Feldname bleibt zur Kompatibilität.
      *  Es handelt sich um den leichten Shim, der Events aus dem Dispatcher abonniert,
@@ -42,13 +45,26 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         // UserContext-ID (falls schon vorhanden)
         this.myUserContextId = resolveUserContextId(user.getUsername());
 
-        // Suites füllen
-        for (TestSuite suite : TestRegistry.getInstance().getAll()) {
-            suiteDropdown.addItem(suite.getName());
-        }
+        // Suite-Auswahl vorbereiten (mit "neu" als Default)
+        refreshSuiteSelector();
+        suiteSelector.addActionListener(e -> refreshCaseDropdown());
+        suiteSelector.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
+            public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) { refreshSuiteSelector(); }
+            public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent e) { }
+            public void popupMenuCanceled(javax.swing.event.PopupMenuEvent e) { }
+        });
 
-        JButton saveButton = new JButton("Neue Testsuite speichern");
-        saveButton.addActionListener(e -> saveAsNewTestSuite());
+        // Case-Dropdown initial leer; beim Öffnen aktualisieren
+        caseDropdown.setPrototypeDisplayValue("(Case)");
+        caseDropdown.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
+            public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) { refreshCaseDropdown(); }
+            public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent e) { }
+            public void popupMenuCanceled(javax.swing.event.PopupMenuEvent e) { }
+        });
+
+        JButton saveButton = new JButton("Speichern");
+        saveButton.setToolTipText("Speichert die aufgezeichneten Schritte: bei Suite 'neu' als neue Testsuite, sonst als einzelnen Case in der gewählten Suite");
+        saveButton.addActionListener(e -> onSaveClicked());
 
         JButton addButton = new JButton("+");
         addButton.setFocusable(false);
@@ -72,18 +88,20 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
 
         JButton importButton = new JButton("⤵");
         importButton.setFocusable(false);
-        importButton.setToolTipText("Testsuite importieren und Recorder füllen");
-        importButton.addActionListener(e -> importSuite());
+        importButton.setToolTipText("Ausgewählten Case importieren und Recorder füllen");
+        importButton.addActionListener(e -> importCase());
 
         JButton exportButton = new JButton("⤴");
         exportButton.setFocusable(false);
-        exportButton.setToolTipText("In gewählte Suite exportieren");
-        exportButton.addActionListener(e -> exportToSuite());
+        exportButton.setToolTipText("Recorder-Inhalt in den ausgewählten Case/Suite exportieren");
+        exportButton.addActionListener(e -> exportCase());
 
         // --- Topbar: links Bedienelemente, rechts Hilfe ---
         JPanel topBar = new JPanel(new BorderLayout());
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
+        // Suite-Auswahl (+ neu) und Speichern
+        left.add(suiteSelector);
         left.add(saveButton);
         left.add(addButton);
         left.add(deleteButton);
@@ -91,7 +109,8 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         left.add(downButton);
 
         left.add(Box.createHorizontalStrut(24));
-        left.add(suiteDropdown);
+        // Case-Auswahl innerhalb Suite
+        left.add(caseDropdown);
         left.add(importButton);
         left.add(exportButton);
 
@@ -150,9 +169,9 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         sb.append("<li><b>+</b> fügt eine neue Zeile ein.</li>");
         sb.append("<li><b>🗑</b> löscht markierte Zeilen. Sind keine markiert, wird angeboten, alle zu löschen.</li>");
         sb.append("<li><b>▲/▼</b> verschiebt markierte Zeilen.</li>");
-        sb.append("<li><b>⤵</b> importiert die ausgewählte Suite in den Recorder.</li>");
-        sb.append("<li><b>⤴</b> exportiert die Recorder-Inhalte in die gewählte Suite.</li>");
-        sb.append("<li><b>Neue Testsuite speichern</b> legt aus den Recorder-Aktionen eine Suite an.</li>");
+        sb.append("<li><b>⤵</b> importiert den ausgewählten Case in den Recorder.</li>");
+        sb.append("<li><b>⤴</b> exportiert die Recorder-Inhalte in den ausgewählten Case (oder legt einen neuen Case an).</li>");
+        sb.append("<li><b>Speichern</b>: Wenn Suite = neu → neue Testsuite anlegen; sonst die Recorder-Aktionen als einzelnen Case in der Suite speichern.</li>");
         sb.append("</ul>");
         sb.append("<p style='color:#555'>Tipp: Markierungen erfolgen über die Auswahl-Flags der Actions; die Tabelle spiegelt das im Modell.</p>");
         sb.append("</body></html>");
@@ -279,62 +298,158 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         session.clearRecordedEvents();
     }
 
-    // RecorderTab.java – Methode komplett ersetzen
-    private void exportToSuite() {
-        String selectedSuiteName = (String) suiteDropdown.getSelectedItem();
-        if (selectedSuiteName == null) return;
-
-        // Suite ohne Streams holen
-        TestSuite suite = null;
-        java.util.List<TestSuite> all = TestRegistry.getInstance().getAll();
-        for (int i = 0; i < all.size(); i++) {
-            TestSuite s = all.get(i);
-            if (s != null && selectedSuiteName.equals(s.getName())) {
-                suite = s;
-                break;
-            }
+    // Speichern-Button: je nach Suite-Auswahl neue Suite oder einzelner Case in vorhandener Suite
+    private void onSaveClicked() {
+        String suiteName = (String) suiteSelector.getSelectedItem();
+        if (suiteName == null || suiteName.trim().isEmpty() || "neu".equalsIgnoreCase(suiteName.trim())) {
+            saveAsNewTestSuite();
+            refreshSuiteSelector();
+            refreshCaseDropdown();
+            return;
         }
-        if (suite == null) return;
-
-        // Aktionen aus dem Recorder holen und in Cases splitten
-        java.util.List<TestAction> actions = session.getAllTestActionsForDrawer();
-        if (actions == null) actions = new java.util.ArrayList<TestAction>();
-        java.util.List<TestCase> newCases = splitIntoTestCases(actions, selectedSuiteName + "_Part");
-
-        // 1) User von Actions auf Case-Ebene heben
-        for (int i = 0; i < newCases.size(); i++) {
-            de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(newCases.get(i));
-        }
-
-        // 2) Neue Cases zur Suite hinzufügen
-        suite.getTestCases().addAll(newCases);
-
-        // 3) Prüfen, ob jetzt die gesamte Suite denselben Case-User hat -> ggf. Suite-User setzen
-        de.bund.zrb.service.UserPromotionUtil.promoteSuiteUsers(suite);
-
-        // 4) IDs und Parent-IDs SOFORT verdrahten (suite.id, case.id, action.id + parentId)
-        //    ⇒ damit erscheinen parentId der Actions direkt im JSON nach dem Save
-        de.bund.zrb.service.RecorderService.wireSuite(suite);
-
-        // 5) Persistieren und UI aufräumen
-        TestRegistry.getInstance().save();
-
-        ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(selectedSuiteName));
-        session.clearRecordedEvents();
+        saveCaseToSuite(suiteName);
+        refreshCaseDropdown();
     }
 
-    private void importSuite() {
-        String selectedSuiteName = (String) suiteDropdown.getSelectedItem();
-        if (selectedSuiteName == null) return;
+    private void saveCaseToSuite(String suiteName) {
+        TestSuite suite = findSuiteByName(suiteName);
+        if (suite == null) {
+            JOptionPane.showMessageDialog(this, "Suite nicht gefunden: " + suiteName, "Fehler", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        List<TestAction> actions = session.getAllTestActionsForDrawer();
+        if (actions == null) actions = new ArrayList<>();
 
-        TestSuite suite = TestRegistry.getInstance().getAll().stream()
-                .filter(s -> s.getName().equals(selectedSuiteName))
-                .findFirst().orElse(null);
+        // Case-Namen abfragen; Default aus caseDropdown, falls vorhanden
+        String defaultName = (String) caseDropdown.getSelectedItem();
+        if (defaultName == null || defaultName.trim().isEmpty()) {
+            defaultName = suiteName + "_Case";
+        }
+        String caseName = JOptionPane.showInputDialog(this, "Name des TestCase:", defaultName);
+        if (caseName == null || caseName.trim().isEmpty()) return;
+        caseName = caseName.trim();
+
+        // Neuen Case mit ALLEN Recorder-Schritten anlegen
+        TestCase newCase = new TestCase(caseName, new ArrayList<>(actions));
+
+        // User-Infos konsolidieren
+        de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(newCase);
+
+        // In Suite einfügen oder existierenden Case mit gleichem Namen ersetzen
+        TestCase existing = findCaseByName(suite, caseName);
+        if (existing != null) {
+            int ovw = JOptionPane.showConfirmDialog(this,
+                    "Ein Case namens '" + caseName + "' existiert bereits. Überschreiben?",
+                    "Bestehenden Case überschreiben?",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (ovw != JOptionPane.YES_OPTION) return;
+            suite.getTestCases().remove(existing);
+        }
+        suite.getTestCases().add(newCase);
+
+        RecorderService.wireSuite(suite);
+        TestRegistry.getInstance().save();
+        ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
+    }
+
+    private void exportCase() {
+        String suiteName = (String) suiteSelector.getSelectedItem();
+        if (suiteName == null || suiteName.trim().isEmpty() || "neu".equalsIgnoreCase(suiteName.trim())) {
+            JOptionPane.showMessageDialog(this, "Bitte zuerst eine bestehende Suite auswählen.", "Hinweis", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        TestSuite suite = findSuiteByName(suiteName);
         if (suite == null) return;
+
+        String currentCaseName = (String) caseDropdown.getSelectedItem();
+        if (currentCaseName == null || currentCaseName.trim().isEmpty()) {
+            // Kein Case ausgewählt: wir lassen den Nutzer einen Namen wählen (Neuanlage)
+            currentCaseName = suiteName + "_Case";
+        }
 
         List<TestAction> actions = session.getAllTestActionsForDrawer();
         if (actions == null) actions = new ArrayList<>();
-        for (TestCase tc : suite.getTestCases()) actions.addAll(tc.getWhen());
+
+        // Namensdialog mit Overwrite-Loop
+        while (true) {
+            String name = JOptionPane.showInputDialog(this, "Case-Name für Export:", currentCaseName);
+            if (name == null || name.trim().isEmpty()) return; // abgebrochen
+            name = name.trim();
+
+            TestCase existing = findCaseByName(suite, name);
+            if (existing != null && name.equals(currentCaseName)) {
+                int ovw = JOptionPane.showConfirmDialog(this,
+                        "Case '" + name + "' existiert. Überschreiben?",
+                        "Überschreiben?",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE);
+                if (ovw != JOptionPane.YES_OPTION) {
+                    // erneut versuchen (zurück in die Eingabe)
+                    continue;
+                }
+                // Überschreiben
+                existing.getWhen().clear();
+                existing.getWhen().addAll(actions);
+                de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(existing);
+                RecorderService.wireSuite(suite);
+                TestRegistry.getInstance().save();
+                ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
+                refreshCaseDropdown();
+                return;
+            }
+
+            if (existing != null && !name.equals(currentCaseName)) {
+                // Name belegt, aber anderer als selektierter -> ebenfalls nachfragen
+                int ovw2 = JOptionPane.showConfirmDialog(this,
+                        "Ein Case namens '" + name + "' existiert bereits. Überschreiben?",
+                        "Überschreiben?",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE);
+                if (ovw2 != JOptionPane.YES_OPTION) {
+                    continue; // nochmal fragen
+                }
+                existing.getWhen().clear();
+                existing.getWhen().addAll(actions);
+                de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(existing);
+                RecorderService.wireSuite(suite);
+                TestRegistry.getInstance().save();
+                ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
+                refreshCaseDropdown();
+                return;
+            }
+
+            // Neu anlegen
+            TestCase newCase = new TestCase(name, new ArrayList<>(actions));
+            de.bund.zrb.service.UserPromotionUtil.promoteCaseUser(newCase);
+            suite.getTestCases().add(newCase);
+            RecorderService.wireSuite(suite);
+            TestRegistry.getInstance().save();
+            ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
+            refreshCaseDropdown();
+            return;
+        }
+    }
+
+    private void importCase() {
+        String suiteName = (String) suiteSelector.getSelectedItem();
+        if (suiteName == null || suiteName.trim().isEmpty() || "neu".equalsIgnoreCase(suiteName.trim())) {
+            JOptionPane.showMessageDialog(this, "Bitte zuerst eine Suite auswählen.", "Hinweis", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        String caseName = (String) caseDropdown.getSelectedItem();
+        if (caseName == null || caseName.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Bitte einen Case auswählen.", "Hinweis", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        TestSuite suite = findSuiteByName(suiteName);
+        if (suite == null) return;
+        TestCase tc = findCaseByName(suite, caseName);
+        if (tc == null) return;
+
+        List<TestAction> actions = session.getAllTestActionsForDrawer();
+        if (actions == null) actions = new ArrayList<>();
+        actions.addAll(tc.getWhen());
         session.setRecordedActions(actions);
     }
 
@@ -421,6 +536,47 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
             }
         }
         if (changed) session.setRecordedActions(actions);
+    }
+
+    // ---------- Dropdown Refresh & Lookups ----------
+    private void refreshSuiteSelector() {
+        Object sel = suiteSelector.getSelectedItem();
+        suiteSelector.removeAllItems();
+        suiteSelector.addItem("neu");
+        for (TestSuite s : TestRegistry.getInstance().getAll()) {
+            if (s != null && s.getName() != null) suiteSelector.addItem(s.getName());
+        }
+        // Versuch, vorherige Auswahl beizubehalten
+        if (sel != null) suiteSelector.setSelectedItem(sel);
+    }
+
+    private void refreshCaseDropdown() {
+        caseDropdown.removeAllItems();
+        String suiteName = (String) suiteSelector.getSelectedItem();
+        if (suiteName == null || suiteName.trim().isEmpty() || "neu".equalsIgnoreCase(suiteName.trim())) {
+            return; // keine Suite gewählt
+        }
+        TestSuite s = findSuiteByName(suiteName);
+        if (s == null) return;
+        for (TestCase tc : s.getTestCases()) {
+            if (tc != null && tc.getName() != null) caseDropdown.addItem(tc.getName());
+        }
+    }
+
+    private TestSuite findSuiteByName(String name) {
+        if (name == null) return null;
+        for (TestSuite s : TestRegistry.getInstance().getAll()) {
+            if (s != null && name.equals(s.getName())) return s;
+        }
+        return null;
+    }
+
+    private TestCase findCaseByName(TestSuite suite, String name) {
+        if (suite == null || name == null) return null;
+        for (TestCase tc : suite.getTestCases()) {
+            if (tc != null && name.equals(tc.getName())) return tc;
+        }
+        return null;
     }
 
     private List<TestCase> splitIntoTestCases(List<TestAction> actions, String baseName) {

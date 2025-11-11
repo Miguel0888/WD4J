@@ -1217,6 +1217,7 @@ public class TestPlayerService {
         RootNode rootModel = TestRegistry.getInstance().getRoot();
         if (!rootBeforeAllDone) {
             Map<String,String> evaluated = evaluateExpressionMapNow(
+
                     rootModel.getBeforeAll(),
                     rootModel.getBeforeAllEnabled(),
                     runtimeCtx);
