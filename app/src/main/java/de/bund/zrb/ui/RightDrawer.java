@@ -29,13 +29,13 @@ public class RightDrawer extends JPanel {
         super(new BorderLayout(8, 8));
         this.browserService = browserService;
 
-        add(buildHeaderWithInfoButton(), BorderLayout.NORTH);
+        // Info-Button nicht darüber, sondern in der Tabzeile (siehe addPlusTab)
         add(recorderTabs, BorderLayout.CENTER);
 
         addPlusTab();
         openTabsForAllUsers();
 
-        // Plus-Tab Verhalten lassen wir wie gehabt
+        // Plus/Info-Tab Verhalten lassen wir wie gehabt
         recorderTabs.addChangeListener(e -> {
             int plusTabIndex = recorderTabs.getTabCount() - 1;
             int selectedIndex = recorderTabs.getSelectedIndex();
@@ -103,6 +103,24 @@ public class RightDrawer extends JPanel {
         return session;
     }
 
+    private TabHeader createTabTitle(UserRegistry.User user, RecorderTab tabContent) {
+        String title = "📝 " + user.getUsername();
+
+        Runnable onClose = () -> {
+            int index = recorderTabs.indexOfComponent(tabContent);
+            if (index >= 0 && index != recorderTabs.getTabCount() - 1) {
+                tabContent.unregister();
+                recorderTabs.remove(index);
+                tabsByUser.entrySet().removeIf(en -> en.getValue() == tabContent);
+            }
+        };
+
+        Runnable onStopRecording = () ->
+                RecorderCoordinator.getInstance().stopForUser(user.getUsername());
+
+        return new TabHeader(title, tabContent, onClose, onStopRecording);
+    }
+
     private void addNewRecorderSession() {
         List<UserRegistry.User> users = UserRegistry.getInstance().getAll();
         if (users.isEmpty()) {
@@ -127,18 +145,23 @@ public class RightDrawer extends JPanel {
     }
 
     private void addPlusTab() {
-        JPanel tabPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        JPanel tabPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         tabPanel.setOpaque(false);
 
         JButton openButton = new JButton("＋");
         openButton.setMargin(new Insets(0, 0, 0, 0));
         openButton.setBorder(BorderFactory.createEmptyBorder());
         openButton.setFocusable(false);
-        openButton.setContentAreaFilled(true);
+        openButton.setContentAreaFilled(false);
         openButton.setToolTipText("Neuen Recorder-Tab öffnen");
         openButton.addActionListener(e -> addNewRecorderSession());
 
+        RoundIconButton helpButton = new RoundIconButton("?");
+        helpButton.setToolTipText("Hilfe zum Recorder anzeigen");
+        helpButton.addActionListener(e -> showRecorderHelp());
+
         tabPanel.add(openButton);
+        tabPanel.add(helpButton);
 
         int insertIndex = Math.max(recorderTabs.getTabCount() - 1, 0);
         recorderTabs.insertTab(null, null, null, null, insertIndex);
@@ -146,47 +169,14 @@ public class RightDrawer extends JPanel {
         recorderTabs.setEnabledAt(recorderTabs.getTabCount() - 1, false);
     }
 
-    private TabHeader createTabTitle(UserRegistry.User user, RecorderTab tabContent) {
-        String title = "📝 " + user.getUsername();
-
-        Runnable onClose = () -> {
-            int index = recorderTabs.indexOfComponent(tabContent);
-            if (index >= 0 && index != recorderTabs.getTabCount() - 1) {
-                tabContent.unregister();
-                recorderTabs.remove(index);
-                tabsByUser.entrySet().removeIf(en -> en.getValue() == tabContent);
-            }
-        };
-
-        Runnable onStopRecording = () ->
-                RecorderCoordinator.getInstance().stopForUser(user.getUsername());
-
-        return new TabHeader(title, tabContent, onClose, onStopRecording);
-    }
-
-    private JComponent buildHeaderWithInfoButton() {
-        JPanel p = new JPanel(new BorderLayout());
-        p.setOpaque(false);
-        JButton info = new JButton("ℹ Recorder-Hilfe");
-        info.setFocusable(false);
-        info.setToolTipText("Hilfe zum Recorder anzeigen");
-        info.setBackground(new Color(0x1E88E5));
-        info.setForeground(Color.WHITE);
-        info.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0x1565C0)),
-                BorderFactory.createEmptyBorder(2,8,2,8)
-        ));
-        info.addActionListener(e -> {
-            String html = buildRecorderHelpHtmlGlobal();
-            JOptionPane.showMessageDialog(
-                    this,
-                    new JScrollPane(wrapHtmlGlobal(html)),
-                    "Hilfe – Recorder",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
-        });
-        p.add(info, BorderLayout.EAST);
-        return p;
+    private void showRecorderHelp() {
+        String html = buildRecorderHelpHtmlGlobal();
+        JOptionPane.showMessageDialog(
+                this,
+                new JScrollPane(wrapHtmlGlobal(html)),
+                "Hilfe – Recorder",
+                JOptionPane.INFORMATION_MESSAGE
+        );
     }
 
     private String buildRecorderHelpHtmlGlobal() {
@@ -194,8 +184,8 @@ public class RightDrawer extends JPanel {
         sb.append("<html><body style='font-family:sans-serif;padding:8px;'>");
         sb.append("<h3 style='margin-top:0'>Recorder – Übersicht</h3>");
         sb.append("<ul>");
-        sb.append("<li>Suite-Dropdown: <neu> für neue Suite, sonst Auswahl bestehender Suite.</li>");
-        sb.append("<li>Case-Dropdown: <neu> für neuen Case oder bestehende Auswahl zum Überschreiben/Import.</li>");
+        sb.append("<li>Suite-Dropdown: &lt;neu&gt; für neue Suite, sonst Auswahl bestehender Suite.</li>");
+        sb.append("<li>Case-Dropdown: &lt;neu&gt; für neuen Case oder bestehende Auswahl zum Überschreiben/Import.</li>");
         sb.append("<li>⤵ importiert den ausgewählten Case in die aktuelle Aufnahme.</li>");
         sb.append("<li>+ fügt eine neue Action ein, 🗑 löscht markierte, ▲/▼ verschiebt markierte Reihen.</li>");
         sb.append("<li>Speichern: legt Suite an oder speichert/überschreibt einen Case.</li>");
@@ -229,6 +219,46 @@ public class RightDrawer extends JPanel {
                 ((TabHeader) comp).setRecording(recording);
             }
         });
+    }
+
+    // Kleiner runder Icon-Button (blauer Kreis, weißes '?')
+    private static final class RoundIconButton extends JButton {
+        RoundIconButton(String text) {
+            super(text);
+            setOpaque(false);
+            setFocusPainted(false);
+            setBorderPainted(false);
+            setContentAreaFilled(false);
+            setForeground(Color.WHITE);
+            setFont(getFont().deriveFont(Font.BOLD));
+            setPreferredSize(new Dimension(22, 22));
+            setMinimumSize(new Dimension(22, 22));
+            setMaximumSize(new Dimension(22, 22));
+            setMargin(new Insets(0,0,0,0));
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        }
+        @Override protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            try {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                int w = getWidth();
+                int h = getHeight();
+                // Hintergrund (blauer Kreis)
+                g2.setColor(new Color(0x1E88E5));
+                g2.fillOval(0, 0, w - 1, h - 1);
+                // Fragezeichen mittig
+                String txt = getText();
+                FontMetrics fm = g2.getFontMetrics();
+                int tw = fm.stringWidth(txt);
+                int th = fm.getAscent();
+                int x = (w - tw) / 2;
+                int y = (h + th) / 2 - 2;
+                g2.setColor(Color.WHITE);
+                g2.drawString(txt, x, y);
+            } finally {
+                g2.dispose();
+            }
+        }
     }
 
     // --- Tab-Header mit rotem Aufnahmepunkt ---
