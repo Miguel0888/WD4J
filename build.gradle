@@ -26,7 +26,6 @@ subprojects {
     plugins.withId('java') {
         dependencies {
             compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
-            implementation "com.appland:appmap-agent:1.28.0"
         }
     }
 }
