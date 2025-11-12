@@ -254,13 +254,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         gb.gridx = 1; gb.gridy = br++; gb.anchor = GridBagConstraints.EAST; pnlBrowser.add(tfExtraArgs, gb);
         gb.gridx = 0; gb.gridy = br; gb.gridwidth = 2; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(cbConfirmTerminateRunning, gb); br++;
         gb.gridwidth = 1;
-        gb.gridx = 0; gb.gridy = br; gb.gridwidth = 2; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(cbDebugEnabled, gb); br++;
-        gb.gridwidth = 1;
-        // Log-Kanäle
-        gb.gridx = 0; gb.gridy = br; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(cbLogWebSocket, gb);
-        gb.gridx = 1; gb.gridy = br++; gb.anchor = GridBagConstraints.EAST; pnlBrowser.add(cbLogVideo, gb);
-        gb.gridx = 0; gb.gridy = br; gb.gridwidth = 2; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(cbLogBrowser, gb); br++;
-        gb.gridwidth = 1;
+        // Debug-Schalter werden in separatem Panel unten angezeigt
 
         // --- Recording ---
         JPanel pnlRecording = new JPanel(new GridBagLayout());
@@ -441,6 +435,22 @@ public class SettingsCommand extends ShortcutMenuCommand {
         form.add(pnlNet);
         form.add(Box.createVerticalStrut(8));
         form.add(pnlReport);
+        form.add(Box.createVerticalStrut(8));
+
+        // --- Debug / Terminal ---
+        JPanel pnlDebug = new JPanel(new GridBagLayout());
+        pnlDebug.setBorder(sectionBorder("Debug / Terminal"));
+        GridBagConstraints gDbg = gbc();
+        int drow = 0;
+        gDbg.gridx = 0; gDbg.gridy = drow++; gDbg.gridwidth = 3; gDbg.anchor = GridBagConstraints.WEST;
+        pnlDebug.add(cbDebugEnabled, gDbg);
+        gDbg.gridwidth = 1;
+        gDbg.gridx = 0; gDbg.gridy = drow; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(cbLogWebSocket, gDbg);
+        gDbg.gridx = 1; gDbg.gridy = drow++; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(cbLogVideo, gDbg);
+        gDbg.gridx = 0; gDbg.gridy = drow; gDbg.gridwidth = 2; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(cbLogBrowser, gDbg);
+        gDbg.gridwidth = 1;
+
+        form.add(pnlDebug);
 
         // --- Button-Leiste unten: links App-Ordner öffnen, rechts Apply/OK/Cancel ---
         JPanel footer = new JPanel(new BorderLayout());
