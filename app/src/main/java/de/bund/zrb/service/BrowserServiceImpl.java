@@ -520,4 +520,27 @@ public class BrowserServiceImpl implements BrowserService {
         return true;
     }
 
+    /** Debug: entfernt ALLE existierenden UserContexts remote (sofern möglich) und lokale Mappings. */
+    public void closeAllUserContexts() {
+        if (browser == null) {
+            userContexts.clear();
+            return;
+        }
+        try {
+            de.bund.zrb.manager.WDBrowserManager mgr = new de.bund.zrb.manager.WDBrowserManager(browser.getWebDriver().getWebSocketManager());
+            de.bund.zrb.command.response.WDBrowserResult.GetUserContextsResult res = mgr.getUserContexts();
+            res.getUserContexts().forEach(uc -> {
+                String id = uc.getUserContext().value();
+                if (!"default".equalsIgnoreCase(id)) {
+                    try { mgr.removeUserContext(id); } catch (Throwable ignore) {}
+                }
+            });
+        } catch (Throwable ignore) {
+            // Fallback: lokale Kontexte schließen
+            userContexts.values().forEach(c -> { try { c.close(); } catch (Throwable ignore2) {} });
+        } finally {
+            userContexts.clear();
+        }
+    }
+
 }

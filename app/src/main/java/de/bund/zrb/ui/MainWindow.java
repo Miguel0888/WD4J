@@ -438,6 +438,8 @@ public class MainWindow {
         commandRegistry.register(new ToggleRightDrawerCommand(this));
 
         commandRegistry.register(new ToggleVideoRecordCommand());
+        // Debug bereinigung
+        commandRegistry.register(new de.bund.zrb.ui.commands.CleanupAllUserContextsCommand());
     }
 
     private JMenu buildViewMenu() {
