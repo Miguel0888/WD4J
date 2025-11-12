@@ -231,7 +231,9 @@ public class WDWebSocketImpl implements WDWebSocket {
 
             @Override
             public void onMessage(String message) {
-                System.out.println("[WebSocket] Message received: " + message);
+                if (Boolean.getBoolean("wd4j.log.websocket")) {
+                    System.out.println("[WebSocket] Message received: " + message);
+                }
                 try {
                     WebSocketFrameImpl frame = new WebSocketFrameImpl(message);
 
@@ -258,7 +260,9 @@ public class WDWebSocketImpl implements WDWebSocket {
             // Hier fangen wir ALLE ausgehenden Nachrichten ab und benachrichtigen `onFrameSentListeners`
             @Override
             public void send(String message) {
-                System.out.println("[WebSocket] Message sent: " + message);
+                if (Boolean.getBoolean("wd4j.log.websocket")) {
+                    System.out.println("[WebSocket] Message sent: " + message);
+                }
                 super.send(message); // Die Nachricht wirklich senden
 
                 WebSocketFrameImpl frame = new WebSocketFrameImpl(message);
@@ -275,7 +279,9 @@ public class WDWebSocketImpl implements WDWebSocket {
     public void close() {
         isClosed = true;
         webSocketClient.close();
-        System.out.println("WebSocket connection closed.");
+        if (Boolean.getBoolean("wd4j.log.websocket")) {
+            System.out.println("WebSocket connection closed.");
+        }
     }
 
     public boolean isConnected() {

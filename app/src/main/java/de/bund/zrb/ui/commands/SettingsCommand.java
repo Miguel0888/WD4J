@@ -57,6 +57,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
     private JTextField tfExtraArgs;
     private JCheckBox cbConfirmTerminateRunning;
     private JCheckBox cbDebugEnabled;
+    private JCheckBox cbLogWebSocket;
+    private JCheckBox cbLogVideo;
+    private JCheckBox cbLogBrowser;
 
     @Override
     public String getId() { return "file.configure"; }
@@ -94,6 +97,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
         String  extraArgs   = SettingsService.getInstance().get("browser.extraArgs", String.class);
         Boolean confirmTerminate = SettingsService.getInstance().get("browser.confirmTerminateRunning", Boolean.class);
         Boolean dbgEnabled       = SettingsService.getInstance().get("debug.enabled", Boolean.class);
+        Boolean dbgWs            = SettingsService.getInstance().get("debug.websocket", Boolean.class);
+        Boolean dbgVid           = SettingsService.getInstance().get("debug.video", Boolean.class);
+        Boolean dbgBrowser       = SettingsService.getInstance().get("debug.browser", Boolean.class);
 
         double  initialWsTimeout = wsTimeout != null ? wsTimeout : DEFAULT_WS_TIMEOUT_MS;
         String  initialReportDir = (reportDir != null && !reportDir.trim().isEmpty()) ? reportDir : "C:/Reports";
@@ -119,6 +125,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
         String  initialExtraArgs = extraArgs != null ? extraArgs : "";
         boolean initialConfirmTerminate = confirmTerminate != null ? confirmTerminate : true;
         boolean initialDebugEnabled    = dbgEnabled != null ? dbgEnabled : false;
+        boolean initialLogWs           = dbgWs != null ? dbgWs : false;
+        boolean initialLogVideo        = dbgVid != null ? dbgVid : false;
+        boolean initialLogBrowser      = dbgBrowser != null ? dbgBrowser : false;
 
         double initialAssertGroupWaitS = groupWaitMs != null ? groupWaitMs / 1000.0 : DEFAULT_ASSERT_GROUP_WAIT_MS / 1000.0;
         double initialAssertEachWaitS  = eachWaitMs  != null ? eachWaitMs  / 1000.0 : DEFAULT_ASSERT_EACH_WAIT_MS  / 1000.0;
@@ -137,7 +146,11 @@ public class SettingsCommand extends ShortcutMenuCommand {
                 initialVideoDir,
                 initialAssertGroupWaitS,
                 initialAssertEachWaitS,
-                initialBeforeEachAfterWaitS // neu
+                initialBeforeEachAfterWaitS,
+                initialDebugEnabled,
+                initialLogWs,
+                initialLogVideo,
+                initialLogBrowser
         ));
         dialog.pack();
         dialog.setLocationRelativeTo(null);
@@ -154,7 +167,11 @@ public class SettingsCommand extends ShortcutMenuCommand {
                                      String videoDir,
                                      double assertionGroupWaitS,
                                      double assertionEachWaitS,
-                                     double beforeEachAfterWaitS // neu
+                                     double beforeEachAfterWaitS,
+                                     boolean initialDebugEnabled,
+                                     boolean initialLogWs,
+                                     boolean initialLogVideo,
+                                     boolean initialLogBrowser
     ) {
         JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(10, 12, 10, 12));
@@ -205,6 +222,15 @@ public class SettingsCommand extends ShortcutMenuCommand {
             Boolean dbg = SettingsService.getInstance().get("debug.enabled", Boolean.class);
             cbDebugEnabled.setSelected(dbg != null && dbg);
         }
+        cbLogWebSocket = new JCheckBox("[WebSocket]-Logs");
+        cbLogWebSocket.setSelected(initialLogWs);
+        cbLogVideo = new JCheckBox("[Video]-Logs");
+        cbLogVideo.setSelected(initialLogVideo);
+        cbLogBrowser = new JCheckBox("[" + String.valueOf(cbBrowserType.getSelectedItem()).toLowerCase() + "]-Logs");
+        cbLogBrowser.setSelected(initialLogBrowser);
+        cbBrowserType.addItemListener(e -> {
+            cbLogBrowser.setText("[" + String.valueOf(cbBrowserType.getSelectedItem()).toLowerCase() + "]-Logs");
+        });
 
         int br = 0;
         gb.gridx = 0; gb.gridy = br; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(new JLabel("Browser:"), gb);
@@ -229,6 +255,11 @@ public class SettingsCommand extends ShortcutMenuCommand {
         gb.gridx = 0; gb.gridy = br; gb.gridwidth = 2; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(cbConfirmTerminateRunning, gb); br++;
         gb.gridwidth = 1;
         gb.gridx = 0; gb.gridy = br; gb.gridwidth = 2; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(cbDebugEnabled, gb); br++;
+        gb.gridwidth = 1;
+        // Log-Kanäle
+        gb.gridx = 0; gb.gridy = br; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(cbLogWebSocket, gb);
+        gb.gridx = 1; gb.gridy = br++; gb.anchor = GridBagConstraints.EAST; pnlBrowser.add(cbLogVideo, gb);
+        gb.gridx = 0; gb.gridy = br; gb.gridwidth = 2; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(cbLogBrowser, gb); br++;
         gb.gridwidth = 1;
 
         // --- Recording ---
@@ -543,8 +574,17 @@ public class SettingsCommand extends ShortcutMenuCommand {
         s.put("browser.extraArgs", tfExtraArgs.getText().trim());
         s.put("browser.confirmTerminateRunning", cbConfirmTerminateRunning.isSelected());
         s.put("debug.enabled", cbDebugEnabled.isSelected());
+        s.put("debug.websocket", cbLogWebSocket.isSelected());
+        s.put("debug.video", cbLogVideo.isSelected());
+        s.put("debug.browser", cbLogBrowser.isSelected());
 
         s.forEach(SettingsService.getInstance()::set);
+
+        // System Properties sofort übernehmen (kein Neustart nötig)
+        System.setProperty("wd4j.debug", String.valueOf(cbDebugEnabled.isSelected()));
+        System.setProperty("wd4j.log.websocket", String.valueOf(cbLogWebSocket.isSelected()));
+        System.setProperty("wd4j.log.video", String.valueOf(cbLogVideo.isSelected()));
+        System.setProperty("wd4j.log.browser", String.valueOf(cbLogBrowser.isSelected()));
 
         // Live übernehmen (Adapter-Sicht)
         InputDelaysConfig.setKeyDownDelayMs(kdVal);

@@ -126,6 +126,12 @@ public class SettingsService {
         // Debug Flag anwenden
         Boolean dbg = getInstance().get("debug.enabled", Boolean.class);
         System.setProperty("wd4j.debug", String.valueOf(dbg != null && dbg));
+        Boolean dbgWs = getInstance().get("debug.websocket", Boolean.class);
+        System.setProperty("wd4j.log.websocket", String.valueOf(dbgWs != null && dbgWs));
+        Boolean dbgVid = getInstance().get("debug.video", Boolean.class);
+        System.setProperty("wd4j.log.video", String.valueOf(dbgVid != null && dbgVid));
+        Boolean dbgBrowser = getInstance().get("debug.browser", Boolean.class);
+        System.setProperty("wd4j.log.browser", String.valueOf(dbgBrowser != null && dbgBrowser));
 
     }
 
@@ -152,6 +158,9 @@ public class SettingsService {
         if (!settingsCache.containsKey("assertion.groupWaitMs")) settingsCache.put("assertion.groupWaitMs", 3000);
         if (!settingsCache.containsKey("assertion.eachWaitMs"))  settingsCache.put("assertion.eachWaitMs", 0);
         if (!settingsCache.containsKey("debug.enabled")) settingsCache.put("debug.enabled", false); // steuert [DEBUG]-Ausgaben
+        if (!settingsCache.containsKey("debug.websocket")) settingsCache.put("debug.websocket", false); // [WebSocket]
+        if (!settingsCache.containsKey("debug.video")) settingsCache.put("debug.video", false); // [Video]
+        if (!settingsCache.containsKey("debug.browser")) settingsCache.put("debug.browser", false); // Browser Prozess / Start
     }
 
     /** Persist the global settings.json to disk. */

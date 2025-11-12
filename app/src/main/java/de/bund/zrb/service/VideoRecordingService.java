@@ -37,29 +37,31 @@ public final class VideoRecordingService {
         if (checkClassesOnCurrentLoader()) return true;
         Path libDir = settingsLibDir();
         if (libDir == null) {
-            System.out.println("[Video] Kein settings libDir verfügbar.");
+            if (Boolean.getBoolean("wd4j.log.video")) System.out.println("[Video] Kein settings libDir verfügbar.");
             return false;
         }
         if (!Files.isDirectory(libDir)) {
-            System.out.println("[Video] libDir existiert nicht: " + libDir);
+            if (Boolean.getBoolean("wd4j.log.video")) System.out.println("[Video] libDir existiert nicht: " + libDir);
             return false;
         }
         try {
             File[] jarFiles = libDir.toFile().listFiles((dir, name) -> name != null && name.toLowerCase().endsWith(".jar"));
             if (jarFiles == null || jarFiles.length == 0) {
-                System.out.println("[Video] Keine JARs in " + libDir);
+                if (Boolean.getBoolean("wd4j.log.video")) System.out.println("[Video] Keine JARs in " + libDir);
                 return false;
             }
-            System.out.println("[Video] Gefundene JARs in libDir:" );
-            for (File f : jarFiles) System.out.println("[Video]  - " + f.getName());
+            if (Boolean.getBoolean("wd4j.log.video")) {
+                System.out.println("[Video] Gefundene JARs in libDir:" );
+                for (File f : jarFiles) System.out.println("[Video]  - " + f.getName());
+            }
             List<URL> urls = new ArrayList<>();
             for (File f : jarFiles) urls.add(f.toURI().toURL());
             attachUrls(urls);
         } catch (Throwable t) {
-            System.out.println("[Video] Attach Fehler: " + t.getClass().getSimpleName() + ": " + t.getMessage());
+            if (Boolean.getBoolean("wd4j.log.video")) System.out.println("[Video] Attach Fehler: " + t.getClass().getSimpleName() + ": " + t.getMessage());
         }
         boolean ok = checkClassesOnCurrentLoader();
-        System.out.println("[Video] Klassen nach Attach geladen: " + ok);
+        if (Boolean.getBoolean("wd4j.log.video")) System.out.println("[Video] Klassen nach Attach geladen: " + ok);
         return ok;
     }
 
@@ -152,7 +154,7 @@ public final class VideoRecordingService {
             if (videoStackAvailable()) {
                 autostartIfConfigured();
             } else {
-                System.out.println("[Video] Optionaler Video-Stack nicht vorhanden – Auto-Start wird übersprungen.");
+                if (Boolean.getBoolean("wd4j.log.video")) System.out.println("[Video] Optionaler Video-Stack nicht vorhanden – Auto-Start wird übersprungen.");
             }
         } catch (Throwable t) {
             System.err.println("[Video] init() Fehler: " + t.getMessage());
@@ -166,7 +168,7 @@ public final class VideoRecordingService {
         if (isRecording()) return;
         try {
             start();
-            System.out.println("[Video] Auto-Recording gestartet.");
+            if (Boolean.getBoolean("wd4j.log.video")) System.out.println("[Video] Auto-Recording gestartet.");
         } catch (Throwable t) {
             System.err.println("[Video] Auto-Recording Start fehlgeschlagen: " + t.getMessage());
         }
@@ -188,7 +190,7 @@ public final class VideoRecordingService {
     public synchronized void start() throws Exception {
         // HWND Lazy Versuch falls noch nicht gesetzt
         if (this.targetWindow == null) {
-            System.out.println("[Video] Versuch HWND lazy zu ermitteln vor Start...");
+            if (Boolean.getBoolean("wd4j.log.video")) System.out.println("[Video] Versuch HWND lazy zu ermitteln vor Start...");
             try {
                 // BrowserImpl über UserContextMappingService ermitteln (falls vorhanden)
                 // Fallback: kein Zugriff -> bleibt null
