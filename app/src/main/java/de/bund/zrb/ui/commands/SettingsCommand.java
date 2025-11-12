@@ -62,6 +62,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
     private JCheckBox cbLogBrowser;
     private JCheckBox cbLogTabManager;
     private JCheckBox cbLogNetwork;
+    private JCheckBox cbNetworkWaitEnabled;
+    private JSpinner spNetworkWaitMs;
 
     @Override
     public String getId() { return "file.configure"; }
@@ -104,6 +106,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
         Boolean dbgBrowser       = SettingsService.getInstance().get("debug.browser", Boolean.class);
         Boolean dbgTabManager    = SettingsService.getInstance().get("debug.tabmanager", Boolean.class);
         Boolean dbgNetwork       = SettingsService.getInstance().get("debug.network", Boolean.class);
+        Boolean netWaitEnabled  = SettingsService.getInstance().get("network.waitEnabled", Boolean.class);
+        Long    netWaitMs       = SettingsService.getInstance().get("network.waitForCompleteMs", Long.class);
 
         double  initialWsTimeout = wsTimeout != null ? wsTimeout : DEFAULT_WS_TIMEOUT_MS;
         String  initialReportDir = (reportDir != null && !reportDir.trim().isEmpty()) ? reportDir : "C:/Reports";
@@ -134,6 +138,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
         boolean initialLogBrowser      = dbgBrowser != null ? dbgBrowser : false;
         boolean initialLogTabManager   = dbgTabManager != null ? dbgTabManager : false;
         boolean initialLogNetwork      = dbgNetwork != null ? dbgNetwork : false;
+        boolean initialNetWaitEnabled  = netWaitEnabled == null || netWaitEnabled.booleanValue();
+        long    initialNetWaitMs       = (netWaitMs != null && netWaitMs >= 0) ? netWaitMs : 5000L;
 
         double initialAssertGroupWaitS = groupWaitMs != null ? groupWaitMs / 1000.0 : DEFAULT_ASSERT_GROUP_WAIT_MS / 1000.0;
         double initialAssertEachWaitS  = eachWaitMs  != null ? eachWaitMs  / 1000.0 : DEFAULT_ASSERT_EACH_WAIT_MS  / 1000.0;
@@ -158,7 +164,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
                 initialLogVideo,
                 initialLogBrowser,
                 initialLogTabManager,
-                initialLogNetwork
+                initialLogNetwork,
+                initialNetWaitEnabled,
+                initialNetWaitMs
         ));
         dialog.pack();
         dialog.setLocationRelativeTo(null);
@@ -181,7 +189,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
                                      boolean initialLogVideo,
                                      boolean initialLogBrowser,
                                      boolean initialLogTabManager,
-                                     boolean initialLogNetwork
+                                     boolean initialLogNetwork,
+                                     boolean initialNetWaitEnabled,
+                                     long initialNetWaitMs
     ) {
         JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(10, 12, 10, 12));
@@ -242,6 +252,11 @@ public class SettingsCommand extends ShortcutMenuCommand {
         cbLogTabManager.setSelected(initialLogTabManager);
         cbLogNetwork = new JCheckBox("[Network]-Logs");
         cbLogNetwork.setSelected(initialLogNetwork);
+        cbNetworkWaitEnabled = new JCheckBox("Netzwerk-Wartefunktion aktiv");
+        cbNetworkWaitEnabled.setSelected(initialNetWaitEnabled);
+        spNetworkWaitMs = new JSpinner(new SpinnerNumberModel(initialNetWaitMs, 0L, 120_000L, 100L));
+        spNetworkWaitMs.setPreferredSize(new Dimension(120, 26));
+        spNetworkWaitMs.setToolTipText("Timeout in Millisekunden für das Warten auf vollständige Antworten (0 = aus)");
         cbBrowserType.addItemListener(e -> {
             cbLogBrowser.setText("[" + String.valueOf(cbBrowserType.getSelectedItem()).toLowerCase() + "]-Logs");
         });
@@ -464,7 +479,11 @@ public class SettingsCommand extends ShortcutMenuCommand {
         // Reihe 2
         gDbg.gridx = 0; gDbg.gridy = drow; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(cbLogBrowser, gDbg);
         gDbg.gridx = 1; gDbg.gridy = drow; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(cbLogTabManager, gDbg);
-        gDbg.gridx = 2; gDbg.gridy = drow; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(cbLogNetwork, gDbg);
+        gDbg.gridx = 2; gDbg.gridy = drow++; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(cbLogNetwork, gDbg);
+        // Reihe 3: Netzwerk-Wait Settings (2 Spalten)
+        gDbg.gridx = 0; gDbg.gridy = drow; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(cbNetworkWaitEnabled, gDbg);
+        gDbg.gridx = 1; gDbg.gridy = drow; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(new JLabel("Timeout (ms):"), gDbg);
+        gDbg.gridx = 2; gDbg.gridy = drow++; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(spNetworkWaitMs, gDbg);
 
         form.add(pnlDebug);
 
@@ -605,6 +624,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
         s.put("debug.browser", cbLogBrowser.isSelected());
         s.put("debug.tabmanager", cbLogTabManager.isSelected());
         s.put("debug.network", cbLogNetwork.isSelected());
+        s.put("network.waitEnabled", cbNetworkWaitEnabled.isSelected());
+        s.put("network.waitForCompleteMs", ((Number) spNetworkWaitMs.getValue()).longValue());
 
         s.forEach(SettingsService.getInstance()::set);
 

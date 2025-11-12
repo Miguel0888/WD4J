@@ -25,6 +25,13 @@ public class TestPlayerService {
     // Netzwerk-Warte-Mechanismus
     private final java.util.Set<String> inFlightRequestIds = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
     private volatile boolean networkSubscriptionsActive = false;
+    // Logging + Aktivierung
+    private static boolean netLogEnabled() { return Boolean.getBoolean("wd4j.log.network") || Boolean.getBoolean("wd4j.debug"); }
+    private static void netLog(String msg) { if (netLogEnabled()) System.out.println("[Network] " + msg); }
+    private static boolean networkWaitEnabled() {
+        Boolean b = SettingsService.getInstance().get("network.waitEnabled", Boolean.class);
+        return b == null || b.booleanValue(); // Default: ON
+    }
     private long networkWaitTimeoutMs() {
         Long cfg = SettingsService.getInstance().get("network.waitForCompleteMs", Long.class);
         if (cfg == null || cfg < 0) return 5000L; // Default 5s
@@ -39,72 +46,77 @@ public class TestPlayerService {
             if (wd == null) return;
             // BEFORE_REQUEST_SENT
             wd.addEventListener(new de.bund.zrb.type.session.WDSubscriptionRequest(
-                            de.bund.zrb.websocket.WDEventNames.BEFORE_REQUEST_SENT.getName(), null, null),
-                    ev -> {
-                        if (ev instanceof de.bund.zrb.event.WDNetworkEvent.BeforeRequestSent) {
-                            try {
-                                de.bund.zrb.event.WDNetworkEvent.BeforeRequestSent e = (de.bund.zrb.event.WDNetworkEvent.BeforeRequestSent) ev;
-                                String rid = null;
-                                de.bund.zrb.type.network.WDRequestData rd = e.getParams().getRequest();
-                                if (rd != null && rd.getRequest() != null) {
-                                    rid = rd.getRequest().value();
-                                }
-                                 if (rid != null && !rid.isEmpty()) inFlightRequestIds.add(rid);
-                            } catch (Throwable ignored) {}
+                    de.bund.zrb.websocket.WDEventNames.BEFORE_REQUEST_SENT.getName(), null, null), ev -> {
+                if (ev instanceof de.bund.zrb.event.WDNetworkEvent.BeforeRequestSent) {
+                    try {
+                        de.bund.zrb.event.WDNetworkEvent.BeforeRequestSent e = (de.bund.zrb.event.WDNetworkEvent.BeforeRequestSent) ev;
+                        String rid = null;
+                        de.bund.zrb.type.network.WDRequestData rd = e.getParams().getRequest();
+                        if (rd != null && rd.getRequest() != null) rid = rd.getRequest().value();
+                        if (rid != null && !rid.isEmpty()) inFlightRequestIds.add(rid);
+                        if (netLogEnabled()) {
+                            String method = (rd != null ? rd.getMethod() : null);
+                            String url = (rd != null ? rd.getUrl() : null);
+                            netLog("beforeRequestSent " + (method != null ? method : "?") + " " + (url != null ? url : "?") + (rid != null ? " rid=" + rid : ""));
                         }
-                    });
+                    } catch (Throwable ignored) {}
+                }
+            });
             // RESPONSE_COMPLETED
             wd.addEventListener(new de.bund.zrb.type.session.WDSubscriptionRequest(
-                            de.bund.zrb.websocket.WDEventNames.RESPONSE_COMPLETED.getName(), null, null),
-                    ev -> {
-                        if (ev instanceof de.bund.zrb.event.WDNetworkEvent.ResponseCompleted) {
-                            try {
-                                de.bund.zrb.event.WDNetworkEvent.ResponseCompleted e = (de.bund.zrb.event.WDNetworkEvent.ResponseCompleted) ev;
-                                String rid = null;
-                                de.bund.zrb.type.network.WDRequestData rd = e.getParams().getRequest();
-                                if (rd != null && rd.getRequest() != null) {
-                                    rid = rd.getRequest().value();
-                                }
-                                 if (rid != null) inFlightRequestIds.remove(rid);
-                            } catch (Throwable ignored) {}
+                    de.bund.zrb.websocket.WDEventNames.RESPONSE_COMPLETED.getName(), null, null), ev -> {
+                if (ev instanceof de.bund.zrb.event.WDNetworkEvent.ResponseCompleted) {
+                    try {
+                        de.bund.zrb.event.WDNetworkEvent.ResponseCompleted e = (de.bund.zrb.event.WDNetworkEvent.ResponseCompleted) ev;
+                        String rid = null;
+                        de.bund.zrb.type.network.WDRequestData rd = e.getParams().getRequest();
+                        if (rd != null && rd.getRequest() != null) rid = rd.getRequest().value();
+                        if (rid != null) inFlightRequestIds.remove(rid);
+                        if (netLogEnabled()) {
+                            de.bund.zrb.type.network.WDResponseData resp = e.getParams().getResponse();
+                            String url = (resp != null ? resp.getUrl() : (rd != null ? rd.getUrl() : null));
+                            long status = (resp != null ? resp.getStatus() : -1);
+                            netLog("responseCompleted status=" + status + " " + (url != null ? url : "?") + (rid != null ? " rid=" + rid : ""));
                         }
-                    });
-            // FETCH_ERROR (Fehler -> auch entfernen)
+                    } catch (Throwable ignored) {}
+                }
+            });
+            // FETCH_ERROR
             wd.addEventListener(new de.bund.zrb.type.session.WDSubscriptionRequest(
-                            de.bund.zrb.websocket.WDEventNames.FETCH_ERROR.getName(), null, null),
-                    ev -> {
-                        if (ev instanceof de.bund.zrb.event.WDNetworkEvent.FetchError) {
-                            try {
-                                de.bund.zrb.event.WDNetworkEvent.FetchError e = (de.bund.zrb.event.WDNetworkEvent.FetchError) ev;
-                                String rid = null;
-                                de.bund.zrb.type.network.WDRequestData rd = e.getParams().getRequest();
-                                if (rd != null && rd.getRequest() != null) {
-                                    rid = rd.getRequest().value();
-                                }
-                                 if (rid != null) inFlightRequestIds.remove(rid);
-                            } catch (Throwable ignored) {}
+                    de.bund.zrb.websocket.WDEventNames.FETCH_ERROR.getName(), null, null), ev -> {
+                if (ev instanceof de.bund.zrb.event.WDNetworkEvent.FetchError) {
+                    try {
+                        de.bund.zrb.event.WDNetworkEvent.FetchError e = (de.bund.zrb.event.WDNetworkEvent.FetchError) ev;
+                        String rid = null;
+                        de.bund.zrb.type.network.WDRequestData rd = e.getParams().getRequest();
+                        if (rd != null && rd.getRequest() != null) rid = rd.getRequest().value();
+                        if (rid != null) inFlightRequestIds.remove(rid);
+                        if (netLogEnabled()) {
+                            String url = (rd != null ? rd.getUrl() : null);
+                            String err = e.getParams().getErrorText();
+                            netLog("fetchError " + (url != null ? url : "?") + (rid != null ? " rid=" + rid : "") + (err != null ? " error=\"" + err + "\"" : ""));
                         }
-                    });
+                    } catch (Throwable ignored) {}
+                }
+            });
             networkSubscriptionsActive = true;
         } catch (Throwable t) {
-            // Silent: Falls keine Subscriptions möglich sind, läuft Test weiter ohne Netz-Warte-Logik
+            // silent
         }
     }
     private void waitForNetworkQuiescence(String phaseLabel, de.bund.zrb.ui.components.log.StepLog stepLog) {
+        if (!networkWaitEnabled()) return; // deaktiviert per Setting
         ensureNetworkSubscriptions();
         long timeout = networkWaitTimeoutMs();
         long start = System.currentTimeMillis();
-        // Erst kurze Ruhephase für Requests, die unmittelbar vor Aktion gestartet wurden
         try { Thread.sleep(50); } catch (InterruptedException ignored) {}
         while (true) {
-            if (stopped) return; // Abbruch
+            if (stopped) return;
             int open = inFlightRequestIds.size();
-            if (open == 0) return; // fertig
+            if (open == 0) return;
             if (System.currentTimeMillis() - start > timeout) {
-                if (stepLog != null) {
-                    stepLog.addInfo("Netzwerk-Timeout: " + open + " offene Anfrage(n) nach " + timeout + "ms");
-                }
-                return; // Timeout – nicht blockieren
+                if (stepLog != null) stepLog.addInfo("Netzwerk-Timeout: " + open + " offene Anfrage(n) nach " + timeout + "ms");
+                return;
             }
             try { Thread.sleep(100); } catch (InterruptedException ignored) {}
         }
