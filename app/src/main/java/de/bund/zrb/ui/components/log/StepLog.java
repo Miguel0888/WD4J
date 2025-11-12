@@ -15,6 +15,7 @@ public class StepLog implements LogComponent {
     private List<LogComponent> children = new ArrayList<>();
 
     private String htmlAppend; // NEU
+    private final List<String> infoLines = new ArrayList<>(); // zusätzliche Info-Meldungen
 
     public StepLog(String phase, String content) {
         this.phase = phase;
@@ -22,6 +23,17 @@ public class StepLog implements LogComponent {
     }
 
     public void setHtmlAppend(String htmlAppend) { this.htmlAppend = htmlAppend; }
+    /**
+     * Fügt eine zusätzliche Info-Zeile hinzu (wird unterhalb des Inhalts angezeigt).
+     * Null oder leere Strings werden ignoriert.
+     */
+    public void addInfo(String info) {
+        if (info == null) return;
+        String trimmed = info.trim();
+        if (trimmed.isEmpty()) return;
+        infoLines.add(trimmed);
+    }
+    public List<String> getInfoLines() { return Collections.unmodifiableList(infoLines); }
 
     @Override
     public String toHtml() {
@@ -31,6 +43,11 @@ public class StepLog implements LogComponent {
                 .append(escape(content));
         if (!success && errorMessage != null && !errorMessage.isEmpty()) {
             sb.append("<br><i style='color:red'>Fehler: ").append(escape(errorMessage)).append("</i>");
+        }
+        if (!infoLines.isEmpty()) {
+            for (String line : infoLines) {
+                sb.append("<br><span style='color:#666'>").append(escape(line)).append("</span>");
+            }
         }
         if (htmlAppend != null && !htmlAppend.isEmpty()) {
             sb.append("<br>").append(htmlAppend); // rohes HTML
