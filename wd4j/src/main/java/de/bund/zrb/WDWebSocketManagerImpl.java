@@ -26,9 +26,27 @@ public class WDWebSocketManagerImpl implements WDWebSocketManager {
 
     private final WDWebSocketImpl webSocket; // ToDo: Should be WebSocket instead of WebSocketImpl
 
-    // Retry-Regeln:
-    private static final int MAX_RETRY_COUNT = 5;
-    private static final long MAX_RETRY_WINDOW_MILLIS = 30_000L;
+    // Retry-Regeln nun dynamisch über System Properties:
+    //  - wd4j.command.retry.maxCount  (int)   Anzahl Versuche
+    //  - wd4j.command.retry.windowMs  (long)  Zeitfenster in Millisekunden
+    //  Fehlen oder <= 0 => Retry deaktiviert (sofortiger Fehler)
+    private static final Integer MAX_RETRY_COUNT = resolveIntProp("wd4j.command.retry.maxCount");
+    private static final Long MAX_RETRY_WINDOW_MILLIS = resolveLongProp("wd4j.command.retry.windowMs");
+
+    private static Integer resolveIntProp(String key) {
+        String v = System.getProperty(key);
+        if (v == null || v.trim().isEmpty()) return null;
+        try { return Integer.valueOf(v.trim()); } catch (NumberFormatException ignore) { return null; }
+    }
+    private static Long resolveLongProp(String key) {
+        String v = System.getProperty(key);
+        if (v == null || v.trim().isEmpty()) return null;
+        try { return Long.valueOf(v.trim()); } catch (NumberFormatException ignore) { return null; }
+    }
+    private static boolean retryEnabled() {
+        return MAX_RETRY_COUNT != null && MAX_RETRY_COUNT > 0 &&
+               MAX_RETRY_WINDOW_MILLIS != null && MAX_RETRY_WINDOW_MILLIS > 0L;
+    }
 
     // Dispatcher: key = commandId, value = callback for this command
     private final Map<Integer, Consumer<WDCommandResponse<?>>> responseDispatcher =
@@ -158,8 +176,8 @@ public class WDWebSocketManagerImpl implements WDWebSocketManager {
         Consumer<WDCommandResponse<?>> dispatcherCallback = new Consumer<WDCommandResponse<?>>() {
             @Override
             public void accept(WDCommandResponse<?> response) {
-                // Retry-Handling nur für Errors
-                if (response instanceof WDErrorResponse) {
+                // Retry-Handling nur für Errors und nur wenn aktiviert
+                if (response instanceof WDErrorResponse && retryEnabled()) {
                     long now = System.currentTimeMillis();
                     long age = now - command.getFirstTimestamp();
                     int retries = command.getRetryCount();
@@ -172,11 +190,11 @@ public class WDWebSocketManagerImpl implements WDWebSocketManager {
                         command.incrementRetryCount();
                         String retryJson = gson.toJson(command);
                         webSocket.send(retryJson);
-                        // Ignore this error for listener and future
-                        return;
+                        return; // Fehler unterdrücken
                     }
                     // An dieser Stelle: finaler Fehler, weiter unten normal behandeln
                 }
+                // Wenn Retry deaktiviert => sofortiger Fehler-Durchlass
 
                 // Finale Antwort oder finaler Fehler: Dispatcher-Aufräumen
                 responseDispatcher.remove(commandId);

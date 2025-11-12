@@ -65,6 +65,10 @@ public class SettingsCommand extends ShortcutMenuCommand {
     private JCheckBox cbNetworkWaitEnabled;
     private JSpinner spNetworkWaitMs;
 
+    // neu
+    private JSpinner spCmdRetryCount; // neu
+    private JSpinner spCmdRetryWindowS; // neu in Sekunden
+
     @Override
     public String getId() { return "file.configure"; }
 
@@ -108,6 +112,11 @@ public class SettingsCommand extends ShortcutMenuCommand {
         Boolean dbgNetwork       = SettingsService.getInstance().get("debug.network", Boolean.class);
         Boolean netWaitEnabled  = SettingsService.getInstance().get("network.waitEnabled", Boolean.class);
         Long    netWaitMs       = SettingsService.getInstance().get("network.waitForCompleteMs", Long.class);
+
+        Integer cmdRetryCount = SettingsService.getInstance().get("command.retry.maxCount", Integer.class);
+        Long    cmdRetryWindow = SettingsService.getInstance().get("command.retry.windowMs", Long.class);
+        double  initialCmdRetryWindowS = (cmdRetryWindow != null ? cmdRetryWindow : 0L) / 1000.0;
+        int     initialCmdRetryCount   = cmdRetryCount != null ? cmdRetryCount : 0;
 
         double  initialWsTimeout = wsTimeout != null ? wsTimeout : DEFAULT_WS_TIMEOUT_MS;
         String  initialReportDir = (reportDir != null && !reportDir.trim().isEmpty()) ? reportDir : "C:/Reports";
@@ -166,7 +175,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
                 initialLogTabManager,
                 initialLogNetwork,
                 initialNetWaitEnabled,
-                initialNetWaitMs
+                initialNetWaitMs,
+                initialCmdRetryCount,
+                initialCmdRetryWindowS
         ));
         dialog.pack();
         dialog.setLocationRelativeTo(null);
@@ -191,7 +202,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
                                      boolean initialLogTabManager,
                                      boolean initialLogNetwork,
                                      boolean initialNetWaitEnabled,
-                                     long initialNetWaitMs
+                                     long initialNetWaitMs,
+                                     int initialCmdRetryCount,
+                                     double initialCmdRetryWindowS
     ) {
         JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(10, 12, 10, 12));
@@ -431,6 +444,27 @@ public class SettingsCommand extends ShortcutMenuCommand {
         g3.gridx = 1; g3.gridy = 0; g3.anchor = GridBagConstraints.EAST; g3.weightx = 1;
         pnlNet.add(spWsTimeout, g3);
 
+        // Neue Retry-Felder
+        JLabel lbRetryCount = new JLabel("Command Retry Count:");
+        spCmdRetryCount = new JSpinner(new SpinnerNumberModel(initialCmdRetryCount, 0, 1000, 1));
+        spCmdRetryCount.setPreferredSize(spSz);
+        spCmdRetryCount.setToolTipText("Wie oft ein fehlgeschlagener Command erneut versucht wird (0 = aus).");
+        g3.gridx = 0; g3.gridy = 1; g3.anchor = GridBagConstraints.WEST; g3.weightx = 0;
+        pnlNet.add(lbRetryCount, g3);
+        g3.gridx = 1; g3.gridy = 1; g3.anchor = GridBagConstraints.EAST; g3.weightx = 1;
+        pnlNet.add(spCmdRetryCount, g3);
+
+        JLabel lbRetryWindow = new JLabel("Retry-Zeitfenster (s):");
+        spCmdRetryWindowS = new JSpinner(new SpinnerNumberModel(initialCmdRetryWindowS, 0.0, Double.MAX_VALUE, 1.0));
+        JSpinner.NumberEditor rwEd = new JSpinner.NumberEditor(spCmdRetryWindowS, "0.###");
+        spCmdRetryWindowS.setEditor(rwEd);
+        spCmdRetryWindowS.setPreferredSize(spSz);
+        spCmdRetryWindowS.setToolTipText("Maximale Dauer innerhalb der erneut versucht wird (Sekunden, 0 = aus).");
+        g3.gridx = 0; g3.gridy = 2; g3.anchor = GridBagConstraints.WEST; g3.weightx = 0;
+        pnlNet.add(lbRetryWindow, g3);
+        g3.gridx = 1; g3.gridy = 2; g3.anchor = GridBagConstraints.EAST; g3.weightx = 1;
+        pnlNet.add(spCmdRetryWindowS, g3);
+
         // --- Reporting ---
         JPanel pnlReport = new JPanel(new GridBagLayout());
         pnlReport.setBorder(sectionBorder("Bericht"));
@@ -591,6 +625,12 @@ public class SettingsCommand extends ShortcutMenuCommand {
         String videoDir = tfVideoDir.getText().trim();
         if (videoDir.isEmpty()) { error("Bitte einen Video-Ordner angeben."); return; }
 
+        int cmdRetryCount = ((Number) spCmdRetryCount.getValue()).intValue();
+        double cmdRetryWindowS = ((Number) spCmdRetryWindowS.getValue()).doubleValue();
+        if (cmdRetryCount < 0) { error("Retry Count darf nicht negativ sein."); return; }
+        if (cmdRetryWindowS < 0) { error("Retry-Zeitfenster darf nicht negativ sein."); return; }
+        long cmdRetryWindowMs = Math.round(cmdRetryWindowS * 1000.0);
+
         Map<String, Object> s = new HashMap<>();
         s.put("websocketTimeout", timeoutValue);
         s.put("reportBaseDir", reportDir);
@@ -626,6 +666,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
         s.put("debug.network", cbLogNetwork.isSelected());
         s.put("network.waitEnabled", cbNetworkWaitEnabled.isSelected());
         s.put("network.waitForCompleteMs", ((Number) spNetworkWaitMs.getValue()).longValue());
+        s.put("command.retry.maxCount", cmdRetryCount);
+        s.put("command.retry.windowMs", cmdRetryWindowMs);
 
         s.forEach(SettingsService.getInstance()::set);
 
@@ -636,6 +678,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
         System.setProperty("wd4j.log.browser", String.valueOf(cbLogBrowser.isSelected()));
         System.setProperty("wd4j.log.tabmanager", String.valueOf(cbLogTabManager.isSelected()));
         System.setProperty("wd4j.log.network", String.valueOf(cbLogNetwork.isSelected()));
+        System.setProperty("wd4j.command.retry.maxCount", String.valueOf(cmdRetryCount));
+        System.setProperty("wd4j.command.retry.windowMs", String.valueOf(cmdRetryWindowMs));
 
         // Live übernehmen (Adapter-Sicht)
         InputDelaysConfig.setKeyDownDelayMs(kdVal);

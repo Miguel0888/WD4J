@@ -864,6 +864,11 @@ public class TestPlayerService {
     // RENAMED: Playback Logging (interne Umsetzung weiter mit Network-Events)
     private void setupPlaybackLogging() { // was setupNetworkLogging
         if (playbackLoggingActive) return;
+        // nur wenn [Playback]-Logs aktiviert sind
+        if (!Boolean.getBoolean("wd4j.log.network")) {
+            System.out.println("[PLAY] Terminal-Playback-Logging ist deaktiviert (Schalter [Playback]-Logs).");
+            return;
+        }
         try {
             BrowserImpl browser = browserService.getBrowser();
             if (browser == null) { System.err.println("[PLAY] Kein Browser verfügbar – Logging deaktiviert."); return; }

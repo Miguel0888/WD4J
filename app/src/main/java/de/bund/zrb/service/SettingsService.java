@@ -133,6 +133,15 @@ public class SettingsService {
         Boolean dbgBrowser = getInstance().get("debug.browser", Boolean.class);
         System.setProperty("wd4j.log.browser", String.valueOf(dbgBrowser != null && dbgBrowser));
 
+        // Command Retry Settings -> System Properties
+        Integer cmdRetryCount = getInstance().get("command.retry.maxCount", Integer.class);
+        Long    cmdRetryWinMs = getInstance().get("command.retry.windowMs", Long.class);
+        if (cmdRetryCount != null) {
+            System.setProperty("wd4j.command.retry.maxCount", String.valueOf(cmdRetryCount));
+        }
+        if (cmdRetryWinMs != null) {
+            System.setProperty("wd4j.command.retry.windowMs", String.valueOf(cmdRetryWinMs));
+        }
     }
 
     /** Load the global settings.json into memory. */
@@ -161,6 +170,9 @@ public class SettingsService {
         if (!settingsCache.containsKey("debug.websocket")) settingsCache.put("debug.websocket", false); // [WebSocket]
         if (!settingsCache.containsKey("debug.video")) settingsCache.put("debug.video", false); // [Video]
         if (!settingsCache.containsKey("debug.browser")) settingsCache.put("debug.browser", false); // Browser Prozess / Start
+        // Command Retry Defaults (0 = aus)
+        if (!settingsCache.containsKey("command.retry.maxCount")) settingsCache.put("command.retry.maxCount", 0);
+        if (!settingsCache.containsKey("command.retry.windowMs")) settingsCache.put("command.retry.windowMs", 0L);
     }
 
     /** Persist the global settings.json to disk. */
