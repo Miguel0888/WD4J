@@ -240,12 +240,16 @@ public class MainWindow {
             }
         });
 
-        // Browser erst nach Statusbar, wie gehabt
-        try {
-            browserService.launchDefaultBrowser();
-        } catch (Exception ex) {
-            // Fehlerdialog wird bereits via EventBus gezeigt; hier nur Fallback
-        }
+        // Dont block startUp
+        SwingUtilities.invokeLater(() ->
+            {
+                // Browser erst nach Statusbar, wie gehabt
+                try {
+                    browserService.launchDefaultBrowser();
+                } catch (Exception ex) {
+                    // Fehlerdialog wird bereits via EventBus gezeigt; hier nur Fallback
+                }
+            });
 
         // Convert old format to new one automatically:
 //        de.bund.zrb.service.TestRegistry.getInstance().save();
