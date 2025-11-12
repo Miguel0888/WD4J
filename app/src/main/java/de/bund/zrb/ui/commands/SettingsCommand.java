@@ -201,7 +201,10 @@ public class SettingsCommand extends ShortcutMenuCommand {
             cbConfirmTerminateRunning.setSelected(c != null ? c : true);
         }
         cbDebugEnabled = new JCheckBox("Debug-Ausgaben aktivieren");
-        cbDebugEnabled.setSelected(initialDebugEnabled);
+        {
+            Boolean dbg = SettingsService.getInstance().get("debug.enabled", Boolean.class);
+            cbDebugEnabled.setSelected(dbg != null && dbg);
+        }
 
         int br = 0;
         gb.gridx = 0; gb.gridy = br; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(new JLabel("Browser:"), gb);
