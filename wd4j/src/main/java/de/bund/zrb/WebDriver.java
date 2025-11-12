@@ -196,5 +196,7 @@ public class WebDriver {
     }
 
 
-
+    public WDWebSocketManager getWebSocketManager() {
+        return webSocketManager;
+    }
 }
