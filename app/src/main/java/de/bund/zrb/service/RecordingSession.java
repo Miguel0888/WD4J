@@ -27,6 +27,9 @@ public final class RecordingSession {
     private Page activePage;
     private boolean recording;
 
+    // NEU: Puffer für Actions, wenn (noch) kein RecorderService existiert
+    private List<TestAction> pendingActions;
+
     /**
      * Records all raw WebDriver events observed during this session. Each entry captures
      * the BiDi event name, the raw payload object and the timestamp when the event
@@ -171,6 +174,15 @@ public final class RecordingSession {
             recorderService.addListener(l);
         }
 
+        // Wenn es gepufferte Actions gibt (z. B. Import vor Start), jetzt anwenden
+        if (pendingActions != null) {
+            try {
+                // RecorderService übernimmt selbst notifyListeners()
+                recorderService.setRecordedActions(cloneActions(pendingActions));
+            } finally {
+                pendingActions = null; // Puffer leeren
+            }
+        }
 
         // Skip UI appender wiring for RecorderTabUi. Raw event logging will be
         // handled via EventService instances created by the RecorderTab itself.
@@ -236,11 +248,17 @@ public final class RecordingSession {
     }
 
     public synchronized void setRecordedActions(List<TestAction> actions) {
-        if (recorderService != null) recorderService.setRecordedActions(actions);
+        if (recorderService != null) {
+            recorderService.setRecordedActions(actions);
+        } else {
+            // Noch kein RecorderService → zwischenpuffern (z. B. Import bei gestopptem Recorder)
+            this.pendingActions = cloneActions(actions);
+        }
     }
 
     public synchronized void clearRecordedEvents() {
         if (recorderService != null) recorderService.clearRecordedEvents();
+        // Falls gestoppt: UI löscht ohnehin direkt; pendingActions nicht antasten
     }
 
     // ---------- Config (Mode & Event-Flags & Wiring) ----------
@@ -289,5 +307,17 @@ public final class RecordingSession {
 
         // neu anhängen mit aktueller wiringConfig + eventFlags
         // (bereinigt: keine Appender mehr im Einsatz)
+    }
+
+    // ---------- intern ----------
+
+    private static List<TestAction> cloneActions(List<TestAction> actions) {
+        List<TestAction> out = new ArrayList<TestAction>();
+        if (actions == null) return out;
+        for (TestAction a : actions) {
+            if (a == null) continue;
+            out.add(a.copy());
+        }
+        return out;
     }
 }

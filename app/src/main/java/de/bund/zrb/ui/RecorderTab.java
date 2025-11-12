@@ -269,11 +269,29 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
      * aktualisieren wir direkt die Tabelle, damit Offlinedits funktionieren.
      */
     private void applyActions(List<TestAction> actions) {
-        if (session != null && session.isRecording()) {
+        if (session != null) {
+            // Immer zuerst Session informieren (puffert nun auch wenn nicht recording)
             session.setRecordedActions(actions);
-        } else {
+        }
+        if (session == null || !session.isRecording()) {
+            // UI direkt aktualisieren, wenn nicht aufgenommen wird
             setActions(actions);
         }
+    }
+
+    /**
+     * Nach dem Speichern sofort Recorder-Inhalt leeren (UI und Session),
+     * damit importierte oder alte Actions nicht erst beim nächsten Event verschwinden.
+     */
+    private void clearRecorderNow() {
+        // laufende Cell-Edits committen
+        if (actionTable.isEditing()) {
+            try { actionTable.getCellEditor().stopCellEditing(); } catch (Exception ignore) {}
+        }
+        // UI und ggf. Session leeren (nur Actions leeren – keine zweite Löschung über clearRecordedEvents())
+        applyActions(new ArrayList<>());
+        // Entfernt: session.clearRecordedEvents(); da dies beim ersten Event erneut zu einem Leer-Update führte
+        // Falls andere Session-bezogene Aufräumarbeiten nötig werden, hier ergänzen.
     }
 
     private void saveAsNewTestSuite() {
@@ -296,7 +314,8 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         TestRegistry.getInstance().save();
 
         ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(name));
-        session.clearRecordedEvents();
+        // Direkt nach Speichern: Recorder leeren
+        clearRecorderNow();
     }
 
     // Speichern-Button: je nach Suite-Auswahl neue Suite oder einzelner Case in vorhandener Suite
@@ -342,6 +361,8 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
             RecorderService.wireSuite(suite);
             TestRegistry.getInstance().save();
             ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
+            // Direkt nach Speichern: Recorder leeren
+            clearRecorderNow();
             return;
         }
 
@@ -371,6 +392,8 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
         RecorderService.wireSuite(suite);
         TestRegistry.getInstance().save();
         ApplicationEventBus.getInstance().publish(new TestSuiteSavedEvent(suiteName));
+        // Direkt nach Speichern: Recorder leeren
+        clearRecorderNow();
     }
 
     private void importCase() {
@@ -399,6 +422,7 @@ public final class RecorderTab extends JPanel implements RecorderTabUi {
     }
 
     // ---------- Dropdown Refresh & Lookups ----------
+
     private void refreshSuiteSelector() {
         Object sel = suiteSelector.getSelectedItem();
         suiteSelector.removeAllItems();

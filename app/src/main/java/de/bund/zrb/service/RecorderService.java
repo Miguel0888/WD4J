@@ -65,8 +65,16 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
     }
 
     private void notifyListeners() {
+        // Snapshot vorbereiten: bei leerer Liste direkt emptyList, um unnötiges Mergen zu vermeiden
+        final List<TestAction> snapshot = recordedActions.isEmpty()
+                ? Collections.emptyList()
+                : getAllTestActionsForDrawer();
         for (RecorderListener listener : listeners) {
-            listener.onRecorderUpdated(getAllTestActionsForDrawer());
+            try {
+                listener.onRecorderUpdated(snapshot);
+            } catch (Throwable t) {
+                System.err.println("RecorderListener failed: " + t.getMessage());
+            }
         }
     }
 
@@ -97,7 +105,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
 
     public void clearRecordedActions() {
         recordedActions.clear();
-        notifyListeners();
+        notifyListeners(); // sendet jetzt garantiert eine leere Liste
     }
 
     private List<RecordedEvent> extractRecordedEvents(WDRemoteValue.ObjectRemoteValue data) {
@@ -418,8 +426,8 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
     }
 
     public void clearRecordedEvents() {
-        recordedActions.clear();
-        notifyListeners();
+        // Vereinheitlicht: gleiche Semantik wie clearRecordedActions
+        clearRecordedActions();
     }
 
     // ---- Helpers (keep package-private or private) ----
