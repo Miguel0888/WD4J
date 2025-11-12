@@ -33,14 +33,7 @@ public class WindowsBrowserProcessService implements BrowserProcessService {
                 if (pid == 0) continue;
                 String imagePath = queryProcessImagePath(pid);
                 if (imagePath != null) {
-                    String normalizedActual = normalizePath(imagePath);
-                    // 1) Vollständiger Pfad identisch
-                    if (normalizedActual.equals(normalizedExpected)) {
-                        return BrowserInstanceState.RUNNING;
-                    }
-                    // 2) Dateiname identisch (Pfad darf abweichen)
-                    String actualFileName = extractFileName(normalizedActual);
-                    if (actualFileName != null && actualFileName.equals(expectedFileName)) {
+                    if (normalizePath(imagePath).equals(normalizedExpected)) {
                         return BrowserInstanceState.RUNNING;
                     }
                 } else {
@@ -87,13 +80,7 @@ public class WindowsBrowserProcessService implements BrowserProcessService {
                 String imagePath = queryProcessImagePath(pid);
                 boolean match = false;
                 if (imagePath != null) {
-                    String normalizedActual = normalizePath(imagePath);
-                    if (normalizedActual.equals(normalizedExpected)) {
-                        match = true;
-                    } else {
-                        String actualFileName = extractFileName(normalizedActual);
-                        match = actualFileName != null && actualFileName.equals(expectedFileName);
-                    }
+                    match = normalizePath(imagePath).equals(normalizedExpected);
                 } else if (entry.szExeFile != null) {
                     String procExeName = extractExeName(entry.szExeFile);
                     match = procExeName != null && procExeName.equals(expectedFileName);
