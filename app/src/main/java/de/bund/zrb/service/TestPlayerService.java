@@ -22,93 +22,7 @@ import java.util.Map;
 import static de.bund.zrb.service.ActivityService.doWithSettling;
 
 public class TestPlayerService {
-    // Netzwerk-Warte-Mechanismus
-    private final java.util.Set<String> inFlightRequestIds = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
-    private volatile boolean networkSubscriptionsActive = false;
-    private long networkWaitTimeoutMs() {
-        Long cfg = SettingsService.getInstance().get("network.waitForCompleteMs", Long.class);
-        if (cfg == null || cfg < 0) return 5000L; // Default 5s
-        return cfg;
-    }
-    private void ensureNetworkSubscriptions() {
-        if (networkSubscriptionsActive) return;
-        try {
-            de.bund.zrb.BrowserImpl browser = browserService.getBrowser();
-            if (browser == null) return;
-            de.bund.zrb.WebDriver wd = browser.getWebDriver();
-            if (wd == null) return;
-            // BEFORE_REQUEST_SENT
-            wd.addEventListener(new de.bund.zrb.type.session.WDSubscriptionRequest(
-                            de.bund.zrb.websocket.WDEventNames.BEFORE_REQUEST_SENT.getName(), null, null),
-                    ev -> {
-                        if (ev instanceof de.bund.zrb.event.WDNetworkEvent.BeforeRequestSent) {
-                            try {
-                                de.bund.zrb.event.WDNetworkEvent.BeforeRequestSent e = (de.bund.zrb.event.WDNetworkEvent.BeforeRequestSent) ev;
-                                String rid = null;
-                                de.bund.zrb.type.network.WDRequestData rd = e.getParams().getRequest();
-                                if (rd != null && rd.getRequest() != null) {
-                                    rid = rd.getRequest().value();
-                                }
-                                 if (rid != null && !rid.isEmpty()) inFlightRequestIds.add(rid);
-                            } catch (Throwable ignored) {}
-                        }
-                    });
-            // RESPONSE_COMPLETED
-            wd.addEventListener(new de.bund.zrb.type.session.WDSubscriptionRequest(
-                            de.bund.zrb.websocket.WDEventNames.RESPONSE_COMPLETED.getName(), null, null),
-                    ev -> {
-                        if (ev instanceof de.bund.zrb.event.WDNetworkEvent.ResponseCompleted) {
-                            try {
-                                de.bund.zrb.event.WDNetworkEvent.ResponseCompleted e = (de.bund.zrb.event.WDNetworkEvent.ResponseCompleted) ev;
-                                String rid = null;
-                                de.bund.zrb.type.network.WDRequestData rd = e.getParams().getRequest();
-                                if (rd != null && rd.getRequest() != null) {
-                                    rid = rd.getRequest().value();
-                                }
-                                 if (rid != null) inFlightRequestIds.remove(rid);
-                            } catch (Throwable ignored) {}
-                        }
-                    });
-            // FETCH_ERROR (Fehler -> auch entfernen)
-            wd.addEventListener(new de.bund.zrb.type.session.WDSubscriptionRequest(
-                            de.bund.zrb.websocket.WDEventNames.FETCH_ERROR.getName(), null, null),
-                    ev -> {
-                        if (ev instanceof de.bund.zrb.event.WDNetworkEvent.FetchError) {
-                            try {
-                                de.bund.zrb.event.WDNetworkEvent.FetchError e = (de.bund.zrb.event.WDNetworkEvent.FetchError) ev;
-                                String rid = null;
-                                de.bund.zrb.type.network.WDRequestData rd = e.getParams().getRequest();
-                                if (rd != null && rd.getRequest() != null) {
-                                    rid = rd.getRequest().value();
-                                }
-                                 if (rid != null) inFlightRequestIds.remove(rid);
-                            } catch (Throwable ignored) {}
-                        }
-                    });
-            networkSubscriptionsActive = true;
-        } catch (Throwable t) {
-            // Silent: Falls keine Subscriptions möglich sind, läuft Test weiter ohne Netz-Warte-Logik
-        }
-    }
-    private void waitForNetworkQuiescence(String phaseLabel, de.bund.zrb.ui.components.log.StepLog stepLog) {
-        ensureNetworkSubscriptions();
-        long timeout = networkWaitTimeoutMs();
-        long start = System.currentTimeMillis();
-        // Erst kurze Ruhephase für Requests, die unmittelbar vor Aktion gestartet wurden
-        try { Thread.sleep(50); } catch (InterruptedException ignored) {}
-        while (true) {
-            if (stopped) return; // Abbruch
-            int open = inFlightRequestIds.size();
-            if (open == 0) return; // fertig
-            if (System.currentTimeMillis() - start > timeout) {
-                if (stepLog != null) {
-                    stepLog.addInfo("Netzwerk-Timeout: " + open + " offene Anfrage(n) nach " + timeout + "ms");
-                }
-                return; // Timeout – nicht blockieren
-            }
-            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
-        }
-    }
+
     ////////////////////////////////////////////////////////////////////////////////
     // Report-Konfiguration
     ////////////////////////////////////////////////////////////////////////////////
@@ -191,8 +105,6 @@ public class TestPlayerService {
     public void runSuites() {
         ActivityService.getInstance(browserService.getBrowser());
         resetRunFlags();
-        // Netzwerk-Tracker leeren zu Beginn eines Laufs
-        inFlightRequestIds.clear();
         if (!isReady()) return;
 
         beginReport();
@@ -233,8 +145,7 @@ public class TestPlayerService {
 
     private LogComponent executeActionNode(TestNode node, TestAction action) {
         StepLog stepLog = new StepLog(action.getType().name(), buildStepText(action));
-        // Vor der Ausführung sicherstellen, dass keine offenen Requests hängen (zuvor gestartete Navigationen o.ä.)
-        waitForNetworkQuiescence("beforeAction", stepLog);
+
         boolean ok;
         String err = null;
         try {
@@ -262,8 +173,6 @@ public class TestPlayerService {
             }
 
             ok = playSingleAction(action, stepLog);
-            // Nach der Aktion warten, bis alle Folge-Requests abgeschlossen (falls Aktion Navigation/Fetch auslöste)
-            waitForNetworkQuiescence("afterAction", stepLog);
             if (!ok) err = "Action returned false";
         } catch (RuntimeException ex) {
             ok = false;
@@ -496,8 +405,6 @@ public class TestPlayerService {
             StepLog givenLog = new StepLog(label, logText);
 
             try {
-                // Vor Ausführung der Precondition warten bis Netzwerk ruhig ist
-                waitForNetworkQuiescence("beforeGiven", givenLog);
                 String user = inferUsername(given);
 
                 // 1. Execute business precondition
@@ -1021,8 +928,6 @@ public class TestPlayerService {
             Map<String, Boolean> enabled,
             RuntimeVariableContext ctx
     ) throws Exception {
-        // Vor Auswertung sicherstellen: keine offenen Requests
-        waitForNetworkQuiescence("beforeEvalMap", null);
         java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<String,String>();
         if (src == null) return out;
 
@@ -1041,8 +946,6 @@ public class TestPlayerService {
             // Shadow immediately in case scope for subsequent keys
             ctx.setCaseVar(key, resolved);
         }
-        // Nach Auswertung erneut Ruhe abwarten (falls Expressions Requests getriggert haben)
-        waitForNetworkQuiescence("afterEvalMap", null);
 
         return out;
     }
@@ -1053,7 +956,6 @@ public class TestPlayerService {
             ValueScope scope,
             RuntimeVariableContext ctx
     ) throws Exception {
-        waitForNetworkQuiescence("beforeEvalMapScope", null);
         java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<String,String>();
         if (src == null) return out;
 
@@ -1070,7 +972,6 @@ public class TestPlayerService {
             // Shadow immediately in case scope for subsequent keys
             ctx.setCaseVar(key, resolved);
         }
-        waitForNetworkQuiescence("afterEvalMapScope", null);
 
         return out;
     }
@@ -1194,8 +1095,6 @@ public class TestPlayerService {
                     if (waitMs > 0) {
                         try { Thread.sleep(waitMs); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
                     }
-                    // Vor jeder Auswertung blockieren, bis Netzaktivität abgeschlossen
-                    waitForNetworkQuiescence("beforeAssertEval", assertionLog);
                     String result = ActionRuntimeEvaluator.evaluateActionValue(expr, scope);
                     String trimmed = (result == null) ? null : result.trim();
 
