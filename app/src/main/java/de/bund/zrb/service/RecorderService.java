@@ -21,8 +21,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
 
     private static final Map<Object, RecorderService> RECORDERS = new HashMap<>();
     private static final String PROP_ACTION_DEFAULT_TIMEOUT = "wd4j.action.defaultTimeoutMillis";
-    public static final int ACTION_DEFAULT_TIMEOUT = resolveDefaultTimeoutMillis();
-    private static int resolveDefaultTimeoutMillis() {
+    private static int getActionDefaultTimeoutMillis() {
         String v = System.getProperty(PROP_ACTION_DEFAULT_TIMEOUT);
         if (v == null || v.trim().isEmpty()) return 30_000; // Fallback wie vorher
         try {
@@ -249,7 +248,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
 
     public TestAction convertToTestAction(RecordedEvent event) {
         TestAction action = new TestAction();
-        action.setTimeout(ACTION_DEFAULT_TIMEOUT);
+        action.setTimeout(getActionDefaultTimeoutMillis());
         action.setAction(event.getAction());
 
         // 1) Collect raw locators from the event

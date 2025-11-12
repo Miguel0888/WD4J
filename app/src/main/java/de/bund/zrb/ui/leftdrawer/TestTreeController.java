@@ -39,12 +39,10 @@ import java.util.UUID;
 public class TestTreeController {
 
     private static final String PROP_ACTION_DEFAULT_TIMEOUT = "wd4j.action.defaultTimeoutMillis";
-    public static final int ACTION_DEFAULT_TIMEOUT = resolveDefaultTimeoutMillis();
-    private static int resolveDefaultTimeoutMillis() {
+    private static int getActionDefaultTimeoutMillis() {
         String v = System.getProperty(PROP_ACTION_DEFAULT_TIMEOUT);
         if (v == null || v.trim().isEmpty()) return 30000; // Fallback 30s, wie bisher
         try {
-            // erlauben Ganzzahl oder Dezimal, runden ab
             double d = Double.parseDouble(v.trim());
             if (d < 0) return 30000; // keine negativen Werte
             return (int) Math.floor(d);
@@ -497,10 +495,6 @@ public class TestTreeController {
 
         List<TestAction> steps = caseModel.getWhen();
         if (steps == null) {
-            // defensive fallback (sollte eigentlich initialisiert sein)
-            // wenn du setWhen(List<TestAction>) hast, dann könntest du hier neu setzen.
-            // sonst lassen wir es und hängen einfach an ein temporäres Objekt? Lieber nicht,
-            // also im Idealfall ist steps != null.
             steps = new ArrayList<>();
             // wenn du einen Setter hast: caseModel.setWhen(steps);
         }
@@ -513,7 +507,7 @@ public class TestTreeController {
         newAction.setParentId(caseModel.getId());
         newAction.setAction(actionName);
         newAction.setType(TestAction.ActionType.WHEN);
-        newAction.setTimeout(ACTION_DEFAULT_TIMEOUT); // default wie bisher
+        newAction.setTimeout(getActionDefaultTimeoutMillis()); // live lesen
         // rest (user, locator, etc.) lassen wir leer/0 erst mal
 
         // Einfügeposition bestimmen (hinter geklicktem Step)
@@ -669,7 +663,7 @@ public class TestTreeController {
         newAction.setParentId(caseModel.getId());
         newAction.setAction(actionName);
         newAction.setType(TestAction.ActionType.WHEN);
-        newAction.setTimeout(ACTION_DEFAULT_TIMEOUT);
+        newAction.setTimeout(getActionDefaultTimeoutMillis());
         steps.add(0, newAction);
         TestRegistry.getInstance().save();
         refreshTestTree();
