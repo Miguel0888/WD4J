@@ -281,6 +281,7 @@ public class TestPlayerService {
                                 ? pa.getUser().trim() : resolveUserForTestCase(caseNode);
                         if (effectiveUser != null && effectiveUser.trim().length() > 0) {
                             run.vars.setCaseVar("username", effectiveUser.trim());
+                            run.vars.setCaseVar("user", effectiveUser.trim());
                         }
                         boolean ok = playSingleAction(run, pa, stepLog);
                         stepLog.setStatus(ok);
@@ -346,6 +347,7 @@ public class TestPlayerService {
                 givenExecutor.apply(user, given);
                 if (user != null && user.trim().length() > 0) {
                     run.vars.setCaseVar("username", user.trim());
+                    run.vars.setCaseVar("user", user.trim());
                 }
                 if (given.getParameterMap() != null) {
                     for (java.util.Map.Entry<String, Object> entry : given.getParameterMap().entrySet()) {
@@ -403,14 +405,14 @@ public class TestPlayerService {
 
     private synchronized boolean playSingleAction(final TestRun run, final TestAction action, final StepLog stepLog) {
         try {
-            final String effectiveUser = resolveEffectiveUserForAction(action); lastUsernameUsed = effectiveUser;
+            final String effectiveUser = resolveEffectiveUserForAction(run, action); lastUsernameUsed = effectiveUser;
             PageImpl page = (PageImpl) browserService.getActivePage(effectiveUser);
             if (page != null) {
                 String contextId = page.getBrowsingContext().value(); browserService.switchSelectedPage(contextId);
             } else {
                 JOptionPane.showMessageDialog(null, String.format(NO_TAB_FOR_USER_MSG, effectiveUser)); return false;
             }
-            if (effectiveUser != null && effectiveUser.trim().length() > 0) run.vars.setCaseVar("username", effectiveUser.trim());
+            if (effectiveUser != null && effectiveUser.trim().length() > 0) { run.vars.setCaseVar("username", effectiveUser.trim()); run.vars.setCaseVar("user", effectiveUser.trim()); }
             final ValueScope scopeForThisAction = run.vars.buildCaseScope();
             String act = action.getAction();
             switch (act) {
@@ -495,7 +497,37 @@ public class TestPlayerService {
     private String nullSafe(String s) { return s == null ? "" : s; }
 
     private String resolveActionValueAtRuntime(TestAction action, ValueScope scope) throws Exception { String template = action.getValue(); if (template == null) return ""; return ActionRuntimeEvaluator.evaluateActionValue(template, scope); }
-    private String resolveEffectiveUserForAction(TestAction action) { if (action.getUser() != null && action.getUser().trim().length() > 0) return action.getUser().trim(); if (lastUsernameUsed != null && lastUsernameUsed.trim().length() > 0) return lastUsernameUsed.trim(); java.util.List<UserRegistry.User> all = UserRegistry.getInstance().getAll(); if (!all.isEmpty()) { UserRegistry.User u = all.get(0); if (u != null && u.getUsername() != null && u.getUsername().trim().length() > 0) return u.getUsername().trim(); } return "default"; }
+    private String resolveEffectiveUserForAction(TestRun run, TestAction action) {
+        // 1. Direkt gesetzter User an der Action?
+        if (action.getUser() != null && !action.getUser().trim().isEmpty()) {
+            return action.getUser().trim();
+        }
+        // 2. Aus RuntimeVariableContext (Var "user" oder Fallback "username")
+        if (run != null) {
+            ValueScope scope = run.vars.buildCaseScope();
+            String ctxUser = scope.lookupVar("user");
+            if (ctxUser == null || ctxUser.trim().isEmpty()) {
+                ctxUser = scope.lookupVar("username");
+            }
+            if (ctxUser != null && !ctxUser.trim().isEmpty()) {
+                return ctxUser.trim();
+            }
+        }
+        // 3. Letzter verwendeter User
+        if (lastUsernameUsed != null && !lastUsernameUsed.trim().isEmpty()) {
+            return lastUsernameUsed.trim();
+        }
+        // 4. Registry Fallback
+        java.util.List<UserRegistry.User> all = UserRegistry.getInstance().getAll();
+        if (!all.isEmpty()) {
+            UserRegistry.User u = all.get(0);
+            if (u != null && u.getUsername() != null && !u.getUsername().trim().isEmpty()) {
+                return u.getUsername().trim();
+            }
+        }
+        // 5. Default
+        return DEFAULT_USERNAME;
+    }
 
     private Map<String,String> evaluateExpressionMapNow(Map<String,String> src, Map<String, Boolean> enabled, RuntimeVariableContext ctx) throws Exception { java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<>(); if (src == null) return out; for (java.util.Map.Entry<String,String> e : src.entrySet()) { String key = e.getKey(); String exprText = e.getValue(); if (!isEnabled(enabled, key)) continue; ValueScope currentScope = ctx.buildCaseScope(); String resolved = ActionRuntimeEvaluator.evaluateActionValue(exprText, currentScope); if (resolved == null) resolved = ""; out.put(key, resolved); ctx.setCaseVar(key, resolved); } return out; }
     private Map<String,String> evaluateExpressionMapNowWithScope(Map<String,String> src, Map<String, Boolean> enabled, ValueScope scope, RuntimeVariableContext ctx) throws Exception { java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<>(); if (src == null) return out; for (java.util.Map.Entry<String,String> e : src.entrySet()) { String key = e.getKey(); String exprText = e.getValue(); if (!isEnabled(enabled, key)) continue; String resolved = ActionRuntimeEvaluator.evaluateActionValue(exprText, scope); if (resolved == null) resolved = ""; out.put(key, resolved); ctx.setCaseVar(key, resolved); } return out; }
@@ -523,16 +555,19 @@ public class TestPlayerService {
     // Suite-/Case-Initialisierung jetzt mit TestRun
     private void initSuiteSymbols(TestRun run, TestSuite suite) throws Exception {
         if (suite == null) return; RootNode rootModel = TestRegistry.getInstance().getRoot();
+        // Root: Templates zuerst, dann BeforeAll (nur einmal pro Run)
         if (!run.rootBeforeAllDone && rootModel != null) {
+            // Templates (lazy expressions) immer vor den BeforeAll-Werten
+            run.vars.fillRootTemplatesFromMap(filterEnabled(rootModel.getTemplates(), rootModel.getTemplatesEnabled()));
             Map<String,String> evaluated = evaluateExpressionMapNow(rootModel.getBeforeAll(), rootModel.getBeforeAllEnabled(), run.vars);
             run.vars.fillRootVarsFromMap(evaluated);
-            run.vars.fillRootTemplatesFromMap(filterEnabled(rootModel.getTemplates(), rootModel.getTemplatesEnabled()));
             run.rootBeforeAllDone = true;
         }
+        // Suite: Templates zuerst, dann BeforeAll (nur einmal pro Suite im Run)
         if (suite.getId() != null && !run.suiteBeforeAllDone.contains(suite.getId())) {
+            run.vars.fillSuiteTemplatesFromMap(filterEnabled(suite.getTemplates(), suite.getTemplatesEnabled()));
             Map<String,String> suiteAllEval = evaluateExpressionMapNow(suite.getBeforeAll(), suite.getBeforeAllEnabled(), run.vars);
             run.vars.fillSuiteVarsFromMap(suiteAllEval);
-            run.vars.fillSuiteTemplatesFromMap(filterEnabled(suite.getTemplates(), suite.getTemplatesEnabled()));
             run.suiteBeforeAllDone.add(suite.getId());
         }
     }
@@ -540,12 +575,14 @@ public class TestPlayerService {
     private void initCaseSymbols(TestRun run, TestNode node, TestCase testCase) throws Exception {
         if (testCase == null) return; TestSuite parentSuite = resolveParentSuite(node);
         RootNode rootModel = TestRegistry.getInstance().getRoot();
+        // Case-Templates zuerst (lazy); danach Before-Kette ausführen
+        run.vars.fillCaseTemplatesFromMap(filterEnabled(testCase.getTemplates(), testCase.getTemplatesEnabled()));
         java.util.List<ThrowingRunnable> beforeChain = new java.util.ArrayList<>();
-        beforeChain.add(() -> run.vars.fillCaseVarsFromMap(evaluateExpressionMapNow(rootModel.getBeforeEach(), rootModel.getBeforeEachEnabled(), run.vars)));
+        // Reihenfolge: Root BeforeEach -> Suite BeforeEach -> Case Before (entspricht Top-Down mit All schon erledigt)
+        beforeChain.add(() -> run.vars.fillCaseVarsFromMap(evaluateExpressionMapNow(rootModel != null ? rootModel.getBeforeEach() : null, rootModel != null ? rootModel.getBeforeEachEnabled() : null, run.vars)));
         beforeChain.add(() -> run.vars.fillCaseVarsFromMap(evaluateExpressionMapNow(parentSuite != null ? parentSuite.getBeforeEach() : null, parentSuite != null ? parentSuite.getBeforeEachEnabled() : null, run.vars)));
         beforeChain.add(() -> run.vars.fillCaseVarsFromMap(evaluateExpressionMapNow(testCase.getBefore(), testCase.getBeforeEnabled(), run.vars)));
         for (ThrowingRunnable r : beforeChain) { runUnchecked(r); Integer waitCfg = SettingsService.getInstance().get("beforeEach.afterWaitMs", Integer.class); long w = (waitCfg != null) ? waitCfg.longValue() : 0L; if (w > 0) { try { Thread.sleep(w); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); } } }
-        run.vars.fillCaseTemplatesFromMap(filterEnabled(testCase.getTemplates(), testCase.getTemplatesEnabled()));
         if (testCase.getId() != null) run.caseBeforeChainDone.add(testCase.getId());
     }
 
