@@ -9,6 +9,12 @@ import de.bund.zrb.ui.TestNode;
 import de.bund.zrb.ui.TestPlayerUi;
 import de.bund.zrb.ui.components.log.*;
 import de.bund.zrb.video.OverlayBridge;
+// --- NEU: Netzwerk Debug Imports ---
+import de.bund.zrb.BrowserImpl;
+import de.bund.zrb.WebDriver;
+import de.bund.zrb.event.WDNetworkEvent;
+import de.bund.zrb.type.session.WDSubscriptionRequest;
+import de.bund.zrb.websocket.WDEventNames;
 
 import javax.swing.*;
 import java.nio.file.Files;
@@ -70,6 +76,10 @@ public class TestPlayerService {
     private final RuntimeVariableContext runtimeCtx =
             new RuntimeVariableContext(ExpressionRegistryImpl.getInstance());
 
+    // --- NEU: Netzwerk Logging Zustand ---
+    private boolean networkLoggingActive = false;
+    private final java.util.List<Runnable> networkUnsubs = new java.util.ArrayList<>();
+
     ////////////////////////////////////////////////////////////////////////////////
     // Singleton & Dependencies
     ////////////////////////////////////////////////////////////////////////////////
@@ -108,6 +118,7 @@ public class TestPlayerService {
         if (!isReady()) return;
 
         beginReport();
+        setupNetworkLogging(); // NEU: Netzwerk-Events ins Terminal
 
         TestNode start = resolveStartNode();
         runNodeStepByStep(start);
@@ -116,6 +127,7 @@ public class TestPlayerService {
 
         OverlayBridge.clearSubtitle();
         OverlayBridge.clearCaption();
+        teardownNetworkLogging(); // NEU: Aufräumen
         endReport();
     }
 
@@ -847,53 +859,109 @@ public class TestPlayerService {
         }
     }
 
-    private void waitForStableBeforeScreenshot(Page page, double timeoutMs) {
-        long to = (long) Math.max(1000, timeoutMs);
-        page.waitForFunction(
-                "quietMs => {"
-                        + "  try {"
-                        + "    const getA = (typeof window.__zrbGetActivity === 'function') ? window.__zrbGetActivity : null;"
-                        + "    const now  = Date.now();"
-                        + "    if (getA) {"
-                        + "      const a = getA() || {};"
-                        + "      const inflight = (a.inflightXHR|0) + (a.inflightFetch|0) + (a.pfQueueDepth|0);"
-                        + "      const last = a.lastChangeTs || 0;"
-                        + "      return inflight === 0 && (now - last) >= quietMs;"
-                        + "    }"
-                        + "    return false;"
-                        + "  } catch(_) {"
-                        + "    return false;"
-                        + "  }"
-                        + "}",
-                QUIET_MS,
-                new Page.WaitForFunctionOptions().setTimeout(to)
-        );
+    // ================= NEU: Netzwerk Logging =================
+    private void setupNetworkLogging() {
+        if (networkLoggingActive) return;
+        try {
+            BrowserImpl browser = browserService.getBrowser();
+            if (browser == null) { System.err.println("[NET] Kein Browser verfügbar – Logging deaktiviert."); return; }
+            WebDriver wd = browser.getWebDriver();
+            if (wd == null) { System.err.println("[NET] Kein WebDriver verfügbar – Logging deaktiviert."); return; }
+
+            // BEFORE_REQUEST_SENT
+            networkUnsubs.add(subscribeNetwork(wd, WDEventNames.BEFORE_REQUEST_SENT.getName(), ev -> {
+                if (!(ev instanceof WDNetworkEvent.BeforeRequestSent)) return;
+                WDNetworkEvent.BeforeRequestSent e = (WDNetworkEvent.BeforeRequestSent) ev;
+                WDNetworkEvent.BeforeRequestSent.BeforeRequestSentParametersWD p = e.getParams();
+                if (p == null || p.getRequest() == null) return;
+                String ctx = p.getContext() != null ? p.getContext().value() : "";
+                String reqId = p.getRequest().getRequest() != null ? p.getRequest().getRequest().value() : "";
+                String method = p.getRequest().getMethod();
+                String url = p.getRequest().getUrl();
+                boolean blocked = p.isBlocked();
+                System.out.printf("[NET BEFORE] ctx=%s id=%s %s %s%s%n", ctx, reqId, nullSafe(method), nullSafe(url), blocked ? " BLOCKED" : "");
+            }));
+
+            // RESPONSE_STARTED
+            networkUnsubs.add(subscribeNetwork(wd, WDEventNames.RESPONSE_STARTED.getName(), ev -> {
+                if (!(ev instanceof WDNetworkEvent.ResponseStarted)) return;
+                WDNetworkEvent.ResponseStarted e = (WDNetworkEvent.ResponseStarted) ev;
+                WDNetworkEvent.ResponseStarted.ResponseStartedParametersWD p = e.getParams();
+                if (p == null || p.getRequest() == null) return;
+                String ctx = p.getContext() != null ? p.getContext().value() : "";
+                String reqId = p.getRequest().getRequest() != null ? p.getRequest().getRequest().value() : "";
+                String method = p.getRequest().getMethod();
+                String url = p.getResponse() != null ? p.getResponse().getUrl() : p.getRequest().getUrl();
+                Long status = p.getResponse() != null ? p.getResponse().getStatus() : null;
+                boolean blocked = p.isBlocked();
+                System.out.printf("[NET RESP ] ctx=%s id=%s status=%s %s %s%s%n", ctx, reqId, status, nullSafe(method), nullSafe(url), blocked ? " BLOCKED" : "");
+            }));
+
+            // AUTH_REQUIRED
+            networkUnsubs.add(subscribeNetwork(wd, WDEventNames.AUTH_REQUIRED.getName(), ev -> {
+                if (!(ev instanceof WDNetworkEvent.AuthRequired)) return;
+                WDNetworkEvent.AuthRequired e = (WDNetworkEvent.AuthRequired) ev;
+                WDNetworkEvent.AuthRequired.AuthRequiredParametersWD p = e.getParams();
+                if (p == null || p.getRequest() == null) return;
+                String ctx = p.getContext() != null ? p.getContext().value() : "";
+                String reqId = p.getRequest().getRequest() != null ? p.getRequest().getRequest().value() : "";
+                String method = p.getRequest().getMethod();
+                String url = p.getRequest().getUrl();
+                boolean blocked = p.isBlocked();
+                System.out.printf("[NET AUTH ] ctx=%s id=%s %s %s%s%n", ctx, reqId, nullSafe(method), nullSafe(url), blocked ? " BLOCKED" : "");
+            }));
+
+            // FETCH_ERROR
+            networkUnsubs.add(subscribeNetwork(wd, WDEventNames.FETCH_ERROR.getName(), ev -> {
+                if (!(ev instanceof WDNetworkEvent.FetchError)) return;
+                WDNetworkEvent.FetchError e = (WDNetworkEvent.FetchError) ev;
+                WDNetworkEvent.FetchError.FetchErrorParametersWD p = e.getParams();
+                if (p == null || p.getRequest() == null) return;
+                String ctx = p.getContext() != null ? p.getContext().value() : "";
+                String reqId = p.getRequest().getRequest() != null ? p.getRequest().getRequest().value() : "";
+                String method = p.getRequest().getMethod();
+                String url = p.getRequest().getUrl();
+                String err = p.getErrorText();
+                System.out.printf("[NET FAIL ] ctx=%s id=%s %s %s error=%s%n", ctx, reqId, nullSafe(method), nullSafe(url), nullSafe(err));
+            }));
+
+            // RESPONSE_COMPLETED
+            networkUnsubs.add(subscribeNetwork(wd, WDEventNames.RESPONSE_COMPLETED.getName(), ev -> {
+                if (!(ev instanceof WDNetworkEvent.ResponseCompleted)) return;
+                WDNetworkEvent.ResponseCompleted e = (WDNetworkEvent.ResponseCompleted) ev;
+                WDNetworkEvent.ResponseCompleted.ResponseCompletedParametersWD p = e.getParams();
+                if (p == null || p.getRequest() == null) return;
+                String ctx = p.getContext() != null ? p.getContext().value() : "";
+                String reqId = p.getRequest().getRequest() != null ? p.getRequest().getRequest().value() : "";
+                String method = p.getRequest().getMethod();
+                String url = p.getResponse() != null ? p.getResponse().getUrl() : p.getRequest().getUrl();
+                Long status = p.getResponse() != null ? p.getResponse().getStatus() : null;
+                long bytes = p.getResponse() != null ? p.getResponse().getBytesReceived() : -1L;
+                System.out.printf("[NET DONE ] ctx=%s id=%s status=%s bytes=%d %s %s%n", ctx, reqId, status, bytes, nullSafe(method), nullSafe(url));
+            }));
+
+            networkLoggingActive = true;
+            System.out.println("[NET] Terminal-Network-Logging aktiviert.");
+        } catch (Throwable t) {
+            System.err.println("[NET] Aktivierung fehlgeschlagen: " + t.getMessage());
+        }
     }
 
-    /** Erwartet "id=<uuid>&..." im value. */
-    private String parseIdFromValue(String value) {
-        if (value == null) return "";
-        String[] pairs = value.split("&");
-        for (String pair : pairs) {
-            String[] kv = pair.split("=", 2);
-            if (kv.length == 2 && "id".equals(kv[0])) return kv[1];
-        }
-        return "";
+    private void teardownNetworkLogging() {
+        if (!networkLoggingActive) return;
+        for (Runnable r : networkUnsubs) { try { r.run(); } catch (Throwable ignore) {} }
+        networkUnsubs.clear();
+        networkLoggingActive = false;
+        System.out.println("[NET] Terminal-Network-Logging deaktiviert.");
     }
 
-    /** Liefert Anzeigenamen der Precondition (Fallback: UUID). */
-    private String resolvePreconditionName(String id) {
-        if (id == null || id.trim().isEmpty()) return "(keine)";
-        java.util.List<de.bund.zrb.model.Precondition> list =
-                de.bund.zrb.service.PreconditionRegistry.getInstance().getAll();
-        for (de.bund.zrb.model.Precondition p : list) {
-            if (id.equals(p.getId())) {
-                String n = p.getName();
-                return (n != null && n.trim().length() > 0) ? n.trim() : "(unnamed)";
-            }
-        }
-        return id;
+    private Runnable subscribeNetwork(WebDriver wd, String eventName, java.util.function.Consumer<Object> handler) {
+        WDSubscriptionRequest req = new WDSubscriptionRequest(eventName, null, null);
+        wd.addEventListener(req, handler);
+        return () -> { try { wd.removeEventListener(eventName, (String) null, handler); } catch (Throwable ignore) {} };
     }
+
+    private String nullSafe(String s) { return s == null ? "" : s; }
 
     /**
      * Resolve the dynamic template for this action into a concrete runtime String.
@@ -1261,5 +1329,54 @@ public class TestPlayerService {
             }
         }
         runtimeCtx.fillCaseTemplatesFromMap(filterEnabled(testCase.getTemplates(), testCase.getTemplatesEnabled()));
+    }
+
+    // ================= Wiederhergestellte Hilfsmethoden (waren beim Merge verloren gegangen) =================
+    /** Erwartet "id=<uuid>&..." im value. */
+    private String parseIdFromValue(String value) {
+        if (value == null) return "";
+        String[] pairs = value.split("&");
+        for (String pair : pairs) {
+            String[] kv = pair.split("=", 2);
+            if (kv.length == 2 && "id".equals(kv[0])) return kv[1];
+        }
+        return "";
+    }
+
+    /** Liefert Anzeigenamen der Precondition (Fallback: UUID). */
+    private String resolvePreconditionName(String id) {
+        if (id == null || id.trim().isEmpty()) return "(keine)";
+        java.util.List<de.bund.zrb.model.Precondition> list =
+                de.bund.zrb.service.PreconditionRegistry.getInstance().getAll();
+        for (de.bund.zrb.model.Precondition p : list) {
+            if (id.equals(p.getId())) {
+                String n = p.getName();
+                return (n != null && n.trim().length() > 0) ? n.trim() : "(unnamed)";
+            }
+        }
+        return id;
+    }
+
+    private void waitForStableBeforeScreenshot(Page page, double timeoutMs) {
+        long to = (long) Math.max(1000, timeoutMs);
+        page.waitForFunction(
+                "quietMs => {"+
+                        "  try {"+
+                        "    const getA = (typeof window.__zrbGetActivity === 'function') ? window.__zrbGetActivity : null;"+
+                        "    const now  = Date.now();"+
+                        "    if (getA) {"+
+                        "      const a = getA() || {};"+
+                        "      const inflight = (a.inflightXHR|0) + (a.inflightFetch|0) + (a.pfQueueDepth|0);"+
+                        "      const last = a.lastChangeTs || 0;"+
+                        "      return inflight === 0 && (now - last) >= quietMs;"+
+                        "    }"+
+                        "    return false;"+
+                        "  } catch(_) {"+
+                        "    return false;"+
+                        "  }"+
+                        "}",
+                QUIET_MS,
+                new Page.WaitForFunctionOptions().setTimeout(to)
+        );
     }
 }
