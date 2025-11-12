@@ -103,6 +103,30 @@ public class BrowserServiceImpl implements BrowserService {
                 case "firefox":
                 default: browserType = BrowserTypeImpl.newFirefoxInstance((PlaywrightImpl) playwright); break;
             }
+            // Init-Hook für Reattach von gespeicherten UserContext-IDs
+            browserType.withInitHook(b -> {
+                UserRegistry registry = UserRegistry.getInstance();
+                UserContextMappingService mappingService = UserContextMappingService.getInstance();
+                for (UserRegistry.User user : registry.getAll()) {
+                    String last = user.getLastUserContext();
+                    if (last == null || last.isEmpty()) continue;
+                    // Prüfen ob dieser Kontext existiert
+                    boolean exists = b.getUserContextImpls().stream()
+                            .anyMatch(uc -> uc.getUserContext().value().equals(last));
+                    if (!exists) continue;
+                    // Nur wenn noch kein Mapping vorhanden
+                    if (mappingService.getContextForUser(user.getUsername()) == null) {
+                        // passenden UserContextImpl holen
+                        de.bund.zrb.UserContextImpl uc = (de.bund.zrb.UserContextImpl) b.getUserContextImpls().stream()
+                                .filter(x -> x.getUserContext().value().equals(last))
+                                .findFirst().orElse(null);
+                        if (uc != null) {
+                            mappingService.bindUserToContext(user.getUsername(), uc, user);
+                            System.out.println("[InitHook] Reattached UserContext " + last + " to user " + user.getUsername());
+                        }
+                    }
+                }
+            });
             browser = (BrowserImpl) browserType.launch(options);
             configureServices();
             // ↙︎ Externes Schließen erkennen

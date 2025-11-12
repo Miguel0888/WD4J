@@ -53,7 +53,7 @@ public class BrowserImpl implements Browser {
     private final List<Consumer<Browser>> disconnectListeners = new ArrayList<Consumer<Browser>>();
     private final AtomicBoolean disconnected = new AtomicBoolean(false); // verhindert mehrfachen Disconnect-Flow
 
-    public BrowserImpl(BrowserTypeImpl browserType, Process process, WDWebSocketImpl webSocketImpl) throws ExecutionException, InterruptedException {
+    public BrowserImpl(BrowserTypeImpl browserType, Process process, WDWebSocketImpl webSocketImpl, Consumer<BrowserImpl> initHook) throws ExecutionException, InterruptedException {
         router = new RecordingEventRouter(this); // ToDo
 
         this.browserType = browserType;
@@ -62,6 +62,11 @@ public class BrowserImpl implements Browser {
 
         fetchDefaultData();
         loadGlobalScripts(); // load JavaScript code relevant for the working Playwright API
+
+        // Init-Hook (aus höherer Schicht), um z. B. UserRegistry/Mapping ohne Abhängigkeit hier auszuführen
+        if (initHook != null) {
+            try { initHook.accept(this); } catch (Throwable t) { System.err.println("[InitHook] Fehler: " + t.getMessage()); }
+        }
 
         // Events
         onContextSwitch(this::setActivePageId);
@@ -183,8 +188,13 @@ public class BrowserImpl implements Browser {
         try {
             webDriver.browser().getUserContexts().getUserContexts().forEach(context -> {
                 System.out.println("UserContext: " + context.getUserContext().value());
-                UserContextImpl uc = new UserContextImpl(this, context.getUserContext());
-                userContextImpls.add(uc);
+                String id = context.getUserContext().value();
+                boolean alreadyPresent = userContextImpls.stream()
+                        .anyMatch(uc -> uc.getUserContext().value().equals(id));
+                if (!alreadyPresent) {
+                    UserContextImpl uc = new UserContextImpl(this, context.getUserContext());
+                    userContextImpls.add(uc);
+                }
             });
         } catch (WDErrorResponse ignored) {}
     }

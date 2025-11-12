@@ -53,6 +53,8 @@ public class BrowserTypeImpl implements BrowserType {
 
     // Recording
     private volatile WindowRecorder recorder;
+    // Optionaler Init-Hook für BrowserImpl
+    private java.util.function.Consumer<BrowserImpl> initHook;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// Constructors
@@ -65,6 +67,12 @@ public class BrowserTypeImpl implements BrowserType {
         this.profilePath = profilePath;
         this.webSocketEndpoint = webSocketEndpoint;
         this.websocketUrl = defaultUrl + ":" + defaultPort; // Default WebSocket URL
+    }
+
+    /** Erlaubt es einer höheren Schicht, einen Init-Hook zu setzen, der im BrowserImpl nach fetch/load ausgeführt wird. */
+    public BrowserTypeImpl withInitHook(java.util.function.Consumer<BrowserImpl> hook) {
+        this.initHook = hook;
+        return this;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -153,7 +161,7 @@ public class BrowserTypeImpl implements BrowserType {
         WDWebSocketImpl webSocketImpl = new WDWebSocketImpl(URI.create(wsEndpoint), options.timeout);
 
         try {
-            BrowserImpl browser = new BrowserImpl(this, process, webSocketImpl); // Playwright API forces Browser to know BrowserType
+            BrowserImpl browser = new BrowserImpl(this, process, webSocketImpl, initHook); // Playwright API forces Browser to know BrowserType
             playwright.addBrowser(browser);
             return browser;
         } catch (ExecutionException | InterruptedException e) {
