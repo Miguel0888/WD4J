@@ -60,6 +60,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
     private JCheckBox cbLogWebSocket;
     private JCheckBox cbLogVideo;
     private JCheckBox cbLogBrowser;
+    private JCheckBox cbLogTabManager;
 
     @Override
     public String getId() { return "file.configure"; }
@@ -100,6 +101,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         Boolean dbgWs            = SettingsService.getInstance().get("debug.websocket", Boolean.class);
         Boolean dbgVid           = SettingsService.getInstance().get("debug.video", Boolean.class);
         Boolean dbgBrowser       = SettingsService.getInstance().get("debug.browser", Boolean.class);
+        Boolean dbgTabManager    = SettingsService.getInstance().get("debug.tabmanager", Boolean.class);
 
         double  initialWsTimeout = wsTimeout != null ? wsTimeout : DEFAULT_WS_TIMEOUT_MS;
         String  initialReportDir = (reportDir != null && !reportDir.trim().isEmpty()) ? reportDir : "C:/Reports";
@@ -128,6 +130,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         boolean initialLogWs           = dbgWs != null ? dbgWs : false;
         boolean initialLogVideo        = dbgVid != null ? dbgVid : false;
         boolean initialLogBrowser      = dbgBrowser != null ? dbgBrowser : false;
+        boolean initialLogTabManager   = dbgTabManager != null ? dbgTabManager : false;
 
         double initialAssertGroupWaitS = groupWaitMs != null ? groupWaitMs / 1000.0 : DEFAULT_ASSERT_GROUP_WAIT_MS / 1000.0;
         double initialAssertEachWaitS  = eachWaitMs  != null ? eachWaitMs  / 1000.0 : DEFAULT_ASSERT_EACH_WAIT_MS  / 1000.0;
@@ -150,7 +153,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
                 initialDebugEnabled,
                 initialLogWs,
                 initialLogVideo,
-                initialLogBrowser
+                initialLogBrowser,
+                initialLogTabManager
         ));
         dialog.pack();
         dialog.setLocationRelativeTo(null);
@@ -171,7 +175,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
                                      boolean initialDebugEnabled,
                                      boolean initialLogWs,
                                      boolean initialLogVideo,
-                                     boolean initialLogBrowser
+                                     boolean initialLogBrowser,
+                                     boolean initialLogTabManager
     ) {
         JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(10, 12, 10, 12));
@@ -217,7 +222,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
             Boolean c = SettingsService.getInstance().get("browser.confirmTerminateRunning", Boolean.class);
             cbConfirmTerminateRunning.setSelected(c != null ? c : true);
         }
-        cbDebugEnabled = new JCheckBox("Debug-Ausgaben aktivieren");
+        cbDebugEnabled = new JCheckBox("Debug-Ausgaben");
         {
             Boolean dbg = SettingsService.getInstance().get("debug.enabled", Boolean.class);
             cbDebugEnabled.setSelected(dbg != null && dbg);
@@ -228,6 +233,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
         cbLogVideo.setSelected(initialLogVideo);
         cbLogBrowser = new JCheckBox("[" + String.valueOf(cbBrowserType.getSelectedItem()).toLowerCase() + "]-Logs");
         cbLogBrowser.setSelected(initialLogBrowser);
+        cbLogTabManager = new JCheckBox("[TabManager]-Logs");
+        cbLogTabManager.setSelected(initialLogTabManager);
         cbBrowserType.addItemListener(e -> {
             cbLogBrowser.setText("[" + String.valueOf(cbBrowserType.getSelectedItem()).toLowerCase() + "]-Logs");
         });
@@ -449,6 +456,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
         gDbg.gridx = 1; gDbg.gridy = drow++; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(cbLogVideo, gDbg);
         gDbg.gridx = 0; gDbg.gridy = drow; gDbg.gridwidth = 2; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(cbLogBrowser, gDbg);
         gDbg.gridwidth = 1;
+        drow++;
+        gDbg.gridx = 0; gDbg.gridy = drow; gDbg.gridwidth = 2; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(cbLogTabManager, gDbg);
+        gDbg.gridwidth = 1;
 
         form.add(pnlDebug);
 
@@ -587,6 +597,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         s.put("debug.websocket", cbLogWebSocket.isSelected());
         s.put("debug.video", cbLogVideo.isSelected());
         s.put("debug.browser", cbLogBrowser.isSelected());
+        s.put("debug.tabmanager", cbLogTabManager.isSelected());
 
         s.forEach(SettingsService.getInstance()::set);
 
@@ -595,6 +606,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         System.setProperty("wd4j.log.websocket", String.valueOf(cbLogWebSocket.isSelected()));
         System.setProperty("wd4j.log.video", String.valueOf(cbLogVideo.isSelected()));
         System.setProperty("wd4j.log.browser", String.valueOf(cbLogBrowser.isSelected()));
+        System.setProperty("wd4j.log.tabmanager", String.valueOf(cbLogTabManager.isSelected()));
 
         // Live übernehmen (Adapter-Sicht)
         InputDelaysConfig.setKeyDownDelayMs(kdVal);

@@ -21,6 +21,10 @@ import java.util.Map;
  * Unterscheidung erfolgt NICHT über einen Titelpräfix, sondern über interne Metadaten.
  */
 public class TabManager implements NodeOpenHandler {
+    private static boolean tmLogEnabled() {
+        return Boolean.getBoolean("wd4j.log.tabmanager") || Boolean.getBoolean("wd4j.debug");
+    }
+    private static void tmLog(String msg) { if (tmLogEnabled()) System.out.println(msg); }
     /** Interne Repräsentation eines Tabs. */
     private static class TabEntry {
         Component component;
@@ -51,9 +55,9 @@ public class TabManager implements NodeOpenHandler {
         Object ref = node.getModelRef();
         if (ref == null) return;
         String id = extractId(ref);
-        System.out.println("[TabManager] showInPreview -> class=" + ref.getClass().getSimpleName() + " id=" + id);
+        tmLog("[TabManager] showInPreview -> class=" + ref.getClass().getSimpleName() + " id=" + id);
         if (id != null && focusPersistentTab(id)) {
-            System.out.println("[TabManager] showInPreview: focusing existing persistent tab id=" + id);
+            tmLog("[TabManager] showInPreview: focusing existing persistent tab id=" + id);
             return;
         }
         createOrUpdatePreview(id, ref);
@@ -67,13 +71,13 @@ public class TabManager implements NodeOpenHandler {
         if (ref == null) return;
         String id = extractId(ref);
         if (id == null) id = synthId(ref);
-        System.out.println("[TabManager] openInNewTab -> class=" + ref.getClass().getSimpleName() + " id=" + id);
+        tmLog("[TabManager] openInNewTab -> class=" + ref.getClass().getSimpleName() + " id=" + id);
         if (focusPersistentTab(id)) {
-            System.out.println("[TabManager] openInNewTab: tab already persistent, focusing id=" + id);
+            tmLog("[TabManager] openInNewTab: tab already persistent, focusing id=" + id);
             return;
         }
         if (previewEntry != null && !previewEntry.persistent && id.equals(previewId)) {
-            System.out.println("[TabManager] openInNewTab: promoting preview id=" + id);
+            tmLog("[TabManager] openInNewTab: promoting preview id=" + id);
             promotePreviewToPersistent(id);
             return;
         }
@@ -122,17 +126,17 @@ public class TabManager implements NodeOpenHandler {
         if (e == null) return false;
         int idx = editorTabs.indexOfComponent(e.component);
         if (idx >= 0) {
-            System.out.println("[TabManager] focusPersistentTab: found persistent id=" + id + " idx=" + idx);
+            tmLog("[TabManager] focusPersistentTab: found persistent id=" + id + " idx=" + idx);
             editorTabs.setSelectedIndex(idx);
             return true;
         }
-        System.out.println("[TabManager] focusPersistentTab: stale entry removed id=" + id);
+        tmLog("[TabManager] focusPersistentTab: stale entry removed id=" + id);
         persistentTabs.remove(id);
         return false;
     }
 
     private void createOrUpdatePreview(String id, Object ref) {
-        System.out.println("[TabManager] createOrUpdatePreview id=" + id + " previewExists=" + (previewEntry != null));
+        tmLog("[TabManager] createOrUpdatePreview id=" + id + " previewExists=" + (previewEntry != null));
         Component panel = buildEditorPanelFor(ref);
         if (panel == null) return;
         String title = derivePreviewTitle(ref);
@@ -155,7 +159,7 @@ public class TabManager implements NodeOpenHandler {
             });
             editorTabs.setTabComponentAt(idx, header);
             editorTabs.setSelectedIndex(idx);
-            System.out.println("[TabManager] createOrUpdatePreview: new preview tab idx=" + idx);
+            tmLog("[TabManager] createOrUpdatePreview: new preview tab idx=" + idx);
         } else {
             int idx = editorTabs.indexOfComponent(previewEntry.component);
             previewEntry.component = panel;
@@ -178,13 +182,13 @@ public class TabManager implements NodeOpenHandler {
                 editorTabs.setTabComponentAt(idx, header);
             }
             editorTabs.setSelectedIndex(idx);
-            System.out.println("[TabManager] createOrUpdatePreview: replaced preview tab idx=" + idx);
+            tmLog("[TabManager] createOrUpdatePreview: replaced preview tab idx=" + idx);
         }
     }
 
     private void promotePreviewToPersistent(String id) {
         if (previewEntry == null) return;
-        System.out.println("[TabManager] promotePreviewToPersistent id=" + id);
+        tmLog("[TabManager] promotePreviewToPersistent id=" + id);
         previewEntry.persistent = true;
         int idx = editorTabs.indexOfComponent(previewEntry.component);
         if (idx >= 0) {
@@ -193,7 +197,7 @@ public class TabManager implements NodeOpenHandler {
                     previewEntry.component,
                     previewEntry.title,
                     () -> {
-                        System.out.println("[TabManager] onClose persistent tab id=" + id);
+                        tmLog("[TabManager] onClose persistent tab id=" + id);
                         persistentTabs.remove(id);
                     }
             ));
@@ -204,7 +208,7 @@ public class TabManager implements NodeOpenHandler {
     }
 
     private void createPersistentTab(String id, Object ref) {
-        System.out.println("[TabManager] createPersistentTab id=" + id);
+        tmLog("[TabManager] createPersistentTab id=" + id);
         Component panel = buildEditorPanelFor(ref);
         if (panel == null) return;
         TabEntry e = new TabEntry();
@@ -221,7 +225,7 @@ public class TabManager implements NodeOpenHandler {
                 e.component,
                 e.title,
                 () -> {
-                    System.out.println("[TabManager] onClose persistent tab id=" + id);
+                    tmLog("[TabManager] onClose persistent tab id=" + id);
                     persistentTabs.remove(id);
                 }
         ));
