@@ -120,41 +120,8 @@ public class TestPlayerService {
         setupPlaybackLogging();
 
         TestNode start = resolveStartNode();
-        // Starttypen-spezifische Initialisierung:
-        if (start != null) {
-            Object model = start.getModelRef();
-            try {
-                if (model instanceof TestSuite) {
-                    // Root/Suite Initialisierung für gewählte Suite
-                    initSuiteSymbols(run, (TestSuite) model);
-                } else if (model instanceof TestCase) {
-                    TestNode caseNode = start;
-                    TestCase tc = (TestCase) model;
-                    // Suite + Root Init nachholen
-                    TestSuite parentSuite = resolveParentSuite(caseNode);
-                    initSuiteSymbols(run, parentSuite);
-                    run.vars.enterCase();
-                    initCaseSymbols(run, caseNode, tc);
-                } else if (model instanceof TestAction) {
-                    // Action: Suite + Root + Case Init nachholen
-                    TestNode caseNode = (TestNode) start.getParent();
-                    if (caseNode != null && caseNode.getModelRef() instanceof TestCase) {
-                        TestCase tc = (TestCase) caseNode.getModelRef();
-                        TestSuite parentSuite = resolveParentSuite(caseNode);
-                        initSuiteSymbols(run, parentSuite);
-                        run.vars.enterCase();
-                        initCaseSymbols(run, caseNode, tc);
-                    }
-                }
-            } catch (Exception ex) {
-                SuiteLog err = new SuiteLog("Initialisierung fehlgeschlagen");
-                err.setStatus(false); err.setError(safeMsg(ex));
-                logger.append(err);
-                teardownPlaybackLogging();
-                endReport();
-                return;
-            }
-        }
+        // Die Initialisierung (Root→Suite→Case) erfolgt vollständig in den execute*-Methoden.
+        // Dadurch wird verhindert, dass enterSuite()/enterCase() zuvor gesetzte Werte löscht.
 
         runNodeStepByStep(run, start);
 
