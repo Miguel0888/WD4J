@@ -394,7 +394,11 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
             if (newParentObj instanceof de.bund.zrb.model.TestCase) {
                 de.bund.zrb.model.TestCase newCase = (de.bund.zrb.model.TestCase) newParentObj;
                 java.util.List<de.bund.zrb.model.TestAction> list = newCase.getWhen();
-                list.add(clamp(insertIndex, list.size()), action);
+                int idx = clamp(insertIndex, list.size());
+                list.add(idx, action);
+
+                // Fix parentId to keep domain graph consistent
+                action.setParentId(newCase.getId());
             }
             return;
         }
@@ -409,7 +413,11 @@ public class TestSuiteTreeTransferHandler extends TransferHandler {
             if (newParentObj instanceof de.bund.zrb.model.TestSuite) {
                 de.bund.zrb.model.TestSuite newSuite = (de.bund.zrb.model.TestSuite) newParentObj;
                 java.util.List<de.bund.zrb.model.TestCase> list = newSuite.getTestCases();
-                list.add(clamp(insertIndex, list.size()), tc);
+                int idx = clamp(insertIndex, list.size());
+                list.add(idx, tc);
+
+                // Fix parentId to keep domain graph consistent
+                tc.setParentId(newSuite.getId());
             }
             return;
         }
