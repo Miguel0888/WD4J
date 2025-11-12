@@ -54,6 +54,8 @@ public class UserRegistry {
         private String encryptedPassword;
         private String startPage;
         private String otpSecret;
+        /** Zuletzt verwendete UserContext-ID im Browser (für Reuse beim nächsten Start). */
+        private String lastUserContext;
 
         /** LoginConfig ist jetzt eine eigenständige Klasse (de.bund.zrb.config) */
         private LoginConfig loginConfig;
@@ -88,6 +90,9 @@ public class UserRegistry {
 
         public String getOtpSecret() { return otpSecret; }
         public void setOtpSecret(String otpSecret) { this.otpSecret = otpSecret; }
+
+        public String getLastUserContext() { return lastUserContext; }
+        public void setLastUserContext(String lastUserContext) { this.lastUserContext = lastUserContext; }
 
         public LoginConfig getLoginConfig() {
             if (loginConfig == null) loginConfig = new LoginConfig();

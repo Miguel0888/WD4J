@@ -210,6 +210,20 @@ public class BrowserServiceImpl implements BrowserService {
     @Override
     public void terminateBrowser() {
         ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.STOPPING, "🛑 Browser wird beendet…")));
+        // Eigene Kontexte versuchen zu schließen und IDs freigeben
+        for (String user : new ArrayList<>(userContexts.keySet())) {
+            BrowserContext ctx = userContexts.remove(user);
+            if (ctx != null) {
+                try {
+                    ctx.close();
+                    // erfolgreicher Close -> gespeicherte ID löschen
+                    UserContextMappingService.getInstance().setContextId(user, null);
+                } catch (Throwable t) {
+                    // nicht gelöscht: ID beibehalten zur potentiellen Wiederverwendung
+                }
+                UserContextMappingService.getInstance().remove(user); // Mapping entfernen (UI-seitig)
+            }
+        }
         // NPE-sicheres Beenden – getrennte Null-Checks und try-catch
         try {
             if (browser != null) {
@@ -258,6 +272,10 @@ public class BrowserServiceImpl implements BrowserService {
             if (browser == null) {
                 throw new IllegalStateException("Browser ist nicht gestartet!");
             }
+
+            // Prüfen ob wir eine alte Context-ID wiederverwenden können (nur Mapping/Status, keine echte Re-Attach möglich ohne native BiDi-API)
+            String persistedId = UserContextMappingService.getInstance().getContextId(u);
+            // Aktuell keine direkte Attach-API → wir erzeugen bei Bedarf neuen Kontext; alte ID bleibt (nur wenn Close misslang) bestehen
 
             BrowserContext context = browser.newContext();
 

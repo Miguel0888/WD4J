@@ -18,6 +18,9 @@ public class UserContextMappingService {
     // Username → User
     private final Map<String, UserRegistry.User> userMap = new HashMap<>();
 
+    // Username → UserContextId (persistiert)
+    private final Map<String, String> userContextIdMap = new HashMap<>();
+
     // Property-Change für UI/Listener (z.B. StatusBar)
     private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
@@ -36,6 +39,12 @@ public class UserContextMappingService {
                 userMap.put(user.getUsername(), user);
             }
         }
+        // Context-IDs aus UserRegistry laden
+        for (UserRegistry.User u : UserRegistry.getInstance().getAll()) {
+            if (u.getLastUserContext() != null && !u.getLastUserContext().isEmpty()) {
+                userContextIdMap.put(u.getUsername(), u.getLastUserContext());
+            }
+        }
     }
 
     public static UserContextMappingService getInstance() {
@@ -45,6 +54,15 @@ public class UserContextMappingService {
     public void bindUserToContext(String username, BrowserContext context, UserRegistry.User user) {
         userContextMap.put(username, context);
         userMap.put(username, user);
+        // Kontext-ID erfassen wenn verfügbar (unser UserContextImpl liefert ID)
+        try {
+            if (context instanceof de.bund.zrb.UserContextImpl) {
+                String id = ((de.bund.zrb.UserContextImpl) context).getUserContext().value();
+                if (id != null && !id.isEmpty()) {
+                    setContextId(username, id); // persistiert
+                }
+            }
+        } catch (Throwable ignore) {}
     }
 
     public BrowserContext getContextForUser(String username) {
@@ -58,6 +76,8 @@ public class UserContextMappingService {
     public void remove(String username) {
         userContextMap.remove(username);
         userMap.remove(username);
+        // auch gespeicherte ID entfernen
+        setContextId(username, null);
     }
 
     public synchronized UserRegistry.User getCurrentUser() {
@@ -89,10 +109,32 @@ public class UserContextMappingService {
         return (currentUser == null) ? null : currentUser.getUsername();
     }
 
+    /** Speichert/entfernt die UserContext-ID für einen Benutzer und persistiert die Map. */
+    public synchronized void setContextId(String username, String contextId) {
+        if (username == null || username.trim().isEmpty()) return;
+        if (contextId == null || contextId.trim().isEmpty()) {
+            userContextIdMap.remove(username);
+            UserRegistry.User u = UserRegistry.getInstance().getUser(username);
+            if (u != null) { u.setLastUserContext(null); UserRegistry.getInstance().save(); }
+        } else {
+            userContextIdMap.put(username, contextId);
+            UserRegistry.User u = UserRegistry.getInstance().getUser(username);
+            if (u != null) { u.setLastUserContext(contextId); UserRegistry.getInstance().save(); }
+        }
+    }
+
+    public synchronized String getContextId(String username) {
+        return userContextIdMap.get(username);
+    }
+
+    public synchronized Map<String,String> getAllContextIds() {
+        return new HashMap<String,String>(userContextIdMap);
+    }
+
     /**
      * Zyklisches Weiterschalten in der Reihenfolge der UserRegistry-Liste.
-     * Zyklus: &lt;Keinen&gt; → user0 → user1 → … → &lt;Keinen&gt;.
-     * @return der neue aktuelle Benutzer, oder null für &lt;Keinen&gt;
+     * Zyklus: <Keinen> → user0 → user1 → … → <Keinen>.
+     * @return der neue aktuelle Benutzer, oder null für <Keinen>
      */
     public synchronized UserRegistry.User cycleNextUser() {
         List<UserRegistry.User> list = UserRegistry.getInstance().getAll();
