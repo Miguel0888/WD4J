@@ -68,6 +68,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
     // neu
     private JSpinner spCmdRetryCount; // neu
     private JSpinner spCmdRetryWindowS; // neu in Sekunden
+    private JSpinner spActionDefaultTimeoutMs; // neu: default timeout für neue Actions
 
     @Override
     public String getId() { return "file.configure"; }
@@ -154,6 +155,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
         double initialAssertEachWaitS  = eachWaitMs  != null ? eachWaitMs  / 1000.0 : DEFAULT_ASSERT_EACH_WAIT_MS  / 1000.0;
         double initialBeforeEachAfterWaitS = beforeEachAfterMs != null ? beforeEachAfterMs / 1000.0 : 0.0; // Default 0
 
+        Integer actionDefaultTimeoutMs = SettingsService.getInstance().get("action.defaultTimeoutMillis", Integer.class);
+        int initialActionDefaultTimeoutMs = actionDefaultTimeoutMs != null ? actionDefaultTimeoutMs : 30000;
+
         dialog = new JDialog((Frame) null, "Einstellungen", true);
         dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         dialog.setContentPane(buildContentPanel(
@@ -177,7 +181,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
                 initialNetWaitEnabled,
                 initialNetWaitMs,
                 initialCmdRetryCount,
-                initialCmdRetryWindowS
+                initialCmdRetryWindowS,
+                initialActionDefaultTimeoutMs
         ));
         dialog.pack();
         dialog.setLocationRelativeTo(null);
@@ -204,7 +209,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
                                      boolean initialNetWaitEnabled,
                                      long initialNetWaitMs,
                                      int initialCmdRetryCount,
-                                     double initialCmdRetryWindowS
+                                     double initialCmdRetryWindowS,
+                                     int initialActionDefaultTimeoutMs
     ) {
         JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(10, 12, 10, 12));
@@ -391,6 +397,16 @@ public class SettingsCommand extends ShortcutMenuCommand {
         g2.gridx = 1; g2.gridy = 1; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
         pnlInput.add(spKeyUp, g2);
 
+        // --- Default Action Timeout ---
+        JLabel lbActionTimeout = new JLabel("Default Action-Timeout (ms):");
+        spActionDefaultTimeoutMs = new JSpinner(new SpinnerNumberModel(initialActionDefaultTimeoutMs, 0, 3_600_000, 100));
+        spActionDefaultTimeoutMs.setPreferredSize(spSz);
+        spActionDefaultTimeoutMs.setToolTipText("Voreinstellung für neue Actions (Timeout in Millisekunden, 0 = kein Warten).");
+        g2.gridx = 0; g2.gridy = 2; g2.anchor = GridBagConstraints.WEST; g2.weightx = 0;
+        pnlInput.add(lbActionTimeout, g2);
+        g2.gridx = 1; g2.gridy = 2; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
+        pnlInput.add(spActionDefaultTimeoutMs, g2);
+
         // --- Assertion waits (UI in Sekunden, internally ms) ---
         JLabel lbAssertGroup = new JLabel("Wartezeit vor allen Assertions (s):");
         spAssertionGroupWait = new JSpinner(new SpinnerNumberModel(assertionGroupWaitS, 0.0, Double.MAX_VALUE, 1.0));
@@ -413,19 +429,19 @@ public class SettingsCommand extends ShortcutMenuCommand {
         spBeforeEachAfterWait.setEditor(beEditor);
         spBeforeEachAfterWait.setToolTipText("Pause nach Auswertung jeder BeforeEach-Gruppe (Root/Suite/Case) in Sekunden.");
 
-        g2.gridx = 0; g2.gridy = 2; g2.anchor = GridBagConstraints.WEST; g2.weightx = 0;
+        g2.gridx = 0; g2.gridy = 3; g2.anchor = GridBagConstraints.WEST; g2.weightx = 0;
         pnlInput.add(lbAssertGroup, g2);
-        g2.gridx = 1; g2.gridy = 2; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
+        g2.gridx = 1; g2.gridy = 3; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
         pnlInput.add(spAssertionGroupWait, g2);
 
-        g2.gridx = 0; g2.gridy = 3; g2.anchor = GridBagConstraints.WEST; g2.weightx = 0;
+        g2.gridx = 0; g2.gridy = 4; g2.anchor = GridBagConstraints.WEST; g2.weightx = 0;
         pnlInput.add(lbAssertEach, g2);
-        g2.gridx = 1; g2.gridy = 3; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
+        g2.gridx = 1; g2.gridy = 4; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
         pnlInput.add(spAssertionEachWait, g2);
 
-        g2.gridx = 0; g2.gridy = 4; g2.anchor = GridBagConstraints.WEST; g2.weightx = 0;
+        g2.gridx = 0; g2.gridy = 5; g2.anchor = GridBagConstraints.WEST; g2.weightx = 0;
         pnlInput.add(lbBeforeEachAfter, g2);
-        g2.gridx = 1; g2.gridy = 4; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
+        g2.gridx = 1; g2.gridy = 5; g2.anchor = GridBagConstraints.EAST; g2.weightx = 1;
         pnlInput.add(spBeforeEachAfterWait, g2);
 
         // --- Netzwerk ---
@@ -504,7 +520,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         JPanel pnlDebug = new JPanel(new GridBagLayout());
         pnlDebug.setBorder(sectionBorder("Debug / Terminal"));
         GridBagConstraints gDbg = gbc();
-        // Drei Spalten, zwei Reihen
+        // Drei spalten, zwei Reihen
         int drow = 0;
         // Reihe 1
         gDbg.gridx = 0; gDbg.gridy = drow; gDbg.anchor = GridBagConstraints.WEST; pnlDebug.add(cbDebugEnabled, gDbg);
@@ -631,6 +647,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
         if (cmdRetryWindowS < 0) { error("Retry-Zeitfenster darf nicht negativ sein."); return; }
         long cmdRetryWindowMs = Math.round(cmdRetryWindowS * 1000.0);
 
+        int actionDefaultTimeoutMs = ((Number) spActionDefaultTimeoutMs.getValue()).intValue();
+        if (actionDefaultTimeoutMs < 0) { error("Default Action-Timeout darf nicht negativ sein."); return; }
+
         Map<String, Object> s = new HashMap<>();
         s.put("websocketTimeout", timeoutValue);
         s.put("reportBaseDir", reportDir);
@@ -641,6 +660,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         s.put("assertion.groupWaitMs", groupWaitMs);
         s.put("assertion.eachWaitMs", eachWaitMs);
         s.put("beforeEach.afterWaitMs", beforeEachAfterMs); // neu
+        s.put("action.defaultTimeoutMillis", actionDefaultTimeoutMs); // neu
 
         // Video-Settings persistieren
         s.put("video.enabled",   videoEnabled);
@@ -680,6 +700,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         System.setProperty("wd4j.log.network", String.valueOf(cbLogNetwork.isSelected()));
         System.setProperty("wd4j.command.retry.maxCount", String.valueOf(cmdRetryCount));
         System.setProperty("wd4j.command.retry.windowMs", String.valueOf(cmdRetryWindowMs));
+        System.setProperty("wd4j.action.defaultTimeoutMillis", String.valueOf(actionDefaultTimeoutMs)); // neu
 
         // Live übernehmen (Adapter-Sicht)
         InputDelaysConfig.setKeyDownDelayMs(kdVal);

@@ -142,6 +142,11 @@ public class SettingsService {
         if (cmdRetryWinMs != null) {
             System.setProperty("wd4j.command.retry.windowMs", String.valueOf(cmdRetryWinMs));
         }
+        // Default Action Timeout (Persistierter Wert -> System Property)
+        Integer actionDefaultTimeout = getInstance().get("action.defaultTimeoutMillis", Integer.class);
+        if (actionDefaultTimeout != null && actionDefaultTimeout >= 0) {
+            System.setProperty("wd4j.action.defaultTimeoutMillis", String.valueOf(actionDefaultTimeout));
+        }
     }
 
     /** Load the global settings.json into memory. */
@@ -173,6 +178,8 @@ public class SettingsService {
         // Command Retry Defaults (0 = aus)
         if (!settingsCache.containsKey("command.retry.maxCount")) settingsCache.put("command.retry.maxCount", 0);
         if (!settingsCache.containsKey("command.retry.windowMs")) settingsCache.put("command.retry.windowMs", 0L);
+        // Default Action Timeout (Fallback 30000 ms wie bisher in TestTreeController/RecorderService)
+        if (!settingsCache.containsKey("action.defaultTimeoutMillis")) settingsCache.put("action.defaultTimeoutMillis", 30000);
     }
 
     /** Persist the global settings.json to disk. */
