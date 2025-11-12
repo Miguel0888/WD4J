@@ -177,7 +177,7 @@ public class BrowserTypeImpl implements BrowserType {
 
     // Hilfsmethode zum Starten eines Prozesses mit Protokollierung
     protected void startProcess(List<String> commandLineArgs) throws Exception {
-        String logPrefix = "[" + name() + "]";
+        String logPrefix = "[Browser]"; // vereinheitlicht
         // URL und Port ggf. aktualisieren aus SystemConfig
         this.websocketUrl = BrowserSystemConfig.getDefaultUrl() + ":" + BrowserSystemConfig.getDefaultPort();
         ProcessBuilder builder = new ProcessBuilder(commandLineArgs);
@@ -190,7 +190,9 @@ public class BrowserTypeImpl implements BrowserType {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    System.out.println(logPrefix + " " + line);
+                    if (Boolean.getBoolean("wd4j.log.browser")) {
+                        System.out.println(logPrefix + " " + line);
+                    }
 
                     // CDP-URL aus der Log-Ausgabe extrahieren
                     if (line.contains("DevTools listening on ws://")) {
@@ -220,7 +222,9 @@ public class BrowserTypeImpl implements BrowserType {
                 }
                 Thread.sleep(1000);
             }
-            System.out.println("Gefundene WebDriver-URL: " + wdUrl[0]);
+            if (Boolean.getBoolean("wd4j.log.browser")) {
+                System.out.println("[Browser] Gefundene WebDriver-URL: " + wdUrl[0]);
+            }
             websocketUrl = wdUrl[0];
         } else {
             for (int i = 0; i < 10; i++) {
@@ -229,7 +233,9 @@ public class BrowserTypeImpl implements BrowserType {
                 }
                 Thread.sleep(1000);
             }
-            System.out.println("Gefundene DevTools-URL: " + cdpUrl[0]);
+            if (Boolean.getBoolean("wd4j.log.browser")) {
+                System.out.println("[Browser] Gefundene DevTools-URL: " + cdpUrl[0]);
+            }
             // websocketUrl = cdpUrl[0];
         }
     }

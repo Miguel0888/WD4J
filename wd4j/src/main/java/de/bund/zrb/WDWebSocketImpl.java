@@ -226,7 +226,9 @@ public class WDWebSocketImpl implements WDWebSocket {
         webSocketClient = new WebSocketClient(uri) {
             @Override
             public void onOpen(ServerHandshake handshakedata) {
-                System.out.println("WebSocket connected: " + handshakedata.getHttpStatusMessage());
+                if (Boolean.getBoolean("wd4j.log.browser")) {
+                    System.out.println("[Browser] WebSocket connected: " + handshakedata.getHttpStatusMessage());
+                }
             }
 
             @Override
