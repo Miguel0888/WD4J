@@ -73,8 +73,8 @@ public class TestPlayerService {
 
     private static final String DEFAULT_USERNAME = "default";
 
-    private final RuntimeVariableContext runtimeCtx =
-            new RuntimeVariableContext(ExpressionRegistryImpl.getInstance());
+    // Statt einmalig pro Lebenszyklus: pro Run neu erzeugen -> nicht final
+    private RuntimeVariableContext runtimeCtx = new RuntimeVariableContext(ExpressionRegistryImpl.getInstance());
 
     // --- NEU: Netzwerk Logging Zustand ---
     // RENAMED: Playback Logging Zustand (vormals Netzwerk Logging)
@@ -97,6 +97,8 @@ public class TestPlayerService {
 
     private boolean rootBeforeAllDone = false; // neu: verhindert Doppel-Ausführung
     private final java.util.Set<String> suiteBeforeAllDone = new java.util.HashSet<>(); // neu pro Suite-ID
+    // Neu: Case-Init Tracking (BeforeEach + Case.Before + Templates) pro Run
+    private final java.util.Set<String> caseBeforeChainDone = new java.util.HashSet<>();
 
     private TestPlayerService() {}
 
@@ -115,6 +117,8 @@ public class TestPlayerService {
 
     public void runSuites() {
         ActivityService.getInstance(browserService.getBrowser());
+        // NEU: Frische Run-Kontexte & Flags
+        resetRunContext();
         resetRunFlags();
         if (!isReady()) return;
 
@@ -162,27 +166,10 @@ public class TestPlayerService {
         boolean ok;
         String err = null;
         try {
-            // Setup minimal case scope if action is run standalone (parent case exists)
+            // Vollständige Initialisierung nachholen, wenn direkt auf Action gelaufen wird.
             TestNode caseNode = (TestNode) node.getParent();
             if (caseNode != null && caseNode.getModelRef() instanceof TestCase) {
-                TestCase tc = (TestCase) caseNode.getModelRef();
-                // Clear case-scope and evaluate only Case-level Before and Templates
-                runtimeCtx.enterCase();
-
-                // Pre-set username to resolve expressions that use {{user}}
-                String effectiveUser = resolveEffectiveUserForAction(action);
-                if (effectiveUser != null && effectiveUser.trim().length() > 0) {
-                    runtimeCtx.setCaseVar("username", effectiveUser.trim());
-                }
-
-                // Evaluate case-level Befores without suite/root
-                ValueScope actionOnlyScope = runtimeCtx.buildCaseScopeForActionOnly();
-                runUnchecked(new ThrowingRunnable() {
-                    @Override public void run() throws Exception {
-                        evaluateExpressionMapNowWithScope(tc.getBefore(), tc.getBeforeEnabled(), actionOnlyScope, runtimeCtx);
-                    }
-                });
-                runtimeCtx.fillCaseTemplatesFromMap(filterEnabled(tc.getTemplates(), tc.getTemplatesEnabled()));
+                ensureCaseInitForAction(caseNode, (TestCase) caseNode.getModelRef());
             }
 
             ok = playSingleAction(action, stepLog);
@@ -1312,10 +1299,11 @@ public class TestPlayerService {
     }
 
     private void initCaseSymbols(TestNode node, TestCase testCase) throws Exception {
+        // Ergänzung: markiere Case als initialisiert (nach vollständiger Kette)
+        // Reihenfolge bleibt wie gehabt.
         TestSuite parentSuite = (TestSuite) ((TestNode) node.getParent()).getModelRef();
         RootNode rootModel = TestRegistry.getInstance().getRoot();
 
-        // Reihenfolge: Root.BeforeEach -> Suite.BeforeEach -> Case.Before
         java.util.List<ThrowingRunnable> beforeChain = new java.util.ArrayList<>();
         beforeChain.add(() -> runtimeCtx.fillCaseVarsFromMap(
                 evaluateExpressionMapNow(rootModel.getBeforeEach(), rootModel.getBeforeEachEnabled(), runtimeCtx)));
@@ -1328,7 +1316,6 @@ public class TestPlayerService {
 
         for (ThrowingRunnable r : beforeChain) {
             runUnchecked(r);
-            // Wartezeit nach jeder Gruppe (Root/Suite/Case)
             Integer waitCfg = SettingsService.getInstance().get("beforeEach.afterWaitMs", Integer.class);
             long w = (waitCfg != null) ? waitCfg.longValue() : 0L;
             if (w > 0) {
@@ -1336,9 +1323,48 @@ public class TestPlayerService {
             }
         }
         runtimeCtx.fillCaseTemplatesFromMap(filterEnabled(testCase.getTemplates(), testCase.getTemplatesEnabled()));
+        if (testCase.getId() != null) {
+            caseBeforeChainDone.add(testCase.getId());
+        }
     }
 
-    // ================= Wiederhergestellte Hilfsmethoden (waren beim Merge verloren gegangen) =================
+    // =========================================================
+    // NEU: Run-Context Reset & Ad-hoc Initialisierung
+    // =========================================================
+
+    /** Stellt sicher, dass pro Run ein frischer Kontext existiert. */
+    private void resetRunContext() {
+        runtimeCtx = new RuntimeVariableContext(ExpressionRegistryImpl.getInstance());
+        rootBeforeAllDone = false;
+        suiteBeforeAllDone.clear();
+        caseBeforeChainDone.clear();
+    }
+
+    /** Wird aufgerufen, wenn eine Action direkt ausgeführt wird (Startknoten=Action). */
+    private void ensureCaseInitForAction(TestNode caseNode, TestCase testCase) throws RuntimeException {
+        try {
+            // Eltern Suite bestimmen
+            TestSuite parentSuite = null;
+            if (caseNode.getParent() instanceof TestNode) {
+                Object parentModel = ((TestNode) caseNode.getParent()).getModelRef();
+                if (parentModel instanceof TestSuite) parentSuite = (TestSuite) parentModel;
+            }
+
+            // Root + Suite BeforeAll & Templates nachholen
+            if (!rootBeforeAllDone || (parentSuite != null && !suiteBeforeAllDone.contains(parentSuite.getId()))) {
+                initSuiteSymbols(parentSuite); // führt Root-/Suite-BeforeAll nur einmal aus (Flags sichern).
+            }
+
+            // Case Before-Kette + Templates nachholen, falls noch nicht erfolgt
+            if (testCase.getId() == null || !caseBeforeChainDone.contains(testCase.getId())) {
+                runtimeCtx.enterCase(); // sauberer Case-Scope
+                initCaseSymbols(caseNode, testCase);
+            }
+        } catch (Exception ex) {
+            throw new RuntimeException("Initialisierung (ad-hoc) fehlgeschlagen: " + safeMsg(ex), ex);
+        }
+    }
+
     /** Erwartet "id=<uuid>&..." im value. */
     private String parseIdFromValue(String value) {
         if (value == null) return "";
