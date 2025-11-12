@@ -56,6 +56,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
     private JButton btBrowseProfile;
     private JTextField tfExtraArgs;
     private JCheckBox cbConfirmTerminateRunning;
+    private JCheckBox cbDebugEnabled;
 
     @Override
     public String getId() { return "file.configure"; }
@@ -92,6 +93,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         String  profilePath = SettingsService.getInstance().get("browser.profilePath", String.class);
         String  extraArgs   = SettingsService.getInstance().get("browser.extraArgs", String.class);
         Boolean confirmTerminate = SettingsService.getInstance().get("browser.confirmTerminateRunning", Boolean.class);
+        Boolean dbgEnabled       = SettingsService.getInstance().get("debug.enabled", Boolean.class);
 
         double  initialWsTimeout = wsTimeout != null ? wsTimeout : DEFAULT_WS_TIMEOUT_MS;
         String  initialReportDir = (reportDir != null && !reportDir.trim().isEmpty()) ? reportDir : "C:/Reports";
@@ -116,6 +118,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         String  initialProfPath  = profilePath != null ? profilePath : "";
         String  initialExtraArgs = extraArgs != null ? extraArgs : "";
         boolean initialConfirmTerminate = confirmTerminate != null ? confirmTerminate : true;
+        boolean initialDebugEnabled    = dbgEnabled != null ? dbgEnabled : false;
 
         double initialAssertGroupWaitS = groupWaitMs != null ? groupWaitMs / 1000.0 : DEFAULT_ASSERT_GROUP_WAIT_MS / 1000.0;
         double initialAssertEachWaitS  = eachWaitMs  != null ? eachWaitMs  / 1000.0 : DEFAULT_ASSERT_EACH_WAIT_MS  / 1000.0;
@@ -197,6 +200,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
             Boolean c = SettingsService.getInstance().get("browser.confirmTerminateRunning", Boolean.class);
             cbConfirmTerminateRunning.setSelected(c != null ? c : true);
         }
+        cbDebugEnabled = new JCheckBox("Debug-Ausgaben aktivieren");
+        cbDebugEnabled.setSelected(initialDebugEnabled);
 
         int br = 0;
         gb.gridx = 0; gb.gridy = br; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(new JLabel("Browser:"), gb);
@@ -219,6 +224,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
         gb.gridx = 0; gb.gridy = br; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(new JLabel("Extra-Args:"), gb);
         gb.gridx = 1; gb.gridy = br++; gb.anchor = GridBagConstraints.EAST; pnlBrowser.add(tfExtraArgs, gb);
         gb.gridx = 0; gb.gridy = br; gb.gridwidth = 2; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(cbConfirmTerminateRunning, gb); br++;
+        gb.gridwidth = 1;
+        gb.gridx = 0; gb.gridy = br; gb.gridwidth = 2; gb.anchor = GridBagConstraints.WEST; pnlBrowser.add(cbDebugEnabled, gb); br++;
         gb.gridwidth = 1;
 
         // --- Recording ---
@@ -532,6 +539,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         s.put("browser.profilePath", tfProfilePath.getText().trim());
         s.put("browser.extraArgs", tfExtraArgs.getText().trim());
         s.put("browser.confirmTerminateRunning", cbConfirmTerminateRunning.isSelected());
+        s.put("debug.enabled", cbDebugEnabled.isSelected());
 
         s.forEach(SettingsService.getInstance()::set);
 

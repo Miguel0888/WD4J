@@ -123,6 +123,10 @@ public class SettingsService {
             VideoConfig.getExtraVideoOptions().putAll(vExtra);
         }
 
+        // Debug Flag anwenden
+        Boolean dbg = getInstance().get("debug.enabled", Boolean.class);
+        System.setProperty("wd4j.debug", String.valueOf(dbg != null && dbg));
+
     }
 
     /** Load the global settings.json into memory. */
@@ -147,6 +151,7 @@ public class SettingsService {
         // - assertion.eachWaitMs: per-assertion wait (ms)
         if (!settingsCache.containsKey("assertion.groupWaitMs")) settingsCache.put("assertion.groupWaitMs", 3000);
         if (!settingsCache.containsKey("assertion.eachWaitMs"))  settingsCache.put("assertion.eachWaitMs", 0);
+        if (!settingsCache.containsKey("debug.enabled")) settingsCache.put("debug.enabled", false); // steuert [DEBUG]-Ausgaben
     }
 
     /** Persist the global settings.json to disk. */

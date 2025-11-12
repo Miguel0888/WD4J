@@ -1,4 +1,3 @@
-
 package de.bund.zrb.support;
 
 import com.google.gson.Gson;
@@ -99,7 +98,9 @@ public class JsonToPlaywrightMapper {
             String methodName = method.getName();
             String fieldName = deriveFieldName(methodName);
 
-            System.out.println("[DEBUG] Method call: " + methodName + " → JSON field: " + fieldName);
+            if (Boolean.getBoolean("wd4j.debug")) {
+                System.out.println("[DEBUG] Method call: " + methodName + " → JSON field: " + fieldName);
+            }
 
             if (json.has(fieldName) && !json.get(fieldName).isJsonNull()) {
                 // Falls der Rückgabewert eine Liste von JSHandle ist

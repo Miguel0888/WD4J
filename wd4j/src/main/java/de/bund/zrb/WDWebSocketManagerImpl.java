@@ -286,7 +286,9 @@ public class WDWebSocketManagerImpl implements WDWebSocketManager {
 
                 // Prüfen, ob es sich um ein Event handelt (kein "id"-Feld)
                 if (json.has("method")) {
-                    System.out.println("[DEBUG] WebSocketManager detected event: " + json.get("method").getAsString());
+                    if (Boolean.getBoolean("wd4j.debug")) {
+                        System.out.println("[DEBUG] WebSocketManager detected event: " + json.get("method").getAsString());
+                    }
                     eventDispatcher.processEvent(json); // 🔥 Event an Dispatcher weitergeben
                 }
             } catch (JsonSyntaxException e) {

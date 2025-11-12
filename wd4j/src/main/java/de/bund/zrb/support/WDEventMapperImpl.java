@@ -27,7 +27,9 @@ public class WDEventMapperImpl implements EventMapper {
         WDEventNames eventMapping = WDEventNames.fromName(eventType);
         if (eventMapping == null) return null;
 
-        System.out.println("[DEBUG] Mapping event: " + eventType + " to: " + eventMapping);
+        if (Boolean.getBoolean("wd4j.debug")) {
+            System.out.println("[DEBUG] Mapping event: " + eventType + " to: " + eventMapping);
+        }
 
         switch (eventMapping) {
             // ── Browsing Context Events ────────────────────────────────────────────────
