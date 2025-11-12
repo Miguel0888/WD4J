@@ -77,8 +77,9 @@ public class TestPlayerService {
             new RuntimeVariableContext(ExpressionRegistryImpl.getInstance());
 
     // --- NEU: Netzwerk Logging Zustand ---
-    private boolean networkLoggingActive = false;
-    private final java.util.List<Runnable> networkUnsubs = new java.util.ArrayList<>();
+    // RENAMED: Playback Logging Zustand (vormals Netzwerk Logging)
+    private boolean playbackLoggingActive = false; // was networkLoggingActive
+    private final java.util.List<Runnable> playbackUnsubs = new java.util.ArrayList<>(); // was networkUnsubs
 
     ////////////////////////////////////////////////////////////////////////////////
     // Singleton & Dependencies
@@ -118,7 +119,7 @@ public class TestPlayerService {
         if (!isReady()) return;
 
         beginReport();
-        setupNetworkLogging(); // NEU: Netzwerk-Events ins Terminal
+        setupPlaybackLogging(); // RENAMED
 
         TestNode start = resolveStartNode();
         runNodeStepByStep(start);
@@ -127,7 +128,7 @@ public class TestPlayerService {
 
         OverlayBridge.clearSubtitle();
         OverlayBridge.clearCaption();
-        teardownNetworkLogging(); // NEU: Aufräumen
+        teardownPlaybackLogging(); // RENAMED
         endReport();
     }
 
@@ -860,16 +861,17 @@ public class TestPlayerService {
     }
 
     // ================= NEU: Netzwerk Logging =================
-    private void setupNetworkLogging() {
-        if (networkLoggingActive) return;
+    // RENAMED: Playback Logging (interne Umsetzung weiter mit Network-Events)
+    private void setupPlaybackLogging() { // was setupNetworkLogging
+        if (playbackLoggingActive) return;
         try {
             BrowserImpl browser = browserService.getBrowser();
-            if (browser == null) { System.err.println("[NET] Kein Browser verfügbar – Logging deaktiviert."); return; }
+            if (browser == null) { System.err.println("[PLAY] Kein Browser verfügbar – Logging deaktiviert."); return; }
             WebDriver wd = browser.getWebDriver();
-            if (wd == null) { System.err.println("[NET] Kein WebDriver verfügbar – Logging deaktiviert."); return; }
+            if (wd == null) { System.err.println("[PLAY] Kein WebDriver verfügbar – Logging deaktiviert."); return; }
 
             // BEFORE_REQUEST_SENT
-            networkUnsubs.add(subscribeNetwork(wd, WDEventNames.BEFORE_REQUEST_SENT.getName(), ev -> {
+            playbackUnsubs.add(subscribeNetwork(wd, WDEventNames.BEFORE_REQUEST_SENT.getName(), ev -> {
                 if (!(ev instanceof WDNetworkEvent.BeforeRequestSent)) return;
                 WDNetworkEvent.BeforeRequestSent e = (WDNetworkEvent.BeforeRequestSent) ev;
                 WDNetworkEvent.BeforeRequestSent.BeforeRequestSentParametersWD p = e.getParams();
@@ -879,11 +881,11 @@ public class TestPlayerService {
                 String method = p.getRequest().getMethod();
                 String url = p.getRequest().getUrl();
                 boolean blocked = p.isBlocked();
-                System.out.printf("[NET BEFORE] ctx=%s id=%s %s %s%s%n", ctx, reqId, nullSafe(method), nullSafe(url), blocked ? " BLOCKED" : "");
+                System.out.printf("[PLAY BEFORE] ctx=%s id=%s %s %s%s%n", ctx, reqId, nullSafe(method), nullSafe(url), blocked ? " BLOCKED" : "");
             }));
 
             // RESPONSE_STARTED
-            networkUnsubs.add(subscribeNetwork(wd, WDEventNames.RESPONSE_STARTED.getName(), ev -> {
+            playbackUnsubs.add(subscribeNetwork(wd, WDEventNames.RESPONSE_STARTED.getName(), ev -> {
                 if (!(ev instanceof WDNetworkEvent.ResponseStarted)) return;
                 WDNetworkEvent.ResponseStarted e = (WDNetworkEvent.ResponseStarted) ev;
                 WDNetworkEvent.ResponseStarted.ResponseStartedParametersWD p = e.getParams();
@@ -894,11 +896,11 @@ public class TestPlayerService {
                 String url = p.getResponse() != null ? p.getResponse().getUrl() : p.getRequest().getUrl();
                 Long status = p.getResponse() != null ? p.getResponse().getStatus() : null;
                 boolean blocked = p.isBlocked();
-                System.out.printf("[NET RESP ] ctx=%s id=%s status=%s %s %s%s%n", ctx, reqId, status, nullSafe(method), nullSafe(url), blocked ? " BLOCKED" : "");
+                System.out.printf("[PLAY RESP ] ctx=%s id=%s status=%s %s %s%s%n", ctx, reqId, status, nullSafe(method), nullSafe(url), blocked ? " BLOCKED" : "");
             }));
 
             // AUTH_REQUIRED
-            networkUnsubs.add(subscribeNetwork(wd, WDEventNames.AUTH_REQUIRED.getName(), ev -> {
+            playbackUnsubs.add(subscribeNetwork(wd, WDEventNames.AUTH_REQUIRED.getName(), ev -> {
                 if (!(ev instanceof WDNetworkEvent.AuthRequired)) return;
                 WDNetworkEvent.AuthRequired e = (WDNetworkEvent.AuthRequired) ev;
                 WDNetworkEvent.AuthRequired.AuthRequiredParametersWD p = e.getParams();
@@ -908,11 +910,11 @@ public class TestPlayerService {
                 String method = p.getRequest().getMethod();
                 String url = p.getRequest().getUrl();
                 boolean blocked = p.isBlocked();
-                System.out.printf("[NET AUTH ] ctx=%s id=%s %s %s%s%n", ctx, reqId, nullSafe(method), nullSafe(url), blocked ? " BLOCKED" : "");
+                System.out.printf("[PLAY AUTH ] ctx=%s id=%s %s %s%s%n", ctx, reqId, nullSafe(method), nullSafe(url), blocked ? " BLOCKED" : "");
             }));
 
             // FETCH_ERROR
-            networkUnsubs.add(subscribeNetwork(wd, WDEventNames.FETCH_ERROR.getName(), ev -> {
+            playbackUnsubs.add(subscribeNetwork(wd, WDEventNames.FETCH_ERROR.getName(), ev -> {
                 if (!(ev instanceof WDNetworkEvent.FetchError)) return;
                 WDNetworkEvent.FetchError e = (WDNetworkEvent.FetchError) ev;
                 WDNetworkEvent.FetchError.FetchErrorParametersWD p = e.getParams();
@@ -922,11 +924,11 @@ public class TestPlayerService {
                 String method = p.getRequest().getMethod();
                 String url = p.getRequest().getUrl();
                 String err = p.getErrorText();
-                System.out.printf("[NET FAIL ] ctx=%s id=%s %s %s error=%s%n", ctx, reqId, nullSafe(method), nullSafe(url), nullSafe(err));
+                System.out.printf("[PLAY FAIL ] ctx=%s id=%s %s %s error=%s%n", ctx, reqId, nullSafe(method), nullSafe(url), nullSafe(err));
             }));
 
             // RESPONSE_COMPLETED
-            networkUnsubs.add(subscribeNetwork(wd, WDEventNames.RESPONSE_COMPLETED.getName(), ev -> {
+            playbackUnsubs.add(subscribeNetwork(wd, WDEventNames.RESPONSE_COMPLETED.getName(), ev -> {
                 if (!(ev instanceof WDNetworkEvent.ResponseCompleted)) return;
                 WDNetworkEvent.ResponseCompleted e = (WDNetworkEvent.ResponseCompleted) ev;
                 WDNetworkEvent.ResponseCompleted.ResponseCompletedParametersWD p = e.getParams();
@@ -937,22 +939,22 @@ public class TestPlayerService {
                 String url = p.getResponse() != null ? p.getResponse().getUrl() : p.getRequest().getUrl();
                 Long status = p.getResponse() != null ? p.getResponse().getStatus() : null;
                 long bytes = p.getResponse() != null ? p.getResponse().getBytesReceived() : -1L;
-                System.out.printf("[NET DONE ] ctx=%s id=%s status=%s bytes=%d %s %s%n", ctx, reqId, status, bytes, nullSafe(method), nullSafe(url));
+                System.out.printf("[PLAY DONE ] ctx=%s id=%s status=%s bytes=%d %s %s%n", ctx, reqId, status, bytes, nullSafe(method), nullSafe(url));
             }));
 
-            networkLoggingActive = true;
-            System.out.println("[NET] Terminal-Network-Logging aktiviert.");
+            playbackLoggingActive = true;
+            System.out.println("[PLAY] Terminal-Playback-Logging aktiviert.");
         } catch (Throwable t) {
-            System.err.println("[NET] Aktivierung fehlgeschlagen: " + t.getMessage());
+            System.err.println("[PLAY] Aktivierung fehlgeschlagen: " + t.getMessage());
         }
     }
 
-    private void teardownNetworkLogging() {
-        if (!networkLoggingActive) return;
-        for (Runnable r : networkUnsubs) { try { r.run(); } catch (Throwable ignore) {} }
-        networkUnsubs.clear();
-        networkLoggingActive = false;
-        System.out.println("[NET] Terminal-Network-Logging deaktiviert.");
+    private void teardownPlaybackLogging() { // was teardownNetworkLogging
+        if (!playbackLoggingActive) return;
+        for (Runnable r : playbackUnsubs) { try { r.run(); } catch (Throwable ignore) {} }
+        playbackUnsubs.clear();
+        playbackLoggingActive = false;
+        System.out.println("[PLAY] Terminal-Playback-Logging deaktiviert.");
     }
 
     private Runnable subscribeNetwork(WebDriver wd, String eventName, java.util.function.Consumer<Object> handler) {

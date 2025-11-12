@@ -250,7 +250,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         cbLogBrowser.setSelected(initialLogBrowser);
         cbLogTabManager = new JCheckBox("[TabManager]-Logs");
         cbLogTabManager.setSelected(initialLogTabManager);
-        cbLogNetwork = new JCheckBox("[Network]-Logs");
+        cbLogNetwork = new JCheckBox("[Playback]-Logs"); // renamed from [Network]-Logs
         cbLogNetwork.setSelected(initialLogNetwork);
         cbNetworkWaitEnabled = new JCheckBox("Netzwerk-Wartefunktion aktiv");
         cbNetworkWaitEnabled.setSelected(initialNetWaitEnabled);
