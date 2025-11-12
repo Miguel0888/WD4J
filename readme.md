@@ -385,4 +385,90 @@ Dieses Projekt steht unter der **MIT-Lizenz**. Bitte beachten Sie, dass die verw
 
 Der Recorder der App-Schicht verwendet seine eigene von PlayWright abweichende Logik, sendet die Events aber per WebDriver BiDi Messages an die Anwendung zurück.
 
+---
+
+## Videoaufzeichnung
+
+WD4J bietet flexible Videoaufzeichnungsmöglichkeiten mit automatischer Backend-Auswahl.
+
+### Architektur
+
+Die Videoaufzeichnung basiert auf dem Strategy-Pattern mit zwei Backends:
+
+1. **LibVLC (bevorzugt)** - Nutzt eine lokal installierte VLC-Installation
+2. **FFmpeg/JavaCV (Fallback)** - Lädt benötigte Bibliotheken bei Bedarf nach
+
+### Voraussetzungen
+
+**Wichtig:** 64-bit Matching zwischen Java, VLC und Betriebssystem erforderlich!
+
+#### Für LibVLC (empfohlen)
+- 64-bit VLC-Installation (keine Downloads nötig)
+- Windows: VLC unter `C:\Program Files\VideoLAN\VLC`
+- macOS: VLC.app unter `/Applications/VLC.app`
+- Linux: libvlc.so in Standard-Bibliothekspfaden (`/usr/lib`, `/usr/local/lib`)
+
+#### Für FFmpeg/JavaCV (Fallback)
+- Automatischer Download der Bibliotheken beim ersten Start (~50-100 MB)
+- Oder manuelle Auswahl der JAR-Dateien
+
+### Verwendung
+
+```java
+// 1. Recorder erstellen (automatische Backend-Auswahl)
+MediaRecorder recorder = MediaRuntimeBootstrap.createRecorder();
+
+// 2. Aufnahmeprofil konfigurieren
+RecordingProfile profile = RecordingProfile.builder()
+    .source("screen://")  // screen://, dshow://, v4l2://, avfoundation://
+    .outputFile(Paths.get("C:/Reports/video.mkv"))
+    .width(1920)
+    .height(1080)
+    .fps(30)
+    .videoCodec("h264")  // optional: h264, mjpeg, etc.
+    .build();
+
+// 3. Aufnahme starten
+recorder.start(profile);
+
+// 4. Aufnahme stoppen
+recorder.stop();
+```
+
+### Quellen-Strings
+
+| Platform | Source String | Beschreibung |
+|----------|---------------|--------------|
+| Windows  | `screen://`   | DirectShow Screen-Capture |
+| macOS    | `screen://`   | AVFoundation Screen-Capture |
+| Linux    | `screen://`   | Video4Linux2 / X11 Screen-Capture |
+
+### Backend-Selektion
+
+```java
+// Bevorzugtes Backend prüfen
+String backend = MediaRuntimeBootstrap.getPreferredBackend();
+// Rückgabe: "LibVLC" oder "FFmpeg"
+
+// LibVLC-Verfügbarkeit prüfen
+boolean vlcAvailable = MediaRuntimeBootstrap.isLibVlcAvailable();
+
+// Mit interaktiver Bibliothekswahl (bei Bedarf)
+MediaRecorder recorder = MediaRuntimeBootstrap.createRecorderInteractive();
+```
+
+### Risiken und Hinweise
+
+- **32/64-bit Mismatch:** Java, VLC und OS müssen alle 64-bit sein
+- **VLC_PLUGIN_PATH:** Wird automatisch gesetzt, kann aber manuell überschrieben werden
+- **VLC-Versionen:** Getestet mit VLC 3.0+
+- **Lizenz:** VLC wird dynamisch gebunden (keine statische Verlinkung erforderlich)
+
+### Nicht-Ziele
+
+- Mehrfachaufnahmen parallel (nicht unterstützt)
+- Automatischer VLC-Download (muss manuell installiert werden)
+
+---
+
 Überarbeitet von Codex
