@@ -20,6 +20,19 @@ import java.util.*;
 public class RecorderService implements RecordingEventRouter.RecordingEventListener {
 
     private static final Map<Object, RecorderService> RECORDERS = new HashMap<>();
+    private static final String PROP_ACTION_DEFAULT_TIMEOUT = "wd4j.action.defaultTimeoutMillis";
+    public static final int ACTION_DEFAULT_TIMEOUT = resolveDefaultTimeoutMillis();
+    private static int resolveDefaultTimeoutMillis() {
+        String v = System.getProperty(PROP_ACTION_DEFAULT_TIMEOUT);
+        if (v == null || v.trim().isEmpty()) return 30_000; // Fallback wie vorher
+        try {
+            double d = Double.parseDouble(v.trim());
+            if (d < 0) return 30_000; // kein negativer Timeout
+            return (int) Math.floor(d);
+        } catch (NumberFormatException ex) {
+            return 30_000; // Fallback bei Parsingfehler
+        }
+    }
 
     private final List<TestAction> recordedActions = new ArrayList<>();
     private final List<RecorderListener> listeners = new ArrayList<>();
@@ -236,7 +249,7 @@ public class RecorderService implements RecordingEventRouter.RecordingEventListe
 
     public TestAction convertToTestAction(RecordedEvent event) {
         TestAction action = new TestAction();
-        action.setTimeout(30_000);
+        action.setTimeout(ACTION_DEFAULT_TIMEOUT);
         action.setAction(event.getAction());
 
         // 1) Collect raw locators from the event

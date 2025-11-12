@@ -38,6 +38,20 @@ import java.util.UUID;
  */
 public class TestTreeController {
 
+    private static final String PROP_ACTION_DEFAULT_TIMEOUT = "wd4j.action.defaultTimeoutMillis";
+    public static final int ACTION_DEFAULT_TIMEOUT = resolveDefaultTimeoutMillis();
+    private static int resolveDefaultTimeoutMillis() {
+        String v = System.getProperty(PROP_ACTION_DEFAULT_TIMEOUT);
+        if (v == null || v.trim().isEmpty()) return 30000; // Fallback 30s, wie bisher
+        try {
+            // erlauben Ganzzahl oder Dezimal, runden ab
+            double d = Double.parseDouble(v.trim());
+            if (d < 0) return 30000; // keine negativen Werte
+            return (int) Math.floor(d);
+        } catch (NumberFormatException ex) {
+            return 30000;
+        }
+    }
     private final JTree testTree;
 
     // Optionaler Handler, um einen Node in einem neuen (persistenten) Tab zu öffnen
@@ -499,7 +513,7 @@ public class TestTreeController {
         newAction.setParentId(caseModel.getId());
         newAction.setAction(actionName);
         newAction.setType(TestAction.ActionType.WHEN);
-        newAction.setTimeout(30000); // default wie bisher
+        newAction.setTimeout(ACTION_DEFAULT_TIMEOUT); // default wie bisher
         // rest (user, locator, etc.) lassen wir leer/0 erst mal
 
         // Einfügeposition bestimmen (hinter geklicktem Step)
@@ -655,7 +669,7 @@ public class TestTreeController {
         newAction.setParentId(caseModel.getId());
         newAction.setAction(actionName);
         newAction.setType(TestAction.ActionType.WHEN);
-        newAction.setTimeout(30000);
+        newAction.setTimeout(ACTION_DEFAULT_TIMEOUT);
         steps.add(0, newAction);
         TestRegistry.getInstance().save();
         refreshTestTree();

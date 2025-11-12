@@ -40,13 +40,5 @@ public interface WDWebSocket {
   }
   boolean isClosed();
   String url();
-  default WebSocketFrame waitForFrameReceived(Runnable callback) {
-    return waitForFrameReceived(null, callback);
-  }
-  WebSocketFrame waitForFrameReceived(WaitForFrameReceivedOptions options, Runnable callback);
-  default WebSocketFrame waitForFrameSent(Runnable callback) {
-    return waitForFrameSent(null, callback);
-  }
-  WebSocketFrame waitForFrameSent(WaitForFrameSentOptions options, Runnable callback);
 }
 
