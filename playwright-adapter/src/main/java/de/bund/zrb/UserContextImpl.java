@@ -52,6 +52,11 @@ public class UserContextImpl implements BrowserContext, WDContextExtension {
         this.userContext = userContext;
     }
 
+    /** Zugriff auf zugrunde liegenden BrowserImpl (Stale-Erkennung). */
+    public BrowserImpl getBrowserImpl() { return browser; }
+    /** Prüft, ob der Kontext nicht mehr gültig ist (Browser gewechselt oder Context geschlossen). */
+    public boolean isStale(BrowserImpl current) { return current == null || current != this.browser || isClosed; }
+
     @Override
     public Page newPage() {
         if (isClosed) throw new PlaywrightException("BrowserContext is closed");

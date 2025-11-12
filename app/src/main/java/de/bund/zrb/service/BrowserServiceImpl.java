@@ -138,6 +138,9 @@ public class BrowserServiceImpl implements BrowserService {
             });
             ApplicationEventBus.getInstance().publish(new BrowserLifecycleEvent(new BrowserLifecycleEvent.Payload(BrowserLifecycleEvent.Kind.STARTED, "✅ Browser gestartet")));
 
+            // Warten bis die Verbindung stabil ist (verhindert Nutzung eines bereits geschlossenen Sockets direkt nach Neustart)
+            waitUntilBrowserReady(browser, 5000);
+
             // Optional: pro Benutzer automatisch Startseite öffnen (neuer Tab)
             try {
                 for (UserRegistry.User u : UserRegistry.getInstance().getAll()) {
@@ -166,6 +169,29 @@ public class BrowserServiceImpl implements BrowserService {
             );
             return; // Entfernt Hinweis: notwendig hier für frühzeitiges Abbrechen
         }
+    }
+
+    /** Wartet aktiv bis der Browser laut isConnected() stabil verbunden ist oder Timeout erreicht. */
+    private void waitUntilBrowserReady(BrowserImpl browser, long timeoutMillis) {
+        long start = System.currentTimeMillis();
+        boolean reported = false;
+        while (System.currentTimeMillis() - start < timeoutMillis) {
+            try {
+                if (browser != null && browser.isConnected()) {
+                    // kurze zusätzliche Stabilitäts-Pause
+                    try { Thread.sleep(150); } catch (InterruptedException ignored) {}
+                    return;
+                }
+            } catch (Throwable t) {
+                // Ignorieren; erneut versuchen
+            }
+            if (!reported) {
+                reported = true;
+                System.out.println("[Launch] Warte auf stabile WebSocket-Verbindung...");
+            }
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+        }
+        System.out.println("[Launch] Verbindung nicht stabil innerhalb von " + timeoutMillis + " ms – fahre trotzdem fort.");
     }
 
     private void handleExternalBrowserClosed() {
@@ -285,30 +311,37 @@ public class BrowserServiceImpl implements BrowserService {
     @Override
     public void closeUserContext(String username) {
         BrowserContext context = userContexts.remove(username);
-        if (context != null) {
+        if( context != null) {
             context.close();
         }
         UserContextMappingService.getInstance().remove(username);
     }
 
     private BrowserContext getOrCreateUserContext(String username) {
+        BrowserImpl currentBrowser = browser;
+        BrowserContext existing = userContexts.get(username);
+        if (existing instanceof de.bund.zrb.UserContextImpl) {
+            de.bund.zrb.UserContextImpl ucImpl = (de.bund.zrb.UserContextImpl) existing;
+            if (ucImpl.isStale(currentBrowser)) {
+                try { ucImpl.close(); } catch (Throwable ignore) {}
+                userContexts.remove(username);
+                UserContextMappingService.getInstance().remove(username);
+                existing = null;
+                System.out.println("[Context] Entferne stale UserContext für Benutzer " + username);
+            }
+        }
+        if (existing != null) {
+            return existing;
+        }
         return userContexts.computeIfAbsent(username, u -> {
             if (browser == null) {
                 throw new IllegalStateException("Browser ist nicht gestartet!");
             }
-
-            // Prüfen ob wir eine alte Context-ID wiederverwenden können (nur Mapping/Status, keine echte Re-Attach möglich ohne native BiDi-API)
-            String persistedId = UserContextMappingService.getInstance().getContextId(u);
-            // Aktuell keine direkte Attach-API → wir erzeugen bei Bedarf neuen Kontext; alte ID bleibt (nur wenn Close misslang) bestehen
-
             BrowserContext context = browser.newContext();
-
-            // Lookup User für Mapping
             UserRegistry.User user = UserRegistry.getInstance().getAll().stream()
                     .filter(it -> it.getUsername().equals(u))
                     .findFirst()
                     .orElseThrow(() -> new IllegalStateException("Unbekannter Benutzer: " + u));
-
             UserContextMappingService.getInstance().bindUserToContext(username, context, user);
 
             return context;
