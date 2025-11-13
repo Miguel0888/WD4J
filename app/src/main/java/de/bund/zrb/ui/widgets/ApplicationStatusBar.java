@@ -25,19 +25,19 @@ public final class ApplicationStatusBar extends JPanel {
         rightControls.setOpaque(false);
 
         // --- Speed (Delay) slider in ms ---
-        double minMs = getDouble("playback.delay.minMs", 0.0); // Mindestverzögerung
-        double maxMs = getDouble("playback.delay.maxMs", 5000.0); // Default 5s
-        // Legacy-Migration: Falls alter Faktor existiert und kein neuer currentMs
+        Integer configuredMinInt = SettingsService.getInstance().get("action.minDurationMillis", Integer.class);
+        Integer configuredMaxInt = SettingsService.getInstance().get("action.maxDurationMillis", Integer.class);
+        double minMs = (configuredMinInt != null) ? configuredMinInt.doubleValue() : 100.0; // 0.1s Fallback
+        double maxMs = (configuredMaxInt != null) ? configuredMaxInt.doubleValue() : 15000.0; // 15s Fallback
+        // Legacy-Migration von Sekunden-Faktor falls vorhanden
         Double legacyFactorSeconds = SettingsService.getInstance().get("playback.speed.current", Double.class);
         Double curMsObj = SettingsService.getInstance().get("playback.delay.currentMs", Double.class);
         double curMs = (curMsObj != null) ? curMsObj : (legacyFactorSeconds != null ? legacyFactorSeconds * 1000.0 : minMs);
-        if (maxMs <= minMs) maxMs = minMs + 1000.0; // Sicherheitsabstand
+        if (maxMs <= minMs) maxMs = minMs + 1000.0; // Sicherheitsabstand falls fehlerhafte Konfig
         curMs = clamp(curMs, minMs, maxMs);
-        // Persist Migrierte Werte (einmalig)
         SettingsService.getInstance().set("playback.delay.currentMs", curMs);
-        // Erzeuge Slider
         speedSlider = createDelaySlider(minMs, maxMs, curMs);
-        speedSlider.setToolTipText("Verzögerung nach jeder Aktion: " + (int)Math.round(curMs) + " ms");
+        speedSlider.setToolTipText("Verzögerung nach jeder Aktion: " + (int)Math.round(curMs) + " ms (Min: " + (int)minMs + " / Max: " + (int)maxMs + ")");
         rightControls.add(speedSlider);
 
         // --- User combo ---
@@ -70,17 +70,22 @@ public final class ApplicationStatusBar extends JPanel {
     }
 
     private JSlider createDelaySlider(double minMs, double maxMs, double curMs) {
-        int SLIDER_STEPS = 1000; // Auflösung
+        int SLIDER_STEPS = 1000;
         int value = (int)Math.round((curMs - minMs) / (maxMs - minMs) * SLIDER_STEPS);
         JSlider s = new JSlider(0, SLIDER_STEPS, value);
         s.setFocusable(false);
-        s.setPreferredSize(new Dimension(140, 22));
+        s.setPreferredSize(new Dimension(160, 22));
         s.addChangeListener(e -> {
             int v = ((JSlider)e.getSource()).getValue();
             double ms = minMs + (v / (double)SLIDER_STEPS) * (maxMs - minMs);
             long msRounded = Math.round(ms);
+            // Clamp gegen aktuelle Min/Max aus Settings (falls während Lauf geändert)
+            Integer dynMin = SettingsService.getInstance().get("action.minDurationMillis", Integer.class);
+            Integer dynMax = SettingsService.getInstance().get("action.maxDurationMillis", Integer.class);
+            if (dynMin != null && msRounded < dynMin) msRounded = dynMin.longValue();
+            if (dynMax != null && msRounded > dynMax) msRounded = dynMax.longValue();
             SettingsService.getInstance().set("playback.delay.currentMs", (double) msRounded);
-            s.setToolTipText("Verzögerung nach jeder Aktion: " + msRounded + " ms");
+            s.setToolTipText("Verzögerung nach jeder Aktion: " + msRounded + " ms (Min: " + (dynMin!=null?dynMin: (int)minMs) + " / Max: " + (dynMax!=null?dynMax: (int)maxMs) + ")");
         });
         return s;
     }

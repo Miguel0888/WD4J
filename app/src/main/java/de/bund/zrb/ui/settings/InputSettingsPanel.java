@@ -34,7 +34,7 @@ public final class InputSettingsPanel implements SettingsSubPanel {
         spAssertEachWait  = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 3600.0, 0.1));
         spBeforeEachAfterWait = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 3600.0, 0.1));
 
-        // --- Neue Felder: Min/Max Aktionsdauer und vorzeitiges Beenden ---
+        // Min/Max Aktionsdauer und vorzeitiges Beenden ---
         spActionMinDurationS = new JSpinner(new SpinnerNumberModel(0.1, 0.0, 3600.0, 0.1));
         spActionMinDurationS.setEditor(new JSpinner.NumberEditor(spActionMinDurationS, "0.###"));
         spActionMinDurationS.setToolTipText("Zeit, die nach einer Aktion mindestens vergehen muss, bevor die nächste startet (Sekunden, Schritt 0.1s)");
