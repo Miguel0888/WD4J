@@ -49,6 +49,8 @@ public class VideoSettingsDialog extends JDialog {
     private JSpinner spVlcLeft, spVlcTop, spVlcWidth, spVlcHeight;
     private JCheckBox cbVlcAudioEnabled;
 
+    private JComboBox<String> cbBackend;
+
     public VideoSettingsDialog(Window owner) {
         super(owner, "Video-Einstellungen", ModalityType.APPLICATION_MODAL);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -60,14 +62,37 @@ public class VideoSettingsDialog extends JDialog {
         updateVlcUiEnabled();
     }
 
+    // --- JCodec rudimentäre Felder
+    private JPanel buildJcodecPanel() {
+        JPanel p = new JPanel(new GridBagLayout());
+        GridBagConstraints g = gbc();
+        int r = 0;
+        JLabel info = new JLabel("JCodec (reines Java, kein Audio). Geeignet bei 32/64-bit-Mismatch.");
+        g.gridx=0; g.gridy=r++; g.gridwidth=2; g.anchor=GridBagConstraints.WEST; p.add(info, g); g.gridwidth=1;
+        JSpinner spFps = new JSpinner(new SpinnerNumberModel(15, 1, 60, 1));
+        addRow(p, g, r++, "FPS:", spFps);
+        JComboBox<String> cbQual = new JComboBox<>(new String[]{"mittel","hoch","sehr hoch"});
+        addRow(p, g, r++, "Qualität:", cbQual);
+        JPanel wrap = new JPanel(new BorderLayout());
+        wrap.add(p, BorderLayout.NORTH);
+        return wrap;
+    }
+
     private JComponent buildUI() {
         JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(10,12,10,12));
+
+        // Backend-Auswahl oberhalb der Tabs
+        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        header.add(new JLabel("Backend:"));
+        cbBackend = new JComboBox<>(new String[]{"vlc","ffmpeg","jcodec"});
+        header.add(cbBackend);
 
         // Tabs
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("FFmpeg", buildFfmpegPanel());
         tabs.addTab("VLC", buildVlcPanel());
+        tabs.addTab("JCodec", buildJcodecPanel());
 
         // Footer
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
@@ -79,8 +104,8 @@ public class VideoSettingsDialog extends JDialog {
         btCancel.addActionListener(e -> dispose());
         footer.add(btReset); footer.add(btOk); footer.add(btCancel);
 
+        root.add(header, BorderLayout.NORTH);
         root.add(tabs, BorderLayout.CENTER);
-        root.add(Box.createVerticalStrut(8), BorderLayout.NORTH);
         root.add(footer, BorderLayout.SOUTH);
         return root;
     }
@@ -356,6 +381,9 @@ public class VideoSettingsDialog extends JDialog {
     @SuppressWarnings("unchecked")
     private void loadFromSettings() {
         SettingsService s = SettingsService.getInstance();
+        String backend = s.get("video.backend", String.class);
+        if (backend == null || backend.trim().isEmpty()) backend = "vlc";
+        cbBackend.setSelectedItem(backend);
 
         // FFmpeg
         sel(cbContainer,  s.get("video.container", String.class), "matroska");
@@ -484,11 +512,14 @@ public class VideoSettingsDialog extends JDialog {
         setInt(spVlcWidth, 0);
         setInt(spVlcHeight, 0);
         cbVlcAudioEnabled.setSelected(false);
+
+        if (cbBackend != null) cbBackend.setSelectedItem("vlc");
     }
 
     private boolean save() {
         try {
             SettingsService s = SettingsService.getInstance();
+            if (cbBackend != null) s.set("video.backend", String.valueOf(cbBackend.getSelectedItem()));
 
             // --- FFmpeg persistieren ---
             s.set("video.container",  str(cbContainer));

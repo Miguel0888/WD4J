@@ -22,18 +22,29 @@ public final class MediaRuntimeBootstrap {
      * @throws IllegalStateException if no recorder backend is available
      */
     public static MediaRecorder createRecorder() {
-        // Settings-gesteuerte Backendwahl
-        Boolean vlcEnabled = de.bund.zrb.service.SettingsService.getInstance().get("video.vlc.enabled", Boolean.class);
-        if (vlcEnabled == null || vlcEnabled) {
+        // Settings-gesteuerte Backendwahl (neuer Schlüssel video.backend: vlc|ffmpeg|jcodec)
+        String backend = de.bund.zrb.service.SettingsService.getInstance().get("video.backend", String.class);
+        if (backend != null) backend = backend.trim().toLowerCase(java.util.Locale.ROOT);
+
+        if (backend == null || backend.isEmpty() || backend.equals("vlc")) {
             MediaRecorder libVlcRecorder = tryCreateLibVlcRecorder();
             if (libVlcRecorder != null) {
                 System.out.println("Using LibVLC recorder");
                 return libVlcRecorder;
             }
             System.out.println("LibVLC not available, falling back to FFmpeg/JavaCV");
-        } else {
-            System.out.println("VLC backend disabled via settings, using FFmpeg/JavaCV");
+            return new FfmpegRecorder();
         }
+        if (backend.equals("ffmpeg")) {
+            System.out.println("Backend forced to FFmpeg by settings");
+            return new FfmpegRecorder();
+        }
+        if (backend.equals("jcodec")) {
+            System.out.println("Backend forced to JCodec by settings (experimental)");
+            // TODO: Replace with real JCodec recorder when implemented
+            return new FfmpegRecorder();
+        }
+        // Unknown: fallback
         return new FfmpegRecorder();
     }
     

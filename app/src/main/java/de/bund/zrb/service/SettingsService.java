@@ -181,6 +181,9 @@ public class SettingsService {
         // Default Action Timeout (Fallback 30000 ms wie bisher in TestTreeController/RecorderService)
         if (!settingsCache.containsKey("action.defaultTimeoutMillis")) settingsCache.put("action.defaultTimeoutMillis", 30000);
 
+        // --- Backend-Auswahl ---
+        if (!settingsCache.containsKey("video.backend")) settingsCache.put("video.backend", "vlc"); // vlc|ffmpeg|jcodec
+
         // --- VLC-spezifische Defaults ---
         if (!settingsCache.containsKey("video.vlc.enabled")) settingsCache.put("video.vlc.enabled", true); // Backend-Wahl
         if (!settingsCache.containsKey("video.vlc.autodetect")) settingsCache.put("video.vlc.autodetect", false); // Autodetect standardmäßig aus
