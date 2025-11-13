@@ -1,5 +1,6 @@
 package de.bund.zrb.ui.commands;
 
+import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 import de.bund.zrb.video.MediaRecorder;
 import de.bund.zrb.video.RecordingProfile;
@@ -161,25 +162,8 @@ public class ToggleVideoRecordCommand extends ShortcutMenuCommand {
     }
 
     private Path defaultVideoDir() {
-        // Try to use settings service path if present; else fallback to ~/.wd4j/videos
-        try {
-            Class<?> cls = Class.forName("de.bund.zrb.service.SettingsService");
-            Object inst = cls.getMethod("getInstance").invoke(null);
-            Object r = null;
-            try { r = cls.getMethod("getSettingsPath").invoke(inst); } catch (Throwable ignore) {}
-            if (r == null) {
-                try { r = cls.getMethod("getWorkingDirectory").invoke(inst); } catch (Throwable ignore) {}
-            }
-            Path base = null;
-            if (r instanceof String) base = Paths.get(((String) r).trim());
-            if (r instanceof Path) base = (Path) r;
-            if (base != null && Files.exists(base)) {
-                return base.resolve("videos");
-            }
-        } catch (Throwable ignore) {
-            // Fall through to user-home fallback
-        }
-        return Paths.get(System.getProperty("user.home"), ".wd4j", "videos");
+        String baseDirStr = SettingsService.getInstance().get("video.reportsDir", String.class);
+        return Paths.get(baseDirStr);
     }
 
     private void ensureDir(Path dir) {
