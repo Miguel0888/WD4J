@@ -23,7 +23,7 @@ public final class LibVlcLocator {
             Class<?> nd = Class.forName("uk.co.caprica.vlcj.discovery.NativeDiscovery");
             Object discovery = nd.getConstructor().newInstance();
             Boolean ok = (Boolean) nd.getMethod("discover").invoke(discovery);
-            return ok != null && ok.booleanValue();
+            return ok != null && ok; // unboxing vermeiden
         } catch (Throwable t) {
             return false;
         }
@@ -32,16 +32,16 @@ public final class LibVlcLocator {
     /** Set JNA and plugin paths for common OS locations, then re-try discovery. */
     public static boolean locateAndConfigure() {
         String[] candidates = new String[] {
-                "C:\\Program Files\\\\VideoLAN\\\\VLC",
-                "C:\\Program Files (x86)\\\\VideoLAN\\\\VLC",
+                "C:\\Program Files\\VideoLAN\\VLC",
+                "C:\\Program Files (x86)\\VideoLAN\\VLC",
                 "/Applications/VLC.app/Contents/MacOS/lib",
                 "/usr/lib",
                 "/usr/lib64",
                 "/usr/lib/x86_64-linux-gnu"
         };
         boolean configured = false;
-        for (int i = 0; i < candidates.length; i++) {
-            File base = new File(candidates[i]);
+        for (String cand : candidates) {
+            File base = new File(cand);
             if (!base.exists()) continue;
             configured = applyBasePath(base);
             if (configured) break;

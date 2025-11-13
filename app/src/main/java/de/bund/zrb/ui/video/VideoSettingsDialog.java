@@ -31,6 +31,23 @@ public class VideoSettingsDialog extends JDialog {
     private JCheckBox cbVlcLogEnabled;
     private JTextField tfVlcLogPath;
     private JButton btVlcLogBrowse;
+    private JSpinner spVlcVerbose;
+
+    private JComboBox<String> cbVlcMux;
+    private JTextField tfVlcVcodec;
+    private JComboBox<String> cbVlcQuality;
+    private JSpinner spVlcCrf;
+    private JSpinner spVlcBitrate;
+    private JCheckBox cbVlcDeint;
+    private JTextField tfVlcDeintMode;
+    private JTextField tfVlcVFilter;
+    private JTextField tfVlcPreset;
+    private JTextField tfVlcTune;
+    private JTextField tfVlcSoutExtras;
+
+    private JCheckBox cbVlcFullscreen;
+    private JSpinner spVlcLeft, spVlcTop, spVlcWidth, spVlcHeight;
+    private JCheckBox cbVlcAudioEnabled;
 
     public VideoSettingsDialog(Window owner) {
         super(owner, "Video-Einstellungen", ModalityType.APPLICATION_MODAL);
@@ -185,21 +202,22 @@ public class VideoSettingsDialog extends JDialog {
 
     // --- VLC Panel ---
     private JPanel buildVlcPanel() {
-        JPanel p = new JPanel(new GridBagLayout());
-        GridBagConstraints g = gbc();
+        JPanel p = new JPanel();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
 
+        // --- Backend & Pfad ---
+        JPanel pTop = new JPanel(new GridBagLayout());
+        GridBagConstraints g = gbc();
         int row = 0;
         cbVlcEnabled = new JCheckBox("VLC verwenden (sonst FFmpeg)");
         cbVlcEnabled.addActionListener(e -> updateVlcUiEnabled());
         g.gridx=0; g.gridy=row++; g.gridwidth=3; g.anchor=GridBagConstraints.WEST; g.weightx=1;
-        p.add(cbVlcEnabled, g);
-        g.gridwidth=1;
+        pTop.add(cbVlcEnabled, g); g.gridwidth=1;
 
         cbVlcAutodetect = new JCheckBox("Autodetect (PATH/Registry)");
         cbVlcAutodetect.addActionListener(e -> updateVlcUiEnabled());
         g.gridx=0; g.gridy=row++; g.gridwidth=3; g.anchor=GridBagConstraints.WEST; g.weightx=1;
-        p.add(cbVlcAutodetect, g);
-        g.gridwidth=1;
+        pTop.add(cbVlcAutodetect, g); g.gridwidth=1;
 
         JLabel lbBase = new JLabel("VLC-Basispfad:");
         tfVlcBasePath = new JTextField(28);
@@ -207,17 +225,16 @@ public class VideoSettingsDialog extends JDialog {
         btVlcBaseBrowse.setToolTipText("VLC-Ordner wählen (z. B. C:/Program Files/VideoLAN/VLC)");
         btVlcBaseBrowse.addActionListener(e -> chooseDirInto(tfVlcBasePath));
         g.gridx=0; g.gridy=row; g.anchor=GridBagConstraints.WEST; g.weightx=0;
-        p.add(lbBase, g);
+        pTop.add(lbBase, g);
         g.gridx=1; g.gridy=row; g.fill=GridBagConstraints.HORIZONTAL; g.weightx=1;
-        p.add(tfVlcBasePath, g);
+        pTop.add(tfVlcBasePath, g);
         g.gridx=2; g.gridy=row++; g.fill=GridBagConstraints.NONE; g.weightx=0;
-        p.add(btVlcBaseBrowse, g);
+        pTop.add(btVlcBaseBrowse, g);
 
         cbVlcLogEnabled = new JCheckBox("VLC-Logdatei schreiben");
         cbVlcLogEnabled.addActionListener(e -> updateVlcUiEnabled());
         g.gridx=0; g.gridy=row++; g.gridwidth=3; g.anchor=GridBagConstraints.WEST; g.weightx=1;
-        p.add(cbVlcLogEnabled, g);
-        g.gridwidth=1;
+        pTop.add(cbVlcLogEnabled, g); g.gridwidth=1;
 
         JLabel lbLog = new JLabel("Logdatei:");
         tfVlcLogPath = new JTextField(28);
@@ -225,15 +242,75 @@ public class VideoSettingsDialog extends JDialog {
         btVlcLogBrowse.setToolTipText("Logdatei wählen");
         btVlcLogBrowse.addActionListener(e -> chooseFileInto(tfVlcLogPath));
         g.gridx=0; g.gridy=row; g.anchor=GridBagConstraints.WEST; g.weightx=0;
-        p.add(lbLog, g);
+        pTop.add(lbLog, g);
         g.gridx=1; g.gridy=row; g.fill=GridBagConstraints.HORIZONTAL; g.weightx=1;
-        p.add(tfVlcLogPath, g);
+        pTop.add(tfVlcLogPath, g);
         g.gridx=2; g.gridy=row++; g.fill=GridBagConstraints.NONE; g.weightx=0;
-        p.add(btVlcLogBrowse, g);
+        pTop.add(btVlcLogBrowse, g);
 
-        JPanel wrap = new JPanel(new BorderLayout());
-        wrap.add(p, BorderLayout.NORTH);
-        return wrap;
+        JLabel lbVerb = new JLabel("Verbose:");
+        spVlcVerbose = new JSpinner(new SpinnerNumberModel(1, 0, 2, 1));
+        g.gridx=0; g.gridy=row; g.anchor=GridBagConstraints.WEST; g.weightx=0; pTop.add(lbVerb, g);
+        g.gridx=1; g.gridy=row++; g.anchor=GridBagConstraints.EAST; g.weightx=1; pTop.add(spVlcVerbose, g);
+
+        p.add(pTop);
+        p.add(Box.createVerticalStrut(8));
+
+        // --- Aufnahme/Transcode ---
+        JPanel pRec = new JPanel(new GridBagLayout());
+        pRec.setBorder(section("Transcode / Ausgabe"));
+        GridBagConstraints gt = gbc();
+        int r = 0;
+        cbVlcMux = new JComboBox<>(new String[]{"mp4","ts","mkv","avi"});
+        tfVlcVcodec = new JTextField(10);
+        cbVlcQuality = new JComboBox<>(new String[]{"crf","bitrate"});
+        spVlcCrf = new JSpinner(new SpinnerNumberModel(23, 0, 51, 1));
+        spVlcBitrate = new JSpinner(new SpinnerNumberModel(4000, 0, 200000, 100));
+        cbVlcDeint = new JCheckBox("Deinterlace");
+        tfVlcDeintMode = new JTextField(10);
+        tfVlcVFilter = new JTextField(24);
+        tfVlcPreset = new JTextField(10);
+        tfVlcTune   = new JTextField(10);
+        tfVlcSoutExtras = new JTextField(24);
+
+        addRow(pRec, gt, r++, "Mux:", cbVlcMux);
+        addRow(pRec, gt, r++, "vcodec:", tfVlcVcodec);
+        addRow(pRec, gt, r++, "Qualität:", cbVlcQuality);
+        addRow(pRec, gt, r++, "CRF:", spVlcCrf);
+        addRow(pRec, gt, r++, "Bitrate (kbps):", spVlcBitrate);
+        addRow(pRec, gt, r++, "Deinterlace:", cbVlcDeint);
+        addRow(pRec, gt, r++, "Deint-Mode:", tfVlcDeintMode);
+        addRow(pRec, gt, r++, "Video-Filter:", tfVlcVFilter);
+        addRow(pRec, gt, r++, "x264/x265 preset:", tfVlcPreset);
+        addRow(pRec, gt, r++, "x264/x265 tune:", tfVlcTune);
+        addRow(pRec, gt, r++, "sout Extras:", tfVlcSoutExtras);
+
+        p.add(pRec);
+        p.add(Box.createVerticalStrut(8));
+
+        // --- Screen-Region / Audio ---
+        JPanel pSrc = new JPanel(new GridBagLayout());
+        pSrc.setBorder(section("Quelle: screen:// Region / Audio"));
+        GridBagConstraints gs = gbc();
+        int srow = 0;
+        cbVlcFullscreen = new JCheckBox("Voller Bildschirm");
+        gs.gridx=0; gs.gridy=srow++; gs.gridwidth=3; gs.anchor=GridBagConstraints.WEST; pSrc.add(cbVlcFullscreen, gs); gs.gridwidth=1;
+        spVlcLeft = new JSpinner(new SpinnerNumberModel(0, 0, 10000, 1));
+        spVlcTop  = new JSpinner(new SpinnerNumberModel(0, 0, 10000, 1));
+        spVlcWidth= new JSpinner(new SpinnerNumberModel(0, 0, 10000, 1));
+        spVlcHeight=new JSpinner(new SpinnerNumberModel(0, 0, 10000, 1));
+        addRow(pSrc, gs, srow++, "Left:", spVlcLeft);
+        addRow(pSrc, gs, srow++, "Top:",  spVlcTop);
+        addRow(pSrc, gs, srow++, "Width:",spVlcWidth);
+        addRow(pSrc, gs, srow++, "Height:",spVlcHeight);
+        cbVlcAudioEnabled = new JCheckBox("Audio mitschneiden (falls Quelle)");
+        gs.gridx=0; gs.gridy=srow++; gs.gridwidth=3; gs.anchor=GridBagConstraints.WEST; pSrc.add(cbVlcAudioEnabled, gs); gs.gridwidth=1;
+
+        p.add(pSrc);
+
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.add(new JScrollPane(p), BorderLayout.CENTER);
+        return wrapper;
     }
 
     private JButton squareButton(String text) {
@@ -326,6 +403,27 @@ public class VideoSettingsDialog extends JDialog {
         Boolean logE = s.get("video.vlc.log.enabled", Boolean.class);
         cbVlcLogEnabled.setSelected(Boolean.TRUE.equals(logE));
         tfVlcLogPath.setText(or(s.get("video.vlc.log.path", String.class), defaultVlcLogPath()));
+        Integer verb = s.get("video.vlc.verbose", Integer.class);
+        spVlcVerbose.setValue(verb == null ? 1 : Math.max(0, Math.min(2, verb)));
+
+        sel(cbVlcMux, s.get("video.vlc.mux", String.class), "mp4");
+        tfVlcVcodec.setText(or(s.get("video.vlc.vcodec", String.class), "h264"));
+        sel(cbVlcQuality, s.get("video.vlc.quality", String.class), "crf");
+        setInt(spVlcCrf,  or(s.get("video.vlc.crf", Integer.class), 23));
+        setInt(spVlcBitrate, or(s.get("video.vlc.bitrateKbps", Integer.class), 4000));
+        cbVlcDeint.setSelected(Boolean.TRUE.equals(s.get("video.vlc.deinterlace.enabled", Boolean.class)));
+        tfVlcDeintMode.setText(or(s.get("video.vlc.deinterlace.mode", String.class), ""));
+        tfVlcVFilter.setText(or(s.get("video.vlc.videoFilter", String.class), ""));
+        tfVlcPreset.setText(or(s.get("video.vlc.venc.preset", String.class), ""));
+        tfVlcTune.setText(or(s.get("video.vlc.venc.tune", String.class), ""));
+        tfVlcSoutExtras.setText(or(s.get("video.vlc.soutExtras", String.class), ""));
+
+        cbVlcFullscreen.setSelected(Boolean.TRUE.equals(s.get("video.vlc.screen.fullscreen", Boolean.class)));
+        setInt(spVlcLeft,  or(s.get("video.vlc.screen.left", Integer.class), 0));
+        setInt(spVlcTop,   or(s.get("video.vlc.screen.top", Integer.class), 0));
+        setInt(spVlcWidth, or(s.get("video.vlc.screen.width", Integer.class), 0));
+        setInt(spVlcHeight,or(s.get("video.vlc.screen.height", Integer.class), 0));
+        cbVlcAudioEnabled.setSelected(Boolean.TRUE.equals(s.get("video.vlc.audio.enabled", Boolean.class)));
 
         updateQualityCard();
         updateVlcUiEnabled();
@@ -366,6 +464,26 @@ public class VideoSettingsDialog extends JDialog {
         tfVlcBasePath.setText(defaultVlcBasePath());
         cbVlcLogEnabled.setSelected(false);
         tfVlcLogPath.setText(defaultVlcLogPath());
+        spVlcVerbose.setValue(1);
+
+        cbVlcMux.setSelectedItem("mp4");
+        tfVlcVcodec.setText("h264");
+        cbVlcQuality.setSelectedItem("crf");
+        setInt(spVlcCrf, 23);
+        setInt(spVlcBitrate, 4000);
+        cbVlcDeint.setSelected(false);
+        tfVlcDeintMode.setText("");
+        tfVlcVFilter.setText("");
+        tfVlcPreset.setText("");
+        tfVlcTune.setText("");
+        tfVlcSoutExtras.setText("");
+
+        cbVlcFullscreen.setSelected(false);
+        setInt(spVlcLeft, 0);
+        setInt(spVlcTop, 0);
+        setInt(spVlcWidth, 0);
+        setInt(spVlcHeight, 0);
+        cbVlcAudioEnabled.setSelected(false);
     }
 
     private boolean save() {
@@ -414,6 +532,26 @@ public class VideoSettingsDialog extends JDialog {
             s.set("video.vlc.basePath", clean(tfVlcBasePath.getText()));
             s.set("video.vlc.log.enabled", cbVlcLogEnabled.isSelected());
             s.set("video.vlc.log.path", clean(tfVlcLogPath.getText()));
+            s.set("video.vlc.verbose", ((Number) spVlcVerbose.getValue()).intValue());
+
+            s.set("video.vlc.mux", str(cbVlcMux));
+            s.set("video.vlc.vcodec", clean(tfVlcVcodec.getText()));
+            s.set("video.vlc.quality", str(cbVlcQuality));
+            s.set("video.vlc.crf", ((Number) spVlcCrf.getValue()).intValue());
+            s.set("video.vlc.bitrateKbps", ((Number) spVlcBitrate.getValue()).intValue());
+            s.set("video.vlc.deinterlace.enabled", cbVlcDeint.isSelected());
+            s.set("video.vlc.deinterlace.mode", clean(tfVlcDeintMode.getText()));
+            s.set("video.vlc.videoFilter", clean(tfVlcVFilter.getText()));
+            s.set("video.vlc.venc.preset", emptyToNull(tfVlcPreset.getText()));
+            s.set("video.vlc.venc.tune", emptyToNull(tfVlcTune.getText()));
+            s.set("video.vlc.soutExtras", clean(tfVlcSoutExtras.getText()));
+
+            s.set("video.vlc.screen.fullscreen", cbVlcFullscreen.isSelected());
+            s.set("video.vlc.screen.left", ((Number) spVlcLeft.getValue()).intValue());
+            s.set("video.vlc.screen.top", ((Number) spVlcTop.getValue()).intValue());
+            s.set("video.vlc.screen.width", ((Number) spVlcWidth.getValue()).intValue());
+            s.set("video.vlc.screen.height", ((Number) spVlcHeight.getValue()).intValue());
+            s.set("video.vlc.audio.enabled", cbVlcAudioEnabled.isSelected());
 
             // Live in VideoConfig (FFmpeg) übernehmen
             VideoConfig.setContainer(str(cbContainer));
@@ -461,6 +599,17 @@ public class VideoSettingsDialog extends JDialog {
         boolean logOn = cbVlcLogEnabled != null && cbVlcLogEnabled.isSelected();
         if (tfVlcLogPath != null) tfVlcLogPath.setEnabled(vlcOn && logOn);
         if (btVlcLogBrowse != null) btVlcLogBrowse.setEnabled(vlcOn && logOn);
+
+        // Quali Felder schalten
+        boolean isCrf = cbVlcQuality != null && "crf".equals(String.valueOf(cbVlcQuality.getSelectedItem()));
+        if (spVlcCrf != null) spVlcCrf.setEnabled(isCrf);
+        if (spVlcBitrate != null) spVlcBitrate.setEnabled(!isCrf);
+
+        boolean regionEnabled = cbVlcFullscreen != null && !cbVlcFullscreen.isSelected();
+        if (spVlcLeft != null) spVlcLeft.setEnabled(regionEnabled);
+        if (spVlcTop  != null) spVlcTop.setEnabled(regionEnabled);
+        if (spVlcWidth!= null) spVlcWidth.setEnabled(regionEnabled);
+        if (spVlcHeight!= null) spVlcHeight.setEnabled(regionEnabled);
     }
 
     private void updateQualityCard() {

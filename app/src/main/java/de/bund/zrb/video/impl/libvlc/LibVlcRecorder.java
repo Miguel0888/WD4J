@@ -21,7 +21,7 @@ public final class LibVlcRecorder implements MediaRecorder {
     public void start(RecordingProfile profile) {
         if (recording) return;
 
-        // Provide sane libvlc args to reduce noise and avoid stale cache warnings
+        // Provide sane libvlc args to reduce noise and optional logging
         String[] libvlcArgs = buildLibVlcArgs();
         this.factory = new MediaPlayerFactory(libvlcArgs);
         this.player = factory.newHeadlessMediaPlayer();
@@ -30,7 +30,6 @@ public final class LibVlcRecorder implements MediaRecorder {
         String mrl = toVlcMrl(profile);
         String[] options = buildOptions(profile);
 
-        // Start capture
         boolean ok = player.playMedia(mrl, options);
         if (!ok) {
             safeRelease();
@@ -42,12 +41,15 @@ public final class LibVlcRecorder implements MediaRecorder {
     private String[] buildLibVlcArgs() {
         java.util.ArrayList<String> args = new java.util.ArrayList<>();
         args.add("--intf"); args.add("dummy");
-        args.add("--quiet");
         args.add("--no-video-title-show");
         args.add("--no-plugins-cache");
+        // Optional: quiet und verbose aus Settings ableiten
+        de.bund.zrb.service.SettingsService s = de.bund.zrb.service.SettingsService.getInstance();
+        Integer v = s.get("video.vlc.verbose", Integer.class);
+        int verbose = v == null ? 1 : Math.max(0, Math.min(2, v));
+        if (verbose == 0) args.add("--quiet"); else args.add("--verbose=" + verbose);
         // Optionales Datei-Logging per Settings
         try {
-            de.bund.zrb.service.SettingsService s = de.bund.zrb.service.SettingsService.getInstance();
             Boolean logEnabled = s.get("video.vlc.log.enabled", Boolean.class);
             String  logPath    = s.get("video.vlc.log.path", String.class);
             if (Boolean.TRUE.equals(logEnabled)) {
@@ -55,35 +57,24 @@ public final class LibVlcRecorder implements MediaRecorder {
                 if (logPath != null && !logPath.trim().isEmpty()) {
                     args.add("--logfile=" + normalizePath(logPath));
                 }
-                args.add("--verbose=2");
             }
         } catch (Throwable ignore) {}
         return args.toArray(new String[0]);
     }
 
-    private static String normalizePath(String p) {
-        return p.replace('\\', '/');
-    }
+    private static String normalizePath(String p) { return p.replace('\\', '/'); }
 
     public void stop() {
         if (!recording) return;
-        try {
-            player.stop();
-        } finally {
-            safeRelease();
-            recording = false;
-        }
+        try { player.stop(); } finally { safeRelease(); recording = false; }
     }
 
-    public boolean isRecording() {
-        return recording;
-    }
+    public boolean isRecording() { return recording; }
 
     private void safeRelease() {
         try { if (player != null) player.release(); } catch (Throwable ignore) {}
         try { if (factory != null) factory.release(); } catch (Throwable ignore) {}
-        player = null;
-        factory = null;
+        player = null; factory = null;
     }
 
     // Use screen capture by default; allow pass-through of known MRLs
@@ -99,7 +90,8 @@ public final class LibVlcRecorder implements MediaRecorder {
 
     // Build a combination of source-module options and sout pipeline
     private String[] buildOptions(RecordingProfile p) {
-        java.util.List<String> opts = new java.util.ArrayList<String>();
+        java.util.List<String> opts = new java.util.ArrayList<>();
+        de.bund.zrb.service.SettingsService s = de.bund.zrb.service.SettingsService.getInstance();
 
         // ----- Source module options (screen) -----
         String src = p.getSource() == null ? "screen://" : p.getSource();
@@ -107,68 +99,107 @@ public final class LibVlcRecorder implements MediaRecorder {
             int fps = Math.max(1, p.getFps() > 0 ? p.getFps() : 30);
             opts.add(":screen-fps=" + fps);
 
-            // If no width/height provided, detect primary screen size
-            int w = p.getWidth();
-            int h = p.getHeight();
-            if (w <= 0 || h <= 0) {
-                Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-                w = (int) screen.getWidth();
-                h = (int) screen.getHeight();
+            // Fullscreen oder Region
+            boolean fullscreen = Boolean.TRUE.equals(s.get("video.vlc.screen.fullscreen", Boolean.class));
+            int left  = orInt(s.get("video.vlc.screen.left", Integer.class), 0);
+            int top   = orInt(s.get("video.vlc.screen.top", Integer.class), 0);
+            int width = p.getWidth();
+            int height= p.getHeight();
+            // Settings-Override nur wenn nicht fullscreen
+            if (!fullscreen) {
+                int w = orInt(s.get("video.vlc.screen.width", Integer.class), 0);
+                int h = orInt(s.get("video.vlc.screen.height", Integer.class), 0);
+                if (w > 0) width = w;
+                if (h > 0) height = h;
+                opts.add(":screen-left=" + Math.max(0, left));
+                opts.add(":screen-top=" + Math.max(0, top));
+            } else {
+                // ggf. Monitordimension
+                if (width <= 0 || height <= 0) {
+                    Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+                    width = (int) screen.getWidth();
+                    height= (int) screen.getHeight();
+                }
             }
-            opts.add(":screen-width=" + w);
-            opts.add(":screen-height=" + h);
-            // Optional: capture the whole screen; left/top default 0
-            // opts.add(":screen-left=0");
-            // opts.add(":screen-top=0");
+            if (width <= 0 || height <= 0) {
+                Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+                width = (int) screen.getWidth();
+                height= (int) screen.getHeight();
+            }
+            opts.add(":screen-width=" + width);
+            opts.add(":screen-height=" + height);
+
+            // optionale video filter und deinterlace
+            String vFilter = s.get("video.vlc.videoFilter", String.class);
+            if (vFilter != null && !vFilter.trim().isEmpty()) {
+                opts.add(":video-filter=" + vFilter.trim());
+            }
+            Boolean deint = s.get("video.vlc.deinterlace.enabled", Boolean.class);
+            if (Boolean.TRUE.equals(deint)) {
+                opts.add(":deinterlace=1");
+                String mode = s.get("video.vlc.deinterlace.mode", String.class);
+                if (mode != null && !mode.trim().isEmpty()) {
+                    opts.add(":deinterlace-mode=" + mode.trim());
+                }
+            }
         }
 
         // ----- Transcode/mux (sout) -----
+        String vCodec = firstNonEmpty(p.getVideoCodec(), s.get("video.vlc.vcodec", String.class), "h264");
+        String mux = orString(s.get("video.vlc.mux", String.class), "mp4");
+        String quality = orString(s.get("video.vlc.quality", String.class), "crf");
+        int crf = orInt(s.get("video.vlc.crf", Integer.class), 23);
+        int bitrate = orInt(s.get("video.vlc.bitrateKbps", Integer.class), 4000);
+        String preset = s.get("video.vlc.venc.preset", String.class);
+        String tune   = s.get("video.vlc.venc.tune", String.class);
+        boolean audio = Boolean.TRUE.equals(s.get("video.vlc.audio.enabled", Boolean.class));
+        String soutExtras = s.get("video.vlc.soutExtras", String.class);
+
         StringBuilder trans = new StringBuilder();
         trans.append(":sout=#transcode{");
-        boolean wrote = false;
-
-        String vCodec = getVideoCodec(p);
-        if (vCodec == null || vCodec.trim().isEmpty()) vCodec = "h264"; // default
         trans.append("vcodec=").append(vCodec);
-        wrote = true;
-
-        // Scale using transcode (optional). Keep original if not set.
+        if (p.getFps() > 0) trans.append(",fps=").append(p.getFps());
         if (p.getWidth() > 0 && p.getHeight() > 0) {
             trans.append(",width=").append(p.getWidth()).append(",height=").append(p.getHeight());
         }
-        if (p.getFps() > 0) {
-            trans.append(",fps=").append(p.getFps());
+        if ("crf".equalsIgnoreCase(quality)) {
+            trans.append(",venc=x264{crf=").append(crf);
+            if (notEmpty(preset)) trans.append(",preset=").append(preset);
+            if (notEmpty(tune))   trans.append(",tune=").append(tune);
+            trans.append("}");
+        } else if ("bitrate".equalsIgnoreCase(quality)) {
+            if (bitrate > 0) trans.append(",vb=").append(bitrate).append("k");
         }
-
-        // Audio: screen:// has no audio – avoid acodec unless explicitly requested
-        String aCodec = getAudioCodec(p);
-        if (aCodec != null && aCodec.trim().length() > 0) {
-            trans.append(",acodec=").append(aCodec);
+        if (audio) {
+            trans.append(",acodec=mp3,ab=128,channels=2,samplerate=44100");
         } else {
             trans.append(",acodec=none");
         }
-
-        trans.append("}:std{access=file,mux=mp4,dst=").append(p.getOutputFile()).append("}");
+        trans.append("}");
+        if (soutExtras != null && !soutExtras.trim().isEmpty()) {
+            if (!soutExtras.startsWith(",")) trans.append(",");
+            trans.append(soutExtras.trim());
+        }
+        String dst = normalizePath(p.getOutputFile().toString());
+        trans.append(":std{access=file,mux=").append(mux).append(",dst=").append(dst).append("}");
         opts.add(trans.toString());
-
-        // Keep pipeline alive
         opts.add(":sout-keep");
 
-        return opts.toArray(new String[opts.size()]);
+        return opts.toArray(new String[0]);
     }
 
-    // Support either getVideoCodec()/getAudioCodec() or getvCodec()/getaCodec()
+    private static boolean notEmpty(String s) { return s != null && !s.trim().isEmpty(); }
+    private static String orString(String v, String d) { return (v == null || v.trim().isEmpty()) ? d : v.trim(); }
+    private static int orInt(Integer v, int d) { return v == null ? d : v; }
+    private static String firstNonEmpty(String a, String b, String d) {
+        if (a != null && !a.trim().isEmpty()) return a.trim();
+        if (b != null && !b.trim().isEmpty()) return b.trim();
+        return d;
+    }
+
+    // Support either getVideoCodec()/getAudioCodec() or getvCodec()/getaCodec() – hier nur Video nötig
     private String getVideoCodec(RecordingProfile p) {
         try { return (String) RecordingProfile.class.getMethod("getVideoCodec").invoke(p); }
-        catch (Throwable ignore) { /* fall back */ }
-        try { return (String) RecordingProfile.class.getMethod("getvCodec").invoke(p); }
-        catch (Throwable ignore) { return null; }
-    }
-
-    private String getAudioCodec(RecordingProfile p) {
-        try { return (String) RecordingProfile.class.getMethod("getAudioCodec").invoke(p); }
-        catch (Throwable ignore) { /* fall back */ }
-        try { return (String) RecordingProfile.class.getMethod("getaCodec").invoke(p); }
         catch (Throwable ignore) { return null; }
     }
 }

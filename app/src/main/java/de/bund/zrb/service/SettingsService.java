@@ -182,11 +182,33 @@ public class SettingsService {
         if (!settingsCache.containsKey("action.defaultTimeoutMillis")) settingsCache.put("action.defaultTimeoutMillis", 30000);
 
         // --- VLC-spezifische Defaults ---
-        if (!settingsCache.containsKey("video.vlc.enabled")) settingsCache.put("video.vlc.enabled", true); // "VLC verwenden" (Backend-Wahl)
+        if (!settingsCache.containsKey("video.vlc.enabled")) settingsCache.put("video.vlc.enabled", true); // Backend-Wahl
         if (!settingsCache.containsKey("video.vlc.autodetect")) settingsCache.put("video.vlc.autodetect", false); // Autodetect standardmäßig aus
         if (!settingsCache.containsKey("video.vlc.basePath")) settingsCache.put("video.vlc.basePath", defaultVlcBasePath()); // Standard-Pfad
         if (!settingsCache.containsKey("video.vlc.log.enabled")) settingsCache.put("video.vlc.log.enabled", false);
         if (!settingsCache.containsKey("video.vlc.log.path")) settingsCache.put("video.vlc.log.path", defaultVlcLogPath());
+        if (!settingsCache.containsKey("video.vlc.verbose")) settingsCache.put("video.vlc.verbose", 1); // 0..2
+
+        // VLC Aufnahme-/Transcode-Optionen
+        if (!settingsCache.containsKey("video.vlc.mux")) settingsCache.put("video.vlc.mux", "mp4");
+        if (!settingsCache.containsKey("video.vlc.vcodec")) settingsCache.put("video.vlc.vcodec", "h264");
+        if (!settingsCache.containsKey("video.vlc.quality")) settingsCache.put("video.vlc.quality", "crf"); // crf|bitrate
+        if (!settingsCache.containsKey("video.vlc.crf")) settingsCache.put("video.vlc.crf", 23);
+        if (!settingsCache.containsKey("video.vlc.bitrateKbps")) settingsCache.put("video.vlc.bitrateKbps", 4000);
+        if (!settingsCache.containsKey("video.vlc.deinterlace.enabled")) settingsCache.put("video.vlc.deinterlace.enabled", false);
+        if (!settingsCache.containsKey("video.vlc.deinterlace.mode")) settingsCache.put("video.vlc.deinterlace.mode", "");
+        if (!settingsCache.containsKey("video.vlc.videoFilter")) settingsCache.put("video.vlc.videoFilter", ""); // z.B. "postproc"
+        if (!settingsCache.containsKey("video.vlc.venc.preset")) settingsCache.put("video.vlc.venc.preset", "");
+        if (!settingsCache.containsKey("video.vlc.venc.tune")) settingsCache.put("video.vlc.venc.tune", "");
+        if (!settingsCache.containsKey("video.vlc.soutExtras")) settingsCache.put("video.vlc.soutExtras", "");
+
+        // Screen-Region
+        if (!settingsCache.containsKey("video.vlc.screen.fullscreen")) settingsCache.put("video.vlc.screen.fullscreen", true);
+        if (!settingsCache.containsKey("video.vlc.screen.left")) settingsCache.put("video.vlc.screen.left", 0);
+        if (!settingsCache.containsKey("video.vlc.screen.top")) settingsCache.put("video.vlc.screen.top", 0);
+        if (!settingsCache.containsKey("video.vlc.screen.width")) settingsCache.put("video.vlc.screen.width", 0);
+        if (!settingsCache.containsKey("video.vlc.screen.height")) settingsCache.put("video.vlc.screen.height", 0);
+        if (!settingsCache.containsKey("video.vlc.audio.enabled")) settingsCache.put("video.vlc.audio.enabled", false);
     }
 
     private static String defaultVlcBasePath() {
