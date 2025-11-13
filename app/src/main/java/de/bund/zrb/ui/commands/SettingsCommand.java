@@ -7,7 +7,6 @@ import de.bund.zrb.ui.settings.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -18,7 +17,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
     private JDialog dialog;
 
-    private final List<SettingsSubPanel> panels = new ArrayList<SettingsSubPanel>();
+    private final List<SettingsSubPanel> panels = new ArrayList<>();
     private final JPanel cards = new JPanel(new CardLayout());
     private JList<String> nav;
 
@@ -59,9 +58,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
         panels.add(new DebugSettingsPanel());
 
         // Navigation links
-        DefaultListModel<String> model = new DefaultListModel<String>();
+        DefaultListModel<String> model = new DefaultListModel<>();
         for (SettingsSubPanel p : panels) model.addElement(p.getTitle());
-        nav = new JList<String>(model);
+        nav = new JList<>(model);
         nav.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         nav.setVisibleRowCount(Math.min(12, model.size()));
         nav.setFixedCellHeight(26);
@@ -81,10 +80,12 @@ public class SettingsCommand extends ShortcutMenuCommand {
         }
         JScrollPane rightScroll = new JScrollPane(cards,
                 ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        rightScroll.getVerticalScrollBar().setUnitIncrement(16);
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-                new JScrollPane(nav), cards);
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftScroll, rightScroll);
         split.setResizeWeight(0.25);
+        split.setContinuousLayout(true);
         root.add(split, BorderLayout.CENTER);
 
         // Footer (Buttons)
@@ -147,7 +148,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
     private void applyAll(boolean closeAfter) {
         try {
             // Sammle alle Werte aus Subpanels
-            Map<String,Object> values = new LinkedHashMap<String,Object>();
+            Map<String,Object> values = new LinkedHashMap<>();
             for (SettingsSubPanel p : panels) p.putTo(values);
 
             // Persistiere
