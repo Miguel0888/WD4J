@@ -161,17 +161,32 @@ public class RootScopeEditorTab extends JPanel {
     }
 
     private String buildRootHelpHtml() {
-        StringBuilder sb = new StringBuilder(1200);
+        StringBuilder sb = new StringBuilder(1600);
         sb.append("<html><body style='font-family:sans-serif;padding:8px;'>");
         sb.append("<h3 style='margin-top:0'>Root-Scope</h3>");
         sb.append("<ul>");
         sb.append("<li><b>Preconditions</b>: globale Vorbedingungen (vor WHEN), gelten für alle Suites/Cases.</li>");
-        sb.append("<li><b>BeforeAll</b>: einmal zu Laufbeginn (globale Konstanten).</li>");
-        sb.append("<li><b>BeforeEach</b>: vor jedem Case einmal (globale, frische Werte je Case).</li>");
+        sb.append("<li><b>BeforeAll</b>: einmal zu Laufbeginn ausgewertet. ")
+                .append("Typisch für globale Konstanten und Umgebungskonfiguration.</li>");
+        sb.append("<li><b>BeforeEach</b>: vor jedem Case einmal. ")
+                .append("Setzt globale, frische Werte je Case (z. B. Basis-URLs, Default-User), sofern noch kein Wert existiert.</li>");
         sb.append("<li><b>Templates</b>: lazy Expressions für globale Wiederverwendung (z. B. OTP).</li>");
-        sb.append("<li><b>AfterEach</b>: Assertions nach jedem Case (Validator-Typ/Value).</li>");
+        sb.append("<li><b>AfterEach</b>: Assertions nach jedem Case (Validator-Typ/Value), z. B. Screenshots oder Health-Checks.</li>");
         sb.append("</ul>");
-        sb.append("<p>Shadow-Reihenfolge: <code>Case → Suite → Root</code>. Root ist die unterste Ebene.</p>");
+
+        sb.append("<p>Pro Case wird ein leerer Variablenkontext aufgebaut und dann in dieser Reihenfolge gefüllt ")
+                .append("(immer nur, wenn der Name noch nicht belegt ist):</p>");
+        sb.append("<ol>");
+        sb.append("<li>Case: <code>Before</code></li>");
+        sb.append("<li>Suite: <code>BeforeAll</code></li>");
+        sb.append("<li>Root: <code>BeforeAll</code></li>");
+        sb.append("<li>Suite: <code>BeforeEach</code></li>");
+        sb.append("<li>Root: <code>BeforeEach</code></li>");
+        sb.append("</ol>");
+
+        sb.append("<p>Root ist die unterste Ebene: Es liefert Standardwerte, die von Suite und Case bei Bedarf überschrieben werden.</p>");
+        sb.append("<p>Shadow-Reihenfolge beim Zugriff: <code>Case → Suite → Root</code>. ")
+                .append("Case-Werte haben die höchste Priorität.</p>");
         sb.append("</body></html>");
         return sb.toString();
     }

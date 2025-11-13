@@ -131,16 +131,31 @@ public class CaseScopeEditorTab extends JPanel {
     }
 
     private String buildCaseHelpHtml() {
-        StringBuilder sb = new StringBuilder(1200);
+        StringBuilder sb = new StringBuilder(1600);
         sb.append("<html><body style='font-family:sans-serif;padding:8px;'>");
         sb.append("<h3 style='margin-top:0'>Case-Scope</h3>");
         sb.append("<ul>");
-        sb.append("<li><b>Preconditions</b>: werden vor den WHEN-Schritten ausgeführt und erben den Variablen-Scope.</li>");
-        sb.append("<li><b>Before</b>: Variablen für diesen Case (einmalig, vor Start des Cases).</li>");
+        sb.append("<li><b>Preconditions</b>: werden vor den WHEN-Schritten des Cases ausgeführt. ")
+                .append("Sie sehen bereits den kompletten Variablenkontext dieses Cases und können weitere Case-Variablen setzen.</li>");
+        sb.append("<li><b>Before</b>: Variablen für diesen Case. ")
+                .append("Sie werden als erstes für den Case ausgewertet und liefern die initialen Werte.</li>");
         sb.append("<li><b>Templates</b>: lazy Expressions, die erst bei Nutzung expandieren (z. B. OTP, Zeitstempel).</li>");
         sb.append("<li><b>After</b>: Assertions/Checks nach dem Case (mit Validator-Typ/Value).</li>");
         sb.append("</ul>");
-        sb.append("<p>Shadow-Reihenfolge beim Zugriff: <code>Case → Suite → Root</code>. Case-Werte überschreiben Suite/Root.</p>");
+
+        sb.append("<p><b>Auswertungsreihenfolge pro Case</b> (nur wenn der Variablenname noch nicht belegt ist):</p>");
+        sb.append("<ol>");
+        sb.append("<li>Case: <code>Before</code></li>");
+        sb.append("<li>Suite: <code>BeforeAll</code></li>");
+        sb.append("<li>Root: <code>BeforeAll</code></li>");
+        sb.append("<li>Suite: <code>BeforeEach</code></li>");
+        sb.append("<li>Root: <code>BeforeEach</code></li>");
+        sb.append("</ol>");
+
+        sb.append("<p>Jede Ebene ergänzt nur fehlende Variablen. Bereits gesetzte Werte werden nicht überschrieben.</p>");
+        sb.append("<p>Beim Zugriff gilt weiterhin die Shadow-Reihenfolge: ")
+                .append("<code>Case → Suite → Root</code>. ")
+                .append("Case-Werte haben die höchste Priorität, Suite-Werte überschreiben Root, sofern ein Name noch frei ist.</p>");
         sb.append("</body></html>");
         return sb.toString();
     }

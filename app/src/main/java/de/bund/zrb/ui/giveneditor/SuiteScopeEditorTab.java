@@ -144,16 +144,33 @@ public class SuiteScopeEditorTab extends JPanel {
     }
 
     private String buildSuiteHelpHtml() {
-        StringBuilder sb = new StringBuilder(1200);
+        StringBuilder sb = new StringBuilder(1600);
         sb.append("<html><body style='font-family:sans-serif;padding:8px;'>");
         sb.append("<h3 style='margin-top:0'>Suite-Scope</h3>");
         sb.append("<ul>");
-        sb.append("<li><b>Preconditions</b>: gelten für die Suite (vor WHEN), erben Root-Variablen; Case kann überschreiben.</li>");
-        sb.append("<li><b>BeforeAll</b>: einmal je Suite (Konstanten / Konfigurationswerte).</li>");
-        sb.append("<li><b>BeforeEach</b>: pro Case der Suite (frische Werte je Case, z. B. Login, Token).</li>");
-        sb.append("<li><b>Templates</b>: lazy berechnet bei Nutzung.</li>");
-        sb.append("<li><b>AfterAll</b>: Assertions über die Suite hinweg (mit Validatoren).</li>");
+        sb.append("<li><b>Preconditions</b>: gelten für die gesamte Suite. ")
+                .append("Sie laufen vor den WHEN-Schritten der Cases und sehen den bereits aufgebauten Case-Kontext. ")
+                .append("Case-spezifische Preconditions können Werte überschreiben.</li>");
+        sb.append("<li><b>BeforeAll</b>: einmal je Suite ausgewertet. ")
+                .append("Typisch für Konstanten und Konfigurationswerte, die allen Cases der Suite zur Verfügung stehen.</li>");
+        sb.append("<li><b>BeforeEach</b>: wird für jeden Case der Suite ausgeführt. ")
+                .append("Erzeugt frische Werte je Case (z. B. Login-Token), falls die Variable noch nicht durch den Case gesetzt wurde.</li>");
+        sb.append("<li><b>Templates</b>: lazy berechnete Werte, die erst bei Nutzung expandieren.</li>");
+        sb.append("<li><b>AfterAll</b>: Assertions über die Suite hinweg (mit Validatoren), z. B. Aggregatszustände.</li>");
         sb.append("</ul>");
+
+        sb.append("<p><b>Auswertungsreihenfolge pro Case innerhalb dieser Suite</b> ")
+                .append("(nur wenn der Variablenname noch nicht belegt ist):</p>");
+        sb.append("<ol>");
+        sb.append("<li>Case: <code>Before</code></li>");
+        sb.append("<li>Suite: <code>BeforeAll</code></li>");
+        sb.append("<li>Root: <code>BeforeAll</code></li>");
+        sb.append("<li>Suite: <code>BeforeEach</code></li>");
+        sb.append("<li>Root: <code>BeforeEach</code></li>");
+        sb.append("</ol>");
+
+        sb.append("<p>Auch hier gilt: Jede Ebene ergänzt nur fehlende Variablen. ")
+                .append("Case-Werte bleiben unangetastet, Suite-Werte überschreiben Root nur, wenn noch kein Wert vorhanden ist.</p>");
         sb.append("<p>Shadow-Reihenfolge beim Zugriff: <code>Case → Suite → Root</code>.</p>");
         sb.append("</body></html>");
         return sb.toString();
