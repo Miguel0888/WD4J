@@ -1,6 +1,9 @@
 package de.bund.zrb.video.impl.libvlc;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /** Locate local VLC and set environment for vlcj 3.x (Java 8). */
 public final class LibVlcLocator {
@@ -66,10 +69,19 @@ public final class LibVlcLocator {
 
         String sep = System.getProperty("path.separator");
         String existing = System.getProperty("jna.library.path");
-        String combined = (existing == null || existing.isEmpty())
-                ? base.getAbsolutePath()
-                : existing + sep + base.getAbsolutePath();
-        System.setProperty("jna.library.path", combined);
+        String baseAbs = base.getAbsolutePath();
+
+        if (existing == null || existing.isEmpty()) {
+            System.setProperty("jna.library.path", baseAbs);
+        } else {
+            // idempotent: nicht mehrfach anhängen
+            List<String> parts = new ArrayList<>(Arrays.asList(existing.split(java.util.regex.Pattern.quote(sep))));
+            if (!parts.contains(baseAbs)) {
+                parts.add(baseAbs);
+                System.setProperty("jna.library.path", String.join(sep, parts));
+            }
+        }
+        // Plugins: setze auf den gewünschten Pfad (überschreibe ggf.)
         if (plugins.exists()) {
             System.setProperty("VLC_PLUGIN_PATH", plugins.getAbsolutePath());
         }
