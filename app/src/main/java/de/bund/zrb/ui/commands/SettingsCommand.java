@@ -18,7 +18,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
     private JDialog dialog;
 
     private final List<SettingsSubPanel> panels = new ArrayList<>();
-    private final JPanel cards = new JPanel(new CardLayout());
+    private final StretchyCardsPanel cards = new StretchyCardsPanel();
     private JList<String> nav;
 
     @Override
@@ -184,5 +184,15 @@ public class SettingsCommand extends ShortcutMenuCommand {
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(dialog, "Konnte Ordner nicht öffnen:\n" + ex.getMessage(), "Fehler", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    // Panel, das sich in der Breite an den Viewport anpasst, um horizontale Scrollbars zu vermeiden
+    private static final class StretchyCardsPanel extends JPanel implements Scrollable {
+        StretchyCardsPanel() { super(new CardLayout()); }
+        @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+        @Override public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) { return 16; }
+        @Override public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) { return Math.max(visibleRect.height - 32, 32); }
+        @Override public boolean getScrollableTracksViewportWidth() { return true; }
+        @Override public boolean getScrollableTracksViewportHeight() { return false; }
     }
 }
