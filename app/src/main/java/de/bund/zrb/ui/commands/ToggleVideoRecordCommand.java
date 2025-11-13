@@ -40,21 +40,17 @@ public class ToggleVideoRecordCommand extends ShortcutMenuCommand {
     public void perform() {
         try {
             if (recorder != null && recorder.isRecording()) {
-                // Stop current recording
                 recorder.stop();
-                ApplicationEventBus.getInstance().publish(new StatusMessageEvent("⏹ Aufnahme gestoppt", 2000, Severity.INFO));
+                ApplicationEventBus.getInstance().publish(new StatusMessageEvent("🎬 Aufnahme gestoppt", 2000));
                 return;
             }
 
-            // Ensure a recorder is available (LibVLC preferred)
             if (recorder == null) {
-                // Strikte Backend-Wahl
                 String backend = SettingsService.getInstance().get("video.backend", String.class);
                 if (backend == null || backend.trim().isEmpty()) backend = "jcodec";
                 backend = backend.trim().toLowerCase(java.util.Locale.ROOT);
 
                 if (backend.equals("vlc")) {
-                    // VLC Diagnostik hier (statt Main)
                     System.out.println("vlcj? " + LibVlcLocator.isVlcjAvailable());
                     boolean ok = LibVlcLocator.useVlcjDiscovery() || LibVlcLocator.locateAndConfigure();
                     System.out.println("VLC discovered? " + ok);
@@ -70,12 +66,9 @@ public class ToggleVideoRecordCommand extends ShortcutMenuCommand {
                 }
             }
 
-            // Build an intent-driven profile (adapt defaults to your needs)
             RecordingProfile profile = createProfileFromSettings();
-
-            // Start recording
             recorder.start(profile);
-            ApplicationEventBus.getInstance().publish(new StatusMessageEvent("● Aufnahme gestartet", 2000, Severity.INFO));
+            ApplicationEventBus.getInstance().publish(new StatusMessageEvent("🎬 Aufnahme gestartet", 2000));
 
         } catch (Exception ex) {
             ApplicationEventBus.getInstance().publish(new StatusMessageEvent(
