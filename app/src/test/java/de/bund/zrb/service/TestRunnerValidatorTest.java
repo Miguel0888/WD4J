@@ -1,5 +1,8 @@
 package de.bund.zrb.service;
 
+import de.bund.zrb.ui.TestPlayerUi;
+import de.bund.zrb.ui.components.log.TestExecutionLogger;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -7,22 +10,47 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /**
- * Unit-Tests für die interne Validator-Logik in TestPlayerService.
+ * Unit-Tests für die interne Validator-Logik im TestRunner.
  * Wir testen die private Methode validateValue(..) über Reflection,
  * um ohne öffentliche API eine schnelle Regression-Sicherheit zu bekommen.
  */
-public class TestPlayerServiceValidatorTest {
+public class TestRunnerValidatorTest {
 
-    private final TestPlayerService svc = TestPlayerService.getInstance();
+    private TestRunner runner;
+
+    @BeforeEach
+    void setUp() {
+        BrowserServiceImpl browserService = mock(BrowserServiceImpl.class);
+        GivenConditionExecutor givenExecutor = mock(GivenConditionExecutor.class);
+        TestPlayerUi drawerRef = mock(TestPlayerUi.class);
+        TestExecutionLogger logger = mock(TestExecutionLogger.class);
+
+        runner = new TestRunner(browserService, givenExecutor, drawerRef, logger);
+    }
 
     private boolean invoke(String type, String expected, String actual) {
         try {
-            Method m = TestPlayerService.class.getDeclaredMethod("validateValue", String.class, String.class, String.class);
+            Method m = TestRunner.class.getDeclaredMethod(
+                    "validateValue",
+                    String.class,
+                    String.class,
+                    String.class
+            );
             m.setAccessible(true);
-            return (Boolean) m.invoke(svc, type, expected, actual);
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            return ((Boolean) m.invoke(runner, type, expected, actual)).booleanValue();
+        } catch (InvocationTargetException ite) {
+            Throwable cause = ite.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            if (cause instanceof Error) {
+                throw (Error) cause;
+            }
+            throw new RuntimeException(cause);
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -99,4 +127,3 @@ public class TestPlayerServiceValidatorTest {
         assertFalse(invoke("unbekannt", "x", "x"));
     }
 }
-
