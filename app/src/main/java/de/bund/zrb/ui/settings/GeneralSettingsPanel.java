@@ -24,7 +24,7 @@ public final class GeneralSettingsPanel implements SettingsSubPanel {
         GridBagConstraints gu = gbc();
         cbHideHelpButtons = new JCheckBox("Help-Buttons ausblenden");
         gu.gridx = 0; gu.gridy = 0; gu.anchor = GridBagConstraints.WEST; ui.add(cbHideHelpButtons, gu);
-        cbShowPhases = new JCheckBox("ASSIGN/ACT/ASSERT anzeigen");
+        cbShowPhases = new JCheckBox("Given/When/Then anzeigen");
         gu.gridy = 1; ui.add(cbShowPhases, gu);
 
         g.gridx = 0; g.gridy = 0; g.anchor = GridBagConstraints.NORTHWEST; g.weightx = 1; g.weighty = 0; g.fill = GridBagConstraints.HORIZONTAL;

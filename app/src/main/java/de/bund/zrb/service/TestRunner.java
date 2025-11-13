@@ -185,7 +185,7 @@ public class TestRunner {
     /// /////////////////////////////////////////////////////////////////////////////
 
     private LogComponent executeActionNode(TestNode node, TestAction action) {
-        StepLog stepLog = new StepLog(action.getType().name(), buildStepText(action));
+        StepLog stepLog = new StepLog(LOG_LABEL_WHEN, buildStepText(action));
         boolean ok;
         String err = null;
         try {
@@ -239,7 +239,11 @@ public class TestRunner {
         String sub = (testCase.getName() != null) ? testCase.getName().trim() : "";
         OverlayBridge.setSubtitle(sub);
         ApplicationEventBus.getInstance().publish(new VideoOverlayEvent(VideoOverlayEvent.Kind.CASE, sub));
-        executeChildren(node, caseLog);
+        // NEU: ACT-Block für die eigentliche Ausführung
+        SuiteLog actBlock = new SuiteLog("ACT");
+        actBlock.setParent(caseLog);
+        logger.append(actBlock);
+        executeChildren(node, actBlock);
         executeAfterAssertions(node, testCase, caseLog);
         drawerRef.updateSuiteStatus(node);
         return caseLog;
@@ -741,8 +745,8 @@ public class TestRunner {
             if (resolved == null) resolved = "";
             out.put(key, resolved);
             ctx.setCaseVar(key, resolved);
-            // Kein Description-Feld verfügbar -> Standarddarstellung var := value
-            StepLog assign = new StepLog("ASSIGN", key + " := " + resolved);
+            // Einzelner ASSIGN-Eintrag als "Given"
+            StepLog assign = new StepLog(LOG_LABEL_GIVEN, key + " := " + resolved);
             assign.setParent(assignParent);
             logger.append(assign);
         }
@@ -829,7 +833,7 @@ public class TestRunner {
                 }
             }
             if (collected.isEmpty()) return out;
-            SuiteLog afterLog = new SuiteLog("ASSERT"); // Phase Kopf umbenennen
+            SuiteLog afterLog = new SuiteLog(LOG_LABEL_AFTER); // Gruppen-Überschrift bleibt ASSERT
             afterLog.setParent(parentLog);
             logger.append(afterLog);
             out.add(afterLog);
@@ -847,7 +851,7 @@ public class TestRunner {
                 final String expr = e.getValue();
                 final String desc = descriptions.get(name);
                 final String displayText = (desc != null && desc.length() > 0) ? (name + " → " + desc) : (name + " → " + shortExpr(expr));
-                StepLog assertionLog = new StepLog("ASSERT", displayText);
+                StepLog assertionLog = new StepLog(LOG_LABEL_THEN, displayText);
                 assertionLog.setParent(afterLog);
                 try {
                     Integer eachCfg = SettingsService.getInstance().get("assertion.eachWaitMs", Integer.class);
@@ -884,7 +888,7 @@ public class TestRunner {
                 out.add(assertionLog);
             }
         } catch (Exception ex) {
-            StepLog err = new StepLog("ASSERT", AFTER_ASSERTIONS_FAILED_MSG);
+            StepLog err = new StepLog(LOG_LABEL_THEN, AFTER_ASSERTIONS_FAILED_MSG);
             err.setStatus(false);
             err.setError(safeMsg(ex));
             err.setParent(parentLog);
@@ -1209,7 +1213,7 @@ public class TestRunner {
         preLog.setParent(parentLog);
         logger.append(preLog);
         for (Precondtion ref : refs) {
-            StepLog givenLog = new StepLog("ASSIGN", resolvePreconditionName(parseIdFromValue(ref.getValue())));
+            StepLog givenLog = new StepLog(LOG_LABEL_GIVEN, resolvePreconditionName(parseIdFromValue(ref.getValue())));
             try {
                 String user = inferUsername(ref);
                 givenExecutor.apply(user, ref);
