@@ -22,6 +22,7 @@ public final class InputSettingsPanel implements SettingsSubPanel {
         JPanel pnl = new JPanel(new GridBagLayout());
         pnl.setBorder(section("Wiedergabe"));
         GridBagConstraints gb = gbc();
+        gb.fill = GridBagConstraints.HORIZONTAL;
 
         spKeyDown = new JSpinner(new SpinnerNumberModel(10, 0, 2000, 1));
         spKeyUp   = new JSpinner(new SpinnerNumberModel(30, 0, 2000, 1));
@@ -30,20 +31,20 @@ public final class InputSettingsPanel implements SettingsSubPanel {
         spAssertEachWait  = new JSpinner(new SpinnerNumberModel(0.0, 0.0, Double.MAX_VALUE, 1.0));
         spBeforeEachAfterWait = new JSpinner(new SpinnerNumberModel(0.0, 0.0, Double.MAX_VALUE, 1.0));
 
-        gb.gridx=0; gb.gridy=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("KeyDown-Delay (ms):"), gb);
-        gb.gridx=1; gb.gridy=0; gb.anchor=GridBagConstraints.EAST; pnl.add(spKeyDown, gb);
-        gb.gridx=0; gb.gridy=1; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("KeyUp-Delay (ms):"), gb);
-        gb.gridx=1; gb.gridy=1; gb.anchor=GridBagConstraints.EAST; pnl.add(spKeyUp, gb);
+        gb.gridx=0; gb.gridy=0; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("KeyDown-Delay (ms):"), gb);
+        gb.gridx=1; gb.gridy=0; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spKeyDown, gb);
+        gb.gridx=0; gb.gridy=1; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("KeyUp-Delay (ms):"), gb);
+        gb.gridx=1; gb.gridy=1; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spKeyUp, gb);
 
-        gb.gridx=0; gb.gridy=2; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Default Action-Timeout (ms):"), gb);
-        gb.gridx=1; gb.gridy=2; gb.anchor=GridBagConstraints.EAST; pnl.add(spActionDefaultTimeoutMs, gb);
+        gb.gridx=0; gb.gridy=2; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Default Action-Timeout (ms):"), gb);
+        gb.gridx=1; gb.gridy=2; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spActionDefaultTimeoutMs, gb);
 
-        gb.gridx=0; gb.gridy=3; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Wartezeit vor Assertions (s):"), gb);
-        gb.gridx=1; gb.gridy=3; gb.anchor=GridBagConstraints.EAST; pnl.add(spAssertGroupWait, gb);
-        gb.gridx=0; gb.gridy=4; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Wartezeit zwischen Assertions (s):"), gb);
-        gb.gridx=1; gb.gridy=4; gb.anchor=GridBagConstraints.EAST; pnl.add(spAssertEachWait, gb);
-        gb.gridx=0; gb.gridy=5; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Wartezeit nach BeforeEach (s):"), gb);
-        gb.gridx=1; gb.gridy=5; gb.anchor=GridBagConstraints.EAST; pnl.add(spBeforeEachAfterWait, gb);
+        gb.gridx=0; gb.gridy=3; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Wartezeit vor Assertions (s):"), gb);
+        gb.gridx=1; gb.gridy=3; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spAssertGroupWait, gb);
+        gb.gridx=0; gb.gridy=4; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Wartezeit zwischen Assertions (s):"), gb);
+        gb.gridx=1; gb.gridy=4; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spAssertEachWait, gb);
+        gb.gridx=0; gb.gridy=5; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Wartezeit nach BeforeEach (s):"), gb);
+        gb.gridx=1; gb.gridy=5; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spBeforeEachAfterWait, gb);
 
         g.gridx=0; g.gridy=0; g.weightx=1; g.fill=GridBagConstraints.HORIZONTAL; root.add(pnl, g);
         g.gridy=1; g.weighty=1; g.fill=GridBagConstraints.BOTH; root.add(Box.createVerticalGlue(), g);
@@ -92,4 +93,3 @@ public final class InputSettingsPanel implements SettingsSubPanel {
     private static GridBagConstraints gbc(){ GridBagConstraints gbc=new GridBagConstraints(); gbc.insets=new Insets(6,8,6,8); return gbc; }
     private static TitledBorder section(String t){ TitledBorder tb=BorderFactory.createTitledBorder(t); tb.setTitleFont(tb.getTitleFont().deriveFont(Font.BOLD)); return tb; }
 }
-

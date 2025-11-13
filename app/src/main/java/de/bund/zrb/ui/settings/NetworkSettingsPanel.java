@@ -21,25 +21,26 @@ public final class NetworkSettingsPanel implements SettingsSubPanel {
         JPanel pnl = new JPanel(new GridBagLayout());
         pnl.setBorder(section("Netzwerk"));
         GridBagConstraints gb = gbc();
+        gb.fill = GridBagConstraints.HORIZONTAL;
 
         spWsTimeout = new JSpinner(new SpinnerNumberModel(30000.0, 0.0, Double.MAX_VALUE, 100.0));
-        gb.gridx=0; gb.gridy=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("WebSocket Timeout (ms):"), gb);
-        gb.gridx=1; gb.gridy=0; gb.anchor=GridBagConstraints.EAST; pnl.add(spWsTimeout, gb);
+        gb.gridx=0; gb.gridy=0; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("WebSocket Timeout (ms):"), gb);
+        gb.gridx=1; gb.gridy=0; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spWsTimeout, gb);
 
         spCmdRetryCount = new JSpinner(new SpinnerNumberModel(0, 0, 1000, 1));
-        gb.gridx=0; gb.gridy=1; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Command Retry Count:"), gb);
-        gb.gridx=1; gb.gridy=1; gb.anchor=GridBagConstraints.EAST; pnl.add(spCmdRetryCount, gb);
+        gb.gridx=0; gb.gridy=1; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Command Retry Count:"), gb);
+        gb.gridx=1; gb.gridy=1; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spCmdRetryCount, gb);
 
         spCmdRetryWindowS = new JSpinner(new SpinnerNumberModel(0.0, 0.0, Double.MAX_VALUE, 1.0));
-        gb.gridx=0; gb.gridy=2; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Retry-Zeitfenster (s):"), gb);
-        gb.gridx=1; gb.gridy=2; gb.anchor=GridBagConstraints.EAST; pnl.add(spCmdRetryWindowS, gb);
+        gb.gridx=0; gb.gridy=2; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Retry-Zeitfenster (s):"), gb);
+        gb.gridx=1; gb.gridy=2; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spCmdRetryWindowS, gb);
 
         cbNetworkWaitEnabled = new JCheckBox("Netzwerk-Wartefunktion aktiv");
-        gb.gridx=0; gb.gridy=3; gb.gridwidth=2; gb.anchor=GridBagConstraints.WEST; pnl.add(cbNetworkWaitEnabled, gb); gb.gridwidth=1;
+        gb.gridx=0; gb.gridy=3; gb.gridwidth=2; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(cbNetworkWaitEnabled, gb); gb.gridwidth=1;
 
         spNetworkWaitMs = new JSpinner(new SpinnerNumberModel(5000L, 0L, 120_000L, 100L));
-        gb.gridx=0; gb.gridy=4; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Timeout (ms):"), gb);
-        gb.gridx=1; gb.gridy=4; gb.anchor=GridBagConstraints.EAST; pnl.add(spNetworkWaitMs, gb);
+        gb.gridx=0; gb.gridy=4; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Timeout (ms):"), gb);
+        gb.gridx=1; gb.gridy=4; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spNetworkWaitMs, gb);
 
         g.gridx=0; g.gridy=0; g.weightx=1; g.fill=GridBagConstraints.HORIZONTAL; root.add(pnl, g);
         g.gridy=1; g.weighty=1; g.fill=GridBagConstraints.BOTH; root.add(Box.createVerticalGlue(), g);
@@ -79,4 +80,3 @@ public final class NetworkSettingsPanel implements SettingsSubPanel {
     private static GridBagConstraints gbc(){ GridBagConstraints gbc=new GridBagConstraints(); gbc.insets=new Insets(6,8,6,8); return gbc; }
     private static TitledBorder section(String t){ TitledBorder tb=BorderFactory.createTitledBorder(t); tb.setTitleFont(tb.getTitleFont().deriveFont(Font.BOLD)); return tb; }
 }
-
