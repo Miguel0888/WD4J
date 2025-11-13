@@ -517,6 +517,17 @@ public class TestRunner {
             System.err.println("❌ Fehler bei Playback: " + e.getMessage());
             e.printStackTrace();
             return false;
+        } finally {
+            // Nach jeder Aktion optionale Verzögerung (Slomo) anwenden
+            try {
+                Double speedSeconds = SettingsService.getInstance().get("playback.speed.current", Double.class);
+                if (speedSeconds != null && speedSeconds > 0.0001) {
+                    long sleepMs = Math.round(speedSeconds * 1000.0);
+                    Thread.sleep(sleepMs);
+                }
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            } catch (Throwable ignore) {}
         }
     }
 
@@ -1405,55 +1416,18 @@ public class TestRunner {
         preLog.setParent(parentLog);
         logger.append(preLog);
         for (Precondtion ref : refs) {
-            if (ref == null) continue;
-            if (!TYPE_PRECONDITION_REF.equals(ref.getType())) {
-                executeGivenList(refsAsSingle(ref), preLog, PRECONDITION_PREFIX);
-                continue;
+            // Vereinfachte Ausführung analog executeGivenList
+            StepLog givenLog = new StepLog("PRE", PRECONDITION_PREFIX + resolvePreconditionName(parseIdFromValue(ref.getValue())));
+            try {
+                String user = inferUsername(ref);
+                givenExecutor.apply(user, ref);
+                givenLog.setStatus(true);
+            } catch (Exception ex) {
+                givenLog.setStatus(false);
+                givenLog.setError(safeMsg(ex));
             }
-            String id = parseIdFromValue(ref.getValue());
-            if (id == null || id.trim().isEmpty()) {
-                StepLog err = new StepLog(PRECONDITION_PREFIX, "Unbekannte Precondition-Referenz (keine id)");
-                err.setStatus(false);
-                err.setParent(preLog);
-                logger.append(err);
-                continue;
-            }
-            Precondition p = PreconditionRegistry.getInstance().getById(id);
-            String displayName = (p != null) ? (p.getName() != null ? p.getName() : id) : id;
-            if (p != null && p.getGiven() != null && !p.getGiven().isEmpty()) {
-                executeGivenList(p.getGiven(), preLog, PRECONDITION_PREFIX + displayName);
-            }
-            if (p != null && p.getActions() != null && !p.getActions().isEmpty()) {
-                for (TestAction pa : p.getActions()) {
-                    StepLog stepLog = new StepLog("PRECOND", buildStepText(pa));
-                    try {
-                        String effectiveUser = resolveEffectiveUserForAction(runContext, pa);
-                        if (effectiveUser != null && effectiveUser.trim().length() > 0) {
-                            runContext.getVars().setCaseVar("username", effectiveUser.trim());
-                            runContext.getVars().setCaseVar("user", effectiveUser.trim());
-                        }
-                        boolean ok = playSingleAction(runContext, pa, stepLog);
-                        stepLog.setStatus(ok);
-                        if (!ok) stepLog.setError("Precondition action failed");
-                    } catch (Exception ex) {
-                        stepLog.setStatus(false);
-                        stepLog.setError(safeMsg(ex));
-                    }
-                    stepLog.setParent(preLog);
-                    logger.append(stepLog);
-                }
-            } else if (p == null) {
-                StepLog warn = new StepLog(PRECONDITION_PREFIX, "Precondition not found: " + id);
-                warn.setStatus(false);
-                warn.setParent(preLog);
-                logger.append(warn);
-            }
+            givenLog.setParent(preLog);
+            logger.append(givenLog);
         }
-    }
-
-    private java.util.List<Precondtion> refsAsSingle(Precondtion ref) {
-        java.util.ArrayList<Precondtion> list = new java.util.ArrayList<Precondtion>(1);
-        list.add(ref);
-        return list;
     }
 }

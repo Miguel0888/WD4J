@@ -155,6 +155,17 @@ public class MainWindow {
 
         // Statusbar unten
         appStatusBar = new ApplicationStatusBar(UserRegistry.getInstance());
+        // Initialen Speed aus UiState übernehmen falls vorhanden
+        double persistedSpeed = uiStateService.getPlaybackSpeedSeconds();
+        if (persistedSpeed > 0) {
+            // SettingsService enthält min/max/current; wir setzen current auf persistedSpeed
+            de.bund.zrb.service.SettingsService.getInstance().set("playback.speed.current", persistedSpeed);
+        } else {
+            // Auf Minimum setzen
+            Double min = de.bund.zrb.service.SettingsService.getInstance().get("playback.speed.min", Double.class);
+            if (min == null) min = 0.1d;
+            de.bund.zrb.service.SettingsService.getInstance().set("playback.speed.current", min);
+        }
         frame.add(appStatusBar, BorderLayout.SOUTH);
         StatusTicker.getInstance().attach(appStatusBar.getStatusBar()); // activate event queue
 
@@ -233,6 +244,9 @@ public class MainWindow {
                         savedInnerDividerLocation
                 );
 
+                // Persist current playback speed from Settings
+                Double currentSpeed = de.bund.zrb.service.SettingsService.getInstance().get("playback.speed.current", Double.class);
+                if (currentSpeed != null) uiStateService.updatePlaybackSpeedSeconds(currentSpeed);
                 uiStateService.persist();
 
                 browserService.terminateBrowser();

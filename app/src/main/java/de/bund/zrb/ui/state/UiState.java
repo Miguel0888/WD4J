@@ -9,6 +9,7 @@ public class UiState {
     private WindowState mainWindow;
     private DrawerState leftDrawer;
     private DrawerState rightDrawer;
+    private double playbackSpeedSeconds = 0.1; // Wartezeit nach jeder Aktion (Slomo)
 
     public UiState() {
         // Initialize with safe defaults
@@ -39,6 +40,14 @@ public class UiState {
 
     public void setRightDrawer(DrawerState rightDrawer) {
         this.rightDrawer = rightDrawer;
+    }
+
+    public double getPlaybackSpeedSeconds() {
+        return playbackSpeedSeconds;
+    }
+
+    public void setPlaybackSpeedSeconds(double playbackSpeedSeconds) {
+        this.playbackSpeedSeconds = playbackSpeedSeconds;
     }
 
     /**

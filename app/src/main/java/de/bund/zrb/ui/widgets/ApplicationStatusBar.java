@@ -27,7 +27,7 @@ public final class ApplicationStatusBar extends JPanel {
         // --- Speed slider ---
         double min = getDouble("playback.speed.min", 0.1);
         double max = getDouble("playback.speed.max", 2.0);
-        double cur = getDouble("playback.speed.current", 1.0);
+        double cur = getDouble("playback.speed.current", min); // Default jetzt min statt 1.0
         if (max <= min) { max = Math.max(min + 0.1, 1.0); }
         cur = clamp(cur, min, max);
 
@@ -81,4 +81,3 @@ public final class ApplicationStatusBar extends JPanel {
         return s;
     }
 }
-

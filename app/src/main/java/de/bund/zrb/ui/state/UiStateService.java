@@ -54,6 +54,20 @@ public class UiStateService {
     }
 
     /**
+     * Update the playback speed in seconds.
+     */
+    public void updatePlaybackSpeedSeconds(double seconds) {
+        cachedState.setPlaybackSpeedSeconds(seconds);
+    }
+
+    /**
+     * Get the current playback speed in seconds.
+     */
+    public double getPlaybackSpeedSeconds() {
+        return cachedState.getPlaybackSpeedSeconds();
+    }
+
+    /**
      * Persist the currently cached UiState to disk.
      * Call this e.g. on windowClosing.
      */
