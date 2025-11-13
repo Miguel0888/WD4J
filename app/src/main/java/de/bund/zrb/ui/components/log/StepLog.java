@@ -27,16 +27,30 @@ public class StepLog implements LogComponent {
     public String toHtml() {
         StringBuilder sb = new StringBuilder();
         String statusSymbol = success ? "✔" : "❌";
-        sb.append("<p><b>").append(statusSymbol).append(" ").append(phase).append(":</b> ")
-                .append(escape(content));
+        boolean showPhase = isPhaseEnabled();
+        sb.append("<p><b>").append(statusSymbol);
+        if (showPhase) {
+            sb.append(" ").append(escape(phase));
+        }
+        sb.append(showPhase ? ":</b> " : "</b> ");
+        sb.append(escape(content));
         if (!success && errorMessage != null && !errorMessage.isEmpty()) {
             sb.append("<br><i style='color:red'>Fehler: ").append(escape(errorMessage)).append("</i>");
         }
         if (htmlAppend != null && !htmlAppend.isEmpty()) {
-            sb.append("<br>").append(htmlAppend); // rohes HTML
+            sb.append("<br>").append(htmlAppend);
         }
         sb.append("</p>");
         return sb.toString();
+    }
+
+    private boolean isPhaseEnabled() {
+        try {
+            Boolean b = de.bund.zrb.service.SettingsService.getInstance().get("logging.phase.enabled", Boolean.class);
+            return b == null || b.booleanValue();
+        } catch (Throwable ignore) {
+            return true; // Fallback: zeigen
+        }
     }
 
     @Override

@@ -216,10 +216,12 @@ public class TestRunner {
         SuiteLog caseLog = new SuiteLog(testCase.getName());
         logger.append(caseLog);
         try {
-            // Frühzeitig aktiven Tab auf (vermuteten) User setzen
             ensureUserTabActiveForCase(node);
-            // Initialisiere komplette Symbolik für diesen TestCase (Bottom-Up)
-            initCaseSymbols(node, testCase);
+            // ASSIGN Block für Variablenauswertung + Before-Ketten
+            SuiteLog assignBlock = new SuiteLog("ASSIGN");
+            assignBlock.setParent(caseLog);
+            logger.append(assignBlock);
+            initCaseSymbols(node, testCase, assignBlock); // refaktor
         } catch (Exception ex) {
             caseLog.setStatus(false);
             caseLog.setError(CASE_SETUP_FAILED_MSG + ": " + safeMsg(ex));
@@ -227,7 +229,7 @@ public class TestRunner {
             return caseLog;
         }
         try {
-            runCasePreconditions(node, testCase, caseLog);
+            runCasePreconditions(node, testCase, caseLog); // Preconditions separat (auch ASSIGN, aber eigener Block)
         } catch (Exception ex) {
             caseLog.setStatus(false);
             caseLog.setError("Precondition execution failed: " + safeMsg(ex));
@@ -248,7 +250,10 @@ public class TestRunner {
         SuiteLog suiteLog = new SuiteLog(node.toString());
         logger.append(suiteLog);
         try {
-            initSuiteSymbols(suite);
+            SuiteLog assignBlock = new SuiteLog("ASSIGN");
+            assignBlock.setParent(suiteLog);
+            logger.append(assignBlock);
+            initSuiteSymbols(suite, assignBlock);
         } catch (Exception ex) {
             String cap = (suite.getDescription() != null && !suite.getDescription().trim().isEmpty())
                     ? suite.getDescription().trim() : (suite.getName() != null ? suite.getName().trim() : node.toString());
@@ -337,6 +342,8 @@ public class TestRunner {
     }
 
     private synchronized boolean playSingleAction(final TestRunContext ctx, final TestAction action, final StepLog stepLog) {
+        // Entferne zusätzliches ACT-Log; verwende den übergebenen stepLog als ACT
+        stepLog.setStatus(true); // initial status
         try {
             final String effectiveUser = resolveEffectiveUserForAction(ctx, action);
             lastUsernameUsed = effectiveUser;
@@ -346,6 +353,7 @@ public class TestRunner {
                 browserService.switchSelectedPage(contextId);
             } else {
                 JOptionPane.showMessageDialog(null, String.format(NO_TAB_FOR_USER_MSG, effectiveUser));
+                stepLog.setStatus(false);
                 return false;
             }
             if (effectiveUser != null && effectiveUser.trim().length() > 0) {
@@ -354,138 +362,85 @@ public class TestRunner {
             }
             final ValueScope scopeForThisAction = ctx.getVars().buildCaseScope();
             String act = action.getAction();
+            boolean result;
             switch (act) {
                 case "navigate": {
                     final String navUrl = resolveActionValueAtRuntime(action, scopeForThisAction);
-                    return doWithSettling(page, action.getTimeout(), new Runnable() {
+                    result = doWithSettling(page, action.getTimeout(), new Runnable() {
                         public void run() {
                             page.navigate(navUrl, new Page.NavigateOptions().setTimeout(action.getTimeout()));
                         }
                     });
+                    break;
                 }
                 case "wait":
                     Thread.sleep(Long.parseLong(action.getValue()));
-                    return true;
+                    result = true; break;
                 case "click": {
                     final Locator loc = LocatorResolver.resolve(page, action);
                     withRecordingSuppressed(page, new Runnable() {
-                        public void run() {
-                            waitThen(loc, action.getTimeout(), new Runnable() {
-                                public void run() {
-                                    doWithSettling(page, action.getTimeout(), new Runnable() {
-                                        public void run() {
-                                            loc.click(new Locator.ClickOptions().setTimeout(action.getTimeout()));
-                                        }
-                                    });
-                                }
-                            });
-                        }
+                        public void run() { waitThen(loc, action.getTimeout(), new Runnable() { public void run() { doWithSettling(page, action.getTimeout(), new Runnable() { public void run() { loc.click(new Locator.ClickOptions().setTimeout(action.getTimeout())); } }); } }); }
                     });
-                    return true;
+                    result = true; break;
                 }
                 case "input":
                 case "fill": {
                     final Locator loc = LocatorResolver.resolve(page, action);
                     withRecordingSuppressed(page, new ThrowingRunnable() {
-                        public void run() throws Exception {
-                            waitThen(loc, action.getTimeout(), new ThrowingRunnable() {
-                                public void run() throws Exception {
-                                    final String resolvedText = resolveActionValueAtRuntime(action, scopeForThisAction);
-                                    loc.fill(resolvedText, new Locator.FillOptions().setTimeout(action.getTimeout()));
-                                }
-                            });
-                        }
+                        public void run() throws Exception { waitThen(loc, action.getTimeout(), new ThrowingRunnable() { public void run() throws Exception { final String resolvedText = resolveActionValueAtRuntime(action, scopeForThisAction); loc.fill(resolvedText, new Locator.FillOptions().setTimeout(action.getTimeout())); } }); }
                     });
-                    return true;
+                    result = true; break;
                 }
                 case "select": {
                     final Locator loc = LocatorResolver.resolve(page, action);
                     final String optionToSelect = resolveActionValueAtRuntime(action, scopeForThisAction);
-                    withRecordingSuppressed(page, new Runnable() {
-                        public void run() {
-                            waitThen(loc, action.getTimeout(), new Runnable() {
-                                public void run() {
-                                    loc.selectOption(optionToSelect);
-                                }
-                            });
-                        }
-                    });
-                    return true;
+                    withRecordingSuppressed(page, new Runnable() { public void run() { waitThen(loc, action.getTimeout(), new Runnable() { public void run() { loc.selectOption(optionToSelect); } }); } });
+                    result = true; break;
                 }
                 case "check":
                 case "radio": {
                     final Locator loc = LocatorResolver.resolve(page, action);
-                    withRecordingSuppressed(page, new Runnable() {
-                        public void run() {
-                            waitThen(loc, action.getTimeout(), new Runnable() {
-                                public void run() {
-                                    loc.check(new Locator.CheckOptions().setTimeout(action.getTimeout()));
-                                }
-                            });
-                        }
-                    });
-                    return true;
+                    withRecordingSuppressed(page, new Runnable() { public void run() { waitThen(loc, action.getTimeout(), new Runnable() { public void run() { loc.check(new Locator.CheckOptions().setTimeout(action.getTimeout())); } }); } });
+                    result = true; break;
                 }
                 case "screenshot": {
                     byte[] png = screenshotAfterWait(action.getTimeout(), page);
-                    String baseName = (stepLog.getName() == null) ? SCREENSHOT_CASE_BASE : stepLog.getName();
+                    String baseName = (stepLog.getContent() == null) ? SCREENSHOT_CASE_BASE : stepLog.getContent();
                     Path file = saveScreenshotBytes(png, baseName);
                     String rel = relToHtml(file);
-                    stepLog.setStatus(true);
                     stepLog.setHtmlAppend("<img src='" + rel + "' alt='Screenshot' style='max-width:100%;border:1px solid #ccc;margin-top:.5rem'/>");
-                    return true;
+                    result = true; break;
                 }
                 case "press": {
                     final Locator loc = LocatorResolver.resolve(page, action);
-                    withRecordingSuppressed(page, new Runnable() {
-                        public void run() {
-                            waitThen(loc, action.getTimeout(), new Runnable() {
-                                public void run() {
-                                    loc.press(action.getValue());
-                                }
-                            });
-                        }
-                    });
-                    return true;
+                    withRecordingSuppressed(page, new Runnable() { public void run() { waitThen(loc, action.getTimeout(), new Runnable() { public void run() { loc.press(action.getValue()); } }); } });
+                    result = true; break;
                 }
                 case "type": {
                     final Locator loc = LocatorResolver.resolve(page, action);
-                    withRecordingSuppressed(page, new ThrowingRunnable() {
-                        public void run() throws Exception {
-                            waitThen(loc, action.getTimeout(), new ThrowingRunnable() {
-                                public void run() throws Exception {
-                                    final String resolvedText = resolveActionValueAtRuntime(action, scopeForThisAction);
-                                    loc.type(resolvedText);
-                                }
-                            });
-                        }
-                    });
-                    return true;
+                    withRecordingSuppressed(page, new ThrowingRunnable() { public void run() throws Exception { waitThen(loc, action.getTimeout(), new ThrowingRunnable() { public void run() throws Exception { final String resolvedText = resolveActionValueAtRuntime(action, scopeForThisAction); loc.type(resolvedText); } }); } });
+                    result = true; break;
                 }
                 default:
                     System.out.println(String.format(UNSUPPORTED_ACTION_MSG, act));
-                    return false;
+                    result = false;
             }
+            stepLog.setStatus(result);
+            return result;
         } catch (ActionEvaluationRuntimeException aerx) {
             Throwable cause = (aerx.getCause() != null) ? aerx.getCause() : aerx;
-            System.err.println("❌ Evaluation failed: " + cause.getMessage());
-            cause.printStackTrace();
+            stepLog.setStatus(false);
+            stepLog.setError(cause.getMessage());
             return false;
         } catch (Exception e) {
-            System.err.println("❌ Fehler bei Playback: " + e.getMessage());
-            e.printStackTrace();
+            stepLog.setStatus(false);
+            stepLog.setError(e.getMessage());
             return false;
         } finally {
-            // Nach jeder Aktion optionale Verzögerung (ms) anwenden
             try {
                 Double delayMs = SettingsService.getInstance().get("playback.delay.currentMs", Double.class);
-                if (delayMs != null && delayMs > 0.5) { // >0.5 ms als Mindestschwellwert
-                    long sleepMs = Math.round(delayMs);
-                    Thread.sleep(sleepMs);
-                }
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-            } catch (Throwable ignore) {}
+                if (delayMs != null && delayMs > 0.5) Thread.sleep(Math.round(delayMs));
+            } catch (InterruptedException ie) { Thread.currentThread().interrupt(); } catch (Throwable ignore) {}
         }
     }
 
@@ -768,36 +723,28 @@ public class TestRunner {
 
     private Map<String, String> evaluateExpressionMapNow(Map<String, String> src,
                                                          Map<String, Boolean> enabled,
-                                                         RuntimeVariableContext ctx) throws Exception {
+                                                         RuntimeVariableContext ctx,
+                                                         SuiteLog assignParent) throws Exception {
         java.util.LinkedHashMap<String, String> out = new java.util.LinkedHashMap<String, String>();
-        if (src == null) {
-            return out;
-        }
-
+        if (src == null) return out;
         for (Map.Entry<String, String> e : src.entrySet()) {
             String key = e.getKey();
-            String exprText = e.getValue();
-            if (!isEnabled(enabled, key)) {
-                continue;
-            }
-
-            // Build current scope to see ALL already defined vars (case/suite/root)
+            if (!isEnabled(enabled, key)) continue;
             ValueScope currentScope = ctx.buildCaseScope();
-
-            // If variable already exists anywhere in the scope: keep it, do NOT override
             String existing = currentScope.lookupVar(key);
             if (existing != null && existing.trim().length() > 0) {
                 out.put(key, existing);
                 continue;
             }
-
-            // Otherwise evaluate expression now and store as case variable
+            String exprText = e.getValue();
             String resolved = ActionRuntimeEvaluator.evaluateActionValue(exprText, currentScope);
-            if (resolved == null) {
-                resolved = "";
-            }
+            if (resolved == null) resolved = "";
             out.put(key, resolved);
             ctx.setCaseVar(key, resolved);
+            // Kein Description-Feld verfügbar -> Standarddarstellung var := value
+            StepLog assign = new StepLog("ASSIGN", key + " := " + resolved);
+            assign.setParent(assignParent);
+            logger.append(assign);
         }
         return out;
     }
@@ -882,7 +829,7 @@ public class TestRunner {
                 }
             }
             if (collected.isEmpty()) return out;
-            SuiteLog afterLog = new SuiteLog(LOG_LABEL_AFTER);
+            SuiteLog afterLog = new SuiteLog("ASSERT"); // Phase Kopf umbenennen
             afterLog.setParent(parentLog);
             logger.append(afterLog);
             out.add(afterLog);
@@ -900,7 +847,7 @@ public class TestRunner {
                 final String expr = e.getValue();
                 final String desc = descriptions.get(name);
                 final String displayText = (desc != null && desc.length() > 0) ? (name + " → " + desc) : (name + " → " + shortExpr(expr));
-                StepLog assertionLog = new StepLog(LOG_LABEL_THEN, displayText);
+                StepLog assertionLog = new StepLog("ASSERT", displayText);
                 assertionLog.setParent(afterLog);
                 try {
                     Integer eachCfg = SettingsService.getInstance().get("assertion.eachWaitMs", Integer.class);
@@ -937,7 +884,7 @@ public class TestRunner {
                 out.add(assertionLog);
             }
         } catch (Exception ex) {
-            StepLog err = new StepLog(LOG_LABEL_AFTER, AFTER_ASSERTIONS_FAILED_MSG);
+            StepLog err = new StepLog("ASSERT", AFTER_ASSERTIONS_FAILED_MSG);
             err.setStatus(false);
             err.setError(safeMsg(ex));
             err.setParent(parentLog);
@@ -1080,187 +1027,76 @@ public class TestRunner {
         return (t == null) ? "" : (t.getMessage() != null ? t.getMessage() : t.toString());
     }
 
-    private void initSuiteSymbols(final TestSuite suite) throws Exception {
-        if (suite == null) {
-            return;
-        }
-
+    private void initSuiteSymbols(final TestSuite suite, SuiteLog assignBlock) throws Exception {
+        if (suite == null) return;
         final RootNode rootModel = TestRegistry.getInstance().getRoot();
         final RuntimeVariableContext vars = runContext.getVars();
-
         java.util.List<ThrowingRunnable> beforeChain = new java.util.ArrayList<ThrowingRunnable>();
-
-        // 2. Suite.beforeAll (nur einmal pro Suite im Run)
-        beforeChain.add(new ThrowingRunnable() {
-            public void run() throws Exception {
-                if (suite.getId() == null) {
-                    return;
-                }
-                if (runContext.isSuiteBeforeAllDone(suite.getId())) {
-                    return;
-                }
-                // Suite templates vor Suite.beforeAll
-                vars.fillSuiteTemplatesFromMap(
-                        filterEnabled(suite.getTemplates(), suite.getTemplatesEnabled()));
-
-                Map<String, String> suiteAllEval = evaluateExpressionMapNow(
-                        suite.getBeforeAll(),
-                        suite.getBeforeAllEnabled(),
-                        vars);
-                vars.fillSuiteVarsFromMap(suiteAllEval);
-
-                runContext.markSuiteBeforeAllDone(suite.getId());
-            }
-        });
-
-        // 3. Root.beforeAll (nur einmal pro Run)
-        beforeChain.add(new ThrowingRunnable() {
-            public void run() throws Exception {
-                if (rootModel == null) {
-                    return;
-                }
-                if (runContext.isRootBeforeAllDone()) {
-                    return;
-                }
-                // Root templates vor Root.beforeAll
-                vars.fillRootTemplatesFromMap(
-                        filterEnabled(rootModel.getTemplates(), rootModel.getTemplatesEnabled()));
-
-                Map<String, String> rootAllEval = evaluateExpressionMapNow(
-                        rootModel.getBeforeAll(),
-                        rootModel.getBeforeAllEnabled(),
-                        vars);
-                vars.fillRootVarsFromMap(rootAllEval);
-
-                runContext.markRootBeforeAllDone();
-            }
-        });
-
-        // 4. Suite.beforeEach (für jeden Case)
-        beforeChain.add(new ThrowingRunnable() {
-            public void run() throws Exception {
-                if (suite.getBeforeEach() == null && suite.getBeforeEachEnabled() == null) {
-                    return;
-                }
-                vars.fillCaseVarsFromMap(
-                        evaluateExpressionMapNow(
-                                suite.getBeforeEach(),
-                                suite.getBeforeEachEnabled(),
-                                vars));
-            }
-        });
-
-        // 5. Root.beforeEach (für jeden Case)
-        beforeChain.add(new ThrowingRunnable() {
-            public void run() throws Exception {
-                if (rootModel == null) {
-                    return;
-                }
-                if (rootModel.getBeforeEach() == null && rootModel.getBeforeEachEnabled() == null) {
-                    return;
-                }
-                vars.fillCaseVarsFromMap(
-                        evaluateExpressionMapNow(
-                                rootModel.getBeforeEach(),
-                                rootModel.getBeforeEachEnabled(),
-                                vars));
-            }
-        });
-
-        // Ausführung der oberen Chain mit demselben Wait-Mechanismus wie zuvor
+        beforeChain.add(new ThrowingRunnable() { public void run() throws Exception {
+            if (suite.getId()==null || runContext.isSuiteBeforeAllDone(suite.getId())) return;
+            vars.fillSuiteTemplatesFromMap(filterEnabled(suite.getTemplates(), suite.getTemplatesEnabled()));
+            Map<String,String> eval = evaluateExpressionMapNow(suite.getBeforeAll(), suite.getBeforeAllEnabled(), vars, assignBlock);
+            vars.fillSuiteVarsFromMap(eval);
+            runContext.markSuiteBeforeAllDone(suite.getId());
+        }});
+        beforeChain.add(new ThrowingRunnable() { public void run() throws Exception {
+            if (rootModel==null || runContext.isRootBeforeAllDone()) return;
+            vars.fillRootTemplatesFromMap(filterEnabled(rootModel.getTemplates(), rootModel.getTemplatesEnabled()));
+            Map<String,String> eval = evaluateExpressionMapNow(rootModel.getBeforeAll(), rootModel.getBeforeAllEnabled(), vars, assignBlock);
+            vars.fillRootVarsFromMap(eval);
+            runContext.markRootBeforeAllDone();
+        }});
+        beforeChain.add(new ThrowingRunnable() { public void run() throws Exception {
+            if (suite.getBeforeEach()==null && suite.getBeforeEachEnabled()==null) return;
+            Map<String,String> eval = evaluateExpressionMapNow(suite.getBeforeEach(), suite.getBeforeEachEnabled(), vars, assignBlock);
+            vars.fillCaseVarsFromMap(eval);
+        }});
+        beforeChain.add(new ThrowingRunnable() { public void run() throws Exception {
+            if (rootModel==null || (rootModel.getBeforeEach()==null && rootModel.getBeforeEachEnabled()==null)) return;
+            Map<String,String> eval = evaluateExpressionMapNow(rootModel.getBeforeEach(), rootModel.getBeforeEachEnabled(), vars, assignBlock);
+            vars.fillCaseVarsFromMap(eval);
+        }});
         for (ThrowingRunnable r : beforeChain) {
             runUnchecked(r);
             Integer waitCfg = SettingsService.getInstance().get("beforeEach.afterWaitMs", Integer.class);
-            long w = (waitCfg != null) ? waitCfg.longValue() : 0L;
-            if (w > 0L) {
-                try {
-                    Thread.sleep(w);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                }
-            }
+            long w = (waitCfg!=null)?waitCfg.longValue():0L;
+            if (w>0) try { Thread.sleep(w); } catch (InterruptedException ie){ Thread.currentThread().interrupt(); }
         }
     }
 
-    private void initCaseSymbols(final TestNode node, final TestCase testCase) throws Exception {
+    private void initCaseSymbols(final TestNode node, final TestCase testCase, SuiteLog assignBlock) throws Exception {
         if (testCase == null) return;
-
         final RuntimeVariableContext vars = runContext.getVars();
         final RootNode rootModel = TestRegistry.getInstance().getRoot();
         final TestSuite parentSuite = resolveParentSuite(node);
-
-        // Templates registrieren (Bottom-Up; Reihenfolge ist hier nicht kritisch)
-        vars.fillCaseTemplatesFromMap(
-                filterEnabled(testCase.getTemplates(), testCase.getTemplatesEnabled()));
-        if (parentSuite != null) {
-            vars.fillSuiteTemplatesFromMap(
-                    filterEnabled(parentSuite.getTemplates(), parentSuite.getTemplatesEnabled()));
-        }
-        if (rootModel != null) {
-            vars.fillRootTemplatesFromMap(
-                    filterEnabled(rootModel.getTemplates(), rootModel.getTemplatesEnabled()));
-        }
-
-        // 1) Case.before
-        runBeforeWithDelay(new ThrowingRunnable() {
-            public void run() throws Exception {
-                vars.fillCaseVarsFromMap(
-                        evaluateExpressionMapNow(
-                                testCase.getBefore(),
-                                testCase.getBeforeEnabled(),
-                                vars));
-            }
-        });
-
-        // 2) Suite.beforeAll (nur einmal pro Suite im Run)
-        if (parentSuite != null && parentSuite.getId() != null
-                && !runContext.isSuiteBeforeAllDone(parentSuite.getId())) {
-
-            Map<String, String> suiteAllEval = evaluateExpressionMapNow(
-                    parentSuite.getBeforeAll(),
-                    parentSuite.getBeforeAllEnabled(),
-                    vars);
-            vars.fillSuiteVarsFromMap(suiteAllEval);
+        vars.fillCaseTemplatesFromMap(filterEnabled(testCase.getTemplates(), testCase.getTemplatesEnabled()));
+        if (parentSuite!=null) vars.fillSuiteTemplatesFromMap(filterEnabled(parentSuite.getTemplates(), parentSuite.getTemplatesEnabled()));
+        if (rootModel!=null) vars.fillRootTemplatesFromMap(filterEnabled(rootModel.getTemplates(), rootModel.getTemplatesEnabled()));
+        runBeforeWithDelay(new ThrowingRunnable(){ public void run() throws Exception {
+            Map<String,String> eval = evaluateExpressionMapNow(testCase.getBefore(), testCase.getBeforeEnabled(), vars, assignBlock);
+            vars.fillCaseVarsFromMap(eval);
+        }});
+        if (parentSuite!=null && parentSuite.getId()!=null && !runContext.isSuiteBeforeAllDone(parentSuite.getId())) {
+            Map<String,String> eval = evaluateExpressionMapNow(parentSuite.getBeforeAll(), parentSuite.getBeforeAllEnabled(), vars, assignBlock);
+            vars.fillSuiteVarsFromMap(eval);
             runContext.markSuiteBeforeAllDone(parentSuite.getId());
         }
-
-        // 3) Root.beforeAll (nur einmal pro Run)
-        if (!runContext.isRootBeforeAllDone() && rootModel != null) {
-            Map<String, String> rootAllEval = evaluateExpressionMapNow(
-                    rootModel.getBeforeAll(),
-                    rootModel.getBeforeAllEnabled(),
-                    vars);
-            vars.fillRootVarsFromMap(rootAllEval);
+        if (!runContext.isRootBeforeAllDone() && rootModel!=null) {
+            Map<String,String> eval = evaluateExpressionMapNow(rootModel.getBeforeAll(), rootModel.getBeforeAllEnabled(), vars, assignBlock);
+            vars.fillRootVarsFromMap(eval);
             runContext.markRootBeforeAllDone();
         }
-
-        // 4) Suite.beforeEach (pro TestCase)
-        runBeforeWithDelay(new ThrowingRunnable() {
-            public void run() throws Exception {
-                if (parentSuite == null) return;
-                vars.fillCaseVarsFromMap(
-                        evaluateExpressionMapNow(
-                                parentSuite.getBeforeEach(),
-                                parentSuite.getBeforeEachEnabled(),
-                                vars));
-            }
-        });
-
-        // 5) Root.beforeEach (pro TestCase)
-        runBeforeWithDelay(new ThrowingRunnable() {
-            public void run() throws Exception {
-                if (rootModel == null) return;
-                vars.fillCaseVarsFromMap(
-                        evaluateExpressionMapNow(
-                                rootModel.getBeforeEach(),
-                                rootModel.getBeforeEachEnabled(),
-                                vars));
-            }
-        });
-
-        if (testCase.getId() != null) {
-            runContext.markCaseBeforeChainDone(testCase.getId());
-        }
+        runBeforeWithDelay(new ThrowingRunnable(){ public void run() throws Exception {
+            if (parentSuite==null) return;
+            Map<String,String> eval = evaluateExpressionMapNow(parentSuite.getBeforeEach(), parentSuite.getBeforeEachEnabled(), vars, assignBlock);
+            vars.fillCaseVarsFromMap(eval);
+        }});
+        runBeforeWithDelay(new ThrowingRunnable(){ public void run() throws Exception {
+            if (rootModel==null) return;
+            Map<String,String> eval = evaluateExpressionMapNow(rootModel.getBeforeEach(), rootModel.getBeforeEachEnabled(), vars, assignBlock);
+            vars.fillCaseVarsFromMap(eval);
+        }});
+        if (testCase.getId()!=null) runContext.markCaseBeforeChainDone(testCase.getId());
     }
 
     private void runBeforeWithDelay(ThrowingRunnable step) throws Exception {
@@ -1291,7 +1127,10 @@ public class TestRunner {
         try {
             if (testCase.getId() == null || !runContext.isCaseBeforeChainDone(testCase.getId())) {
                 runContext.getVars().enterCase();
-                initCaseSymbols(caseNode, testCase);
+                // temporärer ASSIGN Block für ad-hoc Initialisierung
+                SuiteLog assignBlock = new SuiteLog("ASSIGN");
+                logger.append(assignBlock);
+                initCaseSymbols(caseNode, testCase, assignBlock);
             }
         } catch (Exception ex) {
             throw new RuntimeException("Initialisierung (ad-hoc) fehlgeschlagen: " + safeMsg(ex), ex);
@@ -1366,11 +1205,11 @@ public class TestRunner {
         if (suite != null && suite.getPreconditions() != null) refs.addAll(suite.getPreconditions());
         if (testCase.getPreconditions() != null) refs.addAll(testCase.getPreconditions());
         if (refs.isEmpty()) return;
-        SuiteLog preLog = new SuiteLog(PRECONDITION_PREFIX.trim());
+        SuiteLog preLog = new SuiteLog("ASSIGN");
         preLog.setParent(parentLog);
         logger.append(preLog);
         for (Precondtion ref : refs) {
-            StepLog givenLog = new StepLog(LOG_LABEL_GIVEN, PRECONDITION_PREFIX + resolvePreconditionName(parseIdFromValue(ref.getValue())));
+            StepLog givenLog = new StepLog("ASSIGN", resolvePreconditionName(parseIdFromValue(ref.getValue())));
             try {
                 String user = inferUsername(ref);
                 givenExecutor.apply(user, ref);

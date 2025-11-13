@@ -12,6 +12,7 @@ public final class GeneralSettingsPanel implements SettingsSubPanel {
 
     private final JPanel root;
     private final JCheckBox cbHideHelpButtons;
+    private final JCheckBox cbShowPhases; // neu
 
     public GeneralSettingsPanel() {
         root = new JPanel(new GridBagLayout());
@@ -23,6 +24,8 @@ public final class GeneralSettingsPanel implements SettingsSubPanel {
         GridBagConstraints gu = gbc();
         cbHideHelpButtons = new JCheckBox("Help-Buttons ausblenden");
         gu.gridx = 0; gu.gridy = 0; gu.anchor = GridBagConstraints.WEST; ui.add(cbHideHelpButtons, gu);
+        cbShowPhases = new JCheckBox("ASSIGN/ACT/ASSERT anzeigen");
+        gu.gridy = 1; ui.add(cbShowPhases, gu);
 
         g.gridx = 0; g.gridy = 0; g.anchor = GridBagConstraints.NORTHWEST; g.weightx = 1; g.weighty = 0; g.fill = GridBagConstraints.HORIZONTAL;
         root.add(ui, g);
@@ -38,10 +41,13 @@ public final class GeneralSettingsPanel implements SettingsSubPanel {
     @Override public void loadFromSettings() {
         Boolean hide = SettingsService.getInstance().get("ui.helpButtons.hide", Boolean.class);
         cbHideHelpButtons.setSelected(hide != null && hide);
+        Boolean phases = SettingsService.getInstance().get("logging.phase.enabled", Boolean.class);
+        cbShowPhases.setSelected(phases == null || phases.booleanValue()); // default an
     }
 
     @Override public void putTo(Map<String, Object> out) throws IllegalArgumentException {
         out.put("ui.helpButtons.hide", cbHideHelpButtons.isSelected());
+        out.put("logging.phase.enabled", cbShowPhases.isSelected());
     }
 
     private static GridBagConstraints gbc() {
@@ -55,4 +61,3 @@ public final class GeneralSettingsPanel implements SettingsSubPanel {
         return tb;
     }
 }
-
