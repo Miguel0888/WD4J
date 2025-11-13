@@ -62,9 +62,12 @@ public class TestRunner {
     private static final long DEFAULT_ASSERT_GROUP_WAIT_MS = 3000L; // fallback if Settings missing
     private static final long DEFAULT_ASSERT_EACH_WAIT_MS = 0L;
 
-    private static final String LOG_LABEL_AFTER = "AFTER";
-    private static final String LOG_LABEL_EXPECT = "EXPECT";
-    private static final String LOG_LABEL_ASSERT = "ASSERT";
+    private static final String LOG_LABEL_BEFORE = "ASSIGN";
+    private static final String LOG_LABEL_EXECUTION = "ACT";
+    private static final String LOG_LABEL_AFTER = "ASSERT";
+    private static final String LOG_LABEL_GIVEN = "Given";
+    private static final String LOG_LABEL_WHEN = "When";
+    private static final String LOG_LABEL_THEN = "Then";
 
     private static final String AFTER_ASSERTIONS_FAILED_MSG = "After-Assertions fehlgeschlagen";
     private static final String NO_TAB_FOR_USER_MSG = "Kein Tab für den im Testfall eingestellten User verfügbar (%s).";
@@ -235,7 +238,6 @@ public class TestRunner {
         OverlayBridge.setSubtitle(sub);
         ApplicationEventBus.getInstance().publish(new VideoOverlayEvent(VideoOverlayEvent.Kind.CASE, sub));
         executeChildren(node, caseLog);
-        executeThenPhase(node, testCase, caseLog); // deprecated
         executeAfterAssertions(node, testCase, caseLog);
         drawerRef.updateSuiteStatus(node);
         return caseLog;
@@ -293,52 +295,6 @@ public class TestRunner {
         return out;
     }
 
-    private List<LogComponent> executeGivenList(List<Precondtion> givens, SuiteLog parentLog, String label) {
-        List<LogComponent> out = new ArrayList<LogComponent>();
-        if (givens == null || givens.isEmpty()) return out;
-        for (Precondtion given : givens) {
-            String logText;
-            if (TYPE_PRECONDITION_REF.equals(given.getType())) {
-                String id = parseIdFromValue(given.getValue());
-                String name = resolvePreconditionName(id);
-                logText = PRECONDITION_PREFIX + name;
-            } else {
-                logText = GIVEN_PREFIX + given.getType();
-            }
-            StepLog givenLog = new StepLog(label, logText);
-            try {
-                String user = inferUsername(given);
-                givenExecutor.apply(user, given);
-                if (user != null && user.trim().length() > 0) {
-                    runContext.getVars().setCaseVar("username", user.trim());
-                    runContext.getVars().setCaseVar("user", user.trim());
-                }
-                if (given.getParameterMap() != null) {
-                    for (java.util.Map.Entry<String, Object> entry : given.getParameterMap().entrySet()) {
-                        String k = entry.getKey();
-                        Object v = entry.getValue();
-                        if (k != null && v instanceof String && ((String) v).trim().length() > 0) {
-                            runContext.getVars().setCaseVar(k, ((String) v).trim());
-                        }
-                    }
-                }
-                givenLog.setStatus(true);
-            } catch (Exception ex) {
-                givenLog.setStatus(false);
-                givenLog.setError(safeMsg(ex));
-            }
-            givenLog.setParent(parentLog);
-            logger.append(givenLog);
-            out.add(givenLog);
-        }
-        return out;
-    }
-
-    @Deprecated // use after
-    private List<LogComponent> executeThenPhase(TestNode caseNode, TestCase testCase, SuiteLog parentLog) {
-        return new ArrayList<LogComponent>();
-    }
-
     private String resolveUserForTestCase(TestNode caseNode) {
         for (int i = 0; i < caseNode.getChildCount(); i++) {
             Object m = ((TestNode) caseNode.getChildAt(i)).getModelRef();
@@ -359,7 +315,7 @@ public class TestRunner {
     }
 
     public void logScreenshotFromTool(String label, String relImagePath, boolean ok, String errorMsg) {
-        StepLog log = new StepLog(LOG_LABEL_ASSERT, (label == null || label.trim().isEmpty()) ? SCREENSHOT_LABEL : label);
+        StepLog log = new StepLog(LOG_LABEL_THEN, (label == null || label.trim().isEmpty()) ? SCREENSHOT_LABEL : label);
         log.setStatus(ok);
         if (!ok && errorMsg != null && errorMsg.trim().length() > 0) log.setError(errorMsg.trim());
         if (relImagePath != null && relImagePath.trim().length() > 0) {
@@ -546,10 +502,6 @@ public class TestRunner {
     private void waitThen(Locator locator, double timeout, ThrowingRunnable action) {
         locator.waitFor(new Locator.WaitForOptions().setTimeout(timeout));
         runUnchecked(action);
-    }
-
-    private StepLog buildStepLogForAction(TestAction action) {
-        return new StepLog(action.getType().name(), buildStepText(action));
     }
 
     private String buildStepText(TestAction action) {
@@ -948,7 +900,7 @@ public class TestRunner {
                 final String expr = e.getValue();
                 final String desc = descriptions.get(name);
                 final String displayText = (desc != null && desc.length() > 0) ? (name + " → " + desc) : (name + " → " + shortExpr(expr));
-                StepLog assertionLog = new StepLog(LOG_LABEL_EXPECT, displayText);
+                StepLog assertionLog = new StepLog(LOG_LABEL_THEN, displayText);
                 assertionLog.setParent(afterLog);
                 try {
                     Integer eachCfg = SettingsService.getInstance().get("assertion.eachWaitMs", Integer.class);
@@ -1418,8 +1370,7 @@ public class TestRunner {
         preLog.setParent(parentLog);
         logger.append(preLog);
         for (Precondtion ref : refs) {
-            // Vereinfachte Ausführung analog executeGivenList
-            StepLog givenLog = new StepLog("PRE", PRECONDITION_PREFIX + resolvePreconditionName(parseIdFromValue(ref.getValue())));
+            StepLog givenLog = new StepLog(LOG_LABEL_GIVEN, PRECONDITION_PREFIX + resolvePreconditionName(parseIdFromValue(ref.getValue())));
             try {
                 String user = inferUsername(ref);
                 givenExecutor.apply(user, ref);
