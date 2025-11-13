@@ -23,7 +23,8 @@ public final class NetworkSettingsPanel implements SettingsSubPanel {
         GridBagConstraints gb = gbc();
         gb.fill = GridBagConstraints.HORIZONTAL;
 
-        spWsTimeout = new JSpinner(new SpinnerNumberModel(30000.0, 0.0, Double.MAX_VALUE, 100.0));
+        spWsTimeout = new JSpinner(new SpinnerNumberModel(30.0, 0.0, 86400.0, 0.1));
+        ((JSpinner.NumberEditor)spWsTimeout.getEditor()).getFormat().applyPattern("0.###");
         gb.gridx=0; gb.gridy=0; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("WebSocket Timeout (ms):"), gb);
         gb.gridx=1; gb.gridy=0; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spWsTimeout, gb);
 
@@ -31,14 +32,16 @@ public final class NetworkSettingsPanel implements SettingsSubPanel {
         gb.gridx=0; gb.gridy=1; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Command Retry Count:"), gb);
         gb.gridx=1; gb.gridy=1; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spCmdRetryCount, gb);
 
-        spCmdRetryWindowS = new JSpinner(new SpinnerNumberModel(0.0, 0.0, Double.MAX_VALUE, 1.0));
+        spCmdRetryWindowS = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 86400.0, 0.1));
+        spCmdRetryWindowS.setEditor(new JSpinner.NumberEditor(spCmdRetryWindowS, "0.###"));
         gb.gridx=0; gb.gridy=2; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Retry-Zeitfenster (s):"), gb);
         gb.gridx=1; gb.gridy=2; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spCmdRetryWindowS, gb);
 
         cbNetworkWaitEnabled = new JCheckBox("Netzwerk-Wartefunktion aktiv");
         gb.gridx=0; gb.gridy=3; gb.gridwidth=2; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(cbNetworkWaitEnabled, gb); gb.gridwidth=1;
 
-        spNetworkWaitMs = new JSpinner(new SpinnerNumberModel(5000L, 0L, 120_000L, 100L));
+        spNetworkWaitMs = new JSpinner(new SpinnerNumberModel(5.0, 0.0, 3600.0, 0.1));
+        spNetworkWaitMs.setEditor(new JSpinner.NumberEditor(spNetworkWaitMs, "0.###"));
         gb.gridx=0; gb.gridy=4; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Timeout (ms):"), gb);
         gb.gridx=1; gb.gridy=4; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spNetworkWaitMs, gb);
 
@@ -51,30 +54,31 @@ public final class NetworkSettingsPanel implements SettingsSubPanel {
     @Override public JComponent getComponent() { return root; }
 
     @Override public void loadFromSettings() {
-        Double wsTimeout = SettingsService.getInstance().get("websocketTimeout", Double.class);
-        spWsTimeout.setValue(wsTimeout != null ? wsTimeout : 30000.0);
-        Integer cmdRetryCount = SettingsService.getInstance().get("command.retry.maxCount", Integer.class);
-        Long cmdRetryWindow = SettingsService.getInstance().get("command.retry.windowMs", Long.class);
-        spCmdRetryCount.setValue(cmdRetryCount != null ? cmdRetryCount : 0);
-        spCmdRetryWindowS.setValue(cmdRetryWindow != null ? (cmdRetryWindow/1000.0) : 0.0);
+        Double wsTimeoutMs = SettingsService.getInstance().get("websocketTimeout", Double.class); // war ms
+        spWsTimeout.setValue(wsTimeoutMs != null ? wsTimeoutMs/1000.0 : 30.0);
+        Integer cmdRetryCountVal = SettingsService.getInstance().get("command.retry.maxCount", Integer.class);
+        Long cmdRetryWindowMs = SettingsService.getInstance().get("command.retry.windowMs", Long.class);
+        spCmdRetryCount.setValue(cmdRetryCountVal != null ? cmdRetryCountVal : 0);
+        spCmdRetryWindowS.setValue(cmdRetryWindowMs != null ? (cmdRetryWindowMs/1000.0) : 0.0);
         Boolean netWaitEnabled = SettingsService.getInstance().get("network.waitEnabled", Boolean.class);
         cbNetworkWaitEnabled.setSelected(netWaitEnabled == null || netWaitEnabled.booleanValue());
         Long netWaitMs = SettingsService.getInstance().get("network.waitForCompleteMs", Long.class);
-        spNetworkWaitMs.setValue(netWaitMs != null && netWaitMs >= 0 ? netWaitMs : 5000L);
+        spNetworkWaitMs.setValue(netWaitMs != null ? (netWaitMs/1000.0) : 5.0);
     }
 
     @Override public void putTo(Map<String, Object> out) throws IllegalArgumentException {
-        double timeoutValue = ((Number) spWsTimeout.getValue()).doubleValue(); if (timeoutValue < 0) throw new IllegalArgumentException("Timeout darf nicht negativ sein.");
-        int cmdRetryCount = ((Number) spCmdRetryCount.getValue()).intValue(); if (cmdRetryCount < 0) throw new IllegalArgumentException("Retry Count darf nicht negativ sein.");
-        double cmdRetryWindowS = ((Number) spCmdRetryWindowS.getValue()).doubleValue(); if (cmdRetryWindowS < 0) throw new IllegalArgumentException("Retry-Zeitfenster darf nicht negativ sein.");
-        long cmdRetryWindowMs = Math.round(cmdRetryWindowS * 1000.0);
-        long netWaitMs = ((Number) spNetworkWaitMs.getValue()).longValue(); if (netWaitMs < 0) throw new IllegalArgumentException("Timeout darf nicht negativ sein.");
-
-        out.put("websocketTimeout", timeoutValue);
-        out.put("command.retry.maxCount", cmdRetryCount);
-        out.put("command.retry.windowMs", cmdRetryWindowMs);
+        double wsSec = ((Number) spWsTimeout.getValue()).doubleValue(); if (wsSec < 0) throw new IllegalArgumentException("Timeout darf nicht negativ sein.");
+        int cmdRetryCountVal = ((Number) spCmdRetryCount.getValue()).intValue(); if (cmdRetryCountVal < 0) throw new IllegalArgumentException("Retry Count darf nicht negativ sein.");
+        double cmdRetryWindowSec = ((Number) spCmdRetryWindowS.getValue()).doubleValue(); if (cmdRetryWindowSec < 0) throw new IllegalArgumentException("Retry-Zeitfenster darf nicht negativ sein.");
+        double netWaitSec = ((Number) spNetworkWaitMs.getValue()).doubleValue(); if (netWaitSec < 0) throw new IllegalArgumentException("Timeout darf nicht negativ sein.");
+        long wsMs = Math.round(wsSec * 1000.0);
+        long rwMs = Math.round(cmdRetryWindowSec * 1000.0);
+        long netMs = Math.round(netWaitSec * 1000.0);
+        out.put("websocketTimeout", (double) wsMs);
+        out.put("command.retry.maxCount", cmdRetryCountVal);
+        out.put("command.retry.windowMs", rwMs);
         out.put("network.waitEnabled", cbNetworkWaitEnabled.isSelected());
-        out.put("network.waitForCompleteMs", netWaitMs);
+        out.put("network.waitForCompleteMs", netMs);
     }
 
     private static GridBagConstraints gbc(){ GridBagConstraints gbc=new GridBagConstraints(); gbc.insets=new Insets(6,8,6,8); return gbc; }

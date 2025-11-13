@@ -24,19 +24,35 @@ public final class InputSettingsPanel implements SettingsSubPanel {
         GridBagConstraints gb = gbc();
         gb.fill = GridBagConstraints.HORIZONTAL;
 
-        spKeyDown = new JSpinner(new SpinnerNumberModel(10, 0, 2000, 1));
-        spKeyUp   = new JSpinner(new SpinnerNumberModel(30, 0, 2000, 1));
-        spActionDefaultTimeoutMs = new JSpinner(new SpinnerNumberModel(30000, 0, 3_600_000, 100));
-        spAssertGroupWait = new JSpinner(new SpinnerNumberModel(3.0, 0.0, Double.MAX_VALUE, 1.0));
-        spAssertEachWait  = new JSpinner(new SpinnerNumberModel(0.0, 0.0, Double.MAX_VALUE, 1.0));
-        spBeforeEachAfterWait = new JSpinner(new SpinnerNumberModel(0.0, 0.0, Double.MAX_VALUE, 1.0));
+        spKeyDown = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 120.0, 0.01));
+        spKeyUp   = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 120.0, 0.01));
+        spActionDefaultTimeoutMs = new JSpinner(new SpinnerNumberModel(30.0, 0.0, 3600.0, 1));
+        spAssertGroupWait = new JSpinner(new SpinnerNumberModel(3.0, 0.0, 3600.0, 0.1));
+        spAssertEachWait  = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 3600.0, 0.1));
+        spBeforeEachAfterWait = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 3600.0, 0.1));
 
-        gb.gridx=0; gb.gridy=0; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("KeyDown-Delay (ms):"), gb);
+        // Formatierung (0.###) für alle Spinner
+        spKeyDown.setEditor(new JSpinner.NumberEditor(spKeyDown, "0.###"));
+        spKeyUp.setEditor(new JSpinner.NumberEditor(spKeyUp, "0.###"));
+        spActionDefaultTimeoutMs.setEditor(new JSpinner.NumberEditor(spActionDefaultTimeoutMs, "0.###"));
+        spAssertGroupWait.setEditor(new JSpinner.NumberEditor(spAssertGroupWait, "0.###"));
+        spAssertEachWait.setEditor(new JSpinner.NumberEditor(spAssertEachWait, "0.###"));
+        spBeforeEachAfterWait.setEditor(new JSpinner.NumberEditor(spBeforeEachAfterWait, "0.###"));
+
+        // Tooltips anpassen
+        spKeyDown.setToolTipText("Verzögerung nach keyDown in Sekunden (Schritt 10ms)");
+        spKeyUp.setToolTipText("Verzögerung nach keyUp in Sekunden (Schritt 10ms)");
+        spActionDefaultTimeoutMs.setToolTipText("Default Action-Timeout in Sekunden (0 = kein Warten, Schritt 1s)");
+        spAssertGroupWait.setToolTipText("Globale Wartezeit vor Assertions (Sekunden, Schritt 100ms)");
+        spAssertEachWait.setToolTipText("Wartezeit zwischen Assertions (Sekunden, Schritt 100ms)");
+        spBeforeEachAfterWait.setToolTipText("Wartezeit nach BeforeEach (Sekunden, Schritt 100ms)");
+
+        gb.gridx=0; gb.gridy=0; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("KeyDown-Delay (s):"), gb);
         gb.gridx=1; gb.gridy=0; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spKeyDown, gb);
-        gb.gridx=0; gb.gridy=1; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("KeyUp-Delay (ms):"), gb);
+        gb.gridx=0; gb.gridy=1; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("KeyUp-Delay (s):"), gb);
         gb.gridx=1; gb.gridy=1; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spKeyUp, gb);
 
-        gb.gridx=0; gb.gridy=2; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Default Action-Timeout (ms):"), gb);
+        gb.gridx=0; gb.gridy=2; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Default Action-Timeout (s):"), gb);
         gb.gridx=1; gb.gridy=2; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spActionDefaultTimeoutMs, gb);
 
         gb.gridx=0; gb.gridy=3; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Wartezeit vor Assertions (s):"), gb);
@@ -62,32 +78,41 @@ public final class InputSettingsPanel implements SettingsSubPanel {
         Integer eachWaitMs  = SettingsService.getInstance().get("assertion.eachWaitMs", Integer.class);
         Integer beforeEachAfter = SettingsService.getInstance().get("beforeEach.afterWaitMs", Integer.class);
 
-        spKeyDown.setValue(kd != null ? kd : 10);
-        spKeyUp.setValue(ku != null ? ku : 30);
-        spActionDefaultTimeoutMs.setValue(actionDefaultTimeout != null ? actionDefaultTimeout : 30000);
-        spAssertGroupWait.setValue(groupWaitMs != null ? (groupWaitMs/1000.0) : 3.0);
-        spAssertEachWait.setValue(eachWaitMs != null ? (eachWaitMs/1000.0) : 0.0);
-        spBeforeEachAfterWait.setValue(beforeEachAfter != null ? (beforeEachAfter/1000.0) : 0.0);
+        // Umrechnung ms->s (Double mit 3 Nachkommastellen)
+        spKeyDown.setValue(kd != null ? kd / 1000.0 : 0.01); // minimal bessere Erkennung
+        spKeyUp.setValue(ku != null ? ku / 1000.0 : 0.03);
+        spActionDefaultTimeoutMs.setValue(actionDefaultTimeout != null ? actionDefaultTimeout / 1000.0 : 30.0);
+        spAssertGroupWait.setValue(groupWaitMs != null ? groupWaitMs / 1000.0 : 3.0);
+        spAssertEachWait.setValue(eachWaitMs != null ? eachWaitMs / 1000.0 : 0.0);
+        spBeforeEachAfterWait.setValue(beforeEachAfter != null ? beforeEachAfter / 1000.0 : 0.0);
     }
 
     @Override public void putTo(Map<String, Object> out) throws IllegalArgumentException {
-        int kdVal = ((Number) spKeyDown.getValue()).intValue(); if (kdVal < 0) throw new IllegalArgumentException("Delays dürfen nicht negativ sein.");
-        int kuVal = ((Number) spKeyUp.getValue()).intValue();   if (kuVal < 0) throw new IllegalArgumentException("Delays dürfen nicht negativ sein.");
-        int actionTimeout = ((Number) spActionDefaultTimeoutMs.getValue()).intValue(); if (actionTimeout < 0) throw new IllegalArgumentException("Default Action-Timeout darf nicht negativ sein.");
+        double kdSec = ((Number) spKeyDown.getValue()).doubleValue(); if (kdSec < 0) throw new IllegalArgumentException("Delays dürfen nicht negativ sein.");
+        double kuSec = ((Number) spKeyUp.getValue()).doubleValue();   if (kuSec < 0) throw new IllegalArgumentException("Delays dürfen nicht negativ sein.");
+        double actionTimeoutSec = ((Number) spActionDefaultTimeoutMs.getValue()).doubleValue(); if (actionTimeoutSec < 0) throw new IllegalArgumentException("Default Action-Timeout darf nicht negativ sein.");
         double groupS = ((Number) spAssertGroupWait.getValue()).doubleValue(); if (groupS < 0) throw new IllegalArgumentException("Wartezeit darf nicht negativ sein.");
         double eachS  = ((Number) spAssertEachWait.getValue()).doubleValue();  if (eachS < 0) throw new IllegalArgumentException("Wartezeit darf nicht negativ sein.");
         double beS    = ((Number) spBeforeEachAfterWait.getValue()).doubleValue(); if (beS < 0) throw new IllegalArgumentException("Wartezeit darf nicht negativ sein.");
 
-        out.put("input.keyDownDelayMs", kdVal);
-        out.put("input.keyUpDelayMs", kuVal);
-        out.put("action.defaultTimeoutMillis", actionTimeout);
-        out.put("assertion.groupWaitMs", (int)Math.round(groupS*1000));
-        out.put("assertion.eachWaitMs",  (int)Math.round(eachS*1000));
-        out.put("beforeEach.afterWaitMs", (int)Math.round(beS*1000));
+        // Umrechnung s->ms
+        int kdMs  = (int)Math.round(kdSec * 1000.0);
+        int kuMs  = (int)Math.round(kuSec * 1000.0);
+        int actionMs = (int)Math.round(actionTimeoutSec * 1000.0);
+        int groupMs  = (int)Math.round(groupS * 1000.0);
+        int eachMs   = (int)Math.round(eachS * 1000.0);
+        int beMs     = (int)Math.round(beS * 1000.0);
+
+        out.put("input.keyDownDelayMs", kdMs);
+        out.put("input.keyUpDelayMs", kuMs);
+        out.put("action.defaultTimeoutMillis", actionMs);
+        out.put("assertion.groupWaitMs", groupMs);
+        out.put("assertion.eachWaitMs",  eachMs);
+        out.put("beforeEach.afterWaitMs", beMs);
 
         // Live übernehmen für Delays
-        InputDelaysConfig.setKeyDownDelayMs(kdVal);
-        InputDelaysConfig.setKeyUpDelayMs(kuVal);
+        InputDelaysConfig.setKeyDownDelayMs(kdMs);
+        InputDelaysConfig.setKeyUpDelayMs(kuMs);
     }
 
     private static GridBagConstraints gbc(){ GridBagConstraints gbc=new GridBagConstraints(); gbc.insets=new Insets(6,8,6,8); return gbc; }
