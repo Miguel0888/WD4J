@@ -143,7 +143,13 @@ dependencies {
 
     // JavaCV API nur zur Kompilierung, Runtime optional via Loader
     compileOnly "org.bytedeco:javacv:1.5.10"
+    
+    // vlcj für LibVLC-basierte Videoaufzeichnung (optional, compile-only)
+    // Wenn auf dem Classpath, wird LibVLC bevorzugt, sonst Fallback auf FFmpeg/JavaCV
+    // Verwendung: Füge zur Runtime hinzu, wenn VLC lokal installiert ist
+    // compileOnly 'uk.co.caprica:vlcj:4.8.2'
 }
+
 
 jar {
     manifest {
