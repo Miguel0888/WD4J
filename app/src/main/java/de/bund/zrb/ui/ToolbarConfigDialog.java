@@ -86,8 +86,10 @@ public class ToolbarConfigDialog extends JDialog {
         JPanel leftTop = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         JButton btVisibility = new JButton("Sichtbarkeit…");
         JButton btDefaults   = new JButton("Standard laden");
+        JButton btLoadAll    = new JButton("Alle laden"); // NEU
         leftTop.add(btVisibility);
         leftTop.add(btDefaults);
+        leftTop.add(btLoadAll); // NEU
         JPanel rightTop = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         JButton btOk     = new JButton("OK");
         JButton btCancel = new JButton("Abbrechen");
@@ -127,6 +129,11 @@ public class ToolbarConfigDialog extends JDialog {
         btVisibility.addActionListener(e -> openVisibilityDialog());
         btDefaults.addActionListener(e -> {
             initialConfig = ToolbarDefaults.createInitialConfig(allCommands);
+            setContentPane(buildUI());
+            revalidate(); repaint(); pack();
+        });
+        btLoadAll.addActionListener(e -> { // NEU Aktion: alle Commands laden (vollständige Belegung)
+            initialConfig = createAllConfig(); // nutzt neue Methode
             setContentPane(buildUI());
             revalidate(); repaint(); pack();
         });
@@ -776,5 +783,27 @@ public class ToolbarConfigDialog extends JDialog {
         }
         @Override public int getIconWidth() { return w; }
         @Override public int getIconHeight() { return h; }
+    }
+
+    // Schnelle Vollbelegung aller Commands (Workaround wenn spätere Methode nicht erkannt wird)
+    private ToolbarConfig createAllConfig() {
+        ToolbarConfig cfg = new ToolbarConfig();
+        cfg.buttonSizePx = (initialConfig != null && initialConfig.buttonSizePx > 0) ? initialConfig.buttonSizePx : 48;
+        cfg.fontSizeRatio = (initialConfig != null && initialConfig.fontSizeRatio > 0f) ? initialConfig.fontSizeRatio : 0.75f;
+        cfg.groupColors = new LinkedHashMap<>(initialConfig != null && initialConfig.groupColors != null ? initialConfig.groupColors : new LinkedHashMap<>());
+        cfg.rightSideIds = new LinkedHashSet<>();
+        List<MenuCommand> cmds = new ArrayList<>(allCommands);
+        cmds.sort(Comparator.comparing(mc -> Objects.toString(mc.getLabel(), Objects.toString(mc.getId(), ""))));
+        cfg.buttons = new ArrayList<>();
+        int pos = 1;
+        for (MenuCommand mc : cmds) {
+            String id = Objects.toString(mc.getId(), "");
+            ToolbarButtonConfig b = new ToolbarButtonConfig(id, ToolbarDefaults.defaultIconFor(id));
+            b.order = pos++;
+            b.backgroundHex = ToolbarDefaults.defaultBackgroundHexFor(id);
+            cfg.buttons.add(b);
+        }
+        cfg.hiddenCommandIds = new LinkedHashSet<>();
+        return cfg;
     }
 }
