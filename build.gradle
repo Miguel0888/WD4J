@@ -9,7 +9,7 @@ def appmapJar = System.getenv('APPMAP_JAR') ?: defaultAppmapJar
 // Root-Buildscript
 allprojects {
     group = 'de.zrb.bund'
-    version = '2.5.0'
+    version = '2.5.1'
 
     repositories {
         mavenCentral()
