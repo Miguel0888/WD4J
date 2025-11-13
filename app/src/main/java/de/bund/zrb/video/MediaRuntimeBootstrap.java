@@ -82,20 +82,25 @@ public final class MediaRuntimeBootstrap {
             String manualBase  = s.get("video.vlc.basePath", String.class);
 
             boolean discovered = false;
-            if (Boolean.TRUE.equals(autodetect)) {
-                // Zuerst Autodetect (PATH/Registry)
-                discovered = LibVlcLocator.useVlcjDiscovery();
-            }
-            if (!discovered && manualBase != null && !manualBase.trim().isEmpty()) {
-                // Manueller Pfad erzwingen
+
+            // 1) Wenn manueller Pfad vorhanden, zuerst diesen konfigurieren
+            if (manualBase != null && !manualBase.trim().isEmpty()) {
                 System.out.println("Trying manual VLC base path from settings: " + manualBase);
                 discovered = LibVlcLocator.configureBasePath(manualBase.trim());
             }
+
+            // 2) Falls noch nicht erfolgreich und Autodetect an, Discovery nutzen
+            if (!discovered && Boolean.TRUE.equals(autodetect)) {
+                System.out.println("Manual path not sufficient; trying NativeDiscovery");
+                discovered = LibVlcLocator.useVlcjDiscovery();
+            }
+
+            // 3) Falls immer noch nicht, bekannte Standardpfade testen
             if (!discovered) {
-                // Fallback: bekannte Standardpfade testen
                 System.out.println("Discovery/manual base failed; try known locations");
                 discovered = LibVlcLocator.locateAndConfigure();
             }
+
             if (!discovered) {
                 System.out.println("VLC installation not found");
                 return null;

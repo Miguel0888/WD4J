@@ -55,7 +55,9 @@ public final class LibVlcLocator {
         File base = new File(basePath.trim());
         if (!base.exists()) return false;
         boolean configured = applyBasePath(base);
-        return configured && useVlcjDiscovery();
+        // Wichtig: Bei manuellem Pfad nicht auf NativeDiscovery angewiesen sein
+        // (Registry/PATH kann geblockt sein). Wenn Pfad gesetzt wurde, melden wir Erfolg.
+        return configured;
     }
 
     private static boolean applyBasePath(File base) {
