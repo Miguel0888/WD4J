@@ -13,6 +13,9 @@ import java.util.Map;
 public final class InputSettingsPanel implements SettingsSubPanel {
     private final JPanel root;
     private final JSpinner spKeyDown, spKeyUp, spActionDefaultTimeoutMs, spAssertGroupWait, spAssertEachWait, spBeforeEachAfterWait;
+    // Neu: Aktionsdauer und Zusatzwartezeit
+    private JSpinner spActionMinDurationS, spActionMaxDurationS, spActionExtraWaitS;
+    private JCheckBox cbEarlyFinishAllowed;
 
     public InputSettingsPanel() {
         root = new JPanel(new GridBagLayout());
@@ -31,13 +34,26 @@ public final class InputSettingsPanel implements SettingsSubPanel {
         spAssertEachWait  = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 3600.0, 0.1));
         spBeforeEachAfterWait = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 3600.0, 0.1));
 
-        // Formatierung (0.###) für alle Spinner
-        spKeyDown.setEditor(new JSpinner.NumberEditor(spKeyDown, "0.###"));
-        spKeyUp.setEditor(new JSpinner.NumberEditor(spKeyUp, "0.###"));
-        spActionDefaultTimeoutMs.setEditor(new JSpinner.NumberEditor(spActionDefaultTimeoutMs, "0.###"));
-        spAssertGroupWait.setEditor(new JSpinner.NumberEditor(spAssertGroupWait, "0.###"));
-        spAssertEachWait.setEditor(new JSpinner.NumberEditor(spAssertEachWait, "0.###"));
-        spBeforeEachAfterWait.setEditor(new JSpinner.NumberEditor(spBeforeEachAfterWait, "0.###"));
+        // --- Neue Felder: Min/Max Aktionsdauer und vorzeitiges Beenden ---
+        spActionMinDurationS = new JSpinner(new SpinnerNumberModel(0.1, 0.0, 3600.0, 0.1));
+        spActionMinDurationS.setEditor(new JSpinner.NumberEditor(spActionMinDurationS, "0.###"));
+        spActionMinDurationS.setToolTipText("Zeit, die nach einer Aktion mindestens vergehen muss, bevor die nächste startet (Sekunden, Schritt 0.1s)");
+
+        spActionMaxDurationS = new JSpinner(new SpinnerNumberModel(15.0, 0.0, 86400.0, 1.0));
+        spActionMaxDurationS.setEditor(new JSpinner.NumberEditor(spActionMaxDurationS, "0.###"));
+        spActionMaxDurationS.setToolTipText("Maximal erlaubte Dauer einer Aktion (Sekunden, Schritt 1s)");
+
+        cbEarlyFinishAllowed = new JCheckBox("Vorzeitiges Beenden zulassen");
+        cbEarlyFinishAllowed.setToolTipText("Endzeit wird automatisch ermittelt (nicht immer korrekt). Eine zusätzliche Zeit wird empfohlen.");
+
+        spActionExtraWaitS = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 3600.0, 0.01));
+        spActionExtraWaitS.setEditor(new JSpinner.NumberEditor(spActionExtraWaitS, "0.###"));
+        spActionExtraWaitS.setToolTipText("Zusätzliche Wartezeit nach automatisch erkannter Endzeit (Sekunden, Schritt 0.01s)");
+        spActionExtraWaitS.setEnabled(false);
+        cbEarlyFinishAllowed.addItemListener(e -> {
+            boolean on = cbEarlyFinishAllowed.isSelected();
+            spActionExtraWaitS.setEnabled(on);
+        });
 
         // Tooltips anpassen
         spKeyDown.setToolTipText("Verzögerung nach keyDown in Sekunden (Schritt 10ms)");
@@ -62,6 +78,17 @@ public final class InputSettingsPanel implements SettingsSubPanel {
         gb.gridx=0; gb.gridy=5; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Wartezeit nach BeforeEach (s):"), gb);
         gb.gridx=1; gb.gridy=5; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spBeforeEachAfterWait, gb);
 
+        gb.gridx=0; gb.gridy=6; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Min. Aktionsdauer (s):"), gb);
+        gb.gridx=1; gb.gridy=6; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spActionMinDurationS, gb);
+
+        gb.gridx=0; gb.gridy=7; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Max. Aktionsdauer (s):"), gb);
+        gb.gridx=1; gb.gridy=7; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spActionMaxDurationS, gb);
+
+        gb.gridx=0; gb.gridy=8; gb.gridwidth=2; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(cbEarlyFinishAllowed, gb); gb.gridwidth=1;
+
+        gb.gridx=0; gb.gridy=9; gb.weightx=0; gb.anchor=GridBagConstraints.WEST; pnl.add(new JLabel("Zusätzliche Wartezeit (s):"), gb);
+        gb.gridx=1; gb.gridy=9; gb.weightx=1; gb.anchor=GridBagConstraints.WEST; pnl.add(spActionExtraWaitS, gb);
+
         g.gridx=0; g.gridy=0; g.weightx=1; g.fill=GridBagConstraints.HORIZONTAL; root.add(pnl, g);
         g.gridy=1; g.weighty=1; g.fill=GridBagConstraints.BOTH; root.add(Box.createVerticalGlue(), g);
     }
@@ -77,6 +104,10 @@ public final class InputSettingsPanel implements SettingsSubPanel {
         Integer groupWaitMs = SettingsService.getInstance().get("assertion.groupWaitMs", Integer.class);
         Integer eachWaitMs  = SettingsService.getInstance().get("assertion.eachWaitMs", Integer.class);
         Integer beforeEachAfter = SettingsService.getInstance().get("beforeEach.afterWaitMs", Integer.class);
+        Integer minDurMs = SettingsService.getInstance().get("action.minDurationMillis", Integer.class);
+        Integer maxDurMs = SettingsService.getInstance().get("action.maxDurationMillis", Integer.class);
+        Boolean earlyFinish = SettingsService.getInstance().get("action.earlyFinishAllowed", Boolean.class);
+        Integer extraWaitMs = SettingsService.getInstance().get("action.extraWaitMillis", Integer.class);
 
         // Umrechnung ms->s (Double mit 3 Nachkommastellen)
         spKeyDown.setValue(kd != null ? kd / 1000.0 : 0.01); // minimal bessere Erkennung
@@ -85,6 +116,14 @@ public final class InputSettingsPanel implements SettingsSubPanel {
         spAssertGroupWait.setValue(groupWaitMs != null ? groupWaitMs / 1000.0 : 3.0);
         spAssertEachWait.setValue(eachWaitMs != null ? eachWaitMs / 1000.0 : 0.0);
         spBeforeEachAfterWait.setValue(beforeEachAfter != null ? beforeEachAfter / 1000.0 : 0.0);
+
+        // Neue Felder
+        spActionMinDurationS.setValue(minDurMs != null ? minDurMs / 1000.0 : 0.1);
+        spActionMaxDurationS.setValue(maxDurMs != null ? maxDurMs / 1000.0 : 15.0);
+        boolean ef = earlyFinish != null ? earlyFinish : false;
+        cbEarlyFinishAllowed.setSelected(ef);
+        spActionExtraWaitS.setValue(extraWaitMs != null ? extraWaitMs / 1000.0 : 0.0);
+        spActionExtraWaitS.setEnabled(ef);
     }
 
     @Override public void putTo(Map<String, Object> out) throws IllegalArgumentException {
@@ -94,6 +133,11 @@ public final class InputSettingsPanel implements SettingsSubPanel {
         double groupS = ((Number) spAssertGroupWait.getValue()).doubleValue(); if (groupS < 0) throw new IllegalArgumentException("Wartezeit darf nicht negativ sein.");
         double eachS  = ((Number) spAssertEachWait.getValue()).doubleValue();  if (eachS < 0) throw new IllegalArgumentException("Wartezeit darf nicht negativ sein.");
         double beS    = ((Number) spBeforeEachAfterWait.getValue()).doubleValue(); if (beS < 0) throw new IllegalArgumentException("Wartezeit darf nicht negativ sein.");
+        // Neue Felder
+        double minDurS = ((Number) spActionMinDurationS.getValue()).doubleValue(); if (minDurS < 0) throw new IllegalArgumentException("Min. Aktionsdauer darf nicht negativ sein.");
+        double maxDurS = ((Number) spActionMaxDurationS.getValue()).doubleValue(); if (maxDurS < 0) throw new IllegalArgumentException("Max. Aktionsdauer darf nicht negativ sein.");
+        if (maxDurS > 0 && minDurS > maxDurS) throw new IllegalArgumentException("Min. Aktionsdauer darf nicht größer als Max. Aktionsdauer sein.");
+        double extraWaitS = ((Number) spActionExtraWaitS.getValue()).doubleValue(); if (extraWaitS < 0) throw new IllegalArgumentException("Zusätzliche Wartezeit darf nicht negativ sein.");
 
         // Umrechnung s->ms
         int kdMs  = (int)Math.round(kdSec * 1000.0);
@@ -102,6 +146,9 @@ public final class InputSettingsPanel implements SettingsSubPanel {
         int groupMs  = (int)Math.round(groupS * 1000.0);
         int eachMs   = (int)Math.round(eachS * 1000.0);
         int beMs     = (int)Math.round(beS * 1000.0);
+        int minMs    = (int)Math.round(minDurS * 1000.0);
+        int maxMs    = (int)Math.round(maxDurS * 1000.0);
+        int extraMs  = (int)Math.round(extraWaitS * 1000.0);
 
         out.put("input.keyDownDelayMs", kdMs);
         out.put("input.keyUpDelayMs", kuMs);
@@ -109,6 +156,10 @@ public final class InputSettingsPanel implements SettingsSubPanel {
         out.put("assertion.groupWaitMs", groupMs);
         out.put("assertion.eachWaitMs",  eachMs);
         out.put("beforeEach.afterWaitMs", beMs);
+        out.put("action.minDurationMillis", minMs);
+        out.put("action.maxDurationMillis", maxMs);
+        out.put("action.earlyFinishAllowed", cbEarlyFinishAllowed.isSelected());
+        out.put("action.extraWaitMillis", extraMs);
 
         // Live übernehmen für Delays
         InputDelaysConfig.setKeyDownDelayMs(kdMs);
