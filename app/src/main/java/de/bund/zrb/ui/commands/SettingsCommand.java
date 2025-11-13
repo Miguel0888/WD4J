@@ -69,6 +69,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
     private JSpinner spCmdRetryCount; // neu
     private JSpinner spCmdRetryWindowS; // neu in Sekunden
     private JSpinner spActionDefaultTimeoutMs; // neu: default timeout für neue Actions
+    private JCheckBox cbHideHelpButtons; // NEU: Help-Buttons ausblenden
 
     @Override
     public String getId() { return "file.configure"; }
@@ -158,6 +159,9 @@ public class SettingsCommand extends ShortcutMenuCommand {
         Integer actionDefaultTimeoutMs = SettingsService.getInstance().get("action.defaultTimeoutMillis", Integer.class);
         int initialActionDefaultTimeoutMs = actionDefaultTimeoutMs != null ? actionDefaultTimeoutMs : 30000;
 
+        Boolean hideHelpBtns = SettingsService.getInstance().get("ui.helpButtons.hide", Boolean.class);
+        boolean initialHideHelpBtns = hideHelpBtns != null ? hideHelpBtns.booleanValue() : false;
+
         dialog = new JDialog((Frame) null, "Einstellungen", true);
         dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         dialog.setContentPane(buildContentPanel(
@@ -182,7 +186,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
                 initialNetWaitMs,
                 initialCmdRetryCount,
                 initialCmdRetryWindowS,
-                initialActionDefaultTimeoutMs
+                initialActionDefaultTimeoutMs,
+                initialHideHelpBtns // NEU am Ende
         ));
         dialog.pack();
         dialog.setLocationRelativeTo(null);
@@ -210,7 +215,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
                                      long initialNetWaitMs,
                                      int initialCmdRetryCount,
                                      double initialCmdRetryWindowS,
-                                     int initialActionDefaultTimeoutMs
+                                     int initialActionDefaultTimeoutMs,
+                                     boolean initialHideHelpButtons // NEU
     ) {
         JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(10, 12, 10, 12));
@@ -537,6 +543,16 @@ public class SettingsCommand extends ShortcutMenuCommand {
 
         form.add(pnlDebug);
 
+        // --- UI / Darstellung ---
+        JPanel pnlUi = new JPanel(new GridBagLayout());
+        pnlUi.setBorder(sectionBorder("UI"));
+        GridBagConstraints gUi = gbc();
+        int urow = 0;
+        cbHideHelpButtons = new JCheckBox("Help-Buttons ausblenden");
+        cbHideHelpButtons.setSelected(initialHideHelpButtons);
+        gUi.gridx = 0; gUi.gridy = urow++; gUi.anchor = GridBagConstraints.WEST; pnlUi.add(cbHideHelpButtons, gUi);
+        form.add(pnlUi);
+
         // --- Button-Leiste unten: links App-Ordner öffnen, rechts Apply/OK/Cancel ---
         JPanel footer = new JPanel(new BorderLayout());
 
@@ -650,6 +666,8 @@ public class SettingsCommand extends ShortcutMenuCommand {
         int actionDefaultTimeoutMs = ((Number) spActionDefaultTimeoutMs.getValue()).intValue();
         if (actionDefaultTimeoutMs < 0) { error("Default Action-Timeout darf nicht negativ sein."); return; }
 
+        boolean hideHelp = cbHideHelpButtons != null && cbHideHelpButtons.isSelected();
+
         Map<String, Object> s = new HashMap<>();
         s.put("websocketTimeout", timeoutValue);
         s.put("reportBaseDir", reportDir);
@@ -661,6 +679,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         s.put("assertion.eachWaitMs", eachWaitMs);
         s.put("beforeEach.afterWaitMs", beforeEachAfterMs); // neu
         s.put("action.defaultTimeoutMillis", actionDefaultTimeoutMs); // neu
+        s.put("ui.helpButtons.hide", hideHelp); // NEU
 
         // Video-Settings persistieren
         s.put("video.enabled",   videoEnabled);

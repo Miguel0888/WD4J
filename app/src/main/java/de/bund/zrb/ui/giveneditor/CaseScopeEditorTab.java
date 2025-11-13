@@ -2,6 +2,7 @@ package de.bund.zrb.ui.giveneditor;
 
 import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.TestCase;
+import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
@@ -116,6 +117,8 @@ public class CaseScopeEditorTab extends JPanel {
     }
 
     private void installHelpButton() {
+        Boolean hide = SettingsService.getInstance().get("ui.helpButtons.hide", Boolean.class);
+        if (Boolean.TRUE.equals(hide)) return;
         RoundIconButton help = new RoundIconButton("?");
         help.setToolTipText("Hilfe zum Case-Scope anzeigen");
         help.addActionListener(e -> {

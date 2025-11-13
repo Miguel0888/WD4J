@@ -7,6 +7,7 @@ import de.bund.zrb.runtime.ExpressionRegistryImpl;
 import de.bund.zrb.ui.celleditors.DescribedItem;
 import de.bund.zrb.ui.celleditors.ExpressionCellEditor;
 import de.bund.zrb.ui.components.RoundIconButton;
+import de.bund.zrb.service.SettingsService;
 
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
@@ -245,6 +246,8 @@ public class MapTablePanel extends JPanel {
 
     /** Erzeuge einen blauen Hilfe-Button mit verständlicher Erläuterung (Cucumber-artig). */
     private JButton buildHelpButton(final String scopeName) {
+        Boolean hide = SettingsService.getInstance().get("ui.helpButtons.hide", Boolean.class);
+        if (Boolean.TRUE.equals(hide)) return null;
         RoundIconButton b = new RoundIconButton("?");
         b.setToolTipText("Hilfe zu Before/Each/Templates anzeigen");
         b.addActionListener(e -> {

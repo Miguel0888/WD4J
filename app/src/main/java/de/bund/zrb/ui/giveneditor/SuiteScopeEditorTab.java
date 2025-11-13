@@ -4,6 +4,7 @@ import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
 import de.bund.zrb.ui.components.RoundIconButton;
 import de.bund.zrb.ui.tabs.GivenListEditorTab;
@@ -129,6 +130,8 @@ public class SuiteScopeEditorTab extends JPanel {
     }
 
     private void installHelpButton() {
+        Boolean hide = SettingsService.getInstance().get("ui.helpButtons.hide", Boolean.class);
+        if (Boolean.TRUE.equals(hide)) return;
         RoundIconButton help = new RoundIconButton("?");
         help.setToolTipText("Hilfe zum Suite-Scope anzeigen");
         help.addActionListener(e -> {

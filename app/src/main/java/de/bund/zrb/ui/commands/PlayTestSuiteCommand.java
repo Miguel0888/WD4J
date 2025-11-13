@@ -23,7 +23,7 @@ public class PlayTestSuiteCommand extends ShortcutMenuCommand {
     }
 
     @Override
-    public String getId() { return "testsuite.play"; }
+    public String getId() { return "testsuite.play.play"; }
 
     @Override
     public String getLabel() { return "Testsuite ausführen"; }

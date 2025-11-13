@@ -2,6 +2,7 @@ package de.bund.zrb.ui;
 
 import de.bund.zrb.service.BrowserServiceImpl;
 import de.bund.zrb.service.RecorderCoordinator;
+import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.service.UserContextMappingService;
 import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
@@ -31,9 +32,15 @@ public class RightDrawer extends JPanel {
         super(new BorderLayout(8, 8));
         this.browserService = browserService;
 
-        RoundIconButton helpButton = new RoundIconButton("?");
-        helpButton.setToolTipText("Hilfe zum Recorder anzeigen");
-        helpButton.addActionListener(e -> showRecorderHelp());
+        RoundIconButton helpButton = null;
+        Boolean hide = SettingsService.getInstance().get("ui.helpButtons.hide", Boolean.class);
+        if (!Boolean.TRUE.equals(hide)) {
+            helpButton = new RoundIconButton("?");
+            helpButton.setToolTipText("Hilfe anzeigen");
+            helpButton.addActionListener(e -> showRecorderHelp());
+            add(helpButton, BorderLayout.NORTH);
+        }
+
         recorderTabs.setHelpComponent(helpButton);
 
         // Info-Button nicht darüber, sondern in der Tabzeile (siehe addPlusTab)

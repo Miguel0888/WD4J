@@ -4,6 +4,7 @@ import de.bund.zrb.event.ApplicationEventBus;
 import de.bund.zrb.event.TestSuiteSavedEvent;
 import de.bund.zrb.model.*;
 import de.bund.zrb.service.TestPlayerService;
+import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.ui.commandframework.CommandRegistryImpl;
 import de.bund.zrb.ui.tabs.TabManager;
 import de.bund.zrb.ui.leftdrawer.PrecondTreeController;
@@ -152,6 +153,9 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
     }
 
     private void installHelpButton() {
+        Boolean hide = SettingsService.getInstance().get("ui.helpButtons.hide", Boolean.class);
+        if (Boolean.TRUE.equals(hide)) return; // Help-Buttons global ausgeblendet
+
         RoundIconButton help = new RoundIconButton("?");
         help.setToolTipText("Hilfe zum Test-/Precondition-Baum anzeigen");
         help.addActionListener(e -> showLeftDrawerHelp());
