@@ -73,27 +73,6 @@ public class ActionToolbar extends JToolBar {
         configBtn.addActionListener(e -> openConfigDialog());
         rightPanel.add(configBtn);
 
-        // Neuer Defaults-Button (Zurücksetzen auf zentrale Standardbelegung)
-        JButton defaultsBtn = new JButton("↺");
-        defaultsBtn.setToolTipText("Auf Standard-Toolbar zurücksetzen");
-        defaultsBtn.setMargin(new Insets(0,0,0,0));
-        defaultsBtn.setPreferredSize(new Dimension(config.buttonSizePx, config.buttonSizePx));
-        defaultsBtn.setFont(defaultsBtn.getFont().deriveFont((float) fontSize));
-        defaultsBtn.setFocusPainted(false);
-        defaultsBtn.addActionListener(ev -> {
-            // Erzeuge frische Default-Konfiguration (inkl. Buttons)
-            ToolbarConfig fresh = createDefaultConfigWithButtons();
-            // Bewahre evtl. vorhandene Hidden-IDs/Gruppenfarben wenn sinnvoll
-            if (config != null) {
-                fresh.hiddenCommandIds = (config.hiddenCommandIds != null) ? new LinkedHashSet<>(config.hiddenCommandIds) : new LinkedHashSet<>();
-                fresh.groupColors = (config.groupColors != null) ? new LinkedHashMap<>(config.groupColors) : new LinkedHashMap<>();
-            }
-            config = fresh;
-            saveToolbarSettings();
-            rebuildButtons();
-        });
-        rightPanel.add(defaultsBtn);
-
         // Enable drops on panels (left/right)
         leftPanel.setTransferHandler(new ToolbarPanelDropHandler(false));
         rightPanel.setTransferHandler(new ToolbarPanelDropHandler(true));
