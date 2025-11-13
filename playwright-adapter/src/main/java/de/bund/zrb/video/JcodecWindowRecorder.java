@@ -3,6 +3,7 @@ package de.bund.zrb.video;
 import com.sun.jna.platform.win32.WinDef;
 import de.bund.zrb.config.VideoConfig;
 import de.bund.zrb.win.WindowCapture;
+import org.jcodec.api.awt.AWTSequenceEncoder;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;

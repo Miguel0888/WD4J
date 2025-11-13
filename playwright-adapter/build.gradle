@@ -28,6 +28,9 @@ dependencies {
     // JavaCV nur zur Kompilierung, Runtime wird optional im :app bereitgestellt
     compileOnly "org.bytedeco:javacv:1.5.10"
 
+    // JCodec (AWT Sequence Encoder)
+    implementation 'org.jcodec:jcodec-javase:0.2.5'
+
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }
