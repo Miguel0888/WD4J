@@ -152,6 +152,9 @@ dependencies {
     // Wenn auf dem Classpath, wird LibVLC bevorzugt, sonst Fallback auf FFmpeg/JavaCV
     // Verwendung: Füge zur Runtime hinzu, wenn VLC lokal installiert ist
     // compileOnly 'uk.co.caprica:vlcj:4.8.2'
+
+    // JCodec (reines Java Video-Encoding)
+    implementation 'org.jcodec:jcodec-javase:0.2.5'
 }
 
 

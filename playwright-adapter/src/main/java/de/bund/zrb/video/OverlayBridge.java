@@ -7,7 +7,7 @@ public final class OverlayBridge {
 
     /** Optionaler Provider, falls ihr selbst festlegt, welcher Recorder aktiv ist. */
     public interface Provider {
-        WindowRecorder getActiveRecorder(); // darf null liefern
+        Object getActiveRecorder(); // kann WindowRecorder oder JcodecWindowRecorder sein
     }
 
     private static volatile Provider provider;
@@ -16,39 +16,51 @@ public final class OverlayBridge {
 
     public static void setProvider(Provider p) { provider = p; }
 
-    private static WindowRecorder resolve() {
-        // 1) externer Provider?
+    private static Object resolve() {
         Provider p = provider;
         if (p != null) {
             try {
-                WindowRecorder r = p.getActiveRecorder();
+                Object r = p.getActiveRecorder();
                 if (r != null) return r;
             } catch (Throwable ignore) {}
         }
-        // 2) Fallback auf WindowRecorder.CURRENT (s. Abschnitt 2 unten)
         try {
-            return WindowRecorder.getCurrentActive();
-        } catch (Throwable ignore) {
-            return null;
-        }
+            WindowRecorder r = WindowRecorder.getCurrentActive();
+            if (r != null) return r;
+        } catch (Throwable ignore) {}
+        try {
+            JcodecWindowRecorder r2 = JcodecWindowRecorder.getCurrentActive();
+            if (r2 != null) return r2;
+        } catch (Throwable ignore) {}
+        return null;
     }
 
     // -------- Caption (oben) ----------
     public static void setCaption(String text) {
-        WindowRecorder r = resolve();
-        if (r != null) {
-            r.setCaptionVisible(text != null && !text.isEmpty());
-            r.setCaptionText(text == null ? "" : text);
+        Object r = resolve();
+        if (r instanceof WindowRecorder) {
+            WindowRecorder wr = (WindowRecorder) r;
+            wr.setCaptionVisible(text != null && !text.isEmpty());
+            wr.setCaptionText(text == null ? "" : text);
+        } else if (r instanceof JcodecWindowRecorder) {
+            JcodecWindowRecorder jr = (JcodecWindowRecorder) r;
+            jr.setCaptionVisible(text != null && !text.isEmpty());
+            jr.setCaptionText(text == null ? "" : text);
         }
     }
     public static void clearCaption() { setCaption(""); }
 
     // -------- Subtitle (unten) --------
     public static void setSubtitle(String text) {
-        WindowRecorder r = resolve();
-        if (r != null) {
-            r.setSubtitleVisible(text != null && !text.isEmpty());
-            r.setSubtitleText(text == null ? "" : text);
+        Object r = resolve();
+        if (r instanceof WindowRecorder) {
+            WindowRecorder wr = (WindowRecorder) r;
+            wr.setSubtitleVisible(text != null && !text.isEmpty());
+            wr.setSubtitleText(text == null ? "" : text);
+        } else if (r instanceof JcodecWindowRecorder) {
+            JcodecWindowRecorder jr = (JcodecWindowRecorder) r;
+            jr.setSubtitleVisible(text != null && !text.isEmpty());
+            jr.setSubtitleText(text == null ? "" : text);
         }
     }
     public static void clearSubtitle() { setSubtitle(""); }

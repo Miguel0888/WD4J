@@ -5,7 +5,6 @@ import de.bund.zrb.service.RecorderEventBridge;
 import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.ui.MainWindow;
-import de.bund.zrb.video.impl.libvlc.LibVlcLocator;
 
 import javax.swing.SwingUtilities;
 import javax.swing.JOptionPane;
@@ -46,11 +45,6 @@ public class Main {
                     "- path: \"de.bund.zrb\"\n";
 
     public static void main(String[] args) {
-        System.out.println("vlcj? " + LibVlcLocator.isVlcjAvailable());
-        boolean ok = LibVlcLocator.useVlcjDiscovery() || LibVlcLocator.locateAndConfigure();
-        System.out.println("VLC discovered? " + ok);
-        if (!ok) System.out.println("Hint: Ensure 64-bit VLC and correct VLC_PLUGIN_PATH/jna.library.path");
-
         boolean recordingRequested = hasArgument(args, RECORD_FLAG) || hasArgument(args, ALT_RECORD_FLAG);
 
         if (recordingRequested && !isLauncherActive()) {

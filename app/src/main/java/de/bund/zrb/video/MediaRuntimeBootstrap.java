@@ -2,6 +2,7 @@ package de.bund.zrb.video;
 
 import de.bund.zrb.service.VideoRuntimeLoader;
 import de.bund.zrb.video.impl.ffmpeg.FfmpegRecorder;
+import de.bund.zrb.video.impl.jcodec.JcodecRecorder;
 import de.bund.zrb.video.impl.libvlc.LibVlcLocator;
 import de.bund.zrb.video.impl.libvlc.LibVlcRecorder;
 
@@ -22,30 +23,28 @@ public final class MediaRuntimeBootstrap {
      * @throws IllegalStateException if no recorder backend is available
      */
     public static MediaRecorder createRecorder() {
-        // Settings-gesteuerte Backendwahl (neuer Schlüssel video.backend: vlc|ffmpeg|jcodec)
         String backend = de.bund.zrb.service.SettingsService.getInstance().get("video.backend", String.class);
         if (backend != null) backend = backend.trim().toLowerCase(java.util.Locale.ROOT);
+        if (backend == null || backend.isEmpty()) backend = "jcodec";
 
-        if (backend == null || backend.isEmpty() || backend.equals("vlc")) {
-            MediaRecorder libVlcRecorder = tryCreateLibVlcRecorder();
-            if (libVlcRecorder != null) {
-                System.out.println("Using LibVLC recorder");
-                return libVlcRecorder;
+        switch (backend) {
+            case "vlc": {
+                MediaRecorder r = tryCreateLibVlcRecorder();
+                if (r == null) throw new IllegalStateException("VLC ausgewählt, aber LibVLC nicht verfügbar");
+                return r;
             }
-            System.out.println("LibVLC not available, falling back to FFmpeg/JavaCV");
-            return new FfmpegRecorder();
+            case "ffmpeg": {
+                if (!de.bund.zrb.service.VideoRecordingService.quickCheckAvailable()) {
+                    throw new IllegalStateException("FFmpeg/JavaCV ausgewählt, aber nicht verfügbar");
+                }
+                return new FfmpegRecorder();
+            }
+            case "jcodec": {
+                return new JcodecRecorder();
+            }
+            default:
+                throw new IllegalArgumentException("Unbekanntes Backend: " + backend);
         }
-        if (backend.equals("ffmpeg")) {
-            System.out.println("Backend forced to FFmpeg by settings");
-            return new FfmpegRecorder();
-        }
-        if (backend.equals("jcodec")) {
-            System.out.println("Backend forced to JCodec by settings (experimental)");
-            // TODO: Replace with real JCodec recorder when implemented
-            return new FfmpegRecorder();
-        }
-        // Unknown: fallback
-        return new FfmpegRecorder();
     }
     
     /**

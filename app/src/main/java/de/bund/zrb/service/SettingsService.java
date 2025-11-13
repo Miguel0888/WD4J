@@ -182,7 +182,7 @@ public class SettingsService {
         if (!settingsCache.containsKey("action.defaultTimeoutMillis")) settingsCache.put("action.defaultTimeoutMillis", 30000);
 
         // --- Backend-Auswahl ---
-        if (!settingsCache.containsKey("video.backend")) settingsCache.put("video.backend", "vlc"); // vlc|ffmpeg|jcodec
+        if (!settingsCache.containsKey("video.backend")) settingsCache.put("video.backend", "jcodec"); // vlc|ffmpeg|jcodec
 
         // --- VLC-spezifische Defaults ---
         if (!settingsCache.containsKey("video.vlc.enabled")) settingsCache.put("video.vlc.enabled", true); // Backend-Wahl
@@ -212,6 +212,9 @@ public class SettingsService {
         if (!settingsCache.containsKey("video.vlc.screen.width")) settingsCache.put("video.vlc.screen.width", 0);
         if (!settingsCache.containsKey("video.vlc.screen.height")) settingsCache.put("video.vlc.screen.height", 0);
         if (!settingsCache.containsKey("video.vlc.audio.enabled")) settingsCache.put("video.vlc.audio.enabled", false);
+
+        // --- JCodec-spezifische Defaults ---
+        if (!settingsCache.containsKey("video.jcodec.container")) settingsCache.put("video.jcodec.container", "mp4");
     }
 
     private static String defaultVlcBasePath() {

@@ -5,12 +5,10 @@ import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 import de.bund.zrb.video.MediaRecorder;
 import de.bund.zrb.video.RecordingProfile;
 import de.bund.zrb.video.MediaRuntimeBootstrap;
-import de.bund.zrb.service.VideoRuntimeLoader;
-import de.bund.zrb.service.VideoRecordingService; // nur für quickCheckAvailable() als Fallback-Check
+import de.bund.zrb.video.impl.libvlc.LibVlcLocator;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -49,11 +47,24 @@ public class ToggleVideoRecordCommand extends ShortcutMenuCommand {
 
             // Ensure a recorder is available (LibVLC preferred)
             if (recorder == null) {
-                recorder = tryInitLibVlcFirstOrFallbackToFfmpegInteractive(null);
-                if (recorder == null) {
-                    // User cancelled or environment not ready
+                // Strikte Backend-Wahl
+                String backend = SettingsService.getInstance().get("video.backend", String.class);
+                if (backend == null || backend.trim().isEmpty()) backend = "jcodec";
+                backend = backend.trim().toLowerCase(java.util.Locale.ROOT);
+
+                if (backend.equals("vlc")) {
+                    // VLC Diagnostik hier (statt Main)
+                    System.out.println("vlcj? " + LibVlcLocator.isVlcjAvailable());
+                    boolean ok = LibVlcLocator.useVlcjDiscovery() || LibVlcLocator.locateAndConfigure();
+                    System.out.println("VLC discovered? " + ok);
+                    if (!ok) System.out.println("Hint: Ensure 64-bit VLC and correct VLC_PLUGIN_PATH/jna.library.path");
+                }
+
+                try {
+                    recorder = MediaRuntimeBootstrap.createRecorder();
+                } catch (Exception ex) {
                     JOptionPane.showMessageDialog(null,
-                            "Video-Stack nicht verfügbar. Aufnahme wird nicht gestartet.",
+                            "Konnte Recorder nicht initialisieren (Backend: " + backend + "):\n" + ex.getMessage(),
                             "Fehler", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
@@ -75,61 +86,6 @@ public class ToggleVideoRecordCommand extends ShortcutMenuCommand {
         }
     }
 
-    // Try LibVLC first; if unavailable, interactively prepare FFmpeg and use adapter
-    private MediaRecorder tryInitLibVlcFirstOrFallbackToFfmpegInteractive(Component parent) {
-        // 1) Try LibVLC (local VLC install via vlcj); no downloads
-        MediaRecorder libvlc = MediaRuntimeBootstrap.tryCreateLibVlcRecorder();
-        if (libvlc != null) {
-            return libvlc;
-        }
-
-        // 2) FFmpeg path: if missing, ask user (download/manual/cancel) like legacy flow
-        if (!VideoRecordingService.quickCheckAvailable()) {
-            Object[] options = new Object[] { "Download", "Manuell auswählen...", "Abbrechen" };
-            int choice = JOptionPane.showOptionDialog(parent,
-                    "Die benötigten Video-Bibliotheken fehlen. Wähle eine Option:",
-                    "Video-Libs fehlen",
-                    JOptionPane.DEFAULT_OPTION,
-                    JOptionPane.WARNING_MESSAGE,
-                    null,
-                    options,
-                    options[0]);
-
-            if (choice == 2 || choice == JOptionPane.CLOSED_OPTION) {
-                return null; // user cancelled
-            }
-            boolean ready = false;
-            if (choice == 0) {
-                ready = VideoRuntimeLoader.tryAutoDownloadWithConfirmation(parent);
-                if (!ready) {
-                    JOptionPane.showMessageDialog(parent,
-                            "Download wurde abgebrochen oder ist fehlgeschlagen.",
-                            "Abgebrochen", JOptionPane.INFORMATION_MESSAGE);
-                    return null;
-                }
-            } else if (choice == 1) {
-                ready = VideoRuntimeLoader.tryManualSelection(parent);
-                if (!ready) {
-                    JOptionPane.showMessageDialog(parent,
-                            "Manuelle Auswahl wurde abgebrochen oder ist fehlerhaft.",
-                            "Abgebrochen", JOptionPane.INFORMATION_MESSAGE);
-                    return null;
-                }
-            }
-
-            // Re-check availability after user action
-            if (!VideoRecordingService.quickCheckAvailable()) {
-                JOptionPane.showMessageDialog(parent,
-                        "Video-Stack weiterhin nicht verfügbar.",
-                        "Fehler", JOptionPane.ERROR_MESSAGE);
-                return null;
-            }
-        }
-
-        // 3) Create FFmpeg adapter (no UI knowledge about FFmpeg internals here)
-        return MediaRuntimeBootstrap.createFfmpegRecorder();
-    }
-
     // Build a sensible default recording profile; adapt to your settings service if present
     private RecordingProfile createProfileFromSettings() {
         // Resolve output folder (~/.wd4j/videos) and timestamped filename
@@ -140,8 +96,6 @@ public class ToggleVideoRecordCommand extends ShortcutMenuCommand {
 
         // Use screen capture as generic default; tweak fps/codec as needed
         String source = "screen://";
-//        int width = 0;   // keep source resolution
-//        int height = 0;  // keep source resolution
         // Detect primary screen size for VLC
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
         int width = (int) screen.getWidth();
@@ -157,7 +111,7 @@ public class ToggleVideoRecordCommand extends ShortcutMenuCommand {
                 .height(height)
                 .fps(fps)
                 .videoCodec("h264")
-                .audioCodec("mp4a")
+                .audioCodec(null)
                 .build();
     }
 
