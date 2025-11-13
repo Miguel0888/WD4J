@@ -71,9 +71,20 @@ public class BrowserServiceImpl implements BrowserService {
             }
             if (config.isUseProfile()) {
                 if (config.getProfilePath() != null && !config.getProfilePath().isEmpty()) {
-                    args.add("--user-data-dir=" + config.getProfilePath());
+                    if ("firefox".equalsIgnoreCase(config.getBrowserType())) {
+                        args.add("--profile");
+                        args.add(config.getProfilePath().trim());
+                    } else {
+                        args.add("--user-data-dir=" + config.getProfilePath().trim());
+                    }
                 } else {
-                    args.add("--user-data-dir=" + System.getProperty("java.io.tmpdir") + "temp_profile_" + System.currentTimeMillis());
+                    String tempProfilePath = System.getProperty("java.io.tmpdir") + "temp_profile_" + System.currentTimeMillis();
+                    if ("firefox".equalsIgnoreCase(config.getBrowserType())) {
+                        args.add("--profile");
+                        args.add(tempProfilePath);
+                    } else {
+                        args.add("--user-data-dir=" + tempProfilePath);
+                    }
                 }
             }
             if (config.getExtraArgs() != null && !config.getExtraArgs().trim().isEmpty()) {
@@ -81,16 +92,22 @@ public class BrowserServiceImpl implements BrowserService {
                     if (!a.isEmpty()) args.add(a);
                 }
             }
-
             if (args.isEmpty()) {
                 throw new IllegalArgumentException("Keine Startargumente gesetzt. Stelle sicher, dass die UI-Optionen korrekt übergeben werden.");
             }
-
             options.setArgs(args);
 
             if ("firefox".equalsIgnoreCase(config.getBrowserType())) {
-                Map<String, Object> firefoxPrefs = new HashMap<>();
+                Map<String, Object> firefoxPrefs = new HashMap<String, Object>();
+                // Bestehende Vorgabe beibehalten
                 firefoxPrefs.put("browser.startup.homepage", "https://www.google.com");
+                // Session-Restore konsequent deaktivieren, um BiDi-Handshakes nicht zu stören
+                firefoxPrefs.put("browser.sessionstore.resume_from_crash", Boolean.FALSE);
+                firefoxPrefs.put("browser.sessionstore.resume_session_once", Boolean.FALSE);
+                firefoxPrefs.put("browser.startup.page", Integer.valueOf(0)); // about:blank
+                firefoxPrefs.put("browser.shell.checkDefaultBrowser", Boolean.FALSE);
+                firefoxPrefs.put("toolkit.telemetry.reportingpolicy.firstRun", Boolean.FALSE);
+                firefoxPrefs.put("datareporting.policy.dataSubmissionEnabled", Boolean.FALSE);
                 options.setFirefoxUserPrefs(firefoxPrefs);
             }
 
@@ -147,8 +164,8 @@ public class BrowserServiceImpl implements BrowserService {
                     if (u.isAutoOpenStartPageOnLaunch()) {
                         String url = u.getStartPage();
                         if (url != null && !url.trim().isEmpty()) {
-                          Page page = createNewTab(u.getUsername());
-                          if (page != null) page.navigate(url.trim());
+                            Page page = createNewTab(u.getUsername());
+                            if (page != null) page.navigate(url.trim());
                         }
                     }
                 }
