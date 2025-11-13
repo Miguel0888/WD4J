@@ -213,6 +213,8 @@ public class TestRunner {
         SuiteLog caseLog = new SuiteLog(testCase.getName());
         logger.append(caseLog);
         try {
+            // Frühzeitig aktiven Tab auf (vermuteten) User setzen
+            ensureUserTabActiveForCase(node);
             // Initialisiere komplette Symbolik für diesen TestCase (Bottom-Up)
             initCaseSymbols(node, testCase);
         } catch (Exception ex) {
@@ -1428,6 +1430,27 @@ public class TestRunner {
             }
             givenLog.setParent(preLog);
             logger.append(givenLog);
+        }
+    }
+
+    /**
+     * Bestimme den voraussichtlichen User für diesen TestCase und aktiviere dessen Tab,
+     * bevor beforeEach-Variablen ausgewertet werden. So laufen alle beforeEach-Schritte
+     * im richtigen Vordergrund-Tab und nicht im Hintergrund.
+     */
+    private void ensureUserTabActiveForCase(TestNode caseNode) {
+        try {
+            String user = resolveUserForTestCase(caseNode);
+            if (user == null || user.trim().isEmpty()) return;
+            PageImpl page = (PageImpl) browserService.getActivePage(user);
+            if (page == null) return;
+            String ctxId = page.getBrowsingContext().value();
+            if (ctxId != null && !ctxId.isEmpty()) {
+                browserService.switchSelectedPage(ctxId);
+                lastUsernameUsed = user; // konsistent halten
+            }
+        } catch (Throwable ignore) {
+            // defensiv still: im Zweifel greift spätere Umschaltung vor der Action wie bisher
         }
     }
 }
