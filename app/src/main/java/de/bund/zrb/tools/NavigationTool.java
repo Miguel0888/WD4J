@@ -157,7 +157,7 @@ public class NavigationTool extends AbstractUserTool implements BuiltinTool {
 
     private UserRegistry.User resolveUserByName(String userName) {
         if (userName == null || userName.trim().isEmpty()) {
-            throw new IllegalArgumentException("userName darf nicht leer sein.");
+            throw new IllegalArgumentException("{{user}} darf nicht leer sein.");
         }
         UserRegistry.User u = UserRegistry.getInstance().getUser(userName);
         if (u == null) {

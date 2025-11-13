@@ -518,11 +518,11 @@ public class TestRunner {
             e.printStackTrace();
             return false;
         } finally {
-            // Nach jeder Aktion optionale Verzögerung (Slomo) anwenden
+            // Nach jeder Aktion optionale Verzögerung (ms) anwenden
             try {
-                Double speedSeconds = SettingsService.getInstance().get("playback.speed.current", Double.class);
-                if (speedSeconds != null && speedSeconds > 0.0001) {
-                    long sleepMs = Math.round(speedSeconds * 1000.0);
+                Double delayMs = SettingsService.getInstance().get("playback.delay.currentMs", Double.class);
+                if (delayMs != null && delayMs > 0.5) { // >0.5 ms als Mindestschwellwert
+                    long sleepMs = Math.round(delayMs);
                     Thread.sleep(sleepMs);
                 }
             } catch (InterruptedException ie) {

@@ -24,15 +24,20 @@ public final class ApplicationStatusBar extends JPanel {
         JPanel rightControls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 2));
         rightControls.setOpaque(false);
 
-        // --- Speed slider ---
-        double min = getDouble("playback.speed.min", 0.1);
-        double max = getDouble("playback.speed.max", 2.0);
-        double cur = getDouble("playback.speed.current", min); // Default jetzt min statt 1.0
-        if (max <= min) { max = Math.max(min + 0.1, 1.0); }
-        cur = clamp(cur, min, max);
-
-        speedSlider = createSpeedSlider(min, max, cur);
-        speedSlider.setToolTipText("Ausführungsgeschwindigkeit / Zeitlupe (" + fmt(cur) + "x)");
+        // --- Speed (Delay) slider in ms ---
+        double minMs = getDouble("playback.delay.minMs", 0.0); // Mindestverzögerung
+        double maxMs = getDouble("playback.delay.maxMs", 5000.0); // Default 5s
+        // Legacy-Migration: Falls alter Faktor existiert und kein neuer currentMs
+        Double legacyFactorSeconds = SettingsService.getInstance().get("playback.speed.current", Double.class);
+        Double curMsObj = SettingsService.getInstance().get("playback.delay.currentMs", Double.class);
+        double curMs = (curMsObj != null) ? curMsObj : (legacyFactorSeconds != null ? legacyFactorSeconds * 1000.0 : minMs);
+        if (maxMs <= minMs) maxMs = minMs + 1000.0; // Sicherheitsabstand
+        curMs = clamp(curMs, minMs, maxMs);
+        // Persist Migrierte Werte (einmalig)
+        SettingsService.getInstance().set("playback.delay.currentMs", curMs);
+        // Erzeuge Slider
+        speedSlider = createDelaySlider(minMs, maxMs, curMs);
+        speedSlider.setToolTipText("Verzögerung nach jeder Aktion: " + (int)Math.round(curMs) + " ms");
         rightControls.add(speedSlider);
 
         // --- User combo ---
@@ -55,28 +60,27 @@ public final class ApplicationStatusBar extends JPanel {
         return v != null ? v.doubleValue() : def;
     }
 
-    private static String fmt(double d){
+    private static String fmt(double d){ // kann bleiben für evtl. spätere Darstellung
         String s = String.format(java.util.Locale.ENGLISH, "%.2f", d);
         // trim trailing zeros
         while (s.contains(".") && (s.endsWith("0") || s.endsWith("."))) {
-            s = s.endsWith("0") ? s.substring(0, s.length()-1) : s.substring(0, s.length()-1);
+            s = s.substring(0, s.length()-1);
         }
         return s;
     }
 
-    private JSlider createSpeedSlider(double min, double max, double cur) {
-        // Map double range [min,max] to slider [0..1000]
-        int SLIDER_MAX = 1000;
-        int value = (int) Math.round((cur - min) / (max - min) * SLIDER_MAX);
-        JSlider s = new JSlider(0, SLIDER_MAX, value);
+    private JSlider createDelaySlider(double minMs, double maxMs, double curMs) {
+        int SLIDER_STEPS = 1000; // Auflösung
+        int value = (int)Math.round((curMs - minMs) / (maxMs - minMs) * SLIDER_STEPS);
+        JSlider s = new JSlider(0, SLIDER_STEPS, value);
         s.setFocusable(false);
-        s.setPreferredSize(new Dimension(120, 22));
+        s.setPreferredSize(new Dimension(140, 22));
         s.addChangeListener(e -> {
-            int v = ((JSlider) e.getSource()).getValue();
-            double factor = min + (v / (double) SLIDER_MAX) * (max - min);
-            // persist current factor
-            SettingsService.getInstance().set("playback.speed.current", factor);
-            s.setToolTipText("Ausführungsgeschwindigkeit / Zeitlupe (" + fmt(factor) + "x)");
+            int v = ((JSlider)e.getSource()).getValue();
+            double ms = minMs + (v / (double)SLIDER_STEPS) * (maxMs - minMs);
+            long msRounded = Math.round(ms);
+            SettingsService.getInstance().set("playback.delay.currentMs", (double) msRounded);
+            s.setToolTipText("Verzögerung nach jeder Aktion: " + msRounded + " ms");
         });
         return s;
     }
