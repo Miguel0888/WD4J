@@ -90,9 +90,10 @@ public class VideoSettingsDialog extends JDialog {
 
         // Tabs
         JTabbedPane tabs = new JTabbedPane();
-        tabs.addTab("FFmpeg", buildFfmpegPanel());
-        tabs.addTab("VLC", buildVlcPanel());
+        // Reihenfolge geändert: JCodec, VLC, FFmpeg
         tabs.addTab("JCodec", buildJcodecPanel());
+        tabs.addTab("VLC", buildVlcPanel());
+        tabs.addTab("FFmpeg", buildFfmpegPanel());
 
         // Footer
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
