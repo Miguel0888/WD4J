@@ -8,7 +8,7 @@ import de.bund.zrb.service.VideoRuntimeLoader;
 import de.bund.zrb.service.VideoRecordingService; // nur für quickCheckAvailable() als Fallback-Check
 
 import javax.swing.*;
-import java.awt.Component;
+import java.awt.*;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -139,8 +139,12 @@ public class ToggleVideoRecordCommand extends ShortcutMenuCommand {
 
         // Use screen capture as generic default; tweak fps/codec as needed
         String source = "screen://";
-        int width = 0;   // keep source resolution
-        int height = 0;  // keep source resolution
+//        int width = 0;   // keep source resolution
+//        int height = 0;  // keep source resolution
+        // Detect primary screen size for VLC
+        Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+        int width = (int) screen.getWidth();
+        int height = (int) screen.getHeight();
         int fps = 30;
 
         // Build via builder (immutable value object)
