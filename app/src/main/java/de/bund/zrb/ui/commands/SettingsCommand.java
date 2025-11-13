@@ -33,7 +33,13 @@ public class SettingsCommand extends ShortcutMenuCommand {
         dialog = new JDialog((Frame) null, "Einstellungen", true);
         dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         dialog.setContentPane(buildContent());
-        dialog.pack();
+        // Adaptive Größe mit Maximalbreite und -höhe, Scrollbars übernehmen Überlauf
+        Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+        int maxW = 1400; // Maximalbreite
+        int maxH = 1000; // optionale Maximalhöhe
+        int targetW = Math.min((int) Math.round(screen.width * 0.9), maxW);
+        int targetH = Math.min((int) Math.round(screen.height * 0.9), maxH);
+        dialog.setSize(new Dimension(Math.max(900, targetW), Math.max(600, targetH)));
         dialog.setLocationRelativeTo(null);
         dialog.setVisible(true);
     }
@@ -63,13 +69,18 @@ public class SettingsCommand extends ShortcutMenuCommand {
         nav.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) showPanel(nav.getSelectedIndex());
         });
+        JScrollPane leftScroll = new JScrollPane(nav,
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 
-        // Cards rechts
+        // Cards rechts (in ScrollPane, beide Richtungen AS_NEEDED)
         cards.removeAll();
         for (SettingsSubPanel p : panels) {
             p.loadFromSettings();
             cards.add(p.getComponent(), p.getId());
         }
+        JScrollPane rightScroll = new JScrollPane(cards,
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
 
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 new JScrollPane(nav), cards);
