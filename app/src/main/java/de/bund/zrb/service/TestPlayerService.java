@@ -244,8 +244,8 @@ public class TestPlayerService {
                 for (TestAction pa : p.getActions()) {
                     StepLog stepLog = new StepLog("PRECOND", buildStepText(pa));
                     try {
-                        String effectiveUser = (pa.getUser() != null && pa.getUser().trim().length() > 0)
-                                ? pa.getUser().trim() : resolveUserForTestCase(caseNode);
+                        // Use same user resolution strategy as for normal actions
+                        String effectiveUser = resolveEffectiveUserForAction(run, pa);
                         if (effectiveUser != null && effectiveUser.trim().length() > 0) {
                             run.vars.setCaseVar("username", effectiveUser.trim());
                             run.vars.setCaseVar("user", effectiveUser.trim());
@@ -464,41 +464,27 @@ public class TestPlayerService {
     private String nullSafe(String s) { return s == null ? "" : s; }
 
     private String resolveActionValueAtRuntime(TestAction action, ValueScope scope) throws Exception { String template = action.getValue(); if (template == null) return ""; return ActionRuntimeEvaluator.evaluateActionValue(template, scope); }
+
     private String resolveEffectiveUserForAction(TestRun run, TestAction action) {
-        // 1. Direkt gesetzter User an der Action?
-        if (action.getUser() != null && !action.getUser().trim().isEmpty()) {
+        // 1. Use user from action if defined
+        if (action != null && action.getUser() != null && !action.getUser().trim().isEmpty()) {
             return action.getUser().trim();
         }
-        // 2. Aus RuntimeVariableContext (Var "user" oder Fallback "username")
+        // 2. Resolve user from RuntimeVariableContext ("user" only)
         if (run != null) {
             ValueScope scope = run.vars.buildCaseScope();
             String ctxUser = scope.lookupVar("user");
-            if (ctxUser == null || ctxUser.trim().isEmpty()) {
-                ctxUser = scope.lookupVar("username");
-            }
             if (ctxUser != null && !ctxUser.trim().isEmpty()) {
                 return ctxUser.trim();
             }
         }
-        // 3. Letzter verwendeter User
-        if (lastUsernameUsed != null && !lastUsernameUsed.trim().isEmpty()) {
-            return lastUsernameUsed.trim();
-        }
-        // 4. Registry Fallback
-        java.util.List<UserRegistry.User> all = UserRegistry.getInstance().getAll();
-        if (!all.isEmpty()) {
-            UserRegistry.User u = all.get(0);
-            if (u != null && u.getUsername() != null && !u.getUsername().trim().isEmpty()) {
-                return u.getUsername().trim();
-            }
-        }
-        // 5. Default
-        return DEFAULT_USERNAME;
+        // 3. No user found -> fail hard to surface incorrect context initialization
+        throw new IllegalStateException("Tool invocation failed: user darf nicht leer sein.");
     }
 
-    private Map<String,String> evaluateExpressionMapNow(Map<String,String> src, Map<String, Boolean> enabled, RuntimeVariableContext ctx) throws Exception { java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<>(); if (src == null) return out; for (java.util.Map.Entry<String,String> e : src.entrySet()) { String key = e.getKey(); String exprText = e.getValue(); if (!isEnabled(enabled, key)) continue; ValueScope currentScope = ctx.buildCaseScope(); String resolved = ActionRuntimeEvaluator.evaluateActionValue(exprText, currentScope); if (resolved == null) resolved = ""; out.put(key, resolved); ctx.setCaseVar(key, resolved); } return out; }
-    private Map<String,String> evaluateExpressionMapNowWithScope(Map<String,String> src, Map<String, Boolean> enabled, ValueScope scope, RuntimeVariableContext ctx) throws Exception { java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<>(); if (src == null) return out; for (java.util.Map.Entry<String,String> e : src.entrySet()) { String key = e.getKey(); String exprText = e.getValue(); if (!isEnabled(enabled, key)) continue; String resolved = ActionRuntimeEvaluator.evaluateActionValue(exprText, scope); if (resolved == null) resolved = ""; out.put(key, resolved); ctx.setCaseVar(key, resolved); } return out; }
-    private Map<String,String> filterEnabled(Map<String,String> src, Map<String, Boolean> enabled) { java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<>(); if (src == null) return out; for (java.util.Map.Entry<String,String> e : src.entrySet()) { String key = e.getKey(); if (!isEnabled(enabled, key)) continue; out.put(key, e.getValue()); } return out; }
+    private Map<String,String> evaluateExpressionMapNow(Map<String,String> src, Map<String, Boolean> enabled, RuntimeVariableContext ctx) throws Exception { java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<>(); if (src == null) return out; for (Map.Entry<String,String> e : src.entrySet()) { String key = e.getKey(); String exprText = e.getValue(); if (!isEnabled(enabled, key)) continue; ValueScope currentScope = ctx.buildCaseScope(); String resolved = ActionRuntimeEvaluator.evaluateActionValue(exprText, currentScope); if (resolved == null) resolved = ""; out.put(key, resolved); ctx.setCaseVar(key, resolved); } return out; }
+    private Map<String,String> evaluateExpressionMapNowWithScope(Map<String,String> src, Map<String, Boolean> enabled, ValueScope scope, RuntimeVariableContext ctx) throws Exception { java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<>(); if (src == null) return out; for (Map.Entry<String,String> e : src.entrySet()) { String key = e.getKey(); String exprText = e.getValue(); if (!isEnabled(enabled, key)) continue; String resolved = ActionRuntimeEvaluator.evaluateActionValue(exprText, scope); if (resolved == null) resolved = ""; out.put(key, resolved); ctx.setCaseVar(key, resolved); } return out; }
+    private Map<String,String> filterEnabled(Map<String,String> src, Map<String, Boolean> enabled) { java.util.LinkedHashMap<String,String> out = new java.util.LinkedHashMap<>(); if (src == null) return out; for (Map.Entry<String,String> e : src.entrySet()) { String key = e.getKey(); if (!isEnabled(enabled, key)) continue; out.put(key, e.getValue()); } return out; }
     private boolean isEnabled(Map<String, Boolean> enabled, String key) { if (enabled == null) return true; Boolean val = enabled.get(key); return val == null || val.booleanValue(); }
 
     private List<LogComponent> executeAfterAssertions(TestRun run, TestNode caseNode, TestCase testCase, SuiteLog parentLog) { List<LogComponent> out = new ArrayList<>(); try { final ValueScope scope = run.vars.buildCaseScope(); RootNode root = TestRegistry.getInstance().getRoot(); TestSuite suite = null; if (caseNode.getParent() instanceof TestNode) { Object parentModel = ((TestNode) caseNode.getParent()).getModelRef(); if (parentModel instanceof TestSuite) suite = (TestSuite) parentModel; } java.util.LinkedHashMap<String,String> collected = new java.util.LinkedHashMap<>(); java.util.LinkedHashMap<String,String> descriptions = new java.util.LinkedHashMap<>(); java.util.LinkedHashMap<String,String> validatorTypes = new java.util.LinkedHashMap<>(); java.util.LinkedHashMap<String,String> validatorValues = new java.util.LinkedHashMap<>(); if (root != null && root.getAfterEach() != null && root.getAfterEachEnabled() != null) { Map<String,String> descMap = safeMap(root.getAfterEachDesc()); Map<String,String> vtMap = safeMap(root.getAfterEachValidatorType()); Map<String,String> vvMap = safeMap(root.getAfterEachValidatorValue()); for (java.util.Map.Entry<String,String> e : root.getAfterEach().entrySet()) { String k = e.getKey(); Boolean en = root.getAfterEachEnabled().get(k); if (en == null || en.booleanValue()) { String fqk = "Root/" + k; collected.put(fqk, e.getValue()); descriptions.put(fqk, trimToNull(descMap.get(k))); validatorTypes.put(fqk, trimToNull(vtMap.get(k))); validatorValues.put(fqk, trimToNull(vvMap.get(k))); } } }
@@ -546,9 +532,9 @@ public class TestPlayerService {
         run.vars.fillCaseTemplatesFromMap(filterEnabled(testCase.getTemplates(), testCase.getTemplatesEnabled()));
         java.util.List<ThrowingRunnable> beforeChain = new java.util.ArrayList<>();
         // Reihenfolge: Root BeforeEach -> Suite BeforeEach -> Case Before (entspricht Top-Down mit All schon erledigt)
-        beforeChain.add(() -> run.vars.fillCaseVarsFromMap(evaluateExpressionMapNow(rootModel != null ? rootModel.getBeforeEach() : null, rootModel != null ? rootModel.getBeforeEachEnabled() : null, run.vars)));
-        beforeChain.add(() -> run.vars.fillCaseVarsFromMap(evaluateExpressionMapNow(parentSuite != null ? parentSuite.getBeforeEach() : null, parentSuite != null ? parentSuite.getBeforeEachEnabled() : null, run.vars)));
-        beforeChain.add(() -> run.vars.fillCaseVarsFromMap(evaluateExpressionMapNow(testCase.getBefore(), testCase.getBeforeEnabled(), run.vars)));
+        beforeChain.add(new ThrowingRunnable() { public void run() throws Exception { run.vars.fillCaseVarsFromMap(evaluateExpressionMapNow(rootModel != null ? rootModel.getBeforeEach() : null, rootModel != null ? rootModel.getBeforeEachEnabled() : null, run.vars)); }});
+        beforeChain.add(new ThrowingRunnable() { public void run() throws Exception { run.vars.fillCaseVarsFromMap(evaluateExpressionMapNow(parentSuite != null ? parentSuite.getBeforeEach() : null, parentSuite != null ? parentSuite.getBeforeEachEnabled() : null, run.vars)); }});
+        beforeChain.add(new ThrowingRunnable() { public void run() throws Exception { run.vars.fillCaseVarsFromMap(evaluateExpressionMapNow(testCase.getBefore(), testCase.getBeforeEnabled(), run.vars)); }});
         for (ThrowingRunnable r : beforeChain) { runUnchecked(r); Integer waitCfg = SettingsService.getInstance().get("beforeEach.afterWaitMs", Integer.class); long w = (waitCfg != null) ? waitCfg.longValue() : 0L; if (w > 0) { try { Thread.sleep(w); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); } } }
         if (testCase.getId() != null) run.caseBeforeChainDone.add(testCase.getId());
     }
@@ -573,14 +559,14 @@ public class TestPlayerService {
         try {
             page.waitForFunction(
                     "quietMs => {" +
-                    "  try {" +
-                    "    const getA = (typeof window.__zrbGetActivity === 'function') ? window.__zrbGetActivity : null;" +
-                    "    const a    = getA ? getA() : null;" +
-                    "    const last = (a && a.lastActivity) ? a.lastActivity : 0;" +
-                    "    const since = Date.now() - last;" +
-                    "    return since >= quietMs;" +
-                    "  } catch (e) { return true; }" +
-                    "}",
+                            "  try {" +
+                            "    const getA = (typeof window.__zrbGetActivity === 'function') ? window.__zrbGetActivity : null;" +
+                            "    const a    = getA ? getA() : null;" +
+                            "    const last = (a && a.lastActivity) ? a.lastActivity : 0;" +
+                            "    const since = Date.now() - last;" +
+                            "    return since >= quietMs;" +
+                            "  } catch (e) { return true; }" +
+                            "}",
                     (double) QUIET_MS,
                     new Page.WaitForFunctionOptions().setTimeout(to)
             );
