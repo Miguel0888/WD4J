@@ -32,8 +32,8 @@ public final class LibVlcLocator {
     /** Set JNA and plugin paths for common OS locations, then re-try discovery. */
     public static boolean locateAndConfigure() {
         String[] candidates = new String[] {
-                "C:\\\\Program Files\\\\VideoLAN\\\\VLC",
-                "C:\\\\Program Files (x86)\\\\VideoLAN\\\\VLC",
+                "C:\\Program Files\\\\VideoLAN\\\\VLC",
+                "C:\\Program Files (x86)\\\\VideoLAN\\\\VLC",
                 "/Applications/VLC.app/Contents/MacOS/lib",
                 "/usr/lib",
                 "/usr/lib64",
@@ -43,20 +43,34 @@ public final class LibVlcLocator {
         for (int i = 0; i < candidates.length; i++) {
             File base = new File(candidates[i]);
             if (!base.exists()) continue;
-            File plugins = new File(base, "plugins");
-
-            String sep = System.getProperty("path.separator");
-            String existing = System.getProperty("jna.library.path");
-            String combined = (existing == null || existing.isEmpty())
-                    ? base.getAbsolutePath()
-                    : existing + sep + base.getAbsolutePath();
-            System.setProperty("jna.library.path", combined);
-            if (plugins.exists()) {
-                System.setProperty("VLC_PLUGIN_PATH", plugins.getAbsolutePath());
-            }
-            configured = true;
-            break;
+            configured = applyBasePath(base);
+            if (configured) break;
         }
         return configured && useVlcjDiscovery();
+    }
+
+    /** Configure explicit VLC base dir (manual override), then try discovery. */
+    public static boolean configureBasePath(String basePath) {
+        if (basePath == null || basePath.trim().isEmpty()) return false;
+        File base = new File(basePath.trim());
+        if (!base.exists()) return false;
+        boolean configured = applyBasePath(base);
+        return configured && useVlcjDiscovery();
+    }
+
+    private static boolean applyBasePath(File base) {
+        if (base == null || !base.exists()) return false;
+        File plugins = new File(base, "plugins");
+
+        String sep = System.getProperty("path.separator");
+        String existing = System.getProperty("jna.library.path");
+        String combined = (existing == null || existing.isEmpty())
+                ? base.getAbsolutePath()
+                : existing + sep + base.getAbsolutePath();
+        System.setProperty("jna.library.path", combined);
+        if (plugins.exists()) {
+            System.setProperty("VLC_PLUGIN_PATH", plugins.getAbsolutePath());
+        }
+        return true;
     }
 }

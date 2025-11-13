@@ -8,11 +8,13 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.io.File;
 import java.util.*;
 import java.util.List;
 
 public class VideoSettingsDialog extends JDialog {
 
+    // --- FFmpeg Felder ---
     private JComboBox<String> cbContainer, cbCodec, cbPixFmt, cbQuality;
     private JCheckBox cbInterleaved, cbEvenDims;
     private JSpinner spThreads, spQscale, spCrf, spBitrate;
@@ -21,20 +23,53 @@ public class VideoSettingsDialog extends JDialog {
     private JTable tblExtra;
     private DefaultTableModel extraModel;
 
+    // --- VLC Felder ---
+    private JCheckBox cbVlcEnabled;
+    private JCheckBox cbVlcAutodetect;
+    private JTextField tfVlcBasePath;
+    private JButton btVlcBaseBrowse;
+    private JCheckBox cbVlcLogEnabled;
+    private JTextField tfVlcLogPath;
+    private JButton btVlcLogBrowse;
+
     public VideoSettingsDialog(Window owner) {
-        super(owner, "Video-Details", ModalityType.APPLICATION_MODAL);
+        super(owner, "Video-Einstellungen", ModalityType.APPLICATION_MODAL);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setContentPane(buildUI());
         pack();
         setLocationRelativeTo(owner);
         loadFromSettings();
         updateQualityCard();
+        updateVlcUiEnabled();
     }
 
-    private JPanel buildUI() {
+    private JComponent buildUI() {
         JPanel root = new JPanel(new BorderLayout());
         root.setBorder(new EmptyBorder(10,12,10,12));
 
+        // Tabs
+        JTabbedPane tabs = new JTabbedPane();
+        tabs.addTab("FFmpeg", buildFfmpegPanel());
+        tabs.addTab("VLC", buildVlcPanel());
+
+        // Footer
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        JButton btReset = new JButton("Defaults");
+        JButton btOk    = new JButton("OK");
+        JButton btCancel= new JButton("Abbrechen");
+        btReset.addActionListener(e -> { loadDefaults(); updateVlcUiEnabled(); });
+        btOk.addActionListener(e -> { if (save()) dispose(); });
+        btCancel.addActionListener(e -> dispose());
+        footer.add(btReset); footer.add(btOk); footer.add(btCancel);
+
+        root.add(tabs, BorderLayout.CENTER);
+        root.add(Box.createVerticalStrut(8), BorderLayout.NORTH);
+        root.add(footer, BorderLayout.SOUTH);
+        return root;
+    }
+
+    // --- FFmpeg Panel (bestehender Inhalt) ---
+    private JPanel buildFfmpegPanel() {
         JPanel form = new JPanel();
         form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
 
@@ -136,7 +171,6 @@ public class VideoSettingsDialog extends JDialog {
         pExtraBtns.add(btAdd); pExtraBtns.add(btDel);
         pExtra.add(pExtraBtns, BorderLayout.SOUTH);
 
-        // zusammensetzen
         form.add(pEnc);      form.add(Box.createVerticalStrut(8));
         form.add(pQ);        form.add(Box.createVerticalStrut(8));
         form.add(pColor);    form.add(Box.createVerticalStrut(8));
@@ -144,20 +178,71 @@ public class VideoSettingsDialog extends JDialog {
         form.add(pX);        form.add(Box.createVerticalStrut(8));
         form.add(pExtra);
 
-        // Footer
-        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        JButton btReset = new JButton("Defaults");
-        JButton btOk    = new JButton("OK");
-        JButton btCancel= new JButton("Abbrechen");
-        btReset.addActionListener(e -> loadDefaults());
-        btOk.addActionListener(e -> { if (save()) dispose(); });
-        btCancel.addActionListener(e -> dispose());
-        footer.add(btReset); footer.add(btOk); footer.add(btCancel);
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.add(new JScrollPane(form), BorderLayout.CENTER);
+        return wrapper;
+    }
 
-        root.add(form, BorderLayout.CENTER);
-        root.add(Box.createVerticalStrut(8), BorderLayout.NORTH);
-        root.add(footer, BorderLayout.SOUTH);
-        return root;
+    // --- VLC Panel ---
+    private JPanel buildVlcPanel() {
+        JPanel p = new JPanel(new GridBagLayout());
+        GridBagConstraints g = gbc();
+
+        int row = 0;
+        cbVlcEnabled = new JCheckBox("VLC verwenden (sonst FFmpeg)");
+        cbVlcEnabled.addActionListener(e -> updateVlcUiEnabled());
+        g.gridx=0; g.gridy=row++; g.gridwidth=3; g.anchor=GridBagConstraints.WEST; g.weightx=1;
+        p.add(cbVlcEnabled, g);
+        g.gridwidth=1;
+
+        cbVlcAutodetect = new JCheckBox("Autodetect (PATH/Registry)");
+        cbVlcAutodetect.addActionListener(e -> updateVlcUiEnabled());
+        g.gridx=0; g.gridy=row++; g.gridwidth=3; g.anchor=GridBagConstraints.WEST; g.weightx=1;
+        p.add(cbVlcAutodetect, g);
+        g.gridwidth=1;
+
+        JLabel lbBase = new JLabel("VLC-Basispfad:");
+        tfVlcBasePath = new JTextField(28);
+        btVlcBaseBrowse = squareButton("…");
+        btVlcBaseBrowse.setToolTipText("VLC-Ordner wählen (z. B. C:/Program Files/VideoLAN/VLC)");
+        btVlcBaseBrowse.addActionListener(e -> chooseDirInto(tfVlcBasePath));
+        g.gridx=0; g.gridy=row; g.anchor=GridBagConstraints.WEST; g.weightx=0;
+        p.add(lbBase, g);
+        g.gridx=1; g.gridy=row; g.fill=GridBagConstraints.HORIZONTAL; g.weightx=1;
+        p.add(tfVlcBasePath, g);
+        g.gridx=2; g.gridy=row++; g.fill=GridBagConstraints.NONE; g.weightx=0;
+        p.add(btVlcBaseBrowse, g);
+
+        cbVlcLogEnabled = new JCheckBox("VLC-Logdatei schreiben");
+        cbVlcLogEnabled.addActionListener(e -> updateVlcUiEnabled());
+        g.gridx=0; g.gridy=row++; g.gridwidth=3; g.anchor=GridBagConstraints.WEST; g.weightx=1;
+        p.add(cbVlcLogEnabled, g);
+        g.gridwidth=1;
+
+        JLabel lbLog = new JLabel("Logdatei:");
+        tfVlcLogPath = new JTextField(28);
+        btVlcLogBrowse = squareButton("…");
+        btVlcLogBrowse.setToolTipText("Logdatei wählen");
+        btVlcLogBrowse.addActionListener(e -> chooseFileInto(tfVlcLogPath));
+        g.gridx=0; g.gridy=row; g.anchor=GridBagConstraints.WEST; g.weightx=0;
+        p.add(lbLog, g);
+        g.gridx=1; g.gridy=row; g.fill=GridBagConstraints.HORIZONTAL; g.weightx=1;
+        p.add(tfVlcLogPath, g);
+        g.gridx=2; g.gridy=row++; g.fill=GridBagConstraints.NONE; g.weightx=0;
+        p.add(btVlcLogBrowse, g);
+
+        JPanel wrap = new JPanel(new BorderLayout());
+        wrap.add(p, BorderLayout.NORTH);
+        return wrap;
+    }
+
+    private JButton squareButton(String text) {
+        JButton b = new JButton(text);
+        b.setMargin(new Insets(0,0,0,0));
+        Dimension d = new Dimension(26, 26);
+        b.setPreferredSize(d); b.setMinimumSize(d); b.setMaximumSize(d);
+        b.setFocusable(false);
+        return b;
     }
 
     private JPanel wrap(JComponent l, JComponent c) {
@@ -195,6 +280,7 @@ public class VideoSettingsDialog extends JDialog {
     private void loadFromSettings() {
         SettingsService s = SettingsService.getInstance();
 
+        // FFmpeg
         sel(cbContainer,  s.get("video.container", String.class), "matroska");
         sel(cbCodec,      s.get("video.codec", String.class),     "mjpeg");
         sel(cbPixFmt,     s.get("video.pixfmt", String.class),    "yuv420p");
@@ -230,11 +316,23 @@ public class VideoSettingsDialog extends JDialog {
                 extraModel.addRow(new Object[]{e.getKey(), e.getValue()});
             }
         }
+
+        // VLC
+        Boolean vlcEnabled = s.get("video.vlc.enabled", Boolean.class);
+        cbVlcEnabled.setSelected(vlcEnabled == null || vlcEnabled);
+        Boolean autod = s.get("video.vlc.autodetect", Boolean.class);
+        cbVlcAutodetect.setSelected(Boolean.TRUE.equals(autod));
+        tfVlcBasePath.setText(or(s.get("video.vlc.basePath", String.class), defaultVlcBasePath()));
+        Boolean logE = s.get("video.vlc.log.enabled", Boolean.class);
+        cbVlcLogEnabled.setSelected(Boolean.TRUE.equals(logE));
+        tfVlcLogPath.setText(or(s.get("video.vlc.log.path", String.class), defaultVlcLogPath()));
+
         updateQualityCard();
+        updateVlcUiEnabled();
     }
 
     private void loadDefaults() {
-        // Lege die in VideoConfig definierten Defaults nahe — hier simpel hardcodiert auf gängige Defaults:
+        // FFmpeg Defaults
         cbContainer.setSelectedItem("matroska");
         cbCodec.setSelectedItem("mjpeg");
         cbPixFmt.setSelectedItem("yuv420p");
@@ -261,14 +359,20 @@ public class VideoSettingsDialog extends JDialog {
         tfLevel.setText("");
 
         extraModel.setRowCount(0);
-        updateQualityCard();
+
+        // VLC Defaults
+        cbVlcEnabled.setSelected(true);
+        cbVlcAutodetect.setSelected(false);
+        tfVlcBasePath.setText(defaultVlcBasePath());
+        cbVlcLogEnabled.setSelected(false);
+        tfVlcLogPath.setText(defaultVlcLogPath());
     }
 
     private boolean save() {
         try {
             SettingsService s = SettingsService.getInstance();
 
-            // Settings persistieren
+            // --- FFmpeg persistieren ---
             s.set("video.container",  str(cbContainer));
             s.set("video.codec",      str(cbCodec));
             s.set("video.pixfmt",     str(cbPixFmt));
@@ -296,7 +400,6 @@ public class VideoSettingsDialog extends JDialog {
             s.set("video.profile", emptyToNull(tfProfile.getText()));
             s.set("video.level",   emptyToNull(tfLevel.getText()));
 
-            // Extra-Optionen als Map<String,String>
             Map<String,String> extra = new LinkedHashMap<>();
             for (int i=0; i<extraModel.getRowCount(); i++) {
                 String k = clean(String.valueOf(extraModel.getValueAt(i,0)));
@@ -305,7 +408,14 @@ public class VideoSettingsDialog extends JDialog {
             }
             s.set("video.ffopts", extra);
 
-            // Live in VideoConfig übernehmen
+            // --- VLC persistieren ---
+            s.set("video.vlc.enabled", cbVlcEnabled.isSelected());
+            s.set("video.vlc.autodetect", cbVlcAutodetect.isSelected());
+            s.set("video.vlc.basePath", clean(tfVlcBasePath.getText()));
+            s.set("video.vlc.log.enabled", cbVlcLogEnabled.isSelected());
+            s.set("video.vlc.log.path", clean(tfVlcLogPath.getText()));
+
+            // Live in VideoConfig (FFmpeg) übernehmen
             VideoConfig.setContainer(str(cbContainer));
             VideoConfig.setCodec(str(cbCodec));
             VideoConfig.setPixelFmt(str(cbPixFmt));
@@ -342,9 +452,19 @@ public class VideoSettingsDialog extends JDialog {
         }
     }
 
+    private void updateVlcUiEnabled() {
+        boolean autod = cbVlcAutodetect != null && cbVlcAutodetect.isSelected();
+        boolean vlcOn = cbVlcEnabled != null && cbVlcEnabled.isSelected();
+        boolean pathEnabled = vlcOn && !autod;
+        if (tfVlcBasePath != null) tfVlcBasePath.setEnabled(pathEnabled);
+        if (btVlcBaseBrowse != null) btVlcBaseBrowse.setEnabled(pathEnabled);
+        boolean logOn = cbVlcLogEnabled != null && cbVlcLogEnabled.isSelected();
+        if (tfVlcLogPath != null) tfVlcLogPath.setEnabled(vlcOn && logOn);
+        if (btVlcLogBrowse != null) btVlcLogBrowse.setEnabled(vlcOn && logOn);
+    }
+
     private void updateQualityCard() {
         // Nur Darstellung – die Card wird in buildUI() per ActionListener umgeschaltet.
-        // Hier kann man ggf. Validierungs-/Enable-Logik ergänzen.
     }
 
     // ---------- Helpers ----------
@@ -371,5 +491,43 @@ public class VideoSettingsDialog extends JDialog {
             if (!t.isEmpty()) out.add(t);
         }
         return out;
+    }
+
+    private static String defaultVlcBasePath() {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        if (os.contains("win")) return "C:/Program Files/VideoLAN/VLC";
+        if (os.contains("mac")) return "/Applications/VLC.app/Contents/MacOS/lib";
+        return "/usr/lib";
+    }
+    private static String defaultVlcLogPath() {
+        return new File(System.getProperty("user.home"), ".wd4j/vlc.log").getAbsolutePath();
+    }
+
+    // Datei-/Ordnerauswahl für kleine Quadrat-Buttons
+    private void chooseDirInto(JTextField target) {
+        JFileChooser ch = new JFileChooser();
+        ch.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        String cur = target.getText();
+        if (cur != null && !cur.trim().isEmpty()) {
+            File f = new File(cur.trim());
+            if (f.exists()) ch.setCurrentDirectory(f.isDirectory()? f : f.getParentFile());
+        }
+        if (ch.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File dir = ch.getSelectedFile();
+            if (dir != null) target.setText(dir.getAbsolutePath());
+        }
+    }
+
+    private void chooseFileInto(JTextField target) {
+        JFileChooser ch = new JFileChooser();
+        String cur = target.getText();
+        if (cur != null && !cur.trim().isEmpty()) {
+            File f = new File(cur.trim());
+            if (f.exists()) ch.setCurrentDirectory(f.isDirectory()? f : f.getParentFile());
+        }
+        if (ch.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File file = ch.getSelectedFile();
+            if (file != null) target.setText(file.getAbsolutePath());
+        }
     }
 }

@@ -180,6 +180,25 @@ public class SettingsService {
         if (!settingsCache.containsKey("command.retry.windowMs")) settingsCache.put("command.retry.windowMs", 0L);
         // Default Action Timeout (Fallback 30000 ms wie bisher in TestTreeController/RecorderService)
         if (!settingsCache.containsKey("action.defaultTimeoutMillis")) settingsCache.put("action.defaultTimeoutMillis", 30000);
+
+        // --- VLC-spezifische Defaults ---
+        if (!settingsCache.containsKey("video.vlc.enabled")) settingsCache.put("video.vlc.enabled", true); // "VLC verwenden" (Backend-Wahl)
+        if (!settingsCache.containsKey("video.vlc.autodetect")) settingsCache.put("video.vlc.autodetect", false); // Autodetect standardmäßig aus
+        if (!settingsCache.containsKey("video.vlc.basePath")) settingsCache.put("video.vlc.basePath", defaultVlcBasePath()); // Standard-Pfad
+        if (!settingsCache.containsKey("video.vlc.log.enabled")) settingsCache.put("video.vlc.log.enabled", false);
+        if (!settingsCache.containsKey("video.vlc.log.path")) settingsCache.put("video.vlc.log.path", defaultVlcLogPath());
+    }
+
+    private static String defaultVlcBasePath() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        if (os.contains("win")) return "C:/Program Files/VideoLAN/VLC";
+        if (os.contains("mac")) return "/Applications/VLC.app/Contents/MacOS/lib";
+        // Linux
+        return "/usr/lib"; // häufige Systempfade; Plugin-Suche ergänzt Locator
+    }
+
+    private static String defaultVlcLogPath() {
+        return Paths.get(System.getProperty("user.home"), APP_FOLDER, "vlc.log").toString();
     }
 
     /** Persist the global settings.json to disk. */

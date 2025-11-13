@@ -22,15 +22,18 @@ public final class MediaRuntimeBootstrap {
      * @throws IllegalStateException if no recorder backend is available
      */
     public static MediaRecorder createRecorder() {
-        // Try LibVLC first
-        MediaRecorder libVlcRecorder = tryCreateLibVlcRecorder();
-        if (libVlcRecorder != null) {
-            System.out.println("Using LibVLC recorder");
-            return libVlcRecorder;
+        // Settings-gesteuerte Backendwahl
+        Boolean vlcEnabled = de.bund.zrb.service.SettingsService.getInstance().get("video.vlc.enabled", Boolean.class);
+        if (vlcEnabled == null || vlcEnabled) {
+            MediaRecorder libVlcRecorder = tryCreateLibVlcRecorder();
+            if (libVlcRecorder != null) {
+                System.out.println("Using LibVLC recorder");
+                return libVlcRecorder;
+            }
+            System.out.println("LibVLC not available, falling back to FFmpeg/JavaCV");
+        } else {
+            System.out.println("VLC backend disabled via settings, using FFmpeg/JavaCV");
         }
-        
-        // Fallback to FFmpeg/JavaCV
-        System.out.println("LibVLC not available, falling back to FFmpeg/JavaCV");
         return new FfmpegRecorder();
     }
     
@@ -41,23 +44,20 @@ public final class MediaRuntimeBootstrap {
      * @return MediaRecorder instance or null if user cancels
      */
     public static MediaRecorder createRecorderInteractive() {
-        // Try LibVLC first
-        MediaRecorder libVlcRecorder = tryCreateLibVlcRecorder();
-        if (libVlcRecorder != null) {
-            System.out.println("Using LibVLC recorder");
-            return libVlcRecorder;
+        Boolean vlcEnabled = de.bund.zrb.service.SettingsService.getInstance().get("video.vlc.enabled", Boolean.class);
+        if (vlcEnabled == null || vlcEnabled) {
+            MediaRecorder libVlcRecorder = tryCreateLibVlcRecorder();
+            if (libVlcRecorder != null) {
+                System.out.println("Using LibVLC recorder");
+                return libVlcRecorder;
+            }
         }
-        
-        // Fallback to FFmpeg/JavaCV with interactive loading
         System.out.println("LibVLC not available, trying FFmpeg/JavaCV");
-        
-        // Ensure video libraries are available (may prompt user)
         boolean available = VideoRuntimeLoader.ensureVideoLibsAvailableInteractively();
         if (!available) {
             System.out.println("User cancelled video library download");
             return null;
         }
-        
         return new FfmpegRecorder();
     }
     
@@ -76,11 +76,25 @@ public final class MediaRuntimeBootstrap {
                 return null;
             }
 
-            // Try discovery (PATH/Registry). If that fails, try manual path configure
-            boolean discovered = de.bund.zrb.video.impl.libvlc.LibVlcLocator.useVlcjDiscovery();
+            // Settings: Autodetect & manueller Pfad
+            de.bund.zrb.service.SettingsService s = de.bund.zrb.service.SettingsService.getInstance();
+            Boolean autodetect = s.get("video.vlc.autodetect", Boolean.class);
+            String manualBase  = s.get("video.vlc.basePath", String.class);
+
+            boolean discovered = false;
+            if (Boolean.TRUE.equals(autodetect)) {
+                // Zuerst Autodetect (PATH/Registry)
+                discovered = LibVlcLocator.useVlcjDiscovery();
+            }
+            if (!discovered && manualBase != null && !manualBase.trim().isEmpty()) {
+                // Manueller Pfad erzwingen
+                System.out.println("Trying manual VLC base path from settings: " + manualBase);
+                discovered = LibVlcLocator.configureBasePath(manualBase.trim());
+            }
             if (!discovered) {
-                System.out.println("NativeDiscovery failed; try manual locate+configure");
-                discovered = de.bund.zrb.video.impl.libvlc.LibVlcLocator.locateAndConfigure();
+                // Fallback: bekannte Standardpfade testen
+                System.out.println("Discovery/manual base failed; try known locations");
+                discovered = LibVlcLocator.locateAndConfigure();
             }
             if (!discovered) {
                 System.out.println("VLC installation not found");
@@ -88,7 +102,7 @@ public final class MediaRuntimeBootstrap {
             }
 
             // Create v3 recorder
-            return new de.bund.zrb.video.impl.libvlc.LibVlcRecorder();
+            return new LibVlcRecorder();
 
         } catch (Throwable t) {
             System.out.println("Failed to create LibVlcRecorder: " + t.getMessage());

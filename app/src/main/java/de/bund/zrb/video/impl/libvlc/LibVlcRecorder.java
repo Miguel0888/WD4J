@@ -22,12 +22,7 @@ public final class LibVlcRecorder implements MediaRecorder {
         if (recording) return;
 
         // Provide sane libvlc args to reduce noise and avoid stale cache warnings
-        String[] libvlcArgs = new String[] {
-                "--intf", "dummy",
-                "--quiet",
-                "--no-video-title-show",
-                "--no-plugins-cache"
-        };
+        String[] libvlcArgs = buildLibVlcArgs();
         this.factory = new MediaPlayerFactory(libvlcArgs);
         this.player = factory.newHeadlessMediaPlayer();
 
@@ -42,6 +37,32 @@ public final class LibVlcRecorder implements MediaRecorder {
             throw new IllegalStateException("Failed to start LibVLC recording (playMedia returned false)");
         }
         recording = true;
+    }
+
+    private String[] buildLibVlcArgs() {
+        java.util.ArrayList<String> args = new java.util.ArrayList<>();
+        args.add("--intf"); args.add("dummy");
+        args.add("--quiet");
+        args.add("--no-video-title-show");
+        args.add("--no-plugins-cache");
+        // Optionales Datei-Logging per Settings
+        try {
+            de.bund.zrb.service.SettingsService s = de.bund.zrb.service.SettingsService.getInstance();
+            Boolean logEnabled = s.get("video.vlc.log.enabled", Boolean.class);
+            String  logPath    = s.get("video.vlc.log.path", String.class);
+            if (Boolean.TRUE.equals(logEnabled)) {
+                args.add("--file-logging");
+                if (logPath != null && !logPath.trim().isEmpty()) {
+                    args.add("--logfile=" + normalizePath(logPath));
+                }
+                args.add("--verbose=2");
+            }
+        } catch (Throwable ignore) {}
+        return args.toArray(new String[0]);
+    }
+
+    private static String normalizePath(String p) {
+        return p.replace('\\', '/');
     }
 
     public void stop() {
