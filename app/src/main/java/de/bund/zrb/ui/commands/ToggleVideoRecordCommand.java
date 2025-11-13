@@ -6,6 +6,9 @@ import de.bund.zrb.video.MediaRecorder;
 import de.bund.zrb.video.RecordingProfile;
 import de.bund.zrb.video.MediaRuntimeBootstrap;
 import de.bund.zrb.video.impl.libvlc.LibVlcLocator;
+import de.bund.zrb.event.ApplicationEventBus;
+import de.bund.zrb.event.StatusMessageEvent;
+import de.bund.zrb.event.Severity;
 
 import javax.swing.*;
 import java.awt.*;
@@ -39,9 +42,7 @@ public class ToggleVideoRecordCommand extends ShortcutMenuCommand {
             if (recorder != null && recorder.isRecording()) {
                 // Stop current recording
                 recorder.stop();
-                JOptionPane.showMessageDialog(null,
-                        "Video-Aufnahme gestoppt.",
-                        "Aufnahme", JOptionPane.INFORMATION_MESSAGE);
+                ApplicationEventBus.getInstance().publish(new StatusMessageEvent("⏹ Aufnahme gestoppt", 2000, Severity.INFO));
                 return;
             }
 
@@ -63,9 +64,8 @@ public class ToggleVideoRecordCommand extends ShortcutMenuCommand {
                 try {
                     recorder = MediaRuntimeBootstrap.createRecorder();
                 } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(null,
-                            "Konnte Recorder nicht initialisieren (Backend: " + backend + "):\n" + ex.getMessage(),
-                            "Fehler", JOptionPane.ERROR_MESSAGE);
+                    ApplicationEventBus.getInstance().publish(new StatusMessageEvent(
+                            "Recorder-Init fehlgeschlagen: " + ex.getMessage(), 4000, Severity.ERROR));
                     return;
                 }
             }
@@ -75,14 +75,11 @@ public class ToggleVideoRecordCommand extends ShortcutMenuCommand {
 
             // Start recording
             recorder.start(profile);
-            JOptionPane.showMessageDialog(null,
-                    "Video-Aufnahme gestartet.",
-                    "Aufnahme", JOptionPane.INFORMATION_MESSAGE);
+            ApplicationEventBus.getInstance().publish(new StatusMessageEvent("● Aufnahme gestartet", 2000, Severity.INFO));
 
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(null,
-                    "Video-Aufnahme konnte nicht umgeschaltet werden:\n" + ex.getMessage(),
-                    "Fehler", JOptionPane.ERROR_MESSAGE);
+            ApplicationEventBus.getInstance().publish(new StatusMessageEvent(
+                    "Aufnahme konnte nicht umgeschaltet werden: " + ex.getMessage(), 4000, Severity.ERROR));
         }
     }
 
