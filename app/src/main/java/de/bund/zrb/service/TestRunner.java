@@ -206,14 +206,15 @@ public class TestRunner {
     }
 
     private LogComponent executeTestCaseNode(TestNode node, TestCase testCase) {
+        // Kontext pro Testfall komplett neu aufbauen (kein Bleeding zwischen Cases)
+        this.runContext = new TestRunContext(ExpressionRegistryImpl.getInstance());
         runContext.getVars().enterCase();
+
         SuiteLog caseLog = new SuiteLog(testCase.getName());
         logger.append(caseLog);
+
         try {
-            TestNode parentNode = (TestNode) node.getParent();
-            TestSuite parentSuite = (parentNode != null && parentNode.getModelRef() instanceof TestSuite)
-                    ? (TestSuite) parentNode.getModelRef() : null;
-            if (parentSuite != null) initSuiteSymbols(parentSuite);
+            // NEU: komplette Variable-Initialisierung bottom-up (Case -> Suite -> Root)
             initCaseSymbols(node, testCase);
         } catch (Exception ex) {
             caseLog.setStatus(false);
@@ -221,6 +222,7 @@ public class TestRunner {
             drawerRef.updateSuiteStatus(node);
             return caseLog;
         }
+
         try {
             executePreconditionsForCase(node, testCase, caseLog);
         } catch (Exception ex) {
@@ -229,11 +231,14 @@ public class TestRunner {
             drawerRef.updateSuiteStatus(node);
             return caseLog;
         }
+
         String sub = (testCase.getName() != null) ? testCase.getName().trim() : "";
         OverlayBridge.setSubtitle(sub);
+
         executeChildren(node, caseLog);
         executeThenPhase(node, testCase, caseLog); // deprecated
         executeAfterAssertions(node, testCase, caseLog);
+
         drawerRef.updateSuiteStatus(node);
         return caseLog;
     }
@@ -868,32 +873,34 @@ public class TestRunner {
         throw new IllegalStateException("Tool invocation failed: user darf nicht leer sein.");
     }
 
-    private Map<String, String> evaluateExpressionMapNow(Map<String, String> src, Map<String, Boolean> enabled, RuntimeVariableContext ctx) throws Exception {
+    private Map<String, String> evaluateExpressionMapNow(Map<String, String> src,
+                                                         Map<String, Boolean> enabled,
+                                                         RuntimeVariableContext ctx) throws Exception {
         java.util.LinkedHashMap<String, String> out = new java.util.LinkedHashMap<String, String>();
         if (src == null) return out;
+
         for (Map.Entry<String, String> e : src.entrySet()) {
             String key = e.getKey();
-            String exprText = e.getValue();
-            if (!isEnabled(enabled, key)) continue;
+            if (!isEnabled(enabled, key)) {
+                continue;
+            }
+
+            // Aktuellen Scope holen (inkl. bisheriger Case-/Suite-/Root-Werte)
             ValueScope currentScope = ctx.buildCaseScope();
+
+            // Wenn Variable bereits existiert -> nicht überschreiben, nur den vorhandenen Wert spiegeln
+            String existing = currentScope.lookupVar(key);
+            if (!isBlank(existing)) {
+                out.put(key, existing);
+                continue;
+            }
+
+            String exprText = e.getValue();
             String resolved = ActionRuntimeEvaluator.evaluateActionValue(exprText, currentScope);
             if (resolved == null) resolved = "";
             out.put(key, resolved);
-            ctx.setCaseVar(key, resolved);
-        }
-        return out;
-    }
 
-    private Map<String, String> evaluateExpressionMapNowWithScope(Map<String, String> src, Map<String, Boolean> enabled, ValueScope scope, RuntimeVariableContext ctx) throws Exception {
-        java.util.LinkedHashMap<String, String> out = new java.util.LinkedHashMap<String, String>();
-        if (src == null) return out;
-        for (Map.Entry<String, String> e : src.entrySet()) {
-            String key = e.getKey();
-            String exprText = e.getValue();
-            if (!isEnabled(enabled, key)) continue;
-            String resolved = ActionRuntimeEvaluator.evaluateActionValue(exprText, scope);
-            if (resolved == null) resolved = "";
-            out.put(key, resolved);
+            // Immer auf Case-Ebene setzen – der Case-Scope ist der effektive Ausführungsscope
             ctx.setCaseVar(key, resolved);
         }
         return out;
@@ -1177,80 +1184,97 @@ public class TestRunner {
         return (t == null) ? "" : (t.getMessage() != null ? t.getMessage() : t.toString());
     }
 
-    // Suite-/Case-Initialisierung jetzt mit TestRunContext
+    // Suite-Initialisierung: Variablen werden jetzt vollständig im Kontext eines Testfalls aufgebaut.
+    // Diese Methode bleibt als Platzhalter für zukünftige Suite-spezifische Initialisierung erhalten.
     private void initSuiteSymbols(TestSuite suite) throws Exception {
-        if (suite == null) return;
-        RootNode rootModel = TestRegistry.getInstance().getRoot();
-        // Root: Templates zuerst, dann BeforeAll (nur einmal pro Run)
-        if (!runContext.isRootBeforeAllDone() && rootModel != null) {
-            // Templates (lazy expressions) immer vor den BeforeAll-Werten
-            runContext.getVars().fillRootTemplatesFromMap(filterEnabled(rootModel.getTemplates(), rootModel.getTemplatesEnabled()));
-            Map<String, String> evaluated = evaluateExpressionMapNow(rootModel.getBeforeAll(), rootModel.getBeforeAllEnabled(), runContext.getVars());
-            runContext.getVars().fillRootVarsFromMap(evaluated);
-            runContext.markRootBeforeAllDone();
+        // no-op in neuem Bottom-up-Modell
+    }
+
+    private void initCaseSymbols(final TestNode node, final TestCase testCase) throws Exception {
+        if (testCase == null) return;
+
+        final RuntimeVariableContext vars = runContext.getVars();
+        final RootNode rootModel = TestRegistry.getInstance().getRoot();
+        final TestSuite parentSuite = resolveParentSuite(node);
+
+        // ---------------------------------------------------------------------
+        // 1) Templates registrieren (Top-down, nur Definitionen)
+        // ---------------------------------------------------------------------
+        if (rootModel != null) {
+            vars.fillRootTemplatesFromMap(
+                    filterEnabled(rootModel.getTemplates(), rootModel.getTemplatesEnabled()));
         }
-        // Suite: Templates zuerst, dann BeforeAll (nur einmal pro Suite im Run)
-        if (suite.getId() != null && !runContext.isSuiteBeforeAllDone(suite.getId())) {
-            runContext.getVars().fillSuiteTemplatesFromMap(filterEnabled(suite.getTemplates(), suite.getTemplatesEnabled()));
-            Map<String, String> suiteAllEval = evaluateExpressionMapNow(suite.getBeforeAll(), suite.getBeforeAllEnabled(), runContext.getVars());
-            runContext.getVars().fillSuiteVarsFromMap(suiteAllEval);
-            runContext.markSuiteBeforeAllDone(suite.getId());
+        if (parentSuite != null) {
+            vars.fillSuiteTemplatesFromMap(
+                    filterEnabled(parentSuite.getTemplates(), parentSuite.getTemplatesEnabled()));
+        }
+        vars.fillCaseTemplatesFromMap(
+                filterEnabled(testCase.getTemplates(), testCase.getTemplatesEnabled()));
+
+        // ---------------------------------------------------------------------
+        // 2) Werte bottom-up ergänzen:
+        //    Case.Before -> Suite.BeforeAll -> Suite.BeforeEach -> Root.BeforeAll -> Root.BeforeEach
+        //    Jeder Schritt: nur setzen, wenn Variable noch nicht existiert.
+        // ---------------------------------------------------------------------
+        Integer waitCfg = SettingsService.getInstance().get("beforeEach.afterWaitMs", Integer.class);
+        final long waitMs = (waitCfg != null) ? waitCfg.longValue() : 0L;
+
+        // 2.1 Case.Before (unterste Ebene, höchste Priorität)
+        vars.fillCaseVarsFromMap(
+                evaluateExpressionMapNow(testCase.getBefore(),
+                        testCase.getBeforeEnabled(), vars));
+        waitAfterBeforeStep(waitMs);
+
+        // 2.2 Suite.BeforeAll
+        if (parentSuite != null) {
+            vars.fillCaseVarsFromMap(
+                    evaluateExpressionMapNow(parentSuite.getBeforeAll(),
+                            parentSuite.getBeforeAllEnabled(), vars));
+            waitAfterBeforeStep(waitMs);
+
+            // 2.3 Suite.BeforeEach
+            vars.fillCaseVarsFromMap(
+                    evaluateExpressionMapNow(parentSuite.getBeforeEach(),
+                            parentSuite.getBeforeEachEnabled(), vars));
+            waitAfterBeforeStep(waitMs);
+        }
+
+        // 2.4 Root.BeforeAll
+        if (rootModel != null) {
+            vars.fillCaseVarsFromMap(
+                    evaluateExpressionMapNow(rootModel.getBeforeAll(),
+                            rootModel.getBeforeAllEnabled(), vars));
+            waitAfterBeforeStep(waitMs);
+
+            // 2.5 Root.BeforeEach
+            vars.fillCaseVarsFromMap(
+                    evaluateExpressionMapNow(rootModel.getBeforeEach(),
+                            rootModel.getBeforeEachEnabled(), vars));
+            waitAfterBeforeStep(waitMs);
+        }
+
+        if (testCase.getId() != null) {
+            runContext.markCaseBeforeChainDone(testCase.getId());
         }
     }
 
-    private void initCaseSymbols(TestNode node, TestCase testCase) throws Exception {
-        if (testCase == null) return;
-        TestSuite parentSuite = resolveParentSuite(node);
-        RootNode rootModel = TestRegistry.getInstance().getRoot();
-        // Case-Templates zuerst (lazy); danach Before-Kette ausführen
-        runContext.getVars().fillCaseTemplatesFromMap(filterEnabled(testCase.getTemplates(), testCase.getTemplatesEnabled()));
-        java.util.List<ThrowingRunnable> beforeChain = new java.util.ArrayList<ThrowingRunnable>();
-        // Reihenfolge: Root BeforeEach -> Suite BeforeEach -> Case Before (entspricht Top-Down mit All schon erledigt)
-        beforeChain.add(new ThrowingRunnable() {
-            public void run() throws Exception {
-                runContext.getVars().fillCaseVarsFromMap(
-                        evaluateExpressionMapNow(rootModel != null ? rootModel.getBeforeEach() : null,
-                                rootModel != null ? rootModel.getBeforeEachEnabled() : null,
-                                runContext.getVars()));
-            }
-        });
-        beforeChain.add(new ThrowingRunnable() {
-            public void run() throws Exception {
-                runContext.getVars().fillCaseVarsFromMap(
-                        evaluateExpressionMapNow(parentSuite != null ? parentSuite.getBeforeEach() : null,
-                                parentSuite != null ? parentSuite.getBeforeEachEnabled() : null,
-                                runContext.getVars()));
-            }
-        });
-        beforeChain.add(new ThrowingRunnable() {
-            public void run() throws Exception {
-                runContext.getVars().fillCaseVarsFromMap(
-                        evaluateExpressionMapNow(testCase.getBefore(), testCase.getBeforeEnabled(), runContext.getVars()));
-            }
-        });
-        for (ThrowingRunnable r : beforeChain) {
-            runUnchecked(r);
-            Integer waitCfg = SettingsService.getInstance().get("beforeEach.afterWaitMs", Integer.class);
-            long w = (waitCfg != null) ? waitCfg.longValue() : 0L;
-            if (w > 0) {
-                try {
-                    Thread.sleep(w);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                }
-            }
+    private void waitAfterBeforeStep(long millis) {
+        if (millis <= 0L) {
+            return;
         }
-        if (testCase.getId() != null) runContext.markCaseBeforeChainDone(testCase.getId());
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void ensureCaseInitForAction(TestNode caseNode, TestCase testCase) throws RuntimeException {
         try {
-            TestSuite parentSuite = resolveParentSuite(caseNode);
-            if (parentSuite != null) initSuiteSymbols(parentSuite);
-            if (testCase.getId() == null || !runContext.isCaseBeforeChainDone(testCase.getId())) {
-                runContext.getVars().enterCase();
-                initCaseSymbols(caseNode, testCase);
-            }
+            // Immer frischen Kontext für diese ad-hoc-Ausführung
+            this.runContext = new TestRunContext(ExpressionRegistryImpl.getInstance());
+            runContext.getVars().enterCase();
+            initCaseSymbols(caseNode, testCase);
         } catch (Exception ex) {
             throw new RuntimeException("Initialisierung (ad-hoc) fehlgeschlagen: " + safeMsg(ex), ex);
         }
