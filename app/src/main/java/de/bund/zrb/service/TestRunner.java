@@ -15,6 +15,8 @@ import de.bund.zrb.WebDriver;
 import de.bund.zrb.event.WDNetworkEvent;
 import de.bund.zrb.type.session.WDSubscriptionRequest;
 import de.bund.zrb.websocket.WDEventNames;
+import de.bund.zrb.event.ApplicationEventBus;
+import de.bund.zrb.video.overlay.VideoOverlayEvent;
 
 import javax.swing.*;
 import java.nio.file.Files;
@@ -189,6 +191,7 @@ public class TestRunner {
             if (caseNode != null && caseNode.getModelRef() instanceof TestCase) {
                 ensureCaseInitForAction(caseNode, (TestCase) caseNode.getModelRef());
             }
+            ApplicationEventBus.getInstance().publish(new VideoOverlayEvent(VideoOverlayEvent.Kind.ACTION, action.getType().name()));
             ok = playSingleAction(runContext, action, stepLog);
             if (!ok) err = "Action returned false";
         } catch (RuntimeException ex) {
@@ -219,7 +222,7 @@ public class TestRunner {
             return caseLog;
         }
         try {
-            executePreconditionsForCase(node, testCase, caseLog);
+            runCasePreconditions(node, testCase, caseLog);
         } catch (Exception ex) {
             caseLog.setStatus(false);
             caseLog.setError("Precondition execution failed: " + safeMsg(ex));
@@ -228,81 +231,12 @@ public class TestRunner {
         }
         String sub = (testCase.getName() != null) ? testCase.getName().trim() : "";
         OverlayBridge.setSubtitle(sub);
+        ApplicationEventBus.getInstance().publish(new VideoOverlayEvent(VideoOverlayEvent.Kind.CASE, sub));
         executeChildren(node, caseLog);
         executeThenPhase(node, testCase, caseLog); // deprecated
         executeAfterAssertions(node, testCase, caseLog);
         drawerRef.updateSuiteStatus(node);
         return caseLog;
-    }
-
-    private void executePreconditionsForCase(TestNode caseNode, TestCase testCase, SuiteLog parentLog) throws Exception {
-        if (testCase == null) return;
-        java.util.List<Precondtion> refs = new java.util.ArrayList<Precondtion>();
-        RootNode root = TestRegistry.getInstance().getRoot();
-        if (root != null && root.getPreconditions() != null) refs.addAll(root.getPreconditions());
-        TestSuite suite = null;
-        if (caseNode.getParent() instanceof TestNode) {
-            Object parentModel = ((TestNode) caseNode.getParent()).getModelRef();
-            if (parentModel instanceof TestSuite) suite = (TestSuite) parentModel;
-        }
-        if (suite != null && suite.getPreconditions() != null) refs.addAll(suite.getPreconditions());
-        if (testCase.getPreconditions() != null) refs.addAll(testCase.getPreconditions());
-        if (refs.isEmpty()) return;
-        SuiteLog preLog = new SuiteLog(PRECONDITION_PREFIX.trim());
-        preLog.setParent(parentLog);
-        logger.append(preLog);
-        for (Precondtion ref : refs) {
-            if (ref == null) continue;
-            if (!TYPE_PRECONDITION_REF.equals(ref.getType())) {
-                executeGivenList(refsAsSingle(ref), preLog, PRECONDITION_PREFIX);
-                continue;
-            }
-            String id = parseIdFromValue(ref.getValue());
-            if (id == null || id.trim().isEmpty()) {
-                StepLog err = new StepLog(PRECONDITION_PREFIX, "Unbekannte Precondition-Referenz (keine id)");
-                err.setStatus(false);
-                err.setParent(preLog);
-                logger.append(err);
-                continue;
-            }
-            Precondition p = PreconditionRegistry.getInstance().getById(id);
-            String displayName = (p != null) ? (p.getName() != null ? p.getName() : id) : id;
-            if (p != null && p.getGiven() != null && !p.getGiven().isEmpty()) {
-                executeGivenList(p.getGiven(), preLog, PRECONDITION_PREFIX + displayName);
-            }
-            if (p != null && p.getActions() != null && !p.getActions().isEmpty()) {
-                for (TestAction pa : p.getActions()) {
-                    StepLog stepLog = new StepLog("PRECOND", buildStepText(pa));
-                    try {
-                        // Use same user resolution strategy as for normal actions
-                        String effectiveUser = resolveEffectiveUserForAction(runContext, pa);
-                        if (effectiveUser != null && effectiveUser.trim().length() > 0) {
-                            runContext.getVars().setCaseVar("username", effectiveUser.trim());
-                            runContext.getVars().setCaseVar("user", effectiveUser.trim());
-                        }
-                        boolean ok = playSingleAction(runContext, pa, stepLog);
-                        stepLog.setStatus(ok);
-                        if (!ok) stepLog.setError("Precondition action failed");
-                    } catch (Exception ex) {
-                        stepLog.setStatus(false);
-                        stepLog.setError(safeMsg(ex));
-                    }
-                    stepLog.setParent(preLog);
-                    logger.append(stepLog);
-                }
-            } else if (p == null) {
-                StepLog warn = new StepLog(PRECONDITION_PREFIX, "Precondition not found: " + id);
-                warn.setStatus(false);
-                warn.setParent(preLog);
-                logger.append(warn);
-            }
-        }
-    }
-
-    private List<Precondtion> refsAsSingle(Precondtion ref) {
-        List<Precondtion> list = new ArrayList<Precondtion>();
-        list.add(ref);
-        return list;
     }
 
     private LogComponent executeSuiteNode(TestNode node, TestSuite suite) {
@@ -315,6 +249,7 @@ public class TestRunner {
             String cap = (suite.getDescription() != null && !suite.getDescription().trim().isEmpty())
                     ? suite.getDescription().trim() : (suite.getName() != null ? suite.getName().trim() : node.toString());
             OverlayBridge.setCaption(cap);
+            ApplicationEventBus.getInstance().publish(new VideoOverlayEvent(VideoOverlayEvent.Kind.SUITE, cap));
             OverlayBridge.clearSubtitle();
             suiteLog.setStatus(false);
             suiteLog.setError(SUITE_SETUP_FAILED_MSG + ": " + safeMsg(ex));
@@ -324,6 +259,7 @@ public class TestRunner {
         String cap = (suite.getDescription() != null && !suite.getDescription().trim().isEmpty())
                 ? suite.getDescription().trim() : (suite.getName() != null ? suite.getName().trim() : node.toString());
         OverlayBridge.setCaption(cap);
+        ApplicationEventBus.getInstance().publish(new VideoOverlayEvent(VideoOverlayEvent.Kind.SUITE, cap));
         OverlayBridge.clearSubtitle();
         executeChildren(node, suiteLog);
         drawerRef.updateSuiteStatus(node);
@@ -1450,5 +1386,74 @@ public class TestRunner {
             } catch (Throwable ignore2) {
             }
         }
+    }
+
+    private void runCasePreconditions(TestNode caseNode, TestCase testCase, SuiteLog parentLog) throws Exception {
+        if (testCase == null) return;
+        java.util.List<Precondtion> refs = new java.util.ArrayList<Precondtion>();
+        RootNode root = TestRegistry.getInstance().getRoot();
+        if (root != null && root.getPreconditions() != null) refs.addAll(root.getPreconditions());
+        TestSuite suite = null;
+        if (caseNode.getParent() instanceof TestNode) {
+            Object parentModel = ((TestNode) caseNode.getParent()).getModelRef();
+            if (parentModel instanceof TestSuite) suite = (TestSuite) parentModel;
+        }
+        if (suite != null && suite.getPreconditions() != null) refs.addAll(suite.getPreconditions());
+        if (testCase.getPreconditions() != null) refs.addAll(testCase.getPreconditions());
+        if (refs.isEmpty()) return;
+        SuiteLog preLog = new SuiteLog(PRECONDITION_PREFIX.trim());
+        preLog.setParent(parentLog);
+        logger.append(preLog);
+        for (Precondtion ref : refs) {
+            if (ref == null) continue;
+            if (!TYPE_PRECONDITION_REF.equals(ref.getType())) {
+                executeGivenList(refsAsSingle(ref), preLog, PRECONDITION_PREFIX);
+                continue;
+            }
+            String id = parseIdFromValue(ref.getValue());
+            if (id == null || id.trim().isEmpty()) {
+                StepLog err = new StepLog(PRECONDITION_PREFIX, "Unbekannte Precondition-Referenz (keine id)");
+                err.setStatus(false);
+                err.setParent(preLog);
+                logger.append(err);
+                continue;
+            }
+            Precondition p = PreconditionRegistry.getInstance().getById(id);
+            String displayName = (p != null) ? (p.getName() != null ? p.getName() : id) : id;
+            if (p != null && p.getGiven() != null && !p.getGiven().isEmpty()) {
+                executeGivenList(p.getGiven(), preLog, PRECONDITION_PREFIX + displayName);
+            }
+            if (p != null && p.getActions() != null && !p.getActions().isEmpty()) {
+                for (TestAction pa : p.getActions()) {
+                    StepLog stepLog = new StepLog("PRECOND", buildStepText(pa));
+                    try {
+                        String effectiveUser = resolveEffectiveUserForAction(runContext, pa);
+                        if (effectiveUser != null && effectiveUser.trim().length() > 0) {
+                            runContext.getVars().setCaseVar("username", effectiveUser.trim());
+                            runContext.getVars().setCaseVar("user", effectiveUser.trim());
+                        }
+                        boolean ok = playSingleAction(runContext, pa, stepLog);
+                        stepLog.setStatus(ok);
+                        if (!ok) stepLog.setError("Precondition action failed");
+                    } catch (Exception ex) {
+                        stepLog.setStatus(false);
+                        stepLog.setError(safeMsg(ex));
+                    }
+                    stepLog.setParent(preLog);
+                    logger.append(stepLog);
+                }
+            } else if (p == null) {
+                StepLog warn = new StepLog(PRECONDITION_PREFIX, "Precondition not found: " + id);
+                warn.setStatus(false);
+                warn.setParent(preLog);
+                logger.append(warn);
+            }
+        }
+    }
+
+    private java.util.List<Precondtion> refsAsSingle(Precondtion ref) {
+        java.util.ArrayList<Precondtion> list = new java.util.ArrayList<Precondtion>(1);
+        list.add(ref);
+        return list;
     }
 }

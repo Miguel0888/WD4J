@@ -6,6 +6,7 @@ import de.bund.zrb.ui.TestPlayerUi;
 import de.bund.zrb.ui.components.log.StepLog;
 import de.bund.zrb.ui.components.log.SuiteLog;
 import de.bund.zrb.ui.components.log.TestExecutionLogger;
+import de.bund.zrb.video.overlay.VideoOverlayController;
 
 /**
  * TestPlayerService bleibt der zentrale Einstiegspunkt (Singleton)
@@ -35,6 +36,8 @@ public class TestPlayerService {
 
     // --- Laufender Runner (pro Playback) ---
     private TestRunner currentRunner;
+
+    private VideoOverlayController overlayController;
 
     private TestPlayerService() {
         // enforce singleton
@@ -124,6 +127,29 @@ public class TestPlayerService {
     public void logScreenshotFromTool(String label, String relImagePath, boolean ok, String errorMsg) {
         ensureRunnerForToolSupport();
         currentRunner.logScreenshotFromTool(label, relImagePath, ok, errorMsg);
+    }
+
+    /**
+     * Startet den Playback mit Video-Overlay.
+     */
+    public synchronized void play(TestNode startNode) {
+        if (!isReady()) {
+            return;
+        }
+        overlayController = new VideoOverlayController();
+        overlayController.start();
+        try {
+            currentRunner = new TestRunner(
+                    browserService,
+                    givenExecutor,
+                    drawerRef,
+                    logger
+            );
+            currentRunner.runSuites();
+        } finally {
+            if (overlayController != null) overlayController.stop();
+            overlayController = null;
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////////
