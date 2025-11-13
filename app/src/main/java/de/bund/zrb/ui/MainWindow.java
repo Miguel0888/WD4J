@@ -11,6 +11,7 @@ import de.bund.zrb.ui.commands.debug.*;
 import de.bund.zrb.ui.commands.tools.*;
 import de.bund.zrb.ui.status.StatusTicker;
 import de.bund.zrb.ui.util.AppIcon;
+import de.bund.zrb.ui.widgets.ApplicationStatusBar;
 import de.bund.zrb.ui.widgets.StatusBar;
 import de.bund.zrb.ui.widgets.UserSelectionCombo;
 import de.bund.zrb.ui.state.FileUiStateRepository;
@@ -65,8 +66,7 @@ public class MainWindow {
     private int savedOuterDividerLocation = 200;  // default for left drawer
     private int savedInnerDividerLocation = 900;  // default for right drawer
 
-    private StatusBar statusBar;
-    private UserSelectionCombo userCombo;
+    private ApplicationStatusBar appStatusBar;
 
     public static JTabbedPane findRightEditorTabbedPane(Component anyDescendant) {
         // EINFACH: gib die static-Ref zurück.
@@ -154,19 +154,18 @@ public class MainWindow {
         frame.add(outerSplit, BorderLayout.CENTER);
 
         // Statusbar unten
-        userCombo = new UserSelectionCombo(UserRegistry.getInstance());
-        statusBar = new StatusBar(userCombo);
-        frame.add(statusBar, BorderLayout.SOUTH);
-        StatusTicker.getInstance().attach(statusBar); // activate event queue
+        appStatusBar = new ApplicationStatusBar(UserRegistry.getInstance());
+        frame.add(appStatusBar, BorderLayout.SOUTH);
+        StatusTicker.getInstance().attach(appStatusBar.getStatusBar()); // activate event queue
 
         // Status-Messages aus dem Service konsumieren
         ApplicationEventBus.getInstance().subscribe(BrowserLifecycleEvent.class, ev -> {
             BrowserLifecycleEvent.Payload p = ev.getPayload();
             if (p != null) {
                 if (p.getAction() != null) {
-                    SwingUtilities.invokeLater(() -> statusBar.setMessageWithAction(p.getMessage(), p.getAction().getLabel(), p.getAction().getRunnable()));
+                    SwingUtilities.invokeLater(() -> appStatusBar.getStatusBar().setMessageWithAction(p.getMessage(), p.getAction().getLabel(), p.getAction().getRunnable()));
                 } else if (p.getMessage() != null) {
-                    SwingUtilities.invokeLater(() -> statusBar.setMessage(p.getMessage()));
+                    SwingUtilities.invokeLater(() -> appStatusBar.getStatusBar().setMessage(p.getMessage()));
                 }
             }
             // Dialog nur, wenn keine Aktion vorhanden ist (unbehandelte Fehler)
@@ -615,8 +614,8 @@ public class MainWindow {
     }
 
     public void setStatus(String text) {
-        if (statusBar != null) {
-            statusBar.setMessage(text);
+        if (appStatusBar != null) {
+            appStatusBar.getStatusBar().setMessage(text);
         }
     }
 

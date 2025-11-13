@@ -41,7 +41,7 @@ public final class InputSettingsPanel implements SettingsSubPanel {
 
         spActionMaxDurationS = new JSpinner(new SpinnerNumberModel(15.0, 0.0, 86400.0, 1.0));
         spActionMaxDurationS.setEditor(new JSpinner.NumberEditor(spActionMaxDurationS, "0.###"));
-        spActionMaxDurationS.setToolTipText("Maximal erlaubte Dauer einer Aktion (Sekunden, Schritt 1s)");
+        spActionMaxDurationS.setToolTipText("Maximal einstellbare Dauer einer Aktion (Sekunden, Schritt 1s)");
 
         cbEarlyFinishAllowed = new JCheckBox("Vorzeitiges Beenden zulassen");
         cbEarlyFinishAllowed.setToolTipText("Endzeit wird automatisch ermittelt (nicht immer korrekt). Eine zusätzliche Zeit wird empfohlen.");
