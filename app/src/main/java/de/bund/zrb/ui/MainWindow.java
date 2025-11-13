@@ -409,6 +409,7 @@ public class MainWindow {
         commandRegistry.register(new ExpressionEditorCommand());
         commandRegistry.register(new RegexPresetsCommand());
         commandRegistry.register(new PlayTestSuiteCommand(tabbedPane));
+        commandRegistry.register(new PlayAndRecordTestSuiteCommand(tabbedPane));
         commandRegistry.register(new StopPlaybackCommand());
         commandRegistry.register(new StartRecordCommand());
         commandRegistry.register(new StopRecordCommand());
