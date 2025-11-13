@@ -202,4 +202,49 @@ public final class LibVlcRecorder implements MediaRecorder {
         try { return (String) RecordingProfile.class.getMethod("getVideoCodec").invoke(p); }
         catch (Throwable ignore) { return null; }
     }
+
+    // Configure VLC 64-bit path explicitly and verify bitness early
+    private static void configureVlc64(String explicitVlcHome) {
+        // Log basic environment to diagnose bitness issues
+        String arch = System.getProperty("os.arch");
+        System.out.println("[VLC] JVM os.arch=" + arch + "  expected: amd64/x86_64");
+        if (!arch.contains("64")) {
+            throw new IllegalStateException("Running on 32-bit JVM; install/use a 64-bit JVM to load 64-bit VLC.");
+        }
+
+        // Prefer explicit path; fall back to standard 64-bit location
+        String vlcHome = explicitVlcHome != null ? explicitVlcHome : "C:\\\\Program Files\\\\VideoLAN\\\\VLC";
+        java.io.File dll = new java.io.File(vlcHome, "libvlc.dll");
+        if (!dll.exists()) {
+            throw new IllegalStateException("libvlc.dll not found at: " + dll.getAbsolutePath());
+        }
+        if (vlcHome.contains("Program Files (x86)")) {
+            throw new IllegalStateException("VLC path points to 32-bit installation. Use 64-bit VLC under 'Program Files'.");
+        }
+
+        // Set search paths BEFORE touching vlcj/JNA
+        String sep = System.getProperty("path.separator");
+        String existing = System.getProperty("jna.library.path");
+        String combined = (existing == null || existing.isEmpty()) ? vlcHome : existing + sep + vlcHome;
+        System.setProperty("jna.library.path", combined);
+
+        java.io.File plugins = new java.io.File(vlcHome, "plugins");
+        if (plugins.exists()) {
+            System.setProperty("VLC_PLUGIN_PATH", plugins.getAbsolutePath());
+        }
+
+        // Optional: also help PATH resolution (some setups rely on it)
+        String pathEnv = System.getenv("PATH");
+        if (pathEnv == null || !pathEnv.toLowerCase().contains(vlcHome.toLowerCase())) {
+            String newPath = vlcHome + ";" + pathEnv;
+            try {
+                // JNA cannot set process env PATH portably; just log the hint
+                System.out.println("[VLC] Consider adding to PATH: " + vlcHome);
+            } catch (Throwable ignore) { /* ignore */ }
+        }
+
+        System.out.println("[VLC] jna.library.path=" + System.getProperty("jna.library.path"));
+        System.out.println("[VLC] VLC_PLUGIN_PATH=" + System.getProperty("VLC_PLUGIN_PATH"));
+    }
+
 }
