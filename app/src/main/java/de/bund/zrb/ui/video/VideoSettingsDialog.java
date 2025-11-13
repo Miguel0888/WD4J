@@ -50,6 +50,8 @@ public class VideoSettingsDialog extends JDialog {
     private JCheckBox cbVlcAudioEnabled;
 
     private JComboBox<String> cbBackend;
+    private JComboBox<String> cbJcodecContainer;
+    private JCheckBox cbJcodecAudio;
 
     public VideoSettingsDialog(Window owner) {
         super(owner, "Video-Einstellungen", ModalityType.APPLICATION_MODAL);
@@ -69,10 +71,13 @@ public class VideoSettingsDialog extends JDialog {
         int r = 0;
         JLabel info = new JLabel("JCodec (reines Java, kein Audio). Geeignet bei 32/64-bit-Mismatch.");
         g.gridx=0; g.gridy=r++; g.gridwidth=2; g.anchor=GridBagConstraints.WEST; p.add(info, g); g.gridwidth=1;
-        JSpinner spFps = new JSpinner(new SpinnerNumberModel(15, 1, 60, 1));
-        addRow(p, g, r++, "FPS:", spFps);
-        JComboBox<String> cbQual = new JComboBox<>(new String[]{"mittel","hoch","sehr hoch"});
-        addRow(p, g, r++, "Qualität:", cbQual);
+
+        cbJcodecContainer = new JComboBox<>(new String[]{"mp4","avi","mkv"});
+        addRow(p, g, r++, "Container:", cbJcodecContainer);
+
+        cbJcodecAudio = new JCheckBox("Experimentelles Audio (separat, Java-only)");
+        g.gridx=0; g.gridy=r++; g.gridwidth=2; g.anchor=GridBagConstraints.WEST; p.add(cbJcodecAudio, g); g.gridwidth=1;
+
         JPanel wrap = new JPanel(new BorderLayout());
         wrap.add(p, BorderLayout.NORTH);
         return wrap;
@@ -454,6 +459,13 @@ public class VideoSettingsDialog extends JDialog {
         setInt(spVlcHeight,or(s.get("video.vlc.screen.height", Integer.class), 0));
         cbVlcAudioEnabled.setSelected(Boolean.TRUE.equals(s.get("video.vlc.audio.enabled", Boolean.class)));
 
+        // JCodec
+        String jc = s.get("video.jcodec.container", String.class);
+        if (jc == null || jc.trim().isEmpty()) jc = "mp4";
+        if (cbJcodecContainer != null) cbJcodecContainer.setSelectedItem(jc);
+        Boolean jAudio = s.get("video.jcodec.audio.enabled", Boolean.class);
+        if (cbJcodecAudio != null) cbJcodecAudio.setSelected(Boolean.TRUE.equals(jAudio));
+
         updateQualityCard();
         updateVlcUiEnabled();
     }
@@ -514,6 +526,10 @@ public class VideoSettingsDialog extends JDialog {
         setInt(spVlcHeight, 0);
         cbVlcAudioEnabled.setSelected(false);
 
+        // JCodec Defaults
+        if (cbJcodecContainer != null) cbJcodecContainer.setSelectedItem("mp4");
+        if (cbJcodecAudio != null) cbJcodecAudio.setSelected(false);
+
         if (cbBackend != null) cbBackend.setSelectedItem("vlc");
     }
 
@@ -521,6 +537,8 @@ public class VideoSettingsDialog extends JDialog {
         try {
             SettingsService s = SettingsService.getInstance();
             if (cbBackend != null) s.set("video.backend", String.valueOf(cbBackend.getSelectedItem()));
+            if (cbJcodecContainer != null) s.set("video.jcodec.container", String.valueOf(cbJcodecContainer.getSelectedItem()));
+            if (cbJcodecAudio != null) s.set("video.jcodec.audio.enabled", cbJcodecAudio.isSelected());
 
             // --- FFmpeg persistieren ---
             s.set("video.container",  str(cbContainer));

@@ -215,6 +215,7 @@ public class SettingsService {
 
         // --- JCodec-spezifische Defaults ---
         if (!settingsCache.containsKey("video.jcodec.container")) settingsCache.put("video.jcodec.container", "mp4");
+        if (!settingsCache.containsKey("video.jcodec.audio.enabled")) settingsCache.put("video.jcodec.audio.enabled", false);
     }
 
     private static String defaultVlcBasePath() {

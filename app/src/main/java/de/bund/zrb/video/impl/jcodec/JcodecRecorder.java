@@ -27,8 +27,9 @@ public final class JcodecRecorder implements MediaRecorder {
         if (out == null) throw new IllegalArgumentException("outputFile fehlt im Profile");
         try { Files.createDirectories(out.getParent()); } catch (Throwable ignore) {}
 
+        boolean audio = Boolean.TRUE.equals(de.bund.zrb.service.SettingsService.getInstance().get("video.jcodec.audio.enabled", Boolean.class));
         int fps = profile.getFps() > 0 ? profile.getFps() : 15;
-        wr = new JcodecWindowRecorder(hwnd, out, fps);
+        wr = new JcodecWindowRecorder(hwnd, out, fps, audio);
         wr.start();
     }
 
@@ -40,4 +41,3 @@ public final class JcodecRecorder implements MediaRecorder {
     @Override
     public boolean isRecording() { return wr != null; }
 }
-

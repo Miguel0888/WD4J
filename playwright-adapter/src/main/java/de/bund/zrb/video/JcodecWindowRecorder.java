@@ -5,6 +5,7 @@ import de.bund.zrb.config.VideoConfig;
 import de.bund.zrb.win.WindowCapture;
 import org.jcodec.api.awt.AWTSequenceEncoder;
 
+import javax.sound.sampled.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.Closeable;
@@ -20,6 +21,7 @@ public class JcodecWindowRecorder implements Closeable {
     private final WinDef.HWND hWnd;
     private final Path outFileRequested;
     private final int fpsArg;
+    private final boolean audioEnabled; // NEU
 
     private AWTSequenceEncoder encoder;
     private Thread worker;
@@ -27,14 +29,23 @@ public class JcodecWindowRecorder implements Closeable {
 
     private Path outFileEffective;
 
+    // Audio (optional)
+    private Thread audioThread; // NEU
+    private TargetDataLine audioLine; // NEU
+    private Path audioOutPath; // NEU
+
     // Overlays – kompatible API zu WindowRecorder
     private final CaptionOverlay caption = new CaptionOverlay();
     private final SubtitleOverlay subtitle = new SubtitleOverlay();
 
     public JcodecWindowRecorder(WinDef.HWND hWnd, Path outFile, int fps) {
+        this(hWnd, outFile, fps, false);
+    }
+    public JcodecWindowRecorder(WinDef.HWND hWnd, Path outFile, int fps, boolean audioEnabled) {
         this.hWnd = hWnd;
         this.outFileRequested = outFile;
         this.fpsArg = fps;
+        this.audioEnabled = audioEnabled;
     }
 
     private static volatile JcodecWindowRecorder CURRENT;
@@ -66,8 +77,13 @@ public class JcodecWindowRecorder implements Closeable {
 
         // AWTSequenceEncoder mit fixer FPS
         encoder = AWTSequenceEncoder.createSequenceEncoder(new File(outFileEffective.toString()), fps);
-
         final int frameIntervalMs = (int) Math.max(1, Math.round(1000.0 / Math.max(1, fps)));
+
+        // Optionales Audio vorbereiten (separate WAV)
+        if (audioEnabled) {
+            audioOutPath = ensureSiblingWithExt(outFileEffective, ".wav");
+            startAudioCapture(audioOutPath);
+        }
 
         running.set(true);
         worker = new Thread(() -> {
@@ -109,6 +125,8 @@ public class JcodecWindowRecorder implements Closeable {
         running.set(false);
         if (worker != null) { try { worker.join(2000); } catch (InterruptedException ignored) {} }
         try { if (encoder != null) encoder.finish(); } catch (Exception ignored) {}
+        // Audio sauber stoppen
+        stopAudioCapture();
         if (CURRENT == this) CURRENT = null;
     }
 
@@ -201,5 +219,54 @@ public class JcodecWindowRecorder implements Closeable {
         void setVisible(boolean v) { this.visible = v; }
         void setStyle(WindowRecorder.OverlayStyle s) { if (s != null) this.style = s; }
         void paint(BufferedImage frame) { if (visible) paintOverlay(frame, text, style); }
+    }
+
+    private static Path ensureSiblingWithExt(Path p, String ext) {
+        String s = p.toString();
+        int dot = s.lastIndexOf('.');
+        if (dot > 0) s = s.substring(0, dot);
+        return Paths.get(s + ext);
+    }
+
+    private void startAudioCapture(Path wavPath) {
+        try {
+            AudioFormat fmt = new AudioFormat(44100.0f, 16, 1, true, false); // 44.1kHz, 16-bit, mono, signed LE
+            DataLine.Info info = new DataLine.Info(TargetDataLine.class, fmt);
+            if (!AudioSystem.isLineSupported(info)) {
+                System.out.println("[Jcodec] Audioformat nicht unterstützt – Audio wird übersprungen");
+                return;
+            }
+            TargetDataLine line = (TargetDataLine) AudioSystem.getLine(info);
+            line.open(fmt);
+            line.start();
+            this.audioLine = line;
+
+            audioThread = new Thread(() -> {
+                try (AudioInputStream ais = new AudioInputStream(line)) {
+                    AudioSystem.write(ais, AudioFileFormat.Type.WAVE, wavPath.toFile());
+                } catch (Throwable t) {
+                    // beende leise
+                }
+            }, "jcodec-audio-capture");
+            audioThread.setDaemon(true);
+            audioThread.start();
+        } catch (Throwable t) {
+            System.out.println("[Jcodec] Audio-Capture Start fehlgeschlagen: " + t.getMessage());
+        }
+    }
+
+    private void stopAudioCapture() {
+        try {
+            if (audioLine != null) {
+                try { audioLine.stop(); } catch (Throwable ignore) {}
+                try { audioLine.close(); } catch (Throwable ignore) {}
+            }
+        } finally {
+            if (audioThread != null) {
+                try { audioThread.join(2000); } catch (InterruptedException ignore) {}
+            }
+            audioThread = null;
+            audioLine = null;
+        }
     }
 }
