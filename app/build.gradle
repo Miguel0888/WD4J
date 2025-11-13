@@ -117,6 +117,10 @@ dependencies {
     implementation 'net.java.dev.jna:jna:5.13.0'
     implementation 'net.java.dev.jna:jna-platform:5.13.0'
 
+    // VLC Video
+//    implementation "uk.co.caprica:vlcj:4.8.2" // Java 11
+    implementation "uk.co.caprica:vlcj:3.12.1"         // Java 8
+
     // otp auth
     implementation 'com.warrenstrange:googleauth:1.4.0'
 

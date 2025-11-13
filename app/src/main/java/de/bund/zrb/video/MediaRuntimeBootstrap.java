@@ -25,12 +25,12 @@ public final class MediaRuntimeBootstrap {
         // Try LibVLC first
         MediaRecorder libVlcRecorder = tryCreateLibVlcRecorder();
         if (libVlcRecorder != null) {
-            log("Using LibVLC recorder");
+            System.out.println("Using LibVLC recorder");
             return libVlcRecorder;
         }
         
         // Fallback to FFmpeg/JavaCV
-        log("LibVLC not available, falling back to FFmpeg/JavaCV");
+        System.out.println("LibVLC not available, falling back to FFmpeg/JavaCV");
         return new FfmpegRecorder();
     }
     
@@ -44,17 +44,17 @@ public final class MediaRuntimeBootstrap {
         // Try LibVLC first
         MediaRecorder libVlcRecorder = tryCreateLibVlcRecorder();
         if (libVlcRecorder != null) {
-            log("Using LibVLC recorder");
+            System.out.println("Using LibVLC recorder");
             return libVlcRecorder;
         }
         
         // Fallback to FFmpeg/JavaCV with interactive loading
-        log("LibVLC not available, trying FFmpeg/JavaCV");
+        System.out.println("LibVLC not available, trying FFmpeg/JavaCV");
         
         // Ensure video libraries are available (may prompt user)
         boolean available = VideoRuntimeLoader.ensureVideoLibsAvailableInteractively();
         if (!available) {
-            log("User cancelled video library download");
+            System.out.println("User cancelled video library download");
             return null;
         }
         
@@ -66,37 +66,37 @@ public final class MediaRuntimeBootstrap {
      * 
      * @return LibVlcRecorder instance or null if not available
      */
-    private static MediaRecorder tryCreateLibVlcRecorder() {
+    public static MediaRecorder tryCreateLibVlcRecorder() {
         try {
-            // Check if vlcj is on classpath
-            if (!LibVlcLocator.isVlcjAvailable()) {
-                log("vlcj not on classpath");
+            // If vlcj 3.x is missing, fail gracefully
+            try {
+                Class.forName("uk.co.caprica.vlcj.player.MediaPlayerFactory");
+            } catch (ClassNotFoundException e) {
+                System.out.println("vlcj 3.x not on classpath");
                 return null;
             }
-            
-            // Try to locate VLC installation
-            boolean located = LibVlcLocator.locateAndConfigure();
-            if (!located) {
-                log("VLC installation not found");
-                // Try vlcj's own discovery as fallback
-                if (!LibVlcLocator.useVlcjDiscovery()) {
-                    log("vlcj NativeDiscovery also failed");
-                    return null;
-                }
+
+            // Try discovery (PATH/Registry). If that fails, try manual path configure
+            boolean discovered = de.bund.zrb.video.impl.libvlc.LibVlcLocator.useVlcjDiscovery();
+            if (!discovered) {
+                System.out.println("NativeDiscovery failed; try manual locate+configure");
+                discovered = de.bund.zrb.video.impl.libvlc.LibVlcLocator.locateAndConfigure();
             }
-            
-            // Try to create LibVlcRecorder
-            return new LibVlcRecorder();
-            
+            if (!discovered) {
+                System.out.println("VLC installation not found");
+                return null;
+            }
+
+            // Create v3 recorder
+            return new de.bund.zrb.video.impl.libvlc.LibVlcRecorder();
+
         } catch (Throwable t) {
-            log("Failed to create LibVlcRecorder: " + t.getMessage());
-            if (LOG_ENABLED) {
-                t.printStackTrace();
-            }
+            System.out.println("Failed to create LibVlcRecorder: " + t.getMessage());
+            if (LOG_ENABLED) t.printStackTrace();
             return null;
         }
     }
-    
+
     /**
      * Checks if LibVLC recorder is available on this system.
      * 
@@ -114,10 +114,14 @@ public final class MediaRuntimeBootstrap {
     public static String getPreferredBackend() {
         return isLibVlcAvailable() ? "LibVLC" : "FFmpeg";
     }
-    
-    private static void log(String message) {
-        if (LOG_ENABLED) {
-            System.out.println("[MediaRuntimeBootstrap] " + message);
+
+    public static MediaRecorder createFfmpegRecorder() {
+        // Validate availability of the FFmpeg/JavaCV stack before constructing the adapter
+        // Comments in English and imperative style
+        if (!de.bund.zrb.service.VideoRecordingService.quickCheckAvailable()) {
+            throw new IllegalStateException("FFmpeg/JavaCV stack not available. Prepare libraries before calling createFfmpegRecorder().");
         }
+        System.out.println("Using FFmpeg/JavaCV recorder");
+        return new FfmpegRecorder();
     }
 }
