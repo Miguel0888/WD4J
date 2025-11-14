@@ -46,6 +46,9 @@ public final class ToolbarDefaults {
         String idReload      = findIdContaining(allCommands,"reloadtab","reload","refresh");
         String idUserReg     = findIdContaining(allCommands,"userregistry","user.registry","credentials","zugangsdaten");
         String idVideoToggle = findIdContaining(allCommands,"video.toggle","recording.toggle","video.record");
+        // NEU: Seitenleisten-Toggles
+        String idToggleLeft  = findIdContaining(allCommands, "view.toggleleftdrawer", "view.toggleleft");
+        String idToggleRight = findIdContaining(allCommands, "view.togglerightdrawer", "view.toggleright");
 
         class Def { String icon; String hex; Def(String i,String h){icon=i;hex=h;} }
         Map<String, Def> m = new LinkedHashMap<>();
@@ -60,10 +63,15 @@ public final class ToolbarDefaults {
         m.put(idReload,      new Def("↻", null));
         m.put(idUserReg,     new Def(cp(0x1F4C7), null));      // 📇
         m.put(idVideoToggle, new Def(cp(0x1F3AC), null));      // 🎬
+        // NEU: Icons für Seitenleisten
+        m.put(idToggleLeft,  new Def("⟨", null));
+        m.put(idToggleRight, new Def("⟩", null));
 
         String[] order = new String[]{
                 idPlay, idStopPlay, idStartRec, idStopRec, idVideoToggle,
-                idLogin, idHome, idOtp, idCloseTab, idReload, idUserReg
+                idLogin, idHome, idOtp, idCloseTab, idReload, idUserReg,
+                // NEU: nach den Standard-Navigationsaktionen einreihen
+                idToggleLeft, idToggleRight
         };
 
         int pos = 1;
