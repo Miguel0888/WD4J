@@ -560,6 +560,93 @@ public class TestRunner {
         return rel.replace('\\', '/');
     }
 
+    // --- Helper für Bildpersistenz/Parsing ---
+    private Path saveImageBytes(byte[] bytes, String baseName, String extWithDot) throws Exception {
+        initReportIfNeeded();
+        String safe = (baseName == null || baseName.trim().isEmpty()) ? SCREENSHOT_SHOT_BASE : baseName.replaceAll("[^a-zA-Z0-9._-]", "_");
+        String ext = (extWithDot != null && extWithDot.startsWith(".")) ? extWithDot : ".png";
+        String fileName = String.format("%03d-%s%s", ++screenshotCounter, safe, ext);
+        Path file = reportImagesDir.resolve(fileName);
+        Files.write(file, bytes);
+        return file;
+    }
+
+    private String sanitizeBaseName(String s) {
+        String t = (s == null ? SCREENSHOT_SHOT_BASE : s.trim());
+        if (t.isEmpty()) t = SCREENSHOT_SHOT_BASE;
+        return t.replaceAll("[^a-zA-Z0-9._-]", "_");
+    }
+
+    private static final class ParsedDataUrl { final String mime; final byte[] bytes; ParsedDataUrl(String m, byte[] b){ this.mime=m; this.bytes=b; } }
+
+    private ParsedDataUrl parseDataUrlSafe(String s) {
+        try {
+            if (s == null) return null;
+            String t = s.trim();
+            int comma = t.indexOf(',');
+            if (comma < 0) return null;
+            String header = t.substring(0, comma).toLowerCase(java.util.Locale.ROOT);
+            String payload = t.substring(comma + 1);
+            if (!header.startsWith("data:image/") || !header.contains("base64")) return null;
+            String mime;
+            int semi = header.indexOf(';');
+            if (semi > 0) mime = header.substring("data:".length(), semi); else mime = header.substring("data:".length());
+            byte[] bytes = java.util.Base64.getDecoder().decode(payload);
+            return new ParsedDataUrl(mime, bytes);
+        } catch (Throwable ignore) {
+            return null;
+        }
+    }
+
+    private String extFromMime(String mime) {
+        if (mime == null) return ".png";
+        String m = mime.toLowerCase(java.util.Locale.ROOT);
+        if (m.contains("png")) return ".png";
+        if (m.contains("jpeg") || m.contains("jpg")) return ".jpg";
+        if (m.contains("gif")) return ".gif";
+        return ".png";
+    }
+
+    private Path resolveExistingFilePath(String s) {
+        try {
+            if (s == null || s.trim().isEmpty()) return null;
+            String raw = s.trim();
+            Path p;
+            if (raw.toLowerCase(java.util.Locale.ROOT).startsWith("file:")) {
+                p = java.nio.file.Paths.get(java.net.URI.create(raw));
+            } else {
+                p = java.nio.file.Paths.get(raw);
+                if (!java.nio.file.Files.exists(p) || !java.nio.file.Files.isRegularFile(p)) {
+                    if (reportHtmlPath != null) {
+                        Path base = reportHtmlPath.getParent();
+                        if (base != null) {
+                            Path alt = base.resolve(raw).normalize();
+                            if (java.nio.file.Files.exists(alt) && java.nio.file.Files.isRegularFile(alt)) {
+                                p = alt;
+                            }
+                        }
+                    }
+                }
+            }
+            return (java.nio.file.Files.exists(p) && java.nio.file.Files.isRegularFile(p)) ? p : null;
+        } catch (Throwable ignore) {
+            return null;
+        }
+    }
+
+    /**
+     * TestRegistry.getInstance().getRoot() kann noch null sein (z.B. während Suite-Setup).
+     * Daher hier defensiv prüfen.
+     */
+    private boolean isRootNodeAvailable() {
+        return TestRegistry.getInstance().getRoot() != null;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // Report-Handling (Screenshots, Logging)
+
+    /// /////////////////////////////////////////////////////////////////////////////
+
     private void endReport() {
         if (logger != null) logger.exportAsHtml(reportHtmlPath);
     }
@@ -863,15 +950,31 @@ public class TestRunner {
                     if (isBlank(vType)) {
                         ok = true;
                         if (trimmed != null && trimmed.length() > 0) {
-                            if (isDataImageUrl(trimmed)) {
-                                assertionLog.setHtmlAppend("<img src='" + trimmed + "' alt='Result Image' style='max-width:100%;border:1px solid #ccc;margin-top:.5rem' />");
+                            // Persistiere Bild aus Data-URL oder kopiere existierende Datei in den Report-Bilderordner und binde relativ ein
+                            boolean embedded = false;
+                            ParsedDataUrl pdu = parseDataUrlSafe(trimmed);
+                            if (pdu != null) {
+                                String base = sanitizeBaseName(name);
+                                String ext = extFromMime(pdu.mime);
+                                java.nio.file.Path f = saveImageBytes(pdu.bytes, base, ext);
+                                String rel = relToHtml(f);
+                                assertionLog.setHtmlAppend("<img src='" + rel + "' alt='Result Image' style='max-width:100%;border:1px solid #ccc;margin-top:.5rem' />");
+                                embedded = true;
                             } else {
-                                String dataUrl = tryBuildDataUrlFromPath(trimmed);
-                                if (dataUrl != null) {
-                                    assertionLog.setHtmlAppend("<img src='" + dataUrl + "' alt='Result Image' style='max-width:100%;border:1px solid #ccc;margin-top:.5rem' />");
-                                } else {
-                                    assertionLog.setHtmlAppend("<small style='color:#666'>Wert: " + trimmed.replace("<", "&lt;").replace(">", "&gt;") + "</small>");
+                                java.nio.file.Path src = resolveExistingFilePath(trimmed);
+                                if (src != null) {
+                                    byte[] bytes = java.nio.file.Files.readAllBytes(src);
+                                    String fn = src.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+                                    String ext = fn.endsWith(".png")? ".png" : (fn.endsWith(".jpg")||fn.endsWith(".jpeg"))? ".jpg" : (fn.endsWith(".gif")? ".gif" : ".png");
+                                    String base = sanitizeBaseName(name);
+                                    java.nio.file.Path f = saveImageBytes(bytes, base, ext);
+                                    String rel = relToHtml(f);
+                                    assertionLog.setHtmlAppend("<img src='" + rel + "' alt='Result Image' style='max-width:100%;border:1px solid #ccc;margin-top:.5rem' />");
+                                    embedded = true;
                                 }
+                            }
+                            if (!embedded) {
+                                assertionLog.setHtmlAppend("<small style='color:#666'>Wert: " + trimmed.replace("<", "&lt;").replace(">", "&gt;") + "</small>");
                             }
                         }
                     } else {
