@@ -34,6 +34,7 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
     private JComboBox<String> userBox;
     private JTextField timeoutField;
     private JTextField descField; // NEU
+    private JSpinner spMinDuration; // NEU
 
     public ActionEditorTab(final TestAction action) {
         super("Action Editor", action);
@@ -81,6 +82,12 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
         formPanel.add(new JLabel("Description:"));
         descField = new JTextField(action.getDescription() != null ? action.getDescription() : "");
         formPanel.add(descField);
+
+        // Mindestdauer
+        formPanel.add(new JLabel("Min. Dauer (ms):"));
+        Integer md = action.getMinDurationMs();
+        spMinDuration = new JSpinner(new SpinnerNumberModel(md != null ? md.intValue() : 0, 0, 3600000, 100));
+        formPanel.add(spMinDuration);
 
         // ScopeData bereitstellen
         GivenLookupService.ScopeData scopeData =
@@ -223,6 +230,12 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                 // Description
                 String d = descField.getText();
                 action.setDescription(d != null && d.trim().length() > 0 ? d.trim() : null);
+
+                // Min Duration
+                try {
+                    int val = ((Number) spMinDuration.getValue()).intValue();
+                    action.setMinDurationMs(val > 0 ? val : null);
+                } catch (Exception ignore) { action.setMinDurationMs(null); }
 
                 // Persist
                 TestRegistry.getInstance().save();

@@ -111,6 +111,9 @@ public class TestAction {
     /** Optional frei eingegebene Beschreibung für die Aktion (wird im Log anstelle der Detailzeile angezeigt, wenn gesetzt). */
     private String description; // NEU
 
+    /** Mindestdauer in Millisekunden, die nach Ausführung der Aktion mindestens vergehen soll (optional). */
+    private Integer minDurationMs; // NEU
+
     ////////////////////////////////////////////////////////////////////////////////
     // Constructors
     ////////////////////////////////////////////////////////////////////////////////
@@ -179,6 +182,7 @@ public class TestAction {
         c.role = this.role;
         c.label = this.label;
         c.description = this.description; // NEU
+        c.minDurationMs = this.minDurationMs; // NEU
         return c;
     }
 
@@ -384,6 +388,9 @@ public class TestAction {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = (description != null && description.trim().isEmpty()) ? null : description; }
+
+    public Integer getMinDurationMs() { return minDurationMs; }
+    public void setMinDurationMs(Integer minDurationMs) { this.minDurationMs = (minDurationMs != null && minDurationMs.intValue() > 0) ? minDurationMs : null; }
 
     ////////////////////////////////////////////////////////////////////////////////
     // Serialization (export snapshot to report)

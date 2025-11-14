@@ -349,8 +349,8 @@ public class TestRunner {
     }
 
     private synchronized boolean playSingleAction(final TestRunContext ctx, final TestAction action, final StepLog stepLog) {
-        // Entferne zusätzliches ACT-Log; verwende den übergebenen stepLog als ACT
         stepLog.setStatus(true); // initial status
+        long startNs = System.nanoTime();
         try {
             final String effectiveUser = resolveEffectiveUserForAction(ctx, action);
             lastUsernameUsed = effectiveUser;
@@ -440,9 +440,18 @@ public class TestRunner {
             stepLog.setError(e.getMessage());
             return false;
         } finally {
+            long endNs = System.nanoTime();
+            long elapsedMs = (endNs - startNs) / 1_000_000L;
             try {
+                // Erst globale Playback-Verzögerung anwenden
                 Double delayMs = SettingsService.getInstance().get("playback.delay.currentMs", Double.class);
                 if (delayMs != null && delayMs > 0.5) Thread.sleep(Math.round(delayMs));
+                // Dann Mindestdauer der Aktion berücksichtigen
+                Integer minDur = action.getMinDurationMs();
+                if (minDur != null && minDur.intValue() > 0) {
+                    long missing = minDur.intValue() - elapsedMs;
+                    if (missing > 0) Thread.sleep(missing);
+                }
             } catch (InterruptedException ie) { Thread.currentThread().interrupt(); } catch (Throwable ignore) {}
         }
     }
