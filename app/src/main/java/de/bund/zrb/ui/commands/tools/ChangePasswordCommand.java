@@ -7,7 +7,7 @@ public class ChangePasswordCommand extends ShortcutMenuCommand {
 
     @Override
     public String getId() {
-        return "tools.changePassword";
+        return "users.changePassword";
     }
 
     @Override

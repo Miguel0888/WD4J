@@ -7,12 +7,12 @@ public class LoginUserCommand extends ShortcutMenuCommand {
 
     @Override
     public String getId() {
-        return "tools.loginCurrentUser";
+        return "users.loginCurrentUser";
     }
 
     @Override
     public String getLabel() {
-        return "Login durchführen";
+        return "Einloggen";
     }
 
     @Override

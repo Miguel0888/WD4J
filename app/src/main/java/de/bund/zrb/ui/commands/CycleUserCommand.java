@@ -6,7 +6,7 @@ import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 
 public class CycleUserCommand extends ShortcutMenuCommand {
     @Override public String getId()    { return "users.cycle"; }
-    @Override public String getLabel() { return "Benutzer wechseln"; }
+    @Override public String getLabel() { return "Benutzer umschalten"; }
 
     @Override
     public void perform() {
