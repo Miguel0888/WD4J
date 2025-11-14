@@ -19,17 +19,21 @@ public final class VideoOverlayController {
         @Override public void accept(VideoOverlayEvent ev) {
             VideoOverlayEvent.Payload p = ev.getPayload();
             if (p == null) return;
+            VideoOverlayService svc = VideoOverlayService.getInstance();
             switch (p.kind) {
                 case SUITE:
                 case ROOT:
-                    sink.setCaption(p.name, VideoOverlayStyle.defaultsCaption());
+                    if (svc.isCaptionEnabled()) sink.setCaption(p.name, svc.getCaptionStyle()); else sink.clearCaption();
                     break;
                 case CASE:
-                    sink.setSubtitle(p.name, VideoOverlayStyle.defaultsSubtitle());
+                    if (svc.isSubtitleEnabled()) sink.setSubtitle(p.name, svc.getSubtitleStyle()); else sink.clearSubtitle();
                     break;
                 case ACTION:
+                    if (svc.isActionTransientEnabled()) {
+                        sink.showTransient(p.name, svc.getActionStyle(), svc.getActionTransientDurationMs());
+                    }
+                    break;
                 default:
-                    // Optional: könnte z. B. kurzzeitig eingeblendet werden
                     break;
             }
         }

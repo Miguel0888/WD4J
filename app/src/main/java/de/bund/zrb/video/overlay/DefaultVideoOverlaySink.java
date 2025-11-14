@@ -23,5 +23,15 @@ public final class DefaultVideoOverlaySink implements VideoOverlaySink {
     public void clearSubtitle() {
         OverlayBridge.clearSubtitle();
     }
-}
 
+    @Override
+    public void showTransient(String text, VideoOverlayStyle style, long millis) {
+        if (text == null || text.trim().isEmpty()) return;
+        // Verwende Subtitle als transienten Kanal
+        OverlayBridge.setSubtitle(text);
+        new javax.swing.Timer((int)Math.max(250, millis), e -> {
+            OverlayBridge.clearSubtitle();
+            ((javax.swing.Timer)e.getSource()).stop();
+        }).start();
+    }
+}
