@@ -258,6 +258,9 @@ public class MainWindow {
                 } catch (Exception ex) {
                     // Fehlerdialog wird bereits via EventBus gezeigt; hier nur Fallback
                 }
+
+                // Overlay-Status aus Settings herstellen
+                de.bund.zrb.video.overlay.VideoOverlayService.getInstance().ensureStartedIfEnabled();
             });
 
         // Convert old format to new one automatically:
@@ -452,6 +455,7 @@ public class MainWindow {
         commandRegistry.register(new ToggleRightDrawerCommand(this));
 
         commandRegistry.register(new ToggleVideoRecordCommand());
+        commandRegistry.register(new de.bund.zrb.ui.commands.OpenVideoOverlaySettingsCommand());
         // Debug bereinigung
         commandRegistry.register(new de.bund.zrb.ui.commands.CleanupAllUserContextsCommand());
     }
