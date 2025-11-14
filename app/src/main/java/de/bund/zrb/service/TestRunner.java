@@ -857,11 +857,7 @@ public class TestRunner {
                     Integer eachCfg = SettingsService.getInstance().get("assertion.eachWaitMs", Integer.class);
                     long waitMs = (eachCfg != null) ? eachCfg.longValue() : DEFAULT_ASSERT_EACH_WAIT_MS;
                     if (waitMs > 0) {
-                        try {
-                            Thread.sleep(waitMs);
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                        }
+                        try { Thread.sleep(waitMs); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
                     }
                     String result = ActionRuntimeEvaluator.evaluateActionValue(expr, scope);
                     String trimmed = (result == null) ? null : result.trim();
@@ -871,12 +867,21 @@ public class TestRunner {
                     String errorMsg = null;
                     if (isBlank(vType)) {
                         ok = true;
-                        if (trimmed != null && trimmed.length() > 0)
-                            assertionLog.setHtmlAppend("<small style='color:#666'>Wert: " + trimmed.replace("<", "&lt;").replace(">", "&gt;") + "</small>");
+                        if (trimmed != null && trimmed.length() > 0) {
+                            if (isDataImageUrl(trimmed)) {
+                                assertionLog.setHtmlAppend("<img src='" + trimmed + "' alt='Result Image' style='max-width:100%;border:1px solid #ccc;margin-top:.5rem' />");
+                            } else {
+                                String dataUrl = tryBuildDataUrlFromPath(trimmed);
+                                if (dataUrl != null) {
+                                    assertionLog.setHtmlAppend("<img src='" + dataUrl + "' alt='Result Image' style='max-width:100%;border:1px solid #ccc;margin-top:.5rem' />");
+                                } else {
+                                    assertionLog.setHtmlAppend("<small style='color:#666'>Wert: " + trimmed.replace("<", "&lt;").replace(">", "&gt;") + "</small>");
+                                }
+                            }
+                        }
                     } else {
                         ok = validateValue(vType, vVal, trimmed);
-                        if (!ok)
-                            errorMsg = "Validation failed (" + vType + ")" + (trimmed != null ? ": " + trimmed : " (null)");
+                        if (!ok) errorMsg = "Validation failed (" + vType + ")" + (trimmed != null ? ": " + trimmed : " (null)");
                     }
                     assertionLog.setStatus(ok);
                     if (!ok && errorMsg != null) assertionLog.setError(errorMsg);
@@ -896,6 +901,56 @@ public class TestRunner {
             out.add(err);
         }
         return out;
+    }
+
+    private boolean isDataImageUrl(String s) {
+        if (s == null) return false;
+        String t = s.trim().toLowerCase(java.util.Locale.ROOT);
+        // Akzeptiere data:image/*;base64,... oder data:image/*,...
+        if (!t.startsWith("data:image/")) return false;
+        // Minimale Plausibilität: enthält ein Komma nach dem Medientyp
+        return t.indexOf(',') > 10;
+    }
+
+    private String tryBuildDataUrlFromPath(String s) {
+        try {
+            if (s == null || s.trim().isEmpty()) return null;
+            String raw = s.trim();
+            java.nio.file.Path p;
+            if (raw.toLowerCase(java.util.Locale.ROOT).startsWith("file:")) {
+                p = java.nio.file.Paths.get(java.net.URI.create(raw));
+            } else {
+                p = java.nio.file.Paths.get(raw);
+                if (!java.nio.file.Files.exists(p) || !java.nio.file.Files.isRegularFile(p)) {
+                    // auch relativ zur Report-HTML-Basis versuchen
+                    if (reportHtmlPath != null) {
+                        java.nio.file.Path base = reportHtmlPath.getParent();
+                        if (base != null) {
+                            java.nio.file.Path alt = base.resolve(raw).normalize();
+                            if (java.nio.file.Files.exists(alt) && java.nio.file.Files.isRegularFile(alt)) {
+                                p = alt;
+                            }
+                        }
+                    }
+                }
+            }
+            if (!java.nio.file.Files.exists(p) || !java.nio.file.Files.isRegularFile(p)) return null;
+            long size = java.nio.file.Files.size(p);
+            if (size <= 0L || size > 20_000_000L) return null; // 20 MB Schutz
+            byte[] bytes = java.nio.file.Files.readAllBytes(p);
+            String mime = java.nio.file.Files.probeContentType(p);
+            if (mime == null) {
+                String l = p.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+                if (l.endsWith(".png")) mime = "image/png";
+                else if (l.endsWith(".jpg") || l.endsWith(".jpeg")) mime = "image/jpeg";
+                else if (l.endsWith(".gif")) mime = "image/gif";
+                else return null;
+            }
+            String b64 = java.util.Base64.getEncoder().encodeToString(bytes);
+            return "data:" + mime + ";base64," + b64;
+        } catch (Throwable ignore) {
+            return null;
+        }
     }
 
     private boolean validateValue(String type, String expected, String actual) {
@@ -919,37 +974,22 @@ public class TestRunner {
             boolean single;
             switch (t) {
                 case "regex": {
-                    try {
-                        single = java.util.regex.Pattern.compile(alt).matcher(act).find();
-                    } catch (Exception ignore) {
-                        single = false;
-                    }
+                    try { single = java.util.regex.Pattern.compile(alt).matcher(act).find(); }
+                    catch (Exception ignore) { single = false; }
                     break;
                 }
                 case "fullregex": {
-                    if (alt.isEmpty()) {
-                        single = act.isEmpty();
-                    } else {
-                        try {
-                            single = java.util.regex.Pattern.compile(alt).matcher(act).matches();
-                        } catch (Exception ignore) {
-                            single = false;
-                        }
+                    if (alt.isEmpty()) { single = act.isEmpty(); }
+                    else {
+                        try { single = java.util.regex.Pattern.compile(alt).matcher(act).matches(); }
+                        catch (Exception ignore) { single = false; }
                     }
                     break;
                 }
-                case "contains":
-                    single = act.contains(alt);
-                    break;
-                case "equals":
-                    single = act.equals(alt);
-                    break;
-                case "starts":
-                    single = act.startsWith(alt);
-                    break;
-                case "ends":
-                    single = act.endsWith(alt);
-                    break;
+                case "contains": single = act.contains(alt); break;
+                case "equals":   single = act.equals(alt); break;
+                case "starts":   single = act.startsWith(alt); break;
+                case "ends":     single = act.endsWith(alt); break;
                 case "range": {
                     try {
                         String[] parts = alt.split(":", 2);
@@ -957,35 +997,20 @@ public class TestRunner {
                         double max = Double.parseDouble(parts[1]);
                         double val = Double.parseDouble(act);
                         single = val >= min && val <= max;
-                    } catch (Exception ignore) {
-                        single = false;
-                    }
+                    } catch (Exception ignore) { single = false; }
                     break;
                 }
                 case "len": {
                     try {
-                        if (alt.startsWith(">=")) {
-                            int n = Integer.parseInt(alt.substring(2));
-                            single = act.length() >= n;
-                        } else if (alt.startsWith("<=")) {
-                            int n = Integer.parseInt(alt.substring(2));
-                            single = act.length() <= n;
-                        } else {
-                            int n = Integer.parseInt(alt);
-                            single = act.length() == n;
-                        }
-                    } catch (Exception ignore) {
-                        single = false;
-                    }
+                        if (alt.startsWith(">=")) { int n = Integer.parseInt(alt.substring(2)); single = act.length() >= n; }
+                        else if (alt.startsWith("<=")) { int n = Integer.parseInt(alt.substring(2)); single = act.length() <= n; }
+                        else { int n = Integer.parseInt(alt); single = act.length() == n; }
+                    } catch (Exception ignore) { single = false; }
                     break;
                 }
-                default:
-                    single = false;
+                default: single = false;
             }
-            if (single) {
-                any = true;
-                break;
-            }
+            if (single) { any = true; break; }
         }
         boolean result = any;
         if (negate) result = !result;
