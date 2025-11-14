@@ -35,8 +35,8 @@ public final class AdapterLocatorFactory {
                 return new WDLocator.CssLocator("[id='" + escapeSingleQuotes(s) + "']");
 
             case TEXT:
-                // Avoid BiDi innerText: map to XPath by text
-                return new WDLocator.XPathLocator(buildTextContainsXPath(s));
+                // Use BiDi innerText locator for text matching
+                return createInnerTextLocator(stripEnginePrefix(s));
 
             case LABEL:
                 return new WDLocator.XPathLocator(buildLabelXPath(s));
@@ -91,9 +91,9 @@ public final class AdapterLocatorFactory {
             return new WDLocator.XPathLocator(s);
         }
         if (s.startsWith("text=")) {
-            // Legacy innerText prefix: prefer XPath mapping
+            // Legacy innerText prefix: use BiDi InnerTextLocator
             String txt = s.substring(5);
-            return new WDLocator.XPathLocator(buildTextContainsXPath(txt));
+            return createInnerTextLocator(txt);
         }
         if (s.startsWith("aria=")) {
             String rest = s.substring(5).trim();
@@ -125,6 +125,21 @@ public final class AdapterLocatorFactory {
             return bracketPart.substring(quote1 + 1, quote2);
         }
         return null;
+    }
+
+    // -------- InnerText locator factory --------
+
+    /**
+     * Creates a BiDi InnerTextLocator with sensible defaults for text matching.
+     * Uses PARTIAL match and ignoreCase=true for broader, Playwright-like matching.
+     */
+    private static WDLocator.InnerTextLocator createInnerTextLocator(String text) {
+        return new WDLocator.InnerTextLocator(
+                text,
+                true, // ignoreCase = true (for broader matching)
+                WDLocator.InnerTextLocator.MatchType.PARTIAL, // PARTIAL = contains behavior
+                null  // maxDepth = null (search entire subtree)
+        );
     }
 
     // -------- XPath builders --------
