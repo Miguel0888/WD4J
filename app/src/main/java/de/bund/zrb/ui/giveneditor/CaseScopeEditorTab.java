@@ -86,7 +86,7 @@ public class CaseScopeEditorTab extends JPanel {
         // "Before"  == testCase.getBefore()
         // "Templates" == testCase.getTemplates()
         innerTabs.addTab("Before",
-                new MapTablePanel(testCase.getBefore(), testCase.getBeforeEnabled(), "Before",
+                new MapTablePanel(testCase.getBefore(), testCase.getBeforeEnabled(), testCase.getBeforeDesc(), "Before",
                         UserRegistry.getInstance().usernamesSupplier()));
         innerTabs.addTab("Templates",
                 new MapTablePanel(testCase.getTemplates(), testCase.getTemplatesEnabled(), "Templates", null));

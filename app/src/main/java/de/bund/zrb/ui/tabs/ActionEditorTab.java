@@ -33,6 +33,7 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
     private JComboBox<String> selectorBox;
     private JComboBox<String> userBox;
     private JTextField timeoutField;
+    private JTextField descField; // NEU
 
     public ActionEditorTab(final TestAction action) {
         super("Action Editor", action);
@@ -75,6 +76,11 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
         valuePanel.add(scopeCombo, BorderLayout.EAST);
 
         formPanel.add(valuePanel);
+
+        // Description (optional) – erscheint im Log statt generierter Detailzeile
+        formPanel.add(new JLabel("Description:"));
+        descField = new JTextField(action.getDescription() != null ? action.getDescription() : "");
+        formPanel.add(descField);
 
         // ScopeData bereitstellen
         GivenLookupService.ScopeData scopeData =
@@ -213,6 +219,10 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                 try {
                     action.setTimeout(Integer.parseInt(timeoutField.getText().trim()));
                 } catch (NumberFormatException ignored) { /* keep old */ }
+
+                // Description
+                String d = descField.getText();
+                action.setDescription(d != null && d.trim().length() > 0 ? d.trim() : null);
 
                 // Persist
                 TestRegistry.getInstance().save();

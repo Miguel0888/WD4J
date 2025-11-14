@@ -19,6 +19,7 @@ public class TestCase {
 
     private final java.util.Map<String,String> before    = new java.util.LinkedHashMap<>();
     private final Map<String, Boolean> beforeEnabled      = new HashMap<>();
+    private final Map<String, String> beforeDesc          = new HashMap<>(); // NEU
     private final java.util.Map<String,String> templates = new java.util.LinkedHashMap<>();
     private final Map<String, Boolean> templatesEnabled   = new HashMap<>();
 
@@ -53,6 +54,7 @@ public class TestCase {
 
     public java.util.Map<String,String> getBefore()    { return before; }
     public Map<String, Boolean> getBeforeEnabled() { return beforeEnabled; }
+    public Map<String, String> getBeforeDesc() { return beforeDesc; } // NEU
     public java.util.Map<String,String> getTemplates() { return templates; }
     public Map<String, Boolean> getTemplatesEnabled() { return templatesEnabled; }
 

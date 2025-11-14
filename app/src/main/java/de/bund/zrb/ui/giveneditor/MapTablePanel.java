@@ -34,12 +34,32 @@ public class MapTablePanel extends JPanel {
                          final Map<String, Boolean> backingEnabled,
                          final String scopeName,
                          final Supplier<List<String>> usersProvider) {
-        this(backing, backingEnabled, scopeName, usersProvider, null, null);
+        this(backing, backingEnabled, null, scopeName, usersProvider, null, null);
     }
 
     /** Neue Overload nur für „gepinnte“ erste Zeile (z. B. OTP im Root/Templates). */
     public MapTablePanel(final Map<String,String> backing,
                          final Map<String, Boolean> backingEnabled,
+                         final String scopeName,
+                         final Supplier<List<String>> usersProvider,
+                         final String pinnedKey,
+                         final String pinnedValue) {
+        this(backing, backingEnabled, null, scopeName, usersProvider, pinnedKey, pinnedValue);
+    }
+
+    /** NEU: Overload mit Description-Backing-Map. */
+    public MapTablePanel(final Map<String,String> backing,
+                         final Map<String, Boolean> backingEnabled,
+                         final Map<String, String> descBacking,
+                         final String scopeName,
+                         final Supplier<List<String>> usersProvider) {
+        this(backing, backingEnabled, descBacking, scopeName, usersProvider, null, null);
+    }
+
+    /** NEU: Vollständiger Konstruktor inkl. descBacking und ggf. gepinnter Zeile. */
+    public MapTablePanel(final Map<String,String> backing,
+                         final Map<String, Boolean> backingEnabled,
+                         final Map<String, String> descBacking,
                          final String scopeName,
                          final Supplier<List<String>> usersProvider,
                          final String pinnedKey,
@@ -55,6 +75,9 @@ public class MapTablePanel extends JPanel {
             if (backingEnabled != null && !backingEnabled.containsKey(pinnedKey)) {
                 backingEnabled.put(pinnedKey, Boolean.TRUE);
             }
+            if (descBacking != null && !descBacking.containsKey(pinnedKey)) {
+                descBacking.put(pinnedKey, "");
+            }
             needImmediateSave = true;
         }
         if (!includePinnedRow && includeUserRow && backing != null && !backing.containsKey(MapTableModel.USER_KEY)) {
@@ -62,10 +85,13 @@ public class MapTablePanel extends JPanel {
             if (backingEnabled != null && !backingEnabled.containsKey(MapTableModel.USER_KEY)) {
                 backingEnabled.put(MapTableModel.USER_KEY, Boolean.TRUE);
             }
+            if (descBacking != null && !descBacking.containsKey(MapTableModel.USER_KEY)) {
+                descBacking.put(MapTableModel.USER_KEY, "");
+            }
             needImmediateSave = true;
         }
 
-        final MapTableModel model = new MapTableModel(backing, backingEnabled, includeUserRow, includePinnedRow, pinnedKey);
+        final MapTableModel model = new MapTableModel(backing, backingEnabled, descBacking, includeUserRow, includePinnedRow, pinnedKey);
 
         final JTable table = new JTable(model) {
             private final TableCellEditor userEditor =

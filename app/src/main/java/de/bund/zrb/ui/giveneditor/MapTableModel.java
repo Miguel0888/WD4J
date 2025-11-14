@@ -12,6 +12,7 @@ public class MapTableModel extends AbstractTableModel {
     private final Map<String,String> backing;
     private final List<String> keys = new ArrayList<String>();
     private final Map<String, Boolean> enabledBacking;
+    private final Map<String, String> descBacking; // NEU
 
     private final boolean includeUserRow;
     private final boolean includePinnedRow;
@@ -30,10 +31,22 @@ public class MapTableModel extends AbstractTableModel {
                          boolean includeUserRow,
                          boolean includePinnedRow,
                          String pinnedKey) {
+        this(backing, backingEnabled, null, includeUserRow, includePinnedRow, pinnedKey);
+    }
+
+    public MapTableModel(Map<String,String> backing,
+                         Map<String, Boolean> backingEnabled,
+                         Map<String, String> descBacking,
+                         boolean includeUserRow,
+                         boolean includePinnedRow,
+                         String pinnedKey) {
         this.backing = backing;
         this.enabledBacking = (backingEnabled != null)
                 ? backingEnabled
                 : new java.util.LinkedHashMap<String, Boolean>();
+        this.descBacking = (descBacking != null)
+                ? descBacking
+                : new java.util.LinkedHashMap<String, String>();
         this.includeUserRow = includeUserRow;
         this.includePinnedRow = includePinnedRow;
         this.pinnedKey = pinnedKey;
@@ -53,12 +66,13 @@ public class MapTableModel extends AbstractTableModel {
     }
 
     public int getRowCount() { return keys.size(); }
-    public int getColumnCount() { return 3; }
+    public int getColumnCount() { return 4; }
     public String getColumnName(int c) {
         switch (c) {
             case 0: return "Enabled";
             case 1: return "Name";
-            default: return "Expression";
+            case 2: return "Expression";
+            default: return "Description";
         }
     }
 
@@ -74,7 +88,8 @@ public class MapTableModel extends AbstractTableModel {
             return val == null ? Boolean.TRUE : val;
         }
         if (columnIndex == 1) return key;
-        return backing != null ? backing.get(key) : "";
+        if (columnIndex == 2) return backing != null ? backing.get(key) : "";
+        return descBacking != null ? (descBacking.get(key) != null ? descBacking.get(key) : "") : "";
     }
 
     @Override
@@ -84,7 +99,7 @@ public class MapTableModel extends AbstractTableModel {
             return true;
         }
         // Pinned erste Zeile: sowohl Name (0) als auch Expression (1) sperren
-        if (rowIndex == 0 && includePinnedRow && columnIndex >= 1) {
+        if (rowIndex == 0 && includePinnedRow && columnIndex >= 1 && columnIndex <= 2) {
             return false;
         }
         if (rowIndex == 0 && columnIndex == 1 && includeUserRow) {
@@ -111,22 +126,27 @@ public class MapTableModel extends AbstractTableModel {
             if (newKey.length() == 0) return;
             if (!newKey.equals(oldKey)) {
                 String oldValue = backing.remove(oldKey);
+                String oldDesc  = descBacking != null ? descBacking.remove(oldKey) : null;
                 Boolean enabledVal = enabledBacking != null ? enabledBacking.remove(oldKey) : null;
                 if (!backing.containsKey(newKey)) {
                     backing.put(newKey, oldValue);
+                    if (descBacking != null) descBacking.put(newKey, oldDesc);
                     keys.set(rowIndex, newKey);
                     if (enabledBacking != null) {
                         enabledBacking.put(newKey, enabledVal != null ? enabledVal : Boolean.TRUE);
                     }
                 } else {
                     backing.put(oldKey, oldValue);
+                    if (descBacking != null && oldDesc != null) descBacking.put(oldKey, oldDesc);
                     if (enabledBacking != null && enabledVal != null) {
                         enabledBacking.put(oldKey, enabledVal);
                     }
                 }
             }
-        } else {
+        } else if (columnIndex == 2) {
             backing.put(oldKey, val);
+        } else if (columnIndex == 3) {
+            if (descBacking != null) descBacking.put(oldKey, val);
         }
         fireTableRowsUpdated(rowIndex, rowIndex);
     }
@@ -144,6 +164,7 @@ public class MapTableModel extends AbstractTableModel {
         if (enabledBacking != null) {
             enabledBacking.put(cand, Boolean.TRUE);
         }
+        if (descBacking != null) descBacking.put(cand, "");
         int insertIndex = (includePinnedRow || includeUserRow) ? 1 : keys.size();
         keys.add(insertIndex, cand);
         fireTableRowsInserted(insertIndex, insertIndex);
@@ -155,6 +176,7 @@ public class MapTableModel extends AbstractTableModel {
         String k = keys.remove(rowIndex);
         if (backing != null) backing.remove(k);
         if (enabledBacking != null) enabledBacking.remove(k);
+        if (descBacking != null) descBacking.remove(k);
         fireTableRowsDeleted(rowIndex, rowIndex);
     }
 

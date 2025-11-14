@@ -16,10 +16,12 @@ public class RootNode {
     // Variablen, die EINMAL berechnet werden (global einmalig)
     private final java.util.Map<String,String> beforeAll    = new java.util.LinkedHashMap<>();
     private final Map<String, Boolean> beforeAllEnabled     = new HashMap<>();
+    private final Map<String, String> beforeAllDesc         = new HashMap<>(); // NEU
 
     // Variablen, die vor JEDEM Case gesetzt werden sollen (globaler Default)
     private final java.util.Map<String,String> beforeEach   = new java.util.LinkedHashMap<>();
     private final Map<String, Boolean> beforeEachEnabled    = new HashMap<>();
+    private final Map<String, String> beforeEachDesc        = new HashMap<>(); // NEU
 
     // Templates = Funktionshandles (lazy, z.B. "otpCode" -> "otpCode({{username}})")
     private final java.util.Map<String,String> templates    = new java.util.LinkedHashMap<>();
@@ -55,6 +57,8 @@ public class RootNode {
         return beforeAllEnabled;
     }
 
+    public Map<String, String> getBeforeAllDesc() { return beforeAllDesc; } // NEU
+
     public Map<String, String> getBeforeEach() {
         return beforeEach;
     }
@@ -62,6 +66,8 @@ public class RootNode {
     public Map<String, Boolean> getBeforeEachEnabled() {
         return beforeEachEnabled;
     }
+
+    public Map<String, String> getBeforeEachDesc() { return beforeEachDesc; } // NEU
 
     public Map<String, String> getTemplates() {
         return templates;

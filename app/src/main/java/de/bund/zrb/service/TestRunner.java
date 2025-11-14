@@ -459,6 +459,11 @@ public class TestRunner {
     }
 
     private String buildStepText(TestAction action) {
+        if (action == null) return "";
+        String desc = action.getDescription();
+        if (desc != null && desc.trim().length() > 0) {
+            return desc.trim();
+        }
         StringBuilder sb = new StringBuilder();
         sb.append("User: ").append(action.getUser()).append(" | ");
         sb.append("Aktion: ").append(action.getAction());
@@ -813,6 +818,8 @@ public class TestRunner {
                                                          SuiteLog assignParent) throws Exception {
         java.util.LinkedHashMap<String, String> out = new java.util.LinkedHashMap<String, String>();
         if (src == null) return out;
+        // Versuche passende Description-Map anhand des aktuellen Kontexts zu finden
+        Map<String,String> descMap = resolveDescMapForCurrentPhase(src);
         for (Map.Entry<String, String> e : src.entrySet()) {
             String key = e.getKey();
             if (!isEnabled(enabled, key)) continue;
@@ -827,12 +834,39 @@ public class TestRunner {
             if (resolved == null) resolved = "";
             out.put(key, resolved);
             ctx.setCaseVar(key, resolved);
-            // Einzelner ASSIGN-Eintrag als "Given"
-            StepLog assign = new StepLog(LOG_LABEL_GIVEN, key + " := " + resolved);
+            // Einzelner ASSIGN-Eintrag als "Given" – mit optionaler Description
+            String desc = (descMap != null) ? trimToNull(descMap.get(key)) : null;
+            String label = (desc != null) ? desc : (key + " := " + resolved);
+            StepLog assign = new StepLog(LOG_LABEL_GIVEN, label);
             assign.setParent(assignParent);
             logger.append(assign);
         }
         return out;
+    }
+
+    // Heuristik: ermittelt die passende Description-Map zu einer Variablen-Quelle
+    private Map<String,String> resolveDescMapForCurrentPhase(Map<String,String> src) {
+        RootNode root = TestRegistry.getInstance().getRoot();
+        if (root != null) {
+            if (src == root.getBeforeAll()) return root.getBeforeAllDesc();
+            if (src == root.getBeforeEach()) return root.getBeforeEachDesc();
+        }
+        List<TestSuite> suites = TestRegistry.getInstance().getAll();
+        if (suites != null) {
+            for (int i = 0; i < suites.size(); i++) {
+                TestSuite s = suites.get(i);
+                if (src == s.getBeforeAll()) return s.getBeforeAllDesc();
+                if (src == s.getBeforeEach()) return s.getBeforeEachDesc();
+                List<TestCase> cases = s.getTestCases();
+                if (cases != null) {
+                    for (int c = 0; c < cases.size(); c++) {
+                        TestCase tc = cases.get(c);
+                        if (src == tc.getBefore()) return tc.getBeforeDesc();
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private Map<String, String> filterEnabled(Map<String, String> src, Map<String, Boolean> enabled) {

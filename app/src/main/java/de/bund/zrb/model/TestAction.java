@@ -108,6 +108,9 @@ public class TestAction {
     /** e.g. for getByLabel(...) */
     private String label;
 
+    /** Optional frei eingegebene Beschreibung für die Aktion (wird im Log anstelle der Detailzeile angezeigt, wenn gesetzt). */
+    private String description; // NEU
+
     ////////////////////////////////////////////////////////////////////////////////
     // Constructors
     ////////////////////////////////////////////////////////////////////////////////
@@ -175,6 +178,7 @@ public class TestAction {
         c.textContent = this.textContent;
         c.role = this.role;
         c.label = this.label;
+        c.description = this.description; // NEU
         return c;
     }
 
@@ -377,6 +381,9 @@ public class TestAction {
     public void setLabel(String label) {
         this.label = label;
     }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = (description != null && description.trim().isEmpty()) ? null : description; }
 
     ////////////////////////////////////////////////////////////////////////////////
     // Serialization (export snapshot to report)

@@ -98,10 +98,10 @@ public class SuiteScopeEditorTab extends JPanel {
         }
 
         innerTabs.addTab("BeforeAll",
-                new MapTablePanel(suite.getBeforeAll(), suite.getBeforeAllEnabled(), "BeforeAll",
+                new MapTablePanel(suite.getBeforeAll(), suite.getBeforeAllEnabled(), suite.getBeforeAllDesc(), "BeforeAll",
                         UserRegistry.getInstance().usernamesSupplier()));
         innerTabs.addTab("BeforeEach",
-                new MapTablePanel(suite.getBeforeEach(), suite.getBeforeEachEnabled(), "BeforeEach", null));
+                new MapTablePanel(suite.getBeforeEach(), suite.getBeforeEachEnabled(), suite.getBeforeEachDesc(), "BeforeEach", null));
         innerTabs.addTab("Templates",
                 new MapTablePanel(suite.getTemplates(), suite.getTemplatesEnabled(), "Templates", null));
 
