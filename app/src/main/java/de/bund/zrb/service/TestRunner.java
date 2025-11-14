@@ -204,7 +204,10 @@ public class TestRunner {
         stepLog.setStatus(ok);
         if (!ok && err != null && !err.isEmpty()) stepLog.setError(err);
         stepLog.setParent(null);
-        logger.append(stepLog);
+        // Speziell: 'screenshot' erzeugt KEINEN When-Log-Eintrag mehr
+        if (!"screenshot".equalsIgnoreCase(action.getAction())) {
+            logger.append(stepLog);
+        }
         drawerRef.updateNodeStatus(node, ok);
         TestNode parent = (TestNode) node.getParent();
         if (parent != null) drawerRef.updateSuiteStatus(parent);
@@ -408,11 +411,7 @@ public class TestRunner {
                     result = true; break;
                 }
                 case "screenshot": {
-                    byte[] png = screenshotAfterWait(action.getTimeout(), page);
-                    String baseName = (stepLog.getContent() == null) ? SCREENSHOT_CASE_BASE : stepLog.getContent();
-                    Path file = saveScreenshotBytes(png, baseName);
-                    String rel = relToHtml(file);
-                    stepLog.setHtmlAppend("<img src='" + rel + "' alt='Screenshot' style='max-width:100%;border:1px solid #ccc;margin-top:.5rem'/>");
+                    // No-Op: Kein eigenes Bild/Log mehr im Action-Schritt (erst AfterEach-Assertion zeigt das Bild)
                     result = true; break;
                 }
                 case "press": {
@@ -448,10 +447,6 @@ public class TestRunner {
         }
     }
 
-    private byte[] screenshotAfterWait(int timeout, PageImpl page) {
-        waitForStableBeforeScreenshot(page, timeout);
-        return page.screenshot(new Page.ScreenshotOptions().setTimeout(timeout));
-    }
 
     private void waitThen(Locator locator, double timeout, Runnable action) {
         locator.waitFor(new Locator.WaitForOptions().setTimeout(timeout));

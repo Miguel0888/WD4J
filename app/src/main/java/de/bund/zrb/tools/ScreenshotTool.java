@@ -34,17 +34,18 @@ public class ScreenshotTool extends AbstractUserTool implements BuiltinTool {
         list.add(new ToolExpressionFunction(
                 ToolExpressionFunction.meta(
                         "Screenshot",
-                        "Create a screenshot of the current page; optionally clip by CSS selector. " +
-                                "Saves it in the current report and appends it to the HTML log.",
+                        "Capture current page (optional selector) and return DataURL (no logging side-effects).",
                         ToolExpressionFunction.params("selector?"),
-                        Arrays.asList("Optional CSS selector to clip the screenshot to a specific element.")
+                        Arrays.asList("Optional CSS selector to clip the screenshot.")
                 ),
                 0, 1,
                 new ToolExpressionFunction.Invoker() {
                     public String invoke(List<String> args, FunctionContext ctx) throws Exception {
                         String selector = args.size() >= 1 ? trimToNull(args.get(0)) : null;
-                        captureForCurrentUserAndLog("Screenshot", selector);
-                        return "";
+                        byte[] png = captureBytesForCurrentUser(selector);
+                        if (png == null || png.length == 0) return "";
+                        String b64 = java.util.Base64.getEncoder().encodeToString(png);
+                        return "data:image/png;base64," + b64;
                     }
                 }
         ));
@@ -52,8 +53,7 @@ public class ScreenshotTool extends AbstractUserTool implements BuiltinTool {
         list.add(new ToolExpressionFunction(
                 ToolExpressionFunction.meta(
                         "ScreenshotFor",
-                        "Create a screenshot for the given user; optionally clip by CSS selector. " +
-                                "Saves it in the current report and appends it to the HTML log.",
+                        "Capture page for given user (optional selector) and return DataURL (no logging side-effects).",
                         ToolExpressionFunction.params("username", "selector?"),
                         Arrays.asList(
                                 "Logical username to resolve the user's tab.",
@@ -66,8 +66,10 @@ public class ScreenshotTool extends AbstractUserTool implements BuiltinTool {
                         String user = trimToNull(args.get(0));
                         String selector = (args.size() >= 2) ? trimToNull(args.get(1)) : null;
                         if (user == null) throw new IllegalArgumentException("username must not be empty");
-                        captureForUserAndLog(user, "Screenshot(" + user + ")", selector);
-                        return "";
+                        byte[] png = captureBytesForUser(user, selector);
+                        if (png == null || png.length == 0) return "";
+                        String b64 = java.util.Base64.getEncoder().encodeToString(png);
+                        return "data:image/png;base64," + b64;
                     }
                 }
         ));
@@ -96,6 +98,16 @@ public class ScreenshotTool extends AbstractUserTool implements BuiltinTool {
         UserRegistry.User user = getCurrentUserOrFail();
         com.microsoft.playwright.Page page = browserService.getActivePage(user.getUsername());
         if (page == null) throw new IllegalStateException("Kein aktiver Tab für Benutzer: " + user.getUsername());
+        if (selectorOrNull != null) {
+            return page.locator(selectorOrNull).screenshot();
+        }
+        return page.screenshot();
+    }
+
+    // --- NEW: capture bytes for a specific user; do not save/log here ---
+    private byte[] captureBytesForUser(String username, String selectorOrNull) throws Exception {
+        com.microsoft.playwright.Page page = browserService.getActivePage(username);
+        if (page == null) throw new IllegalStateException("Kein aktiver Tab für Benutzer: " + username);
         if (selectorOrNull != null) {
             return page.locator(selectorOrNull).screenshot();
         }
