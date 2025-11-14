@@ -29,7 +29,7 @@ public class ToggleVideoRecordCommand extends ShortcutMenuCommand {
     private MediaRecorder recorder;
 
     @Override
-    public String getId() { return "video.toggle"; }
+    public String getId() { return "record.video.toggle"; }
 
     @Override
     public String getLabel() {

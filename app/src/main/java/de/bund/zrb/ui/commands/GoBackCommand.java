@@ -15,7 +15,7 @@ public class GoBackCommand extends ShortcutMenuCommand {
 
     @Override
     public String getId() {
-        return "navigation.goback";
+        return "browser.tab.goback";
     }
 
     @Override

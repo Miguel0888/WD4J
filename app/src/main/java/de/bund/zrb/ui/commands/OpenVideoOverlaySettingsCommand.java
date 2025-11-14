@@ -12,7 +12,7 @@ import java.awt.*;
 /** Öffnet einen kleinen Dialog mit Overlay-Einstellungen (inkl. Checkbox zum Aktivieren). */
 public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
 
-    @Override public String getId() { return "video.overlay"; }
+    @Override public String getId() { return "record.video.overlay"; }
     @Override public String getLabel() { return "Overlay-Einstellungen"; }
 
     @Override

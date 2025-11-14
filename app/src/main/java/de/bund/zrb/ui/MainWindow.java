@@ -73,6 +73,64 @@ public class MainWindow {
         return rightEditorTabsRef;
     }
 
+    /**
+     * Registriert jeden Menüeintrag einzeln in der entsprechenden Reihenfolge. Früher registrierte Befehle erscheinen
+     * in der UI weiter links.
+     */
+    private void registerCommands() {
+        // Datei
+        commandRegistry.register(new ShowShortcutConfigMenuCommand(frame));
+        commandRegistry.register(new SettingsCommand());
+        commandRegistry.register(new ExpressionEditorCommand());
+        commandRegistry.register(new RegexPresetsCommand());
+
+        // Ansicht
+        commandRegistry.register(new CloseEditorTabCommand(tabbedPane));
+        commandRegistry.register(new ToggleLeftDrawerCommand(this));
+        commandRegistry.register(new ToggleRightDrawerCommand(this));
+
+        // Benutzer
+        commandRegistry.register(new UserRegistryCommand());
+        commandRegistry.register(new CycleUserCommand());
+        commandRegistry.register(new LoginUserCommand());
+        commandRegistry.register(new ChangePasswordCommand());
+        commandRegistry.register(new ShowOtpDialogCommand());
+
+        // Browser
+        commandRegistry.register(new NavigationHomeCommand());
+        commandRegistry.register(new GoBackCommand(browserService));
+        commandRegistry.register(new GoForwardCommand(browserService));
+        commandRegistry.register(new ReloadTabCommand(browserService));
+        commandRegistry.register(new CloseTabCommand(browserService));
+        commandRegistry.register(new NewTabCommand(browserService));
+        commandRegistry.register(new LaunchBrowserCommand(browserService));
+        commandRegistry.register(new TerminateBrowserCommand(browserService));
+        commandRegistry.register(new SwitchTabCommand(browserService));
+        commandRegistry.register(new CaptureScreenshotCommand());
+
+        // Playback
+        commandRegistry.register(new PlayTestSuiteCommand(tabbedPane));
+        commandRegistry.register(new PlayAndRecordTestSuiteCommand(tabbedPane));
+        commandRegistry.register(new StopPlaybackCommand());
+
+        // Aufnahme
+        commandRegistry.register(new StartRecordCommand());
+        commandRegistry.register(new StopRecordCommand());
+        commandRegistry.register(new ToggleRecordCommand());
+
+        // Video
+        commandRegistry.register(new ToggleVideoRecordCommand());
+        commandRegistry.register(new OpenVideoOverlaySettingsCommand());
+
+        // Debug
+        commandRegistry.register(new ShowGrowlTesterCommand());
+        commandRegistry.register(new ShowNetworkDebuggerCommand());
+        commandRegistry.register(new ShowEventMonitorCommand());
+        commandRegistry.register(new ShowSelectorsCommand(browserService));
+        commandRegistry.register(new ShowDomEventsCommand(browserService));
+        commandRegistry.register(new CleanupAllUserContextsCommand());
+    }
+
     public void initUI() {
 
         // 1. Zustand laden
@@ -413,51 +471,6 @@ public class MainWindow {
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(tabbedPane, BorderLayout.CENTER);
         return panel;
-    }
-
-    private void registerCommands() {
-        commandRegistry.register(new ShowShortcutConfigMenuCommand(frame));
-        commandRegistry.register(new SettingsCommand());
-        commandRegistry.register(new ExpressionEditorCommand());
-        commandRegistry.register(new RegexPresetsCommand());
-        commandRegistry.register(new PlayTestSuiteCommand(tabbedPane));
-        commandRegistry.register(new PlayAndRecordTestSuiteCommand(tabbedPane));
-        commandRegistry.register(new StopPlaybackCommand());
-        commandRegistry.register(new StartRecordCommand());
-        commandRegistry.register(new StopRecordCommand());
-        commandRegistry.register(new ToggleRecordCommand());
-
-        commandRegistry.register(new LaunchBrowserCommand(browserService));
-        commandRegistry.register(new TerminateBrowserCommand(browserService));
-        commandRegistry.register(new SwitchTabCommand(browserService));
-        commandRegistry.register(new NewTabCommand(browserService));
-        commandRegistry.register(new CloseTabCommand(browserService));
-        commandRegistry.register(new CloseEditorTabCommand(tabbedPane));
-        commandRegistry.register(new ReloadTabCommand(browserService));
-        commandRegistry.register(new GoBackCommand(browserService));
-        commandRegistry.register(new GoForwardCommand(browserService));
-
-        commandRegistry.register(new CaptureScreenshotCommand());
-        commandRegistry.register(new ShowOtpDialogCommand());
-        commandRegistry.register(new ShowGrowlTesterCommand());
-        commandRegistry.register(new ShowNetworkDebuggerCommand());
-        commandRegistry.register(new ShowEventMonitorCommand());
-        commandRegistry.register(new ShowSelectorsCommand(browserService));
-        commandRegistry.register(new ShowDomEventsCommand(browserService));
-
-        commandRegistry.register(new UserRegistryCommand());
-        commandRegistry.register(new CycleUserCommand());
-        commandRegistry.register(new NavigationHomeCommand());
-        commandRegistry.register(new LoginUserCommand());
-        commandRegistry.register(new ChangePasswordCommand());
-
-        commandRegistry.register(new ToggleLeftDrawerCommand(this));
-        commandRegistry.register(new ToggleRightDrawerCommand(this));
-
-        commandRegistry.register(new ToggleVideoRecordCommand());
-        commandRegistry.register(new de.bund.zrb.ui.commands.OpenVideoOverlaySettingsCommand());
-        // Debug bereinigung
-        commandRegistry.register(new de.bund.zrb.ui.commands.CleanupAllUserContextsCommand());
     }
 
     private JMenu buildViewMenu() {

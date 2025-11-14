@@ -17,7 +17,7 @@ public class CloseTabCommand extends ShortcutMenuCommand {
 
     @Override
     public String getId() {
-        return "browser.closetab";
+        return "browser.tab.closetab";
     }
 
     @Override

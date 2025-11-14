@@ -9,12 +9,12 @@ public class ShowOtpDialogCommand extends ShortcutMenuCommand {
 
     @Override
     public String getId() {
-        return "tools.showOtpForActiveUser";
+        return "users.showOtpForActiveUser";
     }
 
     @Override
     public String getLabel() {
-        return "OTP-Code (aktiver Benutzer)";
+        return "OTP-Code anzeigen";
     }
 
     @Override

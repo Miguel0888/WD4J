@@ -549,7 +549,7 @@ public class ToolbarConfigDialog extends JDialog {
         String idStartRec    = findIdContaining("startrecord", "record.start");
         String idStopRec     = findIdContaining("stoprecord", "record.stop");
         String idLogin       = findIdContaining("loginuser", "login");
-        String idHome        = findIdContaining("navigation.home", "home");
+        String idHome        = findIdContaining("browser.tab.home", "home");
         String idOtp         = findIdContaining("showotpdialog", "otp");
         String idCloseTab    = findIdContaining("closetab", "close.tab");
         String idReload      = findIdContaining("reloadtab", "reload", "refresh");
