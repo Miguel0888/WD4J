@@ -23,10 +23,10 @@ public class ResponseImpl implements Response {
     private final Frame frame;
     private final byte[] responseBody;
 
-    public ResponseImpl(WDNetworkEvent.ResponseStarted event, byte[] responseBody) {
+    public ResponseImpl(WDNetworkEvent.ResponseStarted event, byte[] responseBody, Request request) {
         this.rawParams = event.getParams(); // 🔹 Speichere das komplette Event-Objekt
         this.responseData = event.getParams().getResponse();
-        this.request = null; // TODO: Mapping von `request`
+        this.request = request; // ✅ Set the request reference
         this.frame = null; // TODO: Mapping von `frame`
         this.responseBody = responseBody; // 🔹 Response-Body speichern
 
