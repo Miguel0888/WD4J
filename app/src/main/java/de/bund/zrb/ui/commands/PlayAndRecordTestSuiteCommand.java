@@ -120,8 +120,20 @@ public class PlayAndRecordTestSuiteCommand extends ShortcutMenuCommand {
 
     private Path resolveOutputDir() {
         SettingsService s = SettingsService.getInstance();
+        // Primärer Key (neuer Dialog?)
         String p = s.get("video.outputDir", String.class);
-        if (p == null || p.trim().isEmpty()) p = "C:/Recordings";
+        // Fallback: gleicher Key wie ToggleVideoRecordCommand nutzt
+        if (p == null || p.trim().isEmpty()) {
+            p = s.get("video.reportsDir", String.class);
+        }
+        // Weiterer Fallback (optional älterer Name)
+        if (p == null || p.trim().isEmpty()) {
+            p = s.get("video.baseDir", String.class);
+        }
+        // Letzter Fallback: Home-Verzeichnis
+        if (p == null || p.trim().isEmpty()) {
+            p = System.getProperty("user.home") + "/.wd4j/videos";
+        }
         return Paths.get(p.trim());
     }
 
@@ -157,4 +169,3 @@ public class PlayAndRecordTestSuiteCommand extends ShortcutMenuCommand {
         return new de.bund.zrb.ui.tabs.ClosableTabHeader(tabs, tabContent, title, onClose);
     }
 }
-
