@@ -80,6 +80,9 @@ public class PageImpl implements Page, WDPageExtension {
     // Optional:
     private final Map<Consumer<WebSocket>, Consumer<Object>> webSocketAdapters = new java.util.concurrent.ConcurrentHashMap<>();
 
+    // --- Request/Response correlation map (keyed by BiDi requestId) ---
+    private final java.util.Map<String, RequestImpl> requestsById = new java.util.concurrent.ConcurrentHashMap<>();
+
     @Override
     public WDPageExtensionSupport wdExt() {
         return extension;
@@ -373,7 +376,18 @@ public class PageImpl implements Page, WDPageExtension {
 
         java.util.function.Consumer<Object> adapter = ev -> {
             WDNetworkEvent.BeforeRequestSent wd = as(ev, WDNetworkEvent.BeforeRequestSent.class);
-            if (wd != null) handler.accept(new RequestImpl(wd));
+            if (wd != null) {
+                String requestId = extractRequestId(wd.getParams());
+                if (requestId != null) {
+                    // Create RequestImpl once and cache it by requestId
+                    RequestImpl req = new RequestImpl(wd);
+                    requestsById.put(requestId, req);
+                    handler.accept(req);
+                } else {
+                    // Fallback: create without caching if no requestId
+                    handler.accept(new RequestImpl(wd));
+                }
+            }
         };
 
         reqBeforeAdapters.put(handler, adapter);
@@ -397,7 +411,21 @@ public class PageImpl implements Page, WDPageExtension {
 
         java.util.function.Consumer<Object> adapter = ev -> {
             WDNetworkEvent.FetchError wd = as(ev, WDNetworkEvent.FetchError.class);
-            if (wd != null) handler.accept(new RequestImpl(wd));
+            if (wd != null) {
+                String requestId = extractRequestId(wd.getParams());
+                RequestImpl req = requestsById.get(requestId);
+                
+                if (req != null) {
+                    // Reuse existing RequestImpl and enrich with error data
+                    req.enrichWithError(wd);
+                    handler.accept(req);
+                    // Clean up - request lifecycle is complete
+                    requestsById.remove(requestId);
+                } else {
+                    // Fallback: create new RequestImpl if not found
+                    handler.accept(new RequestImpl(wd));
+                }
+            }
         };
 
         reqFailedAdapters.put(handler, adapter);
@@ -420,7 +448,21 @@ public class PageImpl implements Page, WDPageExtension {
 
         java.util.function.Consumer<Object> adapter = ev -> {
             WDNetworkEvent.ResponseCompleted wd = as(ev, WDNetworkEvent.ResponseCompleted.class);
-            if (wd != null) handler.accept(new RequestImpl(wd));
+            if (wd != null) {
+                String requestId = extractRequestId(wd.getParams());
+                RequestImpl req = requestsById.get(requestId);
+                
+                if (req != null) {
+                    // Reuse existing RequestImpl and enrich with response data
+                    req.enrichWithResponse(wd);
+                    handler.accept(req);
+                    // Clean up - request lifecycle is complete
+                    requestsById.remove(requestId);
+                } else {
+                    // Fallback: create new RequestImpl if not found
+                    handler.accept(new RequestImpl(wd));
+                }
+            }
         };
 
         reqFinishedAdapters.put(handler, adapter);
@@ -443,7 +485,12 @@ public class PageImpl implements Page, WDPageExtension {
 
         java.util.function.Consumer<Object> adapter = ev -> {
             WDNetworkEvent.ResponseStarted wd = as(ev, WDNetworkEvent.ResponseStarted.class);
-            if (wd != null) handler.accept(new ResponseImpl(wd, null));
+            if (wd != null) {
+                String requestId = extractRequestId(wd.getParams());
+                RequestImpl req = requestsById.get(requestId);
+                // Pass the Request reference to ResponseImpl (may be null if not yet seen)
+                handler.accept(new ResponseImpl(wd, null, req));
+            }
         };
 
         respAdapters.put(handler, adapter);
@@ -2404,6 +2451,19 @@ public class PageImpl implements Page, WDPageExtension {
                 WDResultOwnership.NONE,
                 null
         );
+    }
+
+    /**
+     * Extracts the requestId from network event parameters.
+     * The requestId is used to correlate Request objects across different network events.
+     */
+    private String extractRequestId(de.bund.zrb.type.network.WDBaseParameters params) {
+        if (params == null) return null;
+        de.bund.zrb.type.network.WDRequestData reqData = params.getRequest();
+        if (reqData == null) return null;
+        de.bund.zrb.type.network.WDRequest request = reqData.getRequest();
+        if (request == null) return null;
+        return request.value();
     }
 
 
