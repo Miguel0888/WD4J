@@ -1469,17 +1469,39 @@ public class TestTreeController {
         }
         @Override
         public Component getTreeCellEditorComponent(JTree tree, Object value, boolean sel, boolean expanded, boolean leaf, int row) {
-            if (!(value instanceof TestNode)) { currentNode = null; return new JLabel(String.valueOf(value)); }
+            if (!initFromValue(value)) return new JLabel(String.valueOf(value));
+
+            TestAction action = (TestAction) currentNode.getModelRef();
+            initTextFieldsFromAction(action);
+
+            Icon icon = applyRendererIcon(tree, value, expanded, leaf, row);
+            sizeEditorToRow(tree, value, icon, expanded, leaf, row);
+            deferResizeAndFocus(tree, row);
+
+            canceled = false;
+            return panel;
+        }
+
+        private boolean initFromValue(Object value) {
+            if (!(value instanceof TestNode)) { currentNode = null; return false; }
             currentNode = (TestNode) value;
             Object ref = currentNode.getModelRef();
-            if (!(ref instanceof TestAction)) { currentNode = null; return new JLabel(String.valueOf(value)); }
-            TestAction action = (TestAction) ref;
+            if (!(ref instanceof TestAction)) { currentNode = null; return false; }
+            return true;
+        }
+
+        private void initTextFieldsFromAction(TestAction action) {
             prevDescription = action.getDescription();
             prevRenderedLabel = TestTreeController.renderActionLabel(action);
-            String start = (prevDescription != null && !prevDescription.trim().isEmpty()) ? prevDescription.trim() : prevRenderedLabel;
+            String start = (prevDescription != null && !prevDescription.trim().isEmpty())
+                    ? prevDescription.trim()
+                    : prevRenderedLabel;
             field.setText(start);
-            // Icon vom Renderer holen, damit es erhalten bleibt
-            java.awt.Component rendComp = tree.getCellRenderer().getTreeCellRendererComponent(tree, value, true, expanded, leaf, row, true);
+        }
+
+        private Icon applyRendererIcon(JTree tree, Object value, boolean expanded, boolean leaf, int row) {
+            Component rendComp = tree.getCellRenderer()
+                    .getTreeCellRendererComponent(tree, value, true, expanded, leaf, row, true);
             Icon ic = null;
             if (rendComp instanceof JLabel) {
                 ic = ((JLabel) rendComp).getIcon();
@@ -1487,14 +1509,22 @@ public class TestTreeController {
             } else {
                 iconLabel.setIcon(null);
             }
-            // Breite des Editors an Zeilenbreite anpassen
+            return ic;
+        }
+
+        private void sizeEditorToRow(JTree tree, Object value, Icon ic, boolean expanded, boolean leaf, int row) {
             Rectangle rb = tree.getRowBounds(row);
+            Component rendComp = tree.getCellRenderer()
+                    .getTreeCellRendererComponent(tree, value, true, expanded, leaf, row, true);
             int iconW = (ic != null) ? ic.getIconWidth() + 6 : 0;
             int prefW = (rb != null ? rb.width : rendComp.getPreferredSize().width);
             int fieldW = Math.max(100, prefW - iconW - 8);
             Dimension d = new Dimension(prefW, rendComp.getPreferredSize().height);
             panel.setPreferredSize(d);
             field.setPreferredSize(new Dimension(fieldW, d.height));
+        }
+
+        private void deferResizeAndFocus(JTree tree, int row) {
             SwingUtilities.invokeLater(() -> {
                 try {
                     TreePath path = tree.getPathForRow(row);
@@ -1503,14 +1533,12 @@ public class TestTreeController {
                     if (b == null) return;
                     Rectangle vis = tree.getVisibleRect();
                     int pad = 4;
-                    // verfügbare Breite von linker Zellkante bis zum rechten sichtbaren Rand
                     int newW = Math.max(b.width, (vis.x + vis.width) - b.x - pad);
-                    int iconWidthLater = 0; // renamed to avoid shadowing outer iconW
+                    int iconWidthLater = 0;
                     Icon cicon = iconLabel.getIcon();
                     if (cicon != null) iconWidthLater = cicon.getIconWidth() + 6;
                     Container p = panel.getParent();
                     if (p != null) {
-                        // Nur Größe ändern, Position NICHT anfassen, um Verschiebungen zu vermeiden
                         p.setSize(newW, b.height);
                         panel.setPreferredSize(new Dimension(newW, b.height));
                         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, b.height));
@@ -1522,8 +1550,6 @@ public class TestTreeController {
                 field.requestFocusInWindow();
                 field.selectAll();
             });
-            canceled = false;
-            return panel;
         }
         @Override
         public Object getCellEditorValue() {
