@@ -2,14 +2,19 @@ package de.bund.zrb.ui.commands;
 
 import de.bund.zrb.event.ApplicationEventBus;
 import de.bund.zrb.event.StatusMessageEvent;
+import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.ui.commandframework.ShortcutMenuCommand;
 import de.bund.zrb.video.overlay.VideoOverlayService;
 import de.bund.zrb.video.overlay.VideoOverlayStyle;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.List;
 
-/** Öffnet einen kleinen Dialog mit Overlay-Einstellungen (inkl. Checkbox zum Aktivieren). */
+/** Öffnet ein Preview-Fenster in Videoauflösung, in dem Overlay-Platzhalter frei positioniert und gestaltet werden können. */
 public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
 
     @Override public String getId() { return "record.video.overlay"; }
@@ -20,81 +25,35 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
         SwingUtilities.invokeLater(() -> {
             try {
                 VideoOverlayService svc = VideoOverlayService.getInstance();
-                JDialog dlg = new JDialog((Frame) null, "Overlay-Einstellungen", true);
-                dlg.setLayout(new BorderLayout(10,10));
 
-                JTabbedPane tabs = new JTabbedPane();
+                // Zielauflösung aus Settings lesen (wie Recording-Settings), Fallback auf 1280x720
+                int w = getInt("recording.video.width", 1280);
+                int h = getInt("recording.video.height", 720);
+                if (w <= 0) w = 1280;
+                if (h <= 0) h = 720;
+                Dimension videoSize = new Dimension(w, h);
 
-                // Allgemein-Panel
-                JPanel general = new JPanel();
-                general.setLayout(new BoxLayout(general, BoxLayout.Y_AXIS));
-                JCheckBox cbEnabled = new JCheckBox("Overlay aktivieren", svc.isEnabled());
-                cbEnabled.addActionListener(e -> svc.setEnabled(cbEnabled.isSelected()));
-                general.add(cbEnabled);
-                general.add(Box.createVerticalStrut(8));
-                JLabel help = new JLabel("Konfiguration der Anzeige im aufgenommenen Video.");
-                help.setAlignmentX(0f);
-                general.add(help);
-                tabs.addTab("Allgemein", wrapScroll(general));
+                JFrame frame = new JFrame("Overlay-Layout (Preview)");
+                frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+                frame.setUndecorated(true); // rahmenlos
+                frame.setLayout(new BorderLayout());
 
-                // Caption (Suite/Root)
-                tabs.addTab("Caption", buildStylePanel(
-                        "Caption (Suite/Root)",
-                        svc.isCaptionEnabled(),
-                        b -> svc.setCaptionEnabled(b),
-                        svc.getCaptionStyle(),
-                        s -> svc.applyCaptionStyle(s)
-                ));
+                OverlayPreviewPanel preview = new OverlayPreviewPanel(svc, videoSize);
+                frame.add(preview, BorderLayout.CENTER);
 
-                // Subtitle (Case)
-                tabs.addTab("Subtitle", buildStylePanel(
-                        "Subtitle (Case)",
-                        svc.isSubtitleEnabled(),
-                        b -> svc.setSubtitleEnabled(b),
-                        svc.getSubtitleStyle(),
-                        s -> svc.applySubtitleStyle(s)
-                ));
+                // Einfache Steuerleiste oben rechts für Schließen
+                JToolBar bar = new JToolBar();
+                bar.setFloatable(false);
+                bar.setOpaque(false);
+                JButton close = new JButton("X");
+                close.addActionListener(e -> frame.dispose());
+                bar.add(Box.createHorizontalGlue());
+                bar.add(close);
+                frame.add(bar, BorderLayout.NORTH);
 
-                // Action transient
-                JPanel actionPanel = new JPanel();
-                actionPanel.setLayout(new BoxLayout(actionPanel, BoxLayout.Y_AXIS));
-                JCheckBox cbAction = new JCheckBox("Transient Action Overlay aktivieren", svc.isActionTransientEnabled());
-                cbAction.addActionListener(e -> svc.setActionTransientEnabled(cbAction.isSelected()));
-                actionPanel.add(cbAction);
-                actionPanel.add(Box.createVerticalStrut(6));
-                VideoOverlayStyle actStyle = svc.getActionStyle();
-                JTextField tfFontColor = new JTextField(actStyle.getFontColor());
-                JTextField tfBgColor = new JTextField(actStyle.getBackgroundColor());
-                JSpinner spFontSize = new JSpinner(new SpinnerNumberModel(actStyle.getFontSizePx(), 8, 96, 1));
-                JSpinner spDuration = new JSpinner(new SpinnerNumberModel(svc.getActionTransientDurationMs(), 200, 10000, 100));
-                addLabeled(actionPanel, "Font Color", tfFontColor);
-                addLabeled(actionPanel, "Background Color", tfBgColor);
-                addLabeled(actionPanel, "Font Size (px)", spFontSize);
-                addLabeled(actionPanel, "Dauer (ms)", spDuration);
-                JButton btnPreview = new JButton("Preview");
-                btnPreview.addActionListener(e -> {
-                    svc.applyActionStyle(new VideoOverlayStyle(tfFontColor.getText().trim(), tfBgColor.getText().trim(), (Integer) spFontSize.getValue()));
-                    svc.setActionTransientDurationMs(((Number) spDuration.getValue()).intValue());
-                    if (cbAction.isSelected()) {
-                        de.bund.zrb.event.ApplicationEventBus.getInstance().publish(new de.bund.zrb.video.overlay.VideoOverlayEvent(de.bund.zrb.video.overlay.VideoOverlayEvent.Kind.ACTION, "Action Beispiel"));
-                    }
-                });
-                actionPanel.add(Box.createVerticalStrut(6));
-                actionPanel.add(btnPreview);
-                tabs.addTab("Action", wrapScroll(actionPanel));
-
-                dlg.add(tabs, BorderLayout.CENTER);
-
-                JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-                JButton close = new JButton("Schließen");
-                close.addActionListener(e -> dlg.dispose());
-                south.add(close);
-                dlg.add(south, BorderLayout.SOUTH);
-
-                dlg.setMinimumSize(new Dimension(520, 480));
-                dlg.setLocationRelativeTo(null);
-                dlg.pack();
-                dlg.setVisible(true);
+                frame.setSize(videoSize);
+                frame.setLocationRelativeTo(null);
+                frame.setVisible(true);
             } catch (Exception ex) {
                 ApplicationEventBus.getInstance().publish(new StatusMessageEvent(
                         "Overlay-Dialog konnte nicht geöffnet werden: " + ex.getMessage(), 4000));
@@ -102,52 +61,185 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
         });
     }
 
-    private JScrollPane buildStylePanel(String title,
-                                        boolean enabled,
-                                        java.util.function.Consumer<Boolean> enableConsumer,
-                                        VideoOverlayStyle style,
-                                        java.util.function.Consumer<VideoOverlayStyle> styleConsumer) {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        JCheckBox cb = new JCheckBox(title + " aktiv", enabled);
-        cb.addActionListener(e -> enableConsumer.accept(cb.isSelected()));
-        panel.add(cb);
-        panel.add(Box.createVerticalStrut(6));
-        JTextField tfFontColor = new JTextField(style.getFontColor());
-        JTextField tfBgColor = new JTextField(style.getBackgroundColor());
-        JSpinner spFontSize = new JSpinner(new SpinnerNumberModel(style.getFontSizePx(), 8, 96, 1));
-        addLabeled(panel, "Font Color", tfFontColor);
-        addLabeled(panel, "Background Color", tfBgColor);
-        addLabeled(panel, "Font Size (px)", spFontSize);
-        JButton preview = new JButton("Preview");
-        preview.addActionListener(e -> {
-            VideoOverlayStyle s = new VideoOverlayStyle(tfFontColor.getText().trim(), tfBgColor.getText().trim(), (Integer) spFontSize.getValue());
-            styleConsumer.accept(s);
-            if (cb.isSelected()) {
-                // Test-Event auslösen
-                de.bund.zrb.event.ApplicationEventBus.getInstance().publish(new de.bund.zrb.video.overlay.VideoOverlayEvent(
-                        title.startsWith("Caption") ? de.bund.zrb.video.overlay.VideoOverlayEvent.Kind.SUITE : de.bund.zrb.video.overlay.VideoOverlayEvent.Kind.CASE,
-                        "Beispiel"));
+    private static int getInt(String key, int def) {
+        Integer v = SettingsService.getInstance().get(key, Integer.class);
+        return v == null ? def : v.intValue();
+    }
+
+    /**
+     * Panel, das eine Videoauflösung simuliert und mehrere verschiebbare Text-Platzhalter enthält.
+     * Jeder Platzhalter kann einem bestehenden Overlay-Typ (Caption/Subtitle/Action) zugeordnet werden
+     * und erlaubt die Konfiguration von Schriftfarbe, Hintergrundfarbe (inkl. Transparenz) und Rahmen.
+     */
+    static final class OverlayPreviewPanel extends JLayeredPane {
+        private final VideoOverlayService service;
+        private final Dimension videoSize;
+        private final List<Placeholder> placeholders = new ArrayList<>();
+
+        OverlayPreviewPanel(VideoOverlayService service, Dimension videoSize) {
+            this.service = service;
+            this.videoSize = videoSize;
+            setPreferredSize(videoSize);
+            setLayout(null); // absolute Positionierung
+
+            setBackground(Color.BLACK);
+            setOpaque(true);
+
+            // Platzhalter für Caption, Subtitle und Action anhand bestehender Styles anlegen
+            addPlaceholder("Caption", Placeholder.Kind.CAPTION, service.getCaptionStyle(), 20, 20);
+            addPlaceholder("Subtitle", Placeholder.Kind.SUBTITLE, service.getSubtitleStyle(), 20, videoSize.height - 120);
+            addPlaceholder("Action", Placeholder.Kind.ACTION, service.getActionStyle(), videoSize.width - 320, 40);
+        }
+
+        private void addPlaceholder(String label, Placeholder.Kind kind, VideoOverlayStyle style, int x, int y) {
+            Placeholder p = new Placeholder(label, kind, style, service, this);
+            p.setBounds(x, y, 280, 80);
+            placeholders.add(p);
+            add(p, JLayeredPane.PALETTE_LAYER);
+        }
+    }
+
+    /**
+     * Einzelner verschieb- und konfigurierbarer Overlay-Platzhalter.
+     */
+    static final class Placeholder extends JPanel {
+        enum Kind { CAPTION, SUBTITLE, ACTION }
+
+        private final Kind kind;
+        private final VideoOverlayService service;
+        private Point dragOffset;
+
+        Placeholder(String label, Kind kind, VideoOverlayStyle style,
+                    VideoOverlayService service, JComponent parent) {
+            this.kind = kind;
+            this.service = service;
+            setLayout(new BorderLayout(4,4));
+
+            setOpaque(false);
+            applyStyle(style);
+
+            JLabel title = new JLabel(label);
+            title.setFont(title.getFont().deriveFont(Font.BOLD));
+            add(title, BorderLayout.NORTH);
+
+            JTextArea area = new JTextArea("Beispieltext " + label);
+            area.setLineWrap(true);
+            area.setWrapStyleWord(true);
+            area.setOpaque(false);
+            area.setEditable(false);
+            add(area, BorderLayout.CENTER);
+
+            JButton edit = new JButton("Design / Typ...");
+            edit.addActionListener(e -> openConfigDialog(parent));
+            add(edit, BorderLayout.SOUTH);
+
+            MouseAdapter ma = new MouseAdapter() {
+                @Override public void mousePressed(MouseEvent e) {
+                    dragOffset = e.getPoint();
+                }
+                @Override public void mouseDragged(MouseEvent e) {
+                    if (dragOffset == null) return;
+                    int nx = getX() + e.getX() - dragOffset.x;
+                    int ny = getY() + e.getY() - dragOffset.y;
+                    setLocation(nx, ny);
+                    parent.repaint();
+                }
+            };
+            addMouseListener(ma);
+            addMouseMotionListener(ma);
+        }
+
+        private void applyStyle(VideoOverlayStyle style) {
+            if (style == null) return;
+            try {
+                Color font = Color.decode(style.getFontColor());
+                Color bg = Color.decode(style.getBackgroundColor());
+                // Hintergrund leicht transparent zeichnen
+                Color bgTrans = new Color(bg.getRed(), bg.getGreen(), bg.getBlue(), 180);
+                setBackground(bgTrans);
+                setOpaque(true);
+                setForeground(font);
+                setBorder(BorderFactory.createLineBorder(font));
+            } catch (Exception ignored) {
+                setOpaque(false);
+                setBorder(BorderFactory.createDashedBorder(Color.LIGHT_GRAY));
             }
-        });
-        panel.add(Box.createVerticalStrut(6));
-        panel.add(preview);
-        return wrapScroll(panel);
-    }
+            revalidate();
+            repaint();
+        }
 
-    private static void addLabeled(JPanel p, String label, JComponent comp) {
-        JPanel row = new JPanel(new BorderLayout(6,0));
-        JLabel l = new JLabel(label + ":");
-        row.add(l, BorderLayout.WEST);
-        row.add(comp, BorderLayout.CENTER);
-        row.setAlignmentX(0f);
-        p.add(row);
-        p.add(Box.createVerticalStrut(4));
-    }
+        private void openConfigDialog(Component parent) {
+            VideoOverlayStyle current = getCurrentStyle();
+            JTextField tfFontColor = new JTextField(current.getFontColor());
+            JTextField tfBgColor = new JTextField(current.getBackgroundColor());
+            JSpinner spFontSize = new JSpinner(new SpinnerNumberModel(current.getFontSizePx(), 8, 96, 1));
 
-    private static JScrollPane wrapScroll(JComponent c) {
-        JScrollPane sp = new JScrollPane(c);
-        sp.setBorder(BorderFactory.createEmptyBorder());
-        return sp;
+            String[] types = {"Caption", "Subtitle", "Action"};
+            JComboBox<String> cbType = new JComboBox<>(types);
+            cbType.setSelectedIndex(kind == Kind.CAPTION ? 0 : kind == Kind.SUBTITLE ? 1 : 2);
+
+            JPanel panel = new JPanel(new GridBagLayout());
+            GridBagConstraints c = new GridBagConstraints();
+            c.insets = new Insets(4,4,4,4);
+            c.gridx = 0; c.gridy = 0; c.anchor = GridBagConstraints.WEST;
+            panel.add(new JLabel("Overlay-Typ:"), c);
+            c.gridx = 1; panel.add(cbType, c);
+
+            c.gridx = 0; c.gridy = 1; panel.add(new JLabel("Font Color (#RRGGBB):"), c);
+            c.gridx = 1; panel.add(tfFontColor, c);
+
+            c.gridx = 0; c.gridy = 2; panel.add(new JLabel("Background Color (#RRGGBB):"), c);
+            c.gridx = 1; panel.add(tfBgColor, c);
+
+            c.gridx = 0; c.gridy = 3; panel.add(new JLabel("Font Size (px):"), c);
+            c.gridx = 1; panel.add(spFontSize, c);
+
+            int res = JOptionPane.showConfirmDialog(parent, panel,
+                    "Overlay-Platzhalter konfigurieren", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            if (res == JOptionPane.OK_OPTION) {
+                VideoOverlayStyle newStyle = new VideoOverlayStyle(
+                        tfFontColor.getText().trim(),
+                        tfBgColor.getText().trim(),
+                        (Integer) spFontSize.getValue());
+
+                String sel = (String) cbType.getSelectedItem();
+                Kind newKind = kind;
+                if ("Caption".equals(sel)) newKind = Kind.CAPTION;
+                else if ("Subtitle".equals(sel)) newKind = Kind.SUBTITLE;
+                else if ("Action".equals(sel)) newKind = Kind.ACTION;
+
+                applyStyle(newStyle);
+                applyToService(newKind, newStyle);
+            }
+        }
+
+        private VideoOverlayStyle getCurrentStyle() {
+            switch (kind) {
+                case CAPTION:
+                    return service.getCaptionStyle();
+                case SUBTITLE:
+                    return service.getSubtitleStyle();
+                case ACTION:
+                default:
+                    return service.getActionStyle();
+            }
+        }
+
+        private void applyToService(Kind target, VideoOverlayStyle style) {
+            switch (target) {
+                case CAPTION:
+                    service.applyCaptionStyle(style);
+                    service.setCaptionEnabled(true);
+                    break;
+                case SUBTITLE:
+                    service.applySubtitleStyle(style);
+                    service.setSubtitleEnabled(true);
+                    break;
+                case ACTION:
+                    service.applyActionStyle(style);
+                    service.setActionTransientEnabled(true);
+                    break;
+            }
+        }
     }
 }
