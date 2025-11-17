@@ -8,7 +8,6 @@ import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
 import de.bund.zrb.ui.components.RoundIconButton;
 import de.bund.zrb.ui.tabs.GivenListEditorTab;
-import de.bund.zrb.ui.tabs.PreconditionListValidator;
 import de.bund.zrb.ui.tabs.Saveable;
 import de.bund.zrb.ui.tabs.Revertable;
 
@@ -55,55 +54,30 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
         headerInner.add(descField, BorderLayout.CENTER);
 
         JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton saveBtn = new JButton("💾 Speichern");
-        saveBtn.setToolTipText("Änderungen dieses Case speichern");
-        saveBtn.addActionListener(e -> saveChanges());
-        JButton revertBtnHeader = new JButton("Änderungen verwerfen");
-        revertBtnHeader.setToolTipText("Ungespeicherte Änderungen zurücksetzen");
-        revertBtnHeader.addActionListener(e -> revertChanges());
-        savePanel.add(revertBtnHeader);
-        savePanel.add(saveBtn);
-        savePanel.setBorder(BorderFactory.createEmptyBorder(12,12,6,12));
-
+        // Entfernt: lokale Save/Revert-Buttons – globaler Button übernimmt
         header.add(headerInner, BorderLayout.CENTER);
         header.add(savePanel, BorderLayout.EAST);
         header.setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
         add(header, BorderLayout.NORTH);
 
         List<Precondtion> preconditions = testCase.getPreconditions();
-        boolean needImmediateSave = false;
         if (preconditions == null) {
-            preconditions = new ArrayList<Precondtion>();
+            preconditions = new ArrayList<>();
             testCase.setPreconditions(preconditions);
-            needImmediateSave = true;
         }
         String scopeLabel = "Case " + safe(testCase.getName());
         GivenListEditorTab preconditionsTab = new GivenListEditorTab(scopeLabel, preconditions);
-        innerTabs.insertTab("Preconditions", null, preconditionsTab, "Case Preconditions", 0);
 
-        boolean preconditionsValid = true;
-        try {
-            PreconditionListValidator.validateOrThrow(scopeLabel, preconditions);
-            preconditionsTab.clearValidationError();
-        } catch (Exception ex) {
-            preconditionsValid = false;
-            preconditionsTab.showValidationError(ex.getMessage());
-        }
-
-        if (needImmediateSave) {
-            try { TestRegistry.getInstance().save(); } catch (Throwable ignore) { }
-        }
-
-        // Tabs:
-        // "Before"  == testCase.getBefore()
-        // "Templates" == testCase.getTemplates()
-        innerTabs.addTab("Before",
-                new MapTablePanel(testCase.getBefore(), testCase.getBeforeEnabled(), testCase.getBeforeDesc(), "Before",
-                        UserRegistry.getInstance().usernamesSupplier()));
+        // Reihenfolge: Templates, Before, Preconditions, After
         innerTabs.addTab("Templates",
                 new MapTablePanel(testCase.getTemplates(), testCase.getTemplatesEnabled(), "Templates", null));
 
-        // After (Case) – frei editierbar, kein Pin
+        innerTabs.addTab("Before",
+                new MapTablePanel(testCase.getBefore(), testCase.getBeforeEnabled(), testCase.getBeforeDesc(), "Before",
+                        UserRegistry.getInstance().usernamesSupplier()));
+
+        innerTabs.addTab("Preconditions", preconditionsTab);
+
         innerTabs.addTab("After",
                 new AssertionTablePanel(testCase.getAfter(), testCase.getAfterEnabled(), testCase.getAfterDesc(),
                         testCase.getAfterValidatorType(), testCase.getAfterValidatorValue(),
@@ -112,10 +86,11 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
         add(innerTabs, BorderLayout.CENTER);
         installHelpButton();
 
-        if (!preconditionsValid) {
-            disableTabsFromIndex(1);
-            innerTabs.setSelectedIndex(0);
-        }
+        // Entfernt: Validierungs-/Deaktivierungslogik des Precondition-Tabs
+        // if (!preconditionsValid) {
+        //     disableTabsFromIndex(1);
+        //     innerTabs.setSelectedIndex(0);
+        // }
 
         // Entfernt: eigener SOUTH-Block. Buttons werden durch SaveRevertContainer bereitgestellt.
     }

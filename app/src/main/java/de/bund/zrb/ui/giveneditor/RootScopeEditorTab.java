@@ -3,7 +3,6 @@ package de.bund.zrb.ui.giveneditor;
 import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.RootNode;
 import de.bund.zrb.service.TestRegistry;
-import de.bund.zrb.service.UserRegistry;
 import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
 import de.bund.zrb.ui.components.RoundIconButton;
@@ -17,72 +16,71 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Editor für den globalen Root-Scope.
- *
- * Tabs:
- *  - BeforeAll
- *  - BeforeEach
- *  - Templates
- *
- * Rechts oben ein Speichern-Button (schreibt tests.json über TestRegistry.save()).
- * Jede Tabelle hat + und – zum Hinzufügen/Entfernen und kann inline editiert werden.
- *
- * Semantik:
- *  - BeforeAll (root.getBeforeAll()):
- *        Variablen, die EINMAL ganz am Anfang evaluiert werden.
- *        -> landen nicht im Dropdown der WHEN-Values
- *
- *  - BeforeEach (root.getBeforeEach()):
- *        Variablen, die vor jedem TestCase evaluiert werden.
- *        -> tauchen im Dropdown der WHEN-Values als normale Namen auf
- *
- *  - Templates (root.getTemplates()):
- *        Funktionszeiger (lazy ausgewertet in WHEN).
- *        -> tauchen im Dropdown mit führendem * auf
- */
 public class RootScopeEditorTab extends JPanel implements Saveable, Revertable {
 
-    private final RootNode root;
-    private final JTabbedPaneWithHelp innerTabs = new JTabbedPaneWithHelp();
-
-    // Snapshot für Revert (deep-copy der Maps/Listen wäre ideal; hier lösen wir es pragmatisch via Reload)
-    private RootNode snapshot;
+    private RootNode root; // nicht final, damit Revert neu binden kann
+    private JTabbedPaneWithHelp innerTabs;
 
     public RootScopeEditorTab(RootNode root) {
         super(new BorderLayout());
         this.root = root;
+        buildUIFromRoot(this.root);
+    }
+
+    private void buildUIFromRoot(RootNode model) {
+        removeAll();
 
         JPanel header = new JPanel(new BorderLayout());
         JLabel title = new JLabel("Root Scope", SwingConstants.LEFT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
-
-        JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton saveBtn = new JButton("💾 Speichern");
-        saveBtn.setToolTipText("Tests speichern");
-        saveBtn.addActionListener(e -> { saveChanges(); });
-        JButton revertBtnHeader = new JButton("Änderungen verwerfen");
-        revertBtnHeader.setToolTipText("Ungespeicherte Änderungen verwerfen");
-        revertBtnHeader.addActionListener(e -> { revertChanges(); });
-        savePanel.add(revertBtnHeader);
-        savePanel.add(saveBtn);
-
         header.add(title, BorderLayout.CENTER);
-        header.add(savePanel, BorderLayout.EAST);
+        header.add(new JPanel(new FlowLayout(FlowLayout.RIGHT)), BorderLayout.EAST);
         header.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-
         add(header, BorderLayout.NORTH);
 
-        List<Precondtion> preconditions = root.getPreconditions();
+        innerTabs = new JTabbedPaneWithHelp();
+
+        List<Precondtion> preconditions = model.getPreconditions();
         boolean needImmediateSave = false;
         if (preconditions == null) {
             preconditions = new ArrayList<Precondtion>();
-            root.setPreconditions(preconditions);
+            model.setPreconditions(preconditions);
             needImmediateSave = true;
         }
-        GivenListEditorTab preconditionsTab = new GivenListEditorTab("Root Scope", preconditions);
-        innerTabs.insertTab("Preconditions", null, preconditionsTab, "Globale Preconditions", 0);
 
+        // Reihenfolge: Templates, BeforeAll, BeforeEach, Preconditions, AfterEach
+        innerTabs.addTab(
+                "Templates",
+                new MapTablePanel(
+                        model.getTemplates(),
+                        model.getTemplatesEnabled(),
+                        "Templates",
+                        null,
+                        "OTP",
+                        "{{otp({{user}})}}"
+                )
+        );
+
+        innerTabs.addTab(
+                "BeforeAll",
+                new MapTablePanel(
+                        model.getBeforeAll(), model.getBeforeAllEnabled(), model.getBeforeAllDesc(),
+                        "BeforeAll",
+                        de.bund.zrb.service.UserRegistry.getInstance().usernamesSupplier()
+                )
+        );
+
+        innerTabs.addTab(
+                "BeforeEach",
+                new MapTablePanel(
+                        model.getBeforeEach(), model.getBeforeEachEnabled(), model.getBeforeEachDesc(),
+                        "BeforeEach",
+                        null
+                )
+        );
+
+        GivenListEditorTab preconditionsTab = new GivenListEditorTab("Root Scope", preconditions);
+        innerTabs.addTab("Preconditions", preconditionsTab);
         boolean preconditionsValid = true;
         try {
             PreconditionListValidator.validateOrThrow("Root Scope", preconditions);
@@ -92,58 +90,34 @@ public class RootScopeEditorTab extends JPanel implements Saveable, Revertable {
             preconditionsTab.showValidationError(ex.getMessage());
         }
 
-        if (needImmediateSave) {
-            try { TestRegistry.getInstance().save(); } catch (Throwable ignore) { }
-        }
-
-        // BeforeAll: User-Dropdown aktiv (wie gehabt)
-        innerTabs.addTab("BeforeAll",
-                new MapTablePanel(root.getBeforeAll(), root.getBeforeAllEnabled(), root.getBeforeAllDesc(), "BeforeAll",
-                        /* usersProvider */ de.bund.zrb.service.UserRegistry.getInstance().usernamesSupplier()));
-
-        // BeforeEach: kein User-Dropdown, keine Pinned-Zeile
-        innerTabs.addTab("BeforeEach",
-                new MapTablePanel(root.getBeforeEach(), root.getBeforeEachEnabled(), root.getBeforeEachDesc(), "BeforeEach",
-                        /* usersProvider */ null));
-
-        // Templates (ROOT): gepinnte OTP-Zeile
+        String pinnedKey = "screenshot";
+        String pinnedValue = "{{screenshotfor({{user}})}}";
         innerTabs.addTab(
-                "Templates",
-                new MapTablePanel(
-                        root.getTemplates(),
-                        root.getTemplatesEnabled(),
-                        "Templates",
-                        null,                 // kein User-Dropdown
-                        "OTP",                // gepinnter Key
-                        "{{otp({{user}})}}"   // Default-Wert
+                "AfterEach",
+                new AssertionTablePanel(
+                        model.getAfterEach(), model.getAfterEachEnabled(), model.getAfterEachDesc(),
+                        model.getAfterEachValidatorType(), model.getAfterEachValidatorValue(),
+                        "AfterEach", pinnedKey, pinnedValue
                 )
         );
-
-        // AfterEach (Root) – gepinnt: Screenshot-Expression, Checkbox editierbar
-        String pinnedKey   = "screenshot";
-        String pinnedValue = "{{screenshotfor({{user}})}}"; // Built-in-Function
-        innerTabs.addTab("AfterEach",
-                new AssertionTablePanel(root.getAfterEach(), root.getAfterEachEnabled(), root.getAfterEachDesc(),
-                        root.getAfterEachValidatorType(), root.getAfterEachValidatorValue(),
-                        "AfterEach", pinnedKey, pinnedValue));
 
         add(innerTabs, BorderLayout.CENTER);
         installHelpButton();
 
+        if (needImmediateSave) {
+            try { TestRegistry.getInstance().save(); } catch (Throwable ignore) { }
+        }
         if (!preconditionsValid) {
-            disableTabsFromIndex(1);
-            innerTabs.setSelectedIndex(0);
+            int preIdx = innerTabs.indexOfComponent(preconditionsTab);
+            for (int i = 0; i < innerTabs.getTabCount(); i++) {
+                if (i == preIdx) continue;
+                innerTabs.setEnabledAt(i, false);
+            }
+            innerTabs.setSelectedIndex(preIdx);
         }
 
-        // Entfernt: eigener SOUTH-Block. Buttons werden durch SaveRevertContainer bereitgestellt.
-        // Snapshot initialisieren (durch flaches Kopieren der relevanten Strukturen via neues Root aus Registry)
-        snapshot = TestRegistry.getInstance().getRoot();
-    }
-
-    private void disableTabsFromIndex(int startIndex) {
-        for (int i = startIndex; i < innerTabs.getTabCount(); i++) {
-            innerTabs.setEnabledAt(i, false);
-        }
+        revalidate();
+        repaint();
     }
 
     private void installHelpButton() {
@@ -205,15 +179,13 @@ public class RootScopeEditorTab extends JPanel implements Saveable, Revertable {
     @Override
     public void saveChanges() {
         TestRegistry.getInstance().save();
-        snapshot = TestRegistry.getInstance().getRoot();
     }
 
     @Override
     public void revertChanges() {
-        // pragmatisch: neu laden (setzt Root-Struktur zurück)
+        // Neu laden und UI neu aufbauen
         TestRegistry.getInstance().load();
-        revalidate();
-        repaint();
+        this.root = TestRegistry.getInstance().getRoot();
+        buildUIFromRoot(this.root);
     }
-
 }

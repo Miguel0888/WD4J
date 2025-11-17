@@ -224,10 +224,6 @@ public class AssertionTablePanel extends JPanel {
             if (editorComp != null) editorComp.requestFocusInWindow();
         });
 
-        JButton saveBtn = new JButton("💾");
-        saveBtn.setToolTipText("Speichern");
-        saveBtn.addActionListener(e -> TestRegistry.getInstance().save());
-
         JButton suggestRegexBtn = new JButton("⚙ Regex Vorschlag");
         suggestRegexBtn.setToolTipText("Erzeugt aus dem aktuellen Expression-Wert einen Regex-Vorschlag und setzt Typ=regex.");
         suggestRegexBtn.addActionListener(e -> {
@@ -248,8 +244,6 @@ public class AssertionTablePanel extends JPanel {
         bar.add(delBtn);
         bar.add(editBtn);
         bar.add(suggestRegexBtn);
-        bar.addSeparator();
-        bar.add(saveBtn);
 
         add(bar, BorderLayout.NORTH);
         add(new JScrollPane(table), BorderLayout.CENTER);

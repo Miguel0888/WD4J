@@ -55,18 +55,8 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
         headerInner.add(headerLabel, BorderLayout.NORTH);
         headerInner.add(nameField, BorderLayout.CENTER);
 
-        // Rechts: Speichern + Verwerfen
+        // Rechts: Speichern + Verwerfen entfernt – globaler Button/Autosave übernimmt
         JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton saveBtn = new JButton("💾 Speichern");
-        saveBtn.setToolTipText("Änderungen dieser Suite speichern");
-        saveBtn.addActionListener(e -> saveChanges());
-        JButton revertBtnHeader = new JButton("Änderungen verwerfen");
-        revertBtnHeader.setToolTipText("Ungespeicherte Änderungen zurücksetzen");
-        revertBtnHeader.addActionListener(e -> revertChanges());
-        savePanel.add(revertBtnHeader);
-        savePanel.add(saveBtn);
-        savePanel.setBorder(BorderFactory.createEmptyBorder(12,12,6,12));
-
         header.add(headerInner, BorderLayout.CENTER);
         header.add(savePanel, BorderLayout.EAST);
 
@@ -81,28 +71,19 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
         }
         String scopeLabel = "Suite " + safe(suite.getName());
         GivenListEditorTab preconditionsTab = new GivenListEditorTab(scopeLabel, preconditions);
-        innerTabs.insertTab("Preconditions", null, preconditionsTab, "Suite Preconditions", 0);
 
-        boolean preconditionsValid = true;
-        try {
-            PreconditionListValidator.validateOrThrow(scopeLabel, preconditions);
-            preconditionsTab.clearValidationError();
-        } catch (Exception ex) {
-            preconditionsValid = false;
-            preconditionsTab.showValidationError(ex.getMessage());
-        }
-
-        if (needImmediateSave) {
-            try { TestRegistry.getInstance().save(); } catch (Throwable ignore) { }
-        }
+        // Reihenfolge: Templates, BeforeAll, BeforeEach, Preconditions, AfterAll
+        innerTabs.addTab("Templates",
+                new MapTablePanel(suite.getTemplates(), suite.getTemplatesEnabled(), "Templates", null));
 
         innerTabs.addTab("BeforeAll",
                 new MapTablePanel(suite.getBeforeAll(), suite.getBeforeAllEnabled(), suite.getBeforeAllDesc(), "BeforeAll",
                         UserRegistry.getInstance().usernamesSupplier()));
+
         innerTabs.addTab("BeforeEach",
                 new MapTablePanel(suite.getBeforeEach(), suite.getBeforeEachEnabled(), suite.getBeforeEachDesc(), "BeforeEach", null));
-        innerTabs.addTab("Templates",
-                new MapTablePanel(suite.getTemplates(), suite.getTemplatesEnabled(), "Templates", null));
+
+        innerTabs.addTab("Preconditions", preconditionsTab);
 
         innerTabs.addTab("AfterAll",
                 new AssertionTablePanel(suite.getAfterAll(), suite.getAfterAllEnabled(), suite.getAfterAllDesc(),
@@ -112,10 +93,8 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
         add(innerTabs, BorderLayout.CENTER);
         installHelpButton();
 
-        if (!preconditionsValid) {
-            disableTabsFromIndex(1);
-            innerTabs.setSelectedIndex(0);
-        }
+        // Entfernt: verwaiste Precondition-Validierungslogik mit preconditionsValid
+        // if (!preconditionsValid) { ... }
 
         // Entfernt: eigener SOUTH-Block. Buttons werden durch SaveRevertContainer bereitgestellt.
     }
@@ -190,7 +169,6 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
 
     @Override
     public void saveChanges() {
-        // Name ins Modell übernehmen (leer bleibt als leerer String erhalten)
         String n = nameField.getText();
         suite.setName(n != null ? n.trim() : "");
         TestRegistry.getInstance().save();

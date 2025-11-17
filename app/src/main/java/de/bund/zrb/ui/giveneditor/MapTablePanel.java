@@ -182,29 +182,21 @@ public class MapTablePanel extends JPanel {
                                   final JTable table,
                                   final boolean includePinnedRow,
                                   final String pinnedKey) {
-        // Use BoxLayout to allow glue-based right alignment
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
-        bar.setLayout(new BoxLayout(bar, BoxLayout.X_AXIS)); // force BoxLayout semantics
+        bar.setLayout(new BoxLayout(bar, BoxLayout.X_AXIS));
 
         JButton addBtn  = buildAddButton(model, scopeName);
         JButton delBtn  = buildDeleteButton(model, table, includePinnedRow, pinnedKey);
         JButton editBtn = buildEditButton(table);
-        JButton saveBtn = buildSaveButton();          // stays on the left
-        JButton helpBtn = buildHelpButton(scopeName); // goes to the far right
+        JButton helpBtn = buildHelpButton(scopeName);
 
-        // Left group (unchanged order, save stays left)
         bar.add(addBtn);
         bar.add(delBtn);
         bar.add(editBtn);
-        bar.addSeparator();
-        bar.add(saveBtn);
 
-        // Glue pushes following components (only help) to the far right
         bar.add(Box.createHorizontalGlue());
-
-        // Right group
-        bar.add(helpBtn);
+        if (helpBtn != null) bar.add(helpBtn);
 
         return bar;
     }
@@ -259,13 +251,8 @@ public class MapTablePanel extends JPanel {
 
     // Create "💾" button (left side)
     private JButton buildSaveButton() {
-        JButton saveBtn = new JButton("💾");
-        saveBtn.setToolTipText("Speichern");
-        saveBtn.addActionListener(e -> {
-            // Persist changes immediately
-            TestRegistry.getInstance().save();
-        });
-        return saveBtn;
+        // entfernt – globaler Speichern-Button übernimmt
+        return null;
     }
 
     // ---- Hilfe-Button ----------------------------------------------------------

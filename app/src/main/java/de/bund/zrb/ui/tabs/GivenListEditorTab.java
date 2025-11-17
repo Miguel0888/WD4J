@@ -86,48 +86,29 @@ public class GivenListEditorTab extends JPanel {
 
         JButton add = new JButton("Hinzufügen");
         add.addActionListener(new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                onAdd();
-            }
+            public void actionPerformed(ActionEvent e) { onAdd(); }
         });
 
         JButton edit = new JButton("Bearbeiten");
         edit.addActionListener(new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                onEdit();
-            }
+            public void actionPerformed(ActionEvent e) { onEdit(); }
         });
 
         JButton del = new JButton("Löschen");
         del.addActionListener(new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                onDelete();
-            }
+            public void actionPerformed(ActionEvent e) { onDelete(); }
         });
 
         JButton up = new JButton("▲");
         up.setToolTipText("Nach oben");
         up.addActionListener(new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                onMove(-1);
-            }
+            public void actionPerformed(ActionEvent e) { onMove(-1); }
         });
 
         JButton down = new JButton("▼");
         down.setToolTipText("Nach unten");
         down.addActionListener(new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                onMove(1);
-            }
-        });
-
-        JButton save = new JButton("Speichern");
-        save.addActionListener(new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                TestRegistry.getInstance().save();
-                //DEBUG
-//                JOptionPane.showMessageDialog(GivenListEditorTab.this, "Änderungen gespeichert.");
-            }
+            public void actionPerformed(ActionEvent e) { onMove(1); }
         });
 
         p.add(add);
@@ -135,7 +116,6 @@ public class GivenListEditorTab extends JPanel {
         p.add(del);
         p.add(up);
         p.add(down);
-        p.add(save);
 
         return p;
     }
