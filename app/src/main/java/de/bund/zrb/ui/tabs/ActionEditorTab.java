@@ -1,5 +1,7 @@
 package de.bund.zrb.ui.tabs;
 
+import de.bund.zrb.event.ApplicationEventBus;
+import de.bund.zrb.event.TestActionUpdatedEvent;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.service.TestRegistry;
 import de.bund.zrb.ui.expressions.GivenLookupService;
@@ -267,6 +269,17 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
         JPanel southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         southPanel.add(saveButton);
         add(southPanel, BorderLayout.SOUTH);
+
+        // Live-Update der Beschreibung bei In-Place-Edit aus dem Baum
+        ApplicationEventBus.getInstance().subscribe(TestActionUpdatedEvent.class, ev -> {
+            Object p = ev.getPayload();
+            if (p == action) {
+                SwingUtilities.invokeLater(() -> {
+                    String d = action.getDescription();
+                    descField.setText(d != null ? d : "");
+                });
+            }
+        });
     }
 
     /**

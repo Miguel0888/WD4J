@@ -2,6 +2,7 @@ package de.bund.zrb.ui.leftdrawer;
 
 import de.bund.zrb.event.ApplicationEventBus;
 import de.bund.zrb.event.PreconditionSavedEvent;
+import de.bund.zrb.event.TestActionUpdatedEvent;
 import de.bund.zrb.model.*;
 import de.bund.zrb.service.PreconditionFactory;
 import de.bund.zrb.service.PreconditionRegistry;
@@ -1499,14 +1500,10 @@ public class TestTreeController {
             if (!canceled) { try { TestRegistry.getInstance().save(); } catch (Throwable ignore) {} }
             javax.swing.tree.TreeModel m = tree.getModel();
             if (m instanceof DefaultTreeModel) ((DefaultTreeModel) m).nodeChanged(currentNode);
-            // Preview-Tab refreshen: Selektion kurz aufheben und wieder setzen
-            try {
-                TreePath path = new TreePath(currentNode.getPath());
-                TreePath[] old = tree.getSelectionPaths();
-                tree.clearSelection();
-                tree.setSelectionPath(path);
-                if (old != null && old.length > 1) tree.setSelectionPaths(old); // Mehrfachselektion wiederherstellen, falls vorhanden
-            } catch (Throwable ignore) {}
+            // Statt Selection-Reset: gezielt Event feuern, damit Preview aktualisiert
+            if (!canceled) {
+                try { de.bund.zrb.event.ApplicationEventBus.getInstance().publish(new TestActionUpdatedEvent(action)); } catch (Throwable ignore) {}
+            }
             return currentNode.getUserObject();
         }
         @Override

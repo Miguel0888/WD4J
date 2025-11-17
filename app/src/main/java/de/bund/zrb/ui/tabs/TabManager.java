@@ -1,5 +1,7 @@
 package de.bund.zrb.ui.tabs;
 
+import de.bund.zrb.event.ApplicationEventBus;
+import de.bund.zrb.event.TestActionUpdatedEvent;
 import de.bund.zrb.model.RootNode;
 import de.bund.zrb.model.TestAction;
 import de.bund.zrb.model.TestCase;
@@ -45,6 +47,17 @@ public class TabManager implements NodeOpenHandler {
     public TabManager(Component parent, JTabbedPane editorTabs) {
         this.parent = parent;
         this.editorTabs = editorTabs;
+        // Kein Preview-Rebuild hier: ActionEditorTab subscribed selbst und aktualisiert nur die Description.
+        // Optional: leichte Revalidation, falls benötigt.
+        ApplicationEventBus.getInstance().subscribe(TestActionUpdatedEvent.class, ev -> {
+            if (previewEntry != null && !previewEntry.persistent && previewEntry.modelRef == ev.getPayload()) {
+                int idx = editorTabs.indexOfComponent(previewEntry.component);
+                if (idx >= 0) {
+                    previewEntry.component.revalidate();
+                    previewEntry.component.repaint();
+                }
+            }
+        });
     }
 
     // ========================= Öffentliche API =========================
