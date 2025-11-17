@@ -877,7 +877,7 @@ public class TestTreeController {
             // alter Dialog wie gehabt
             Window owner = SwingUtilities.getWindowAncestor(testTree);
             ActionPickerDialog dlg = new ActionPickerDialog(owner,
-                    "Step umbenennen (Action)",
+                    "Step ändern",
                     a.getAction());
             dlg.setVisible(true);
             if (!dlg.isConfirmed()) {

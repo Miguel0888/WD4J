@@ -8,7 +8,6 @@ import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
 import de.bund.zrb.ui.components.RoundIconButton;
 import de.bund.zrb.ui.tabs.GivenListEditorTab;
-import de.bund.zrb.ui.tabs.PreconditionListValidator;
 import de.bund.zrb.ui.tabs.Saveable;
 import de.bund.zrb.ui.tabs.Revertable;
 
@@ -17,35 +16,29 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Editor für den Suite-Scope.
- *
- * Tabs:
- *  - BeforeAll
- *  - BeforeEach
- *  - Templates
- *
- * Oben rechts: Speichern-Button, der aktuell einfach TestRegistry.save() aufruft.
- * Die Tabellen haben + und – zum Hinzufügen/Entfernen.
- */
 public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable {
 
-    private final TestSuite suite;
-    private final JTabbedPaneWithHelp innerTabs = new JTabbedPaneWithHelp();
-    private JTextField nameField; // ehemals descField, jetzt für Suite-Name
+    private TestSuite suite; // nicht final, damit Revert neu binden kann
+    private String suiteId;  // zur Re-Lookup nach Load
+    private JTabbedPaneWithHelp innerTabs;
+    private JTextField nameField;
 
     public SuiteScopeEditorTab(TestSuite suite) {
         super(new BorderLayout());
         this.suite = suite;
+        this.suiteId = (suite != null ? suite.getId() : null);
+        buildUIFromSuite(this.suite);
+    }
+
+    private void buildUIFromSuite(TestSuite model) {
+        removeAll();
 
         JPanel header = new JPanel(new BorderLayout());
-
-        // Name-Header (statt Beschreibung)
         JPanel headerInner = new JPanel(new BorderLayout());
         headerInner.setBorder(BorderFactory.createEmptyBorder(12, 12, 6, 12));
         JLabel headerLabel = new JLabel("Name:");
         headerLabel.setBorder(BorderFactory.createEmptyBorder(0,0,4,0));
-        nameField = new JTextField(safe(suite.getName()));
+        nameField = new JTextField(safe(model != null ? model.getName() : ""));
         Font baseFont = nameField.getFont();
         if (baseFont != null) {
             nameField.setFont(baseFont.deriveFont(Font.BOLD, Math.min(22f, baseFont.getSize() + 8f)));
@@ -54,59 +47,47 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
         nameField.setToolTipText("Name der Testsuite (wird im Baum angezeigt).");
         headerInner.add(headerLabel, BorderLayout.NORTH);
         headerInner.add(nameField, BorderLayout.CENTER);
-
-        // Rechts: Speichern + Verwerfen entfernt – globaler Button/Autosave übernimmt
-        JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         header.add(headerInner, BorderLayout.CENTER);
-        header.add(savePanel, BorderLayout.EAST);
-
+        header.add(new JPanel(new FlowLayout(FlowLayout.RIGHT)), BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
 
-        List<Precondtion> preconditions = suite.getPreconditions();
-        boolean needImmediateSave = false;
+        innerTabs = new JTabbedPaneWithHelp();
+
+        List<Precondtion> preconditions = (model != null) ? model.getPreconditions() : null;
         if (preconditions == null) {
-            preconditions = new ArrayList<Precondtion>();
-            suite.setPreconditions(preconditions);
-            needImmediateSave = true;
+            preconditions = new ArrayList<>();
+            if (model != null) model.setPreconditions(preconditions);
         }
-        String scopeLabel = "Suite " + safe(suite.getName());
+        String scopeLabel = "Suite " + safe(model != null ? model.getName() : "");
         GivenListEditorTab preconditionsTab = new GivenListEditorTab(scopeLabel, preconditions);
 
         // Reihenfolge: Templates, BeforeAll, BeforeEach, Preconditions, AfterAll
         innerTabs.addTab("Templates",
-                new MapTablePanel(suite.getTemplates(), suite.getTemplatesEnabled(), "Templates", null));
+                new MapTablePanel(model.getTemplates(), model.getTemplatesEnabled(), "Templates", null));
 
         innerTabs.addTab("BeforeAll",
-                new MapTablePanel(suite.getBeforeAll(), suite.getBeforeAllEnabled(), suite.getBeforeAllDesc(), "BeforeAll",
+                new MapTablePanel(model.getBeforeAll(), model.getBeforeAllEnabled(), model.getBeforeAllDesc(), "BeforeAll",
                         UserRegistry.getInstance().usernamesSupplier()));
 
         innerTabs.addTab("BeforeEach",
-                new MapTablePanel(suite.getBeforeEach(), suite.getBeforeEachEnabled(), suite.getBeforeEachDesc(), "BeforeEach", null));
+                new MapTablePanel(model.getBeforeEach(), model.getBeforeEachEnabled(), model.getBeforeEachDesc(), "BeforeEach", null));
 
         innerTabs.addTab("Preconditions", preconditionsTab);
 
         innerTabs.addTab("AfterAll",
-                new AssertionTablePanel(suite.getAfterAll(), suite.getAfterAllEnabled(), suite.getAfterAllDesc(),
-                        suite.getAfterAllValidatorType(), suite.getAfterAllValidatorValue(),
+                new AssertionTablePanel(model.getAfterAll(), model.getAfterAllEnabled(), model.getAfterAllDesc(),
+                        model.getAfterAllValidatorType(), model.getAfterAllValidatorValue(),
                         "AfterAll", null, null));
 
         add(innerTabs, BorderLayout.CENTER);
         installHelpButton();
 
-        // Entfernt: verwaiste Precondition-Validierungslogik mit preconditionsValid
-        // if (!preconditionsValid) { ... }
-
-        // Entfernt: eigener SOUTH-Block. Buttons werden durch SaveRevertContainer bereitgestellt.
+        revalidate();
+        repaint();
     }
 
     private static String safe(String s) {
         return (s == null || s.trim().isEmpty()) ? "" : s.trim();
-    }
-
-    private void disableTabsFromIndex(int startIndex) {
-        for (int i = startIndex; i < innerTabs.getTabCount(); i++) {
-            innerTabs.setEnabledAt(i, false);
-        }
     }
 
     private void installHelpButton() {
@@ -169,16 +150,19 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
 
     @Override
     public void saveChanges() {
-        String n = nameField.getText();
-        suite.setName(n != null ? n.trim() : "");
+        if (suite != null) {
+            String n = nameField.getText();
+            suite.setName(n != null ? n.trim() : "");
+        }
         TestRegistry.getInstance().save();
     }
 
     @Override
     public void revertChanges() {
         TestRegistry.getInstance().load();
-        nameField.setText(safe(suite.getName()));
-        revalidate();
-        repaint();
+        TestSuite reloaded = (suiteId != null) ? TestRegistry.getInstance().findSuiteById(suiteId) : null;
+        if (reloaded == null) reloaded = this.suite; // Fallback
+        this.suite = reloaded;
+        buildUIFromSuite(this.suite);
     }
 }

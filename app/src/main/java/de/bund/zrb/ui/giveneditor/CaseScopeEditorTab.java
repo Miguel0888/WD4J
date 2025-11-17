@@ -16,93 +16,68 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Editor für den Case-Scope.
- *
- * Tabs:
- *  - Before     (Variablen, die vor diesem Case evaluiert werden)
- *  - Templates  (Funktionszeiger/lazy für diesen Case)
- *
- * Speichern-Button oben rechts + in jeder Tabellen-Toolbar.
- */
 public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
 
-    private final TestCase testCase;
+    private TestCase testCase; // nicht final für Rebind
+    private String caseId;     // Lookup bei Revert
     private final JTabbedPaneWithHelp innerTabs = new JTabbedPaneWithHelp();
-    private JTextField descField; // editierbare Beschreibung wie ActionEditorTab
+    private JTextField descField;
 
     public CaseScopeEditorTab(TestCase testCase) {
         super(new BorderLayout());
         this.testCase = testCase;
+        this.caseId = (testCase != null ? testCase.getId() : null);
+        buildUIFromCase(this.testCase);
+    }
 
-        // Header oben (Beschreibung + Buttons)
+    private void buildUIFromCase(TestCase model) {
+        removeAll();
+
         JPanel header = new JPanel(new BorderLayout());
         JPanel headerInner = new JPanel(new BorderLayout());
         headerInner.setBorder(BorderFactory.createEmptyBorder(12,12,6,12));
         JLabel headerLabel = new JLabel("Name:");
         headerLabel.setBorder(BorderFactory.createEmptyBorder(0,0,4,0));
-        descField = new JTextField(safe(testCase.getName()));
-        // Schrift formatieren (fett + größer) und Hintergrund hervorheben
+        descField = new JTextField(safe(model != null ? model.getName() : ""));
         Font bf = descField.getFont();
-        if (bf != null) {
-            descField.setFont(bf.deriveFont(Font.BOLD, Math.min(22f, bf.getSize() + 8f)));
-        }
+        if (bf != null) descField.setFont(bf.deriveFont(Font.BOLD, Math.min(22f, bf.getSize() + 8f)));
         descField.setBackground(new Color(250,250,235));
-        // Tooltip ändern
         descField.setToolTipText("Name des TestCase (wird im Baum angezeigt).");
         headerInner.add(headerLabel, BorderLayout.NORTH);
         headerInner.add(descField, BorderLayout.CENTER);
-
-        JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        // Entfernt: lokale Save/Revert-Buttons – globaler Button übernimmt
         header.add(headerInner, BorderLayout.CENTER);
-        header.add(savePanel, BorderLayout.EAST);
-        header.setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
+        header.add(new JPanel(new FlowLayout(FlowLayout.RIGHT)), BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
 
-        List<Precondtion> preconditions = testCase.getPreconditions();
+        List<Precondtion> preconditions = (model != null) ? model.getPreconditions() : null;
         if (preconditions == null) {
             preconditions = new ArrayList<>();
-            testCase.setPreconditions(preconditions);
+            if (model != null) model.setPreconditions(preconditions);
         }
-        String scopeLabel = "Case " + safe(testCase.getName());
+        String scopeLabel = "Case " + safe(model != null ? model.getName() : "");
         GivenListEditorTab preconditionsTab = new GivenListEditorTab(scopeLabel, preconditions);
 
-        // Reihenfolge: Templates, Before, Preconditions, After
+        innerTabs.removeAllTabs();
         innerTabs.addTab("Templates",
-                new MapTablePanel(testCase.getTemplates(), testCase.getTemplatesEnabled(), "Templates", null));
-
+                new MapTablePanel(model.getTemplates(), model.getTemplatesEnabled(), "Templates", null));
         innerTabs.addTab("Before",
-                new MapTablePanel(testCase.getBefore(), testCase.getBeforeEnabled(), testCase.getBeforeDesc(), "Before",
+                new MapTablePanel(model.getBefore(), model.getBeforeEnabled(), model.getBeforeDesc(), "Before",
                         UserRegistry.getInstance().usernamesSupplier()));
-
         innerTabs.addTab("Preconditions", preconditionsTab);
-
         innerTabs.addTab("After",
-                new AssertionTablePanel(testCase.getAfter(), testCase.getAfterEnabled(), testCase.getAfterDesc(),
-                        testCase.getAfterValidatorType(), testCase.getAfterValidatorValue(),
+                new AssertionTablePanel(model.getAfter(), model.getAfterEnabled(), model.getAfterDesc(),
+                        model.getAfterValidatorType(), model.getAfterValidatorValue(),
                         "After", null, null));
 
         add(innerTabs, BorderLayout.CENTER);
         installHelpButton();
 
-        // Entfernt: Validierungs-/Deaktivierungslogik des Precondition-Tabs
-        // if (!preconditionsValid) {
-        //     disableTabsFromIndex(1);
-        //     innerTabs.setSelectedIndex(0);
-        // }
-
-        // Entfernt: eigener SOUTH-Block. Buttons werden durch SaveRevertContainer bereitgestellt.
+        revalidate();
+        repaint();
     }
 
     private static String safe(String s) {
         return (s == null || s.trim().isEmpty()) ? "" : s.trim();
-    }
-
-    private void disableTabsFromIndex(int startIndex) {
-        for (int i = startIndex; i < innerTabs.getTabCount(); i++) {
-            innerTabs.setEnabledAt(i, false);
-        }
     }
 
     private void installHelpButton() {
@@ -134,20 +109,6 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
         sb.append("<li><b>Templates</b>: lazy Expressions, die erst bei Nutzung expandieren (z. B. OTP, Zeitstempel).</li>");
         sb.append("<li><b>After</b>: Assertions/Checks nach dem Case (mit Validator-Typ/Value).</li>");
         sb.append("</ul>");
-
-        sb.append("<p><b>Auswertungsreihenfolge pro Case</b> (nur wenn der Variablenname noch nicht belegt ist):</p>");
-        sb.append("<ol>");
-        sb.append("<li>Case: <code>Before</code></li>");
-        sb.append("<li>Suite: <code>BeforeAll</code></li>");
-        sb.append("<li>Root: <code>BeforeAll</code></li>");
-        sb.append("<li>Suite: <code>BeforeEach</code></li>");
-        sb.append("<li>Root: <code>BeforeEach</code></li>");
-        sb.append("</ol>");
-
-        sb.append("<p>Jede Ebene ergänzt nur fehlende Variablen. Bereits gesetzte Werte werden nicht überschrieben.</p>");
-        sb.append("<p>Beim Zugriff gilt weiterhin die Shadow-Reihenfolge: ")
-                .append("<code>Case → Suite → Root</code>. ")
-                .append("Case-Werte haben die höchste Priorität, Suite-Werte überschreiben Root, sofern ein Name noch frei ist.</p>");
         sb.append("</body></html>");
         return sb.toString();
     }
@@ -162,16 +123,19 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
 
     @Override
     public void saveChanges() {
-        String d = descField.getText();
-        testCase.setName(d != null ? d.trim() : "");
+        if (testCase != null) {
+            String d = descField.getText();
+            testCase.setName(d != null ? d.trim() : "");
+        }
         TestRegistry.getInstance().save();
     }
 
     @Override
     public void revertChanges() {
         TestRegistry.getInstance().load();
-        descField.setText(safe(testCase.getName()));
-        revalidate();
-        repaint();
+        TestCase reloaded = (caseId != null) ? TestRegistry.getInstance().findCaseById(caseId) : null;
+        if (reloaded == null) reloaded = this.testCase; // Fallback
+        this.testCase = reloaded;
+        buildUIFromCase(this.testCase);
     }
 }
