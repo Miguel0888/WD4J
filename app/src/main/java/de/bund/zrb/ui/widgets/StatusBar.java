@@ -2,6 +2,8 @@ package de.bund.zrb.ui.widgets;
 
 import de.bund.zrb.event.ApplicationEventBus;
 import de.bund.zrb.event.SavedEntityEvent;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 import javax.swing.*;
 import java.awt.*;
@@ -31,7 +33,10 @@ public final class StatusBar extends JPanel {
 
         ApplicationEventBus.getInstance().subscribe(SavedEntityEvent.class, ev -> {
             SavedEntityEvent.Payload p = ev.getPayload();
-            String txt = "Gespeichert: " + p.entityType + " – " + (p.name != null ? p.name : "(unnamed)");
+            String time = p.timestamp == null ? "" : DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
+                    .format(p.timestamp.atZone(ZoneId.systemDefault()));
+            String txt = "Gespeichert: " + p.entityType + " – " + (p.name != null ? p.name : "(unnamed)")
+                    + (time.isEmpty() ? "" : " (" + time + ")");
             setMessage(txt);
         });
     }

@@ -31,6 +31,7 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
         this.testCase = testCase;
         this.caseId = (testCase != null ? testCase.getId() : null);
         buildUIFromCase(this.testCase);
+        captureSnapshot();
     }
 
     private void buildUIFromCase(TestCase model) {
