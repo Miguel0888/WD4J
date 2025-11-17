@@ -1,5 +1,6 @@
 package de.bund.zrb.ui.giveneditor;
 
+import com.google.gson.Gson;
 import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.TestCase;
 import de.bund.zrb.service.SettingsService;
@@ -22,6 +23,8 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
     private String caseId;     // Lookup bei Revert
     private final JTabbedPaneWithHelp innerTabs = new JTabbedPaneWithHelp();
     private JTextField descField;
+    private String snapshotJson; // Deep-Copy Snapshot
+    private static final Gson GSON = new Gson();
 
     public CaseScopeEditorTab(TestCase testCase) {
         super(new BorderLayout());
@@ -121,6 +124,36 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
         return pane;
     }
 
+    private void captureSnapshot() {
+        if (testCase == null) snapshotJson = null; else snapshotJson = GSON.toJson(testCase);
+    }
+
+    private void applySnapshot(TestCase source) {
+        if (source == null || testCase == null) return;
+        testCase.setName(source.getName());
+        // BEFORE scope
+        copyMap(source.getBefore(), testCase.getBefore());
+        copyMapBool(source.getBeforeEnabled(), testCase.getBeforeEnabled());
+        copyMap(source.getBeforeDesc(), testCase.getBeforeDesc());
+        // Templates
+        copyMap(source.getTemplates(), testCase.getTemplates());
+        copyMapBool(source.getTemplatesEnabled(), testCase.getTemplatesEnabled());
+        // After
+        copyMap(source.getAfter(), testCase.getAfter());
+        copyMapBool(source.getAfterEnabled(), testCase.getAfterEnabled());
+        copyMap(source.getAfterDesc(), testCase.getAfterDesc());
+        copyMap(source.getAfterValidatorType(), testCase.getAfterValidatorType());
+        copyMap(source.getAfterValidatorValue(), testCase.getAfterValidatorValue());
+        // Preconditions Liste
+        testCase.getPreconditions().clear();
+        if (source.getPreconditions() != null) testCase.getPreconditions().addAll(source.getPreconditions());
+    }
+
+    private void copyMap(java.util.Map<String,String> src, java.util.Map<String,String> dest) {
+        if (src == null || dest == null) return; dest.clear(); dest.putAll(src); }
+    private void copyMapBool(java.util.Map<String,Boolean> src, java.util.Map<String,Boolean> dest) {
+        if (src == null || dest == null) return; dest.clear(); dest.putAll(src); }
+
     @Override
     public void saveChanges() {
         if (testCase != null) {
@@ -128,14 +161,18 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
             testCase.setName(d != null ? d.trim() : "");
         }
         TestRegistry.getInstance().save();
+        captureSnapshot();
     }
 
     @Override
     public void revertChanges() {
-        TestRegistry.getInstance().load();
-        TestCase reloaded = (caseId != null) ? TestRegistry.getInstance().findCaseById(caseId) : null;
-        if (reloaded == null) reloaded = this.testCase; // Fallback
-        this.testCase = reloaded;
-        buildUIFromCase(this.testCase);
+        if (snapshotJson == null) return;
+        try {
+            TestCase snap = GSON.fromJson(snapshotJson, TestCase.class);
+            applySnapshot(snap);
+            buildUIFromCase(testCase);
+        } catch (Exception ex) {
+            System.err.println("[CaseScopeEditorTab] revertChanges parse error: " + ex.getMessage());
+        }
     }
 }

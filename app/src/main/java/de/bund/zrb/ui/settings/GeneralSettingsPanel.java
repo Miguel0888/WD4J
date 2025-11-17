@@ -13,6 +13,7 @@ public final class GeneralSettingsPanel implements SettingsSubPanel {
     private final JPanel root;
     private final JCheckBox cbHideHelpButtons;
     private final JCheckBox cbShowPhases; // neu
+    private final JCheckBox cbAutoSave; // neue Option
 
     public GeneralSettingsPanel() {
         root = new JPanel(new GridBagLayout());
@@ -26,6 +27,8 @@ public final class GeneralSettingsPanel implements SettingsSubPanel {
         gu.gridx = 0; gu.gridy = 0; gu.anchor = GridBagConstraints.WEST; ui.add(cbHideHelpButtons, gu);
         cbShowPhases = new JCheckBox("Given/When/Then anzeigen");
         gu.gridy = 1; ui.add(cbShowPhases, gu);
+        cbAutoSave = new JCheckBox("Automatisches Speichern beim Preview-Wechsel aktivieren");
+        gu.gridy = 2; ui.add(cbAutoSave, gu);
 
         g.gridx = 0; g.gridy = 0; g.anchor = GridBagConstraints.NORTHWEST; g.weightx = 1; g.weighty = 0; g.fill = GridBagConstraints.HORIZONTAL;
         root.add(ui, g);
@@ -43,11 +46,14 @@ public final class GeneralSettingsPanel implements SettingsSubPanel {
         cbHideHelpButtons.setSelected(hide != null && hide);
         Boolean phases = SettingsService.getInstance().get("logging.phase.enabled", Boolean.class);
         cbShowPhases.setSelected(phases == null || phases.booleanValue()); // default an
+        Boolean as = SettingsService.getInstance().get("autosave.enabled", Boolean.class);
+        cbAutoSave.setSelected(as == null || Boolean.TRUE.equals(as));
     }
 
     @Override public void putTo(Map<String, Object> out) throws IllegalArgumentException {
         out.put("ui.helpButtons.hide", cbHideHelpButtons.isSelected());
         out.put("logging.phase.enabled", cbShowPhases.isSelected());
+        out.put("autosave.enabled", cbAutoSave.isSelected());
     }
 
     private static GridBagConstraints gbc() {

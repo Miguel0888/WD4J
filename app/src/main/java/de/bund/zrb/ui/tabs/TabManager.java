@@ -11,6 +11,7 @@ import de.bund.zrb.ui.giveneditor.CaseScopeEditorTab;
 import de.bund.zrb.ui.giveneditor.RootScopeEditorTab;
 import de.bund.zrb.ui.giveneditor.SuiteScopeEditorTab;
 import de.bund.zrb.ui.leftdrawer.NodeOpenHandler;
+import de.bund.zrb.service.SettingsService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -176,8 +177,10 @@ public class TabManager implements NodeOpenHandler {
             tmLog("[TabManager] createOrUpdatePreview: new preview tab idx=" + idx);
         } else {
             int idx = editorTabs.indexOfComponent(previewEntry.component);
-            // Auto-Save des bisherigen Preview-Inhalts
-            autoSaveIfSupported(previewEntry.component);
+            // Auto-Save des bisherigen Preview-Inhalts nur wenn Setting aktiv
+            if (isAutoSaveEnabled()) {
+                autoSaveIfSupported(previewEntry.component);
+            }
 
             previewEntry.component = panel;
             previewEntry.modelRef = ref;
@@ -309,5 +312,10 @@ public class TabManager implements NodeOpenHandler {
 
     private String synthId(Object ref) {
         return ref.getClass().getName() + "@" + System.identityHashCode(ref);
+    }
+
+    private boolean isAutoSaveEnabled() {
+        Boolean v = SettingsService.getInstance().get("autosave.enabled", Boolean.class);
+        return v == null || Boolean.TRUE.equals(v); // default ON
     }
 }

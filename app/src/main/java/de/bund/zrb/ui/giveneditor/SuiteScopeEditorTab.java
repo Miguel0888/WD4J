@@ -1,5 +1,6 @@
 package de.bund.zrb.ui.giveneditor;
 
+import com.google.gson.Gson;
 import de.bund.zrb.model.Precondtion;
 import de.bund.zrb.model.TestSuite;
 import de.bund.zrb.service.TestRegistry;
@@ -22,12 +23,15 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
     private String suiteId;  // zur Re-Lookup nach Load
     private JTabbedPaneWithHelp innerTabs;
     private JTextField nameField;
+    private String snapshotJson; // Deep-Copy Snapshot des zuletzt gespeicherten Zustands
+    private static final Gson GSON = new Gson();
 
     public SuiteScopeEditorTab(TestSuite suite) {
         super(new BorderLayout());
         this.suite = suite;
         this.suiteId = (suite != null ? suite.getId() : null);
         buildUIFromSuite(this.suite);
+        captureSnapshot(); // initialer Snapshot (Basis für Revert)
     }
 
     private void buildUIFromSuite(TestSuite model) {
@@ -84,6 +88,48 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
 
         revalidate();
         repaint();
+    }
+
+    private void captureSnapshot() {
+        if (suite == null) {
+            snapshotJson = null;
+        } else {
+            snapshotJson = GSON.toJson(suite);
+        }
+    }
+
+    private void applySnapshot(TestSuite source) {
+        if (source == null || suite == null) return;
+        // Nur in bestehendes Objekt kopieren, um Referenzen (Tree) zu erhalten.
+        suite.setName(source.getName());
+        suite.setDescription(source.getDescription());
+        copyMap(source.getBeforeAll(), suite.getBeforeAll());
+        copyMapBool(source.getBeforeAllEnabled(), suite.getBeforeAllEnabled());
+        copyMap(source.getBeforeAllDesc(), suite.getBeforeAllDesc());
+        copyMap(source.getBeforeEach(), suite.getBeforeEach());
+        copyMapBool(source.getBeforeEachEnabled(), suite.getBeforeEachEnabled());
+        copyMap(source.getBeforeEachDesc(), suite.getBeforeEachDesc());
+        copyMap(source.getTemplates(), suite.getTemplates());
+        copyMapBool(source.getTemplatesEnabled(), suite.getTemplatesEnabled());
+        copyMap(source.getAfterAll(), suite.getAfterAll());
+        copyMapBool(source.getAfterAllEnabled(), suite.getAfterAllEnabled());
+        copyMap(source.getAfterAllDesc(), suite.getAfterAllDesc());
+        copyMap(source.getAfterAllValidatorType(), suite.getAfterAllValidatorType());
+        copyMap(source.getAfterAllValidatorValue(), suite.getAfterAllValidatorValue());
+        // Preconditions Liste ersetzen
+        suite.getPreconditions().clear();
+        if (source.getPreconditions() != null) suite.getPreconditions().addAll(source.getPreconditions());
+    }
+
+    private void copyMap(java.util.Map<String,String> src, java.util.Map<String,String> dest) {
+        if (src == null || dest == null) return;
+        dest.clear();
+        dest.putAll(src);
+    }
+    private void copyMapBool(java.util.Map<String,Boolean> src, java.util.Map<String,Boolean> dest) {
+        if (src == null || dest == null) return;
+        dest.clear();
+        dest.putAll(src);
     }
 
     private static String safe(String s) {
@@ -155,14 +201,20 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
             suite.setName(n != null ? n.trim() : "");
         }
         TestRegistry.getInstance().save();
+        captureSnapshot(); // Snapshot nach erfolgreichem Speichern aktualisieren
     }
 
     @Override
     public void revertChanges() {
-        TestRegistry.getInstance().load();
-        TestSuite reloaded = (suiteId != null) ? TestRegistry.getInstance().findSuiteById(suiteId) : null;
-        if (reloaded == null) reloaded = this.suite; // Fallback
-        this.suite = reloaded;
-        buildUIFromSuite(this.suite);
+        if (snapshotJson == null) return; // nichts zu revertieren
+        try {
+            TestSuite snap = GSON.fromJson(snapshotJson, TestSuite.class);
+            applySnapshot(snap);
+            buildUIFromSuite(suite); // UI neu aufbauen
+            // Snapshot unverändert lassen (weiterhin Basis)
+        } catch (Exception ex) {
+            // Falls Parsing fehlschägt, kein Crash – optional Meldung
+            System.err.println("[SuiteScopeEditorTab] revertChanges parse error: " + ex.getMessage());
+        }
     }
 }

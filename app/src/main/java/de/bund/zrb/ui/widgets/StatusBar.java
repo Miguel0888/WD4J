@@ -1,5 +1,8 @@
 package de.bund.zrb.ui.widgets;
 
+import de.bund.zrb.event.ApplicationEventBus;
+import de.bund.zrb.event.SavedEntityEvent;
+
 import javax.swing.*;
 import java.awt.*;
 
@@ -25,6 +28,12 @@ public final class StatusBar extends JPanel {
         rightWrap.setOpaque(false);
         if (rightComponent != null) rightWrap.add(rightComponent);
         add(rightWrap, BorderLayout.EAST);
+
+        ApplicationEventBus.getInstance().subscribe(SavedEntityEvent.class, ev -> {
+            SavedEntityEvent.Payload p = ev.getPayload();
+            String txt = "Gespeichert: " + p.entityType + " – " + (p.name != null ? p.name : "(unnamed)");
+            setMessage(txt);
+        });
     }
 
     /** Set only text (keeps old icon). Thread-safe. */
