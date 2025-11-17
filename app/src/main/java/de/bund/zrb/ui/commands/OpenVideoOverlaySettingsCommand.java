@@ -69,8 +69,6 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
 
     /**
      * Panel, das eine Videoauflösung simuliert und mehrere verschiebbare Text-Platzhalter enthält.
-     * Jeder Platzhalter kann einem bestehenden Overlay-Typ (Caption/Subtitle/Action) zugeordnet werden
-     * und erlaubt die Konfiguration von Schriftfarbe, Hintergrundfarbe (inkl. Transparenz) und Rahmen.
      */
     static final class OverlayPreviewPanel extends JLayeredPane {
         private final VideoOverlayService service;
@@ -97,9 +95,9 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             addPlaceholder("Action", Placeholder.Kind.ACTION, service.getActionStyle(),
                     "video.overlay.action.posX", "video.overlay.action.posY", 0.75, 0.05);
 
-            // Einfacher Visualizer: animierte Sinuslinien im Hintergrund, mit sehr wenig Code
-            visualizerTimer = new Timer(40, e -> {
-                phase += 0.08f;
+            // Ruhigere Animation: langsamere Phase und weichere Bewegung
+            visualizerTimer = new Timer(70, e -> {
+                phase += 0.04f;
                 repaint();
             });
             visualizerTimer.start();
@@ -114,48 +112,43 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
 
             // Weicher Hintergrundverlauf als Basis
             g2.setPaint(new GradientPaint(0, 0,
-                    new Color(20, 20, 30),
+                    new Color(25, 25, 35),
                     w, h,
-                    new Color(10, 10, 60)));
+                    new Color(5, 5, 25)));
             g2.fillRect(0, 0, w, h);
 
-            // Künstlerischer Visualizer:
-            // 1) Halbtransparente farbige Bänder (Polylines) über die Breite
-            g2.setStroke(new BasicStroke(2f));
-            int bands = 6;
+            // 1) Breite, sanft schwingende Farbbänder
+            g2.setStroke(new BasicStroke(1.5f));
+            int bands = 4;
             for (int i = 0; i < bands; i++) {
-                float hue = (phase / 10f + i * 0.12f) % 1f;
-                Color base = Color.getHSBColor(hue, 0.7f, 0.95f);
-                Color bandColor = new Color(base.getRed(), base.getGreen(), base.getBlue(), 120);
+                float hue = (phase / 12f + i * 0.18f) % 1f;
+                Color base = Color.getHSBColor(hue, 0.5f, 0.8f);
+                Color bandColor = new Color(base.getRed(), base.getGreen(), base.getBlue(), 80);
                 g2.setColor(bandColor);
 
                 int prevX = 0;
-                int prevY = (int) (h * (0.2 + 0.6 * (i / (double) bands))) + (int) (Math.sin(phase + i) * h * 0.05);
-                for (int x = 1; x < w; x += 4) {
+                int prevY = (int) (h * (0.3 + 0.4 * (i / (double) bands)));
+                for (int x = 1; x < w; x += 5) {
                     double t = (double) x / (double) w;
-                    double noise = Math.sin(t * Math.PI * 6 + phase * 1.3 + i * 0.7)
-                                   + 0.5 * Math.sin(t * Math.PI * 11 - phase * 0.9 + i);
-                    int y = (int) (prevY + noise * (h * 0.03));
+                    double yOff = Math.sin(t * Math.PI * 2 + phase * 0.8 + i * 0.6) * (h * 0.04);
+                    int y = prevY + (int) yOff;
                     g2.drawLine(prevX, prevY, x, y);
                     prevX = x;
                     prevY = y;
                 }
             }
 
-            // 2) Sanft pulsierende, bunte Kreise im Hintergrund (wie eine abstrakte Lichtshow)
-            int circles = 18;
+            // 2) Ruhige, weiche Lichtflecken (Kreise)
+            int circles = 10;
             for (int i = 0; i < circles; i++) {
-                double t = (phase * 0.25 + i * 0.37);
-                float hue = (float) ((t * 0.21) % 1.0);
-                Color c = Color.getHSBColor(hue, 0.8f, 1.0f);
-                int radius = (int) (Math.abs(Math.sin(t * 1.7)) * Math.min(w, h) * 0.2) + 40;
+                double t = (phase * 0.15 + i * 0.45);
+                float hue = (float) ((t * 0.17) % 1.0);
+                Color c = Color.getHSBColor(hue, 0.4f, 0.7f);
+                int radius = (int) (Math.abs(Math.sin(t * 1.3)) * Math.min(w, h) * 0.15) + 30;
+                int cx = (int) ((0.1 + 0.8 * Math.abs(Math.sin(t * 0.7))) * w);
+                int cy = (int) ((0.1 + 0.8 * Math.abs(Math.cos(t * 0.9))) * h);
 
-                // Position leicht zufällig, aber durch phase verschoben
-                int cx = (int) ((0.2 + 0.6 * Math.abs(Math.sin(t * 0.9))) * w);
-                int cy = (int) ((0.2 + 0.6 * Math.abs(Math.cos(t * 1.1))) * h);
-
-                // Sehr transparente Füllung, damit sich die Kreise überlagern
-                Color fill = new Color(c.getRed(), c.getGreen(), c.getBlue(), 40);
+                Color fill = new Color(c.getRed(), c.getGreen(), c.getBlue(), 25);
                 g2.setPaint(new RadialGradientPaint(
                         new Point(cx, cy), radius,
                         new float[]{0f, 1f},
@@ -163,9 +156,9 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 g2.fillOval(cx - radius, cy - radius, radius * 2, radius * 2);
             }
 
-            // 3) Dezentes Scanline-Overlay für einen leicht „digitalen“ Look
-            g2.setColor(new Color(255, 255, 255, 10));
-            for (int y = 0; y < h; y += 4) {
+            // dezente Scanlines sehr schwach
+            g2.setColor(new Color(255, 255, 255, 8));
+            for (int y = 0; y < h; y += 5) {
                 g2.drawLine(0, y, w, y);
             }
 
@@ -239,6 +232,7 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             add(area, BorderLayout.CENTER);
 
             JButton edit = new JButton("Design / Typ...");
+            edit.setToolTipText("Schriftart, Farben, Hintergrund und Typ des Overlays anpassen");
             edit.addActionListener(e -> openConfigDialog(parent));
             add(edit, BorderLayout.SOUTH);
 
@@ -268,9 +262,32 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             if (style == null) return;
             try {
                 Color font = Color.decode(style.getFontColor());
-                Color bg = Color.decode(style.getBackgroundColor());
-                // Hintergrund leicht transparent zeichnen
-                Color bgTrans = new Color(bg.getRed(), bg.getGreen(), bg.getBlue(), 180);
+                Color bg;
+                int alpha = 180;
+                String bgStr = style.getBackgroundColor();
+                if (bgStr != null && bgStr.toLowerCase().startsWith("rgba")) {
+                    // einfaches rgba( r, g, b, a )-Parsing
+                    int start = bgStr.indexOf('(');
+                    int end = bgStr.indexOf(')');
+                    if (start >= 0 && end > start) {
+                        String[] parts = bgStr.substring(start + 1, end).split(",");
+                        if (parts.length >= 4) {
+                            int r = Integer.parseInt(parts[0].trim());
+                            int g = Integer.parseInt(parts[1].trim());
+                            int b = Integer.parseInt(parts[2].trim());
+                            float af = Float.parseFloat(parts[3].trim());
+                            alpha = (int) Math.round(255 * af);
+                            bg = new Color(r, g, b);
+                        } else {
+                            bg = Color.decode("#000000");
+                        }
+                    } else {
+                        bg = Color.decode("#000000");
+                    }
+                } else {
+                    bg = Color.decode(style.getBackgroundColor());
+                }
+                Color bgTrans = new Color(bg.getRed(), bg.getGreen(), bg.getBlue(), alpha);
                 setBackground(bgTrans);
                 setOpaque(true);
                 setForeground(font);
@@ -285,13 +302,95 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
 
         private void openConfigDialog(Component parent) {
             VideoOverlayStyle current = getCurrentStyle();
-            JTextField tfFontColor = new JTextField(current.getFontColor());
-            JTextField tfBgColor = new JTextField(current.getBackgroundColor());
-            JSpinner spFontSize = new JSpinner(new SpinnerNumberModel(current.getFontSizePx(), 8, 96, 1));
 
+            // Aktuelle Farben und Transparenz vorbereiten
+            Color initialFont;
+            Color initialBg;
+            int initialAlpha = 180;
+            try {
+                initialFont = Color.decode(current.getFontColor());
+            } catch (Exception e) {
+                initialFont = getForeground();
+            }
+            try {
+                String bgStr = current.getBackgroundColor();
+                if (bgStr != null && bgStr.toLowerCase().startsWith("rgba")) {
+                    int start = bgStr.indexOf('(');
+                    int end = bgStr.indexOf(')');
+                    if (start >= 0 && end > start) {
+                        String[] parts = bgStr.substring(start + 1, end).split(",");
+                        if (parts.length >= 4) {
+                            int r = Integer.parseInt(parts[0].trim());
+                            int g = Integer.parseInt(parts[1].trim());
+                            int b = Integer.parseInt(parts[2].trim());
+                            float af = Float.parseFloat(parts[3].trim());
+                            initialAlpha = (int) Math.round(255 * af);
+                            initialBg = new Color(r, g, b);
+                        } else {
+                            initialBg = getBackground();
+                        }
+                    } else {
+                        initialBg = getBackground();
+                    }
+                } else {
+                    initialBg = Color.decode(current.getBackgroundColor());
+                }
+            } catch (Exception e) {
+                initialBg = getBackground();
+            }
+
+            // Farbfelder mit Vorschau
+            JButton fontColorPreview = new JButton();
+            fontColorPreview.setPreferredSize(new Dimension(24, 24));
+            fontColorPreview.setBackground(initialFont);
+            fontColorPreview.setToolTipText("Textfarbe auswählen");
+
+            JButton bgColorPreview = new JButton();
+            bgColorPreview.setPreferredSize(new Dimension(24, 24));
+            bgColorPreview.setBackground(initialBg);
+            bgColorPreview.setToolTipText("Hintergrundfarbe auswählen");
+
+            final Color[] chosenFont = { initialFont };
+            final Color[] chosenBg = { initialBg };
+
+            fontColorPreview.addActionListener(e -> {
+                Color c = JColorChooser.showDialog(parent, "Textfarbe wählen", chosenFont[0]);
+                if (c != null) {
+                    chosenFont[0] = c;
+                    fontColorPreview.setBackground(c);
+                }
+            });
+            bgColorPreview.addActionListener(e -> {
+                Color c = JColorChooser.showDialog(parent, "Hintergrundfarbe wählen", chosenBg[0]);
+                if (c != null) {
+                    chosenBg[0] = c;
+                    bgColorPreview.setBackground(c);
+                }
+            });
+
+            // Transparenz-Slider mit sofortiger Vorschau
+            JSlider alphaSlider = new JSlider(0, 255, initialAlpha);
+            alphaSlider.setPaintTicks(true);
+            alphaSlider.setPaintLabels(true);
+            alphaSlider.setMajorTickSpacing(85); // 0 / ca. 1/3 / 2/3 / 1
+
+            alphaSlider.addChangeListener(e -> {
+                Color b = chosenBg[0];
+                if (b != null) {
+                    int a = alphaSlider.getValue();
+                    Color bgTrans = new Color(b.getRed(), b.getGreen(), b.getBlue(), a);
+                    setBackground(bgTrans);
+                    setOpaque(true);
+                    repaint();
+                }
+            });
+
+            // Typ-Auswahl und Schriftgröße wie bisher
             String[] types = {"Caption", "Subtitle", "Action"};
             JComboBox<String> cbType = new JComboBox<>(types);
             cbType.setSelectedIndex(kind == Kind.CAPTION ? 0 : kind == Kind.SUBTITLE ? 1 : 2);
+
+            JSpinner spFontSize = new JSpinner(new SpinnerNumberModel(current.getFontSizePx(), 8, 96, 1));
 
             JPanel panel = new JPanel(new GridBagLayout());
             GridBagConstraints c = new GridBagConstraints();
@@ -300,21 +399,33 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             panel.add(new JLabel("Overlay-Typ:"), c);
             c.gridx = 1; panel.add(cbType, c);
 
-            c.gridx = 0; c.gridy = 1; panel.add(new JLabel("Font Color (#RRGGBB):"), c);
-            c.gridx = 1; panel.add(tfFontColor, c);
+            c.gridx = 0; c.gridy = 1; panel.add(new JLabel("Textfarbe:"), c);
+            c.gridx = 1; panel.add(fontColorPreview, c);
 
-            c.gridx = 0; c.gridy = 2; panel.add(new JLabel("Background Color (#RRGGBB):"), c);
-            c.gridx = 1; panel.add(tfBgColor, c);
+            c.gridx = 0; c.gridy = 2; panel.add(new JLabel("Hintergrundfarbe:"), c);
+            c.gridx = 1; panel.add(bgColorPreview, c);
 
-            c.gridx = 0; c.gridy = 3; panel.add(new JLabel("Font Size (px):"), c);
+            c.gridx = 0; c.gridy = 3; panel.add(new JLabel("Hintergrund-Transparenz:"), c);
+            c.gridx = 1; panel.add(alphaSlider, c);
+
+            c.gridx = 0; c.gridy = 4; panel.add(new JLabel("Schriftgröße (px):"), c);
             c.gridx = 1; panel.add(spFontSize, c);
 
             int res = JOptionPane.showConfirmDialog(parent, panel,
                     "Overlay-Platzhalter konfigurieren", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
             if (res == JOptionPane.OK_OPTION) {
+                Color f = chosenFont[0];
+                Color b = chosenBg[0];
+                int a = alphaSlider.getValue();
+                if (f == null || b == null) {
+                    return;
+                }
+                String fontHex = String.format("#%02X%02X%02X", f.getRed(), f.getGreen(), f.getBlue());
+                String bgRgba = String.format("rgba(%d,%d,%d,%.3f)", b.getRed(), b.getGreen(), b.getBlue(), a / 255.0);
+
                 VideoOverlayStyle newStyle = new VideoOverlayStyle(
-                        tfFontColor.getText().trim(),
-                        tfBgColor.getText().trim(),
+                        fontHex,
+                        bgRgba,
                         (Integer) spFontSize.getValue());
 
                 String sel = (String) cbType.getSelectedItem();
