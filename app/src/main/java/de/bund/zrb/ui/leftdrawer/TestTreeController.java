@@ -1416,12 +1416,35 @@ public class TestTreeController {
      * CellEditor für in-place Rename von TestAction: Text wird als description übernommen.
      */
     private static class ActionNodeCellEditor extends AbstractCellEditor implements javax.swing.tree.TreeCellEditor {
+        // Ersetzter Editor mit Icon-Anzeige und Tastatur-Handling
         private final JTree tree;
         private final JTextField field = new JTextField();
+        private final JPanel panel = new JPanel(new BorderLayout(4,0));
+        private final JLabel iconLabel = new JLabel();
         private TestNode currentNode;
         private String prevDescription;
         private String prevRenderedLabel;
-        ActionNodeCellEditor(JTree tree) { this.tree = tree; field.setBorder(BorderFactory.createEmptyBorder(0,2,0,2)); }
+        private boolean canceled = false;
+        ActionNodeCellEditor(JTree tree) {
+            this.tree = tree;
+            field.setBorder(BorderFactory.createEmptyBorder(1,2,1,2));
+            panel.setOpaque(false);
+            iconLabel.setOpaque(false);
+            panel.add(iconLabel, BorderLayout.WEST);
+            panel.add(field, BorderLayout.CENTER);
+            // Key Handling für Enter / ESC
+            field.addKeyListener(new java.awt.event.KeyAdapter() {
+                @Override public void keyPressed(java.awt.event.KeyEvent e) {
+                    if (e.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                        canceled = false;
+                        stopCellEditing();
+                    } else if (e.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE) {
+                        canceled = true;
+                        cancelCellEditing();
+                    }
+                }
+            });
+        }
         @Override
         public Component getTreeCellEditorComponent(JTree tree, Object value, boolean sel, boolean expanded, boolean leaf, int row) {
             if (!(value instanceof TestNode)) { currentNode = null; return new JLabel(String.valueOf(value)); }
@@ -1433,8 +1456,17 @@ public class TestTreeController {
             prevRenderedLabel = TestTreeController.renderActionLabel(action);
             String start = (prevDescription != null && !prevDescription.trim().isEmpty()) ? prevDescription.trim() : prevRenderedLabel;
             field.setText(start);
+            // Icon vom Renderer holen, damit es erhalten bleibt
+            java.awt.Component rendComp = tree.getCellRenderer().getTreeCellRendererComponent(tree, value, true, expanded, leaf, row, true);
+            if (rendComp instanceof JLabel) {
+                Icon ic = ((JLabel) rendComp).getIcon();
+                iconLabel.setIcon(ic);
+            } else {
+                iconLabel.setIcon(null);
+            }
             SwingUtilities.invokeLater(() -> { field.requestFocusInWindow(); field.selectAll(); });
-            return field;
+            canceled = false;
+            return panel;
         }
         @Override
         public Object getCellEditorValue() {
@@ -1442,14 +1474,17 @@ public class TestTreeController {
             Object ref = currentNode.getModelRef();
             if (!(ref instanceof TestAction)) return currentNode.getUserObject();
             TestAction action = (TestAction) ref;
-            String edited = field.getText() != null ? field.getText().trim() : "";
-            if (edited.isEmpty()) {
-                action.setDescription(null); // zurück zu generiertem Label
-            } else if (!edited.equals(prevDescription) && !edited.equals(prevRenderedLabel)) {
-                action.setDescription(edited);
-            } // sonst unverändert
+            if (!canceled) {
+                String edited = field.getText() != null ? field.getText().trim() : "";
+                if (edited.isEmpty()) {
+                    action.setDescription(null); // zurück zu generiertem Label
+                } else if (!edited.equals(prevDescription) && !edited.equals(prevRenderedLabel)) {
+                    action.setDescription(edited);
+                }
+            }
+            // Bei Abbruch nichts verändert -> Beschreibung bleibt wie zuvor
             currentNode.setUserObject(TestTreeController.renderActionLabel(action));
-            try { TestRegistry.getInstance().save(); } catch (Throwable ignore) {}
+            if (!canceled) { try { TestRegistry.getInstance().save(); } catch (Throwable ignore) {} }
             javax.swing.tree.TreeModel m = tree.getModel();
             if (m instanceof DefaultTreeModel) ((DefaultTreeModel) m).nodeChanged(currentNode);
             return currentNode.getUserObject();
@@ -1467,7 +1502,7 @@ public class TestTreeController {
             return false;
         }
         @Override public boolean shouldSelectCell(java.util.EventObject e) { return true; }
-        @Override public boolean stopCellEditing() { return super.stopCellEditing(); }
+        @Override public boolean stopCellEditing() { super.stopCellEditing(); return true; }
         @Override public void cancelCellEditing() { super.cancelCellEditing(); }
     }
 }
