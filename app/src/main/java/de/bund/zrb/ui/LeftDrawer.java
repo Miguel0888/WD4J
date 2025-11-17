@@ -183,7 +183,8 @@ public class LeftDrawer extends JPanel implements TestPlayerUi {
         sb.append("<li><b>Persistente Tabs</b>: Kontextmenü → 'In neuem Tab öffnen' oder wenn im Preview-Inhalt Änderungen vorgenommen werden.</li>");
         sb.append("<li><b>Pinning</b>: Ein bereits geöffneter persistenter Tab wird beim Klick auf denselben Knoten fokussiert statt Preview zu überschreiben.</li>");
         sb.append("<li><b>Drag & Drop</b>: Tests können per Drag & Drop innerhalb des Baums umsortiert werden (Suite-/Case-Ebene).</li>");
-        sb.append("<li><b>Context-Menü</b>: Rechtsklick auf Nodes für Aktionen wie 'In neuem Tab öffnen'.</li>");
+        sb.append("<li><b>Kontext-Menü</b>: Rechtsklick auf Nodes für Aktionen wie 'In neuem Tab öffnen'.</li>");
+        sb.append("<li><b>Umbenennen (Actions)</b>: Doppelklick oder F2 zum In-Place-Umbenennen von Schritten. ENTER speichert, ESC bricht ab. Die Eingabe wird als Beschreibung (description) gespeichert und auch als Knotenbezeichnung verwendet.</li>");
         sb.append("<li><b>Preconditions</b>: Referenzen im Case/Suite/Root werden vor den WHEN-Schritten ausgeführt und erben den Variablen-Scope.</li>");
         sb.append("<li><b>Status</b>: Erfolgs-/Fehlerstatus eines Case/Suite wird nach Ausführung im Baum aktualisiert.</li>");
         sb.append("<li><b>Tastatur</b>: ↑/↓ Navigation, ENTER/SPACE für Preview, Kontextmenü via Shift+F10 (je nach OS).</li>");

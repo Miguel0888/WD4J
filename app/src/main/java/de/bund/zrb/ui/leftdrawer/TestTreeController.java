@@ -194,6 +194,24 @@ public class TestTreeController {
                 }
             }
         });
+        // F2: In-Place-Umbenennen via KeyBinding (robuster als KeyListener)
+        javax.swing.InputMap imF = testTree.getInputMap(JComponent.WHEN_FOCUSED);
+        javax.swing.InputMap imA = testTree.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        javax.swing.KeyStroke ksF2 = javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F2, 0);
+        String actionKey = "wd4j.renameInPlace";
+        if (imF != null) imF.put(ksF2, actionKey);
+        if (imA != null) imA.put(ksF2, actionKey);
+        javax.swing.ActionMap am = testTree.getActionMap();
+        am.put(actionKey, new javax.swing.AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                TreePath sel = testTree.getSelectionPath();
+                if (sel == null) return;
+                Object comp = sel.getLastPathComponent();
+                if (comp instanceof TestNode && ((TestNode) comp).getModelRef() instanceof TestAction) {
+                    testTree.startEditingAtPath(sel);
+                }
+            }
+        });
     }
 
     /**
@@ -1508,6 +1526,7 @@ public class TestTreeController {
         }
         @Override
         public boolean isCellEditable(java.util.EventObject e) {
+            // Maus-Doppelklick wie gehabt
             if (e instanceof java.awt.event.MouseEvent) {
                 java.awt.event.MouseEvent me = (java.awt.event.MouseEvent) e;
                 if (me.getClickCount() < 2) return false; // nur Doppelklick
@@ -1516,7 +1535,11 @@ public class TestTreeController {
                 Object comp = path.getLastPathComponent();
                 return comp instanceof TestNode && ((TestNode) comp).getModelRef() instanceof TestAction;
             }
-            return false;
+            // Programmgesteuert (F2/startEditingAtPath) oder andere Events: prüfe aktuelle Selektion
+            TreePath sel = tree.getSelectionPath();
+            if (sel == null) return false;
+            Object comp = sel.getLastPathComponent();
+            return comp instanceof TestNode && ((TestNode) comp).getModelRef() instanceof TestAction;
         }
         @Override public boolean shouldSelectCell(java.util.EventObject e) { return true; }
         @Override public boolean stopCellEditing() { super.stopCellEditing(); return true; }
