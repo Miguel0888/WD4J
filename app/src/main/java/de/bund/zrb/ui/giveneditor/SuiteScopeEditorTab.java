@@ -32,6 +32,7 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
 
     private final TestSuite suite;
     private final JTabbedPaneWithHelp innerTabs = new JTabbedPaneWithHelp();
+    private JTextField descField; // neuer editierbarer Header wie in ActionEditorTab
 
     public SuiteScopeEditorTab(TestSuite suite) {
         super(new BorderLayout());
@@ -39,35 +40,34 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
 
         JPanel header = new JPanel(new BorderLayout());
 
-        JPanel textBlock = new JPanel(new BorderLayout());
-        JLabel title = new JLabel("Suite-Scope: " + safe(suite.getName()), SwingConstants.LEFT);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
+        // Beschreibung-Header analog ActionEditorTab
+        JPanel headerInner = new JPanel(new BorderLayout());
+        headerInner.setBorder(BorderFactory.createEmptyBorder(12, 12, 6, 12));
+        JLabel headerLabel = new JLabel("Beschreibung (optional):");
+        headerLabel.setBorder(BorderFactory.createEmptyBorder(0,0,4,0));
+        descField = new JTextField(safe(suite.getDescription()));
+        Font baseFont = descField.getFont();
+        if (baseFont != null) {
+            descField.setFont(baseFont.deriveFont(Font.BOLD, Math.min(22f, baseFont.getSize() + 8f)));
+        }
+        descField.setBackground(new Color(250,250,235));
+        descField.setToolTipText("Optionale Suite-Beschreibung / Titel. Leer lassen für Standardanzeige.");
+        headerInner.add(headerLabel, BorderLayout.NORTH);
+        headerInner.add(descField, BorderLayout.CENTER);
 
-        JTextArea desc = new JTextArea();
-        desc.setLineWrap(true);
-        desc.setWrapStyleWord(true);
-        desc.setEditable(false);
-        desc.setOpaque(false);
-        desc.setText(safe(suite.getDescription()));
-
-        textBlock.add(title, BorderLayout.NORTH);
-        textBlock.add(desc, BorderLayout.CENTER);
-        textBlock.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-
+        // Rechts: Speichern + Verwerfen
         JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton saveBtn = new JButton("💾 Speichern");
-        saveBtn.setToolTipText("Änderungen dieser Suite in tests.json schreiben");
-        saveBtn.addActionListener(e -> {
-            saveChanges();
-        });
+        saveBtn.setToolTipText("Änderungen dieser Suite speichern");
+        saveBtn.addActionListener(e -> saveChanges());
         JButton revertBtnHeader = new JButton("Änderungen verwerfen");
-        revertBtnHeader.setToolTipText("Ungespeicherte Änderungen verwerfen");
+        revertBtnHeader.setToolTipText("Ungespeicherte Änderungen zurücksetzen");
         revertBtnHeader.addActionListener(e -> revertChanges());
         savePanel.add(revertBtnHeader);
         savePanel.add(saveBtn);
-        savePanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        savePanel.setBorder(BorderFactory.createEmptyBorder(12,12,6,12));
 
-        header.add(textBlock, BorderLayout.CENTER);
+        header.add(headerInner, BorderLayout.CENTER);
         header.add(savePanel, BorderLayout.EAST);
 
         add(header, BorderLayout.NORTH);
@@ -190,12 +190,17 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
 
     @Override
     public void saveChanges() {
+        // Beschreibung ins Modell übernehmen (leer -> null)
+        String d = descField.getText();
+        suite.setDescription(d != null && d.trim().length() > 0 ? d.trim() : null);
         TestRegistry.getInstance().save();
     }
 
     @Override
     public void revertChanges() {
         TestRegistry.getInstance().load();
+        // Modell neu lesen (Suite-Referenz könnte neu sein – hier vereinfachend nur Feld aktualisieren)
+        descField.setText(safe(suite.getDescription()));
         revalidate();
         repaint();
     }

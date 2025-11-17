@@ -30,31 +30,42 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
 
     private final TestCase testCase;
     private final JTabbedPaneWithHelp innerTabs = new JTabbedPaneWithHelp();
+    private JTextField descField; // editierbare Beschreibung wie ActionEditorTab
 
     public CaseScopeEditorTab(TestCase testCase) {
         super(new BorderLayout());
         this.testCase = testCase;
 
-        // Header oben (Titel + Speichern)
+        // Header oben (Beschreibung + Buttons)
         JPanel header = new JPanel(new BorderLayout());
-        JLabel title = new JLabel("Case-Scope: " + safe(testCase.getName()), SwingConstants.LEFT);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
+        JPanel headerInner = new JPanel(new BorderLayout());
+        headerInner.setBorder(BorderFactory.createEmptyBorder(12,12,6,12));
+        JLabel headerLabel = new JLabel("Beschreibung (optional):");
+        headerLabel.setBorder(BorderFactory.createEmptyBorder(0,0,4,0));
+        descField = new JTextField(safe(testCase.getName())); // Case hat keine eigene description -> verwende Name als Start
+        Font bf = descField.getFont();
+        if (bf != null) {
+            descField.setFont(bf.deriveFont(Font.BOLD, Math.min(22f, bf.getSize()+8f)));
+        }
+        descField.setBackground(new Color(250,250,235));
+        descField.setToolTipText("Optionaler Case-Titel. Leer lassen für Standardanzeige (Case-Name).");
+        headerInner.add(headerLabel, BorderLayout.NORTH);
+        headerInner.add(descField, BorderLayout.CENTER);
 
         JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton saveBtn = new JButton("💾 Speichern");
-        saveBtn.setToolTipText("Änderungen dieses Case in tests.json schreiben");
-        saveBtn.addActionListener(e -> {
-            saveChanges();
-        });
+        saveBtn.setToolTipText("Änderungen dieses Case speichern");
+        saveBtn.addActionListener(e -> saveChanges());
         JButton revertBtnHeader = new JButton("Änderungen verwerfen");
-        revertBtnHeader.setToolTipText("Ungespeicherte Änderungen verwerfen");
+        revertBtnHeader.setToolTipText("Ungespeicherte Änderungen zurücksetzen");
         revertBtnHeader.addActionListener(e -> revertChanges());
         savePanel.add(revertBtnHeader);
         savePanel.add(saveBtn);
+        savePanel.setBorder(BorderFactory.createEmptyBorder(12,12,6,12));
 
-        header.add(title, BorderLayout.CENTER);
+        header.add(headerInner, BorderLayout.CENTER);
         header.add(savePanel, BorderLayout.EAST);
-        header.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        header.setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
         add(header, BorderLayout.NORTH);
 
         List<Precondtion> preconditions = testCase.getPreconditions();
@@ -174,12 +185,18 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
 
     @Override
     public void saveChanges() {
+        // Case besitzt keine description Property → wir nutzen descField als alternativen Anzeigenamen
+        String d = descField.getText();
+        if (d != null && d.trim().length() > 0) {
+            testCase.setName(d.trim());
+        }
         TestRegistry.getInstance().save();
     }
 
     @Override
     public void revertChanges() {
         TestRegistry.getInstance().load();
+        descField.setText(safe(testCase.getName()));
         revalidate();
         repaint();
     }
