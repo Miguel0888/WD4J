@@ -21,7 +21,7 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
 
     private TestCase testCase; // nicht final für Rebind
     private String caseId;     // Lookup bei Revert
-    private final JTabbedPaneWithHelp innerTabs = new JTabbedPaneWithHelp();
+    private JTabbedPaneWithHelp innerTabs; // nicht final – wird in buildUIFromCase() neu erstellt
     private JTextField descField;
     private String snapshotJson; // Deep-Copy Snapshot
     private static final Gson GSON = new Gson();
@@ -53,6 +53,8 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
         header.add(new JPanel(new FlowLayout(FlowLayout.RIGHT)), BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
 
+        innerTabs = new JTabbedPaneWithHelp();
+
         List<Precondtion> preconditions = (model != null) ? model.getPreconditions() : null;
         if (preconditions == null) {
             preconditions = new ArrayList<>();
@@ -61,7 +63,6 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
         String scopeLabel = "Case " + safe(model != null ? model.getName() : "");
         GivenListEditorTab preconditionsTab = new GivenListEditorTab(scopeLabel, preconditions);
 
-        innerTabs.removeAllTabs();
         innerTabs.addTab("Templates",
                 new MapTablePanel(model.getTemplates(), model.getTemplatesEnabled(), "Templates", null));
         innerTabs.addTab("Before",
@@ -146,6 +147,9 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
         copyMap(source.getAfterValidatorType(), testCase.getAfterValidatorType());
         copyMap(source.getAfterValidatorValue(), testCase.getAfterValidatorValue());
         // Preconditions Liste
+        if (testCase.getPreconditions() == null) {
+            testCase.setPreconditions(new java.util.ArrayList<Precondtion>());
+        }
         testCase.getPreconditions().clear();
         if (source.getPreconditions() != null) testCase.getPreconditions().addAll(source.getPreconditions());
     }
