@@ -75,6 +75,8 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
         private final VideoOverlayService service;
         private final Dimension videoSize;
         private final List<Placeholder> placeholders = new ArrayList<>();
+        private final Timer visualizerTimer;
+        private float phase;
 
         OverlayPreviewPanel(VideoOverlayService service, Dimension videoSize) {
             this.service = service;
@@ -82,20 +84,84 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             setPreferredSize(videoSize);
             setLayout(null); // absolute Positionierung
 
-            setBackground(Color.BLACK);
+            setBackground(Color.DARK_GRAY);
             setOpaque(true);
 
-            // Platzhalter für Caption, Subtitle und Action anhand bestehender Styles anlegen
-            addPlaceholder("Caption", Placeholder.Kind.CAPTION, service.getCaptionStyle(), 20, 20);
-            addPlaceholder("Subtitle", Placeholder.Kind.SUBTITLE, service.getSubtitleStyle(), 20, videoSize.height - 120);
-            addPlaceholder("Action", Placeholder.Kind.ACTION, service.getActionStyle(), videoSize.width - 320, 40);
+            // Platzhalter anhand gespeicherter prozentualer Positionen anlegen
+            addPlaceholder("Caption", Placeholder.Kind.CAPTION, service.getCaptionStyle(),
+                    "video.overlay.caption.posX", "video.overlay.caption.posY", 0.05, 0.05);
+            addPlaceholder("Subtitle", Placeholder.Kind.SUBTITLE, service.getSubtitleStyle(),
+                    "video.overlay.subtitle.posX", "video.overlay.subtitle.posY", 0.05, 0.75);
+            addPlaceholder("Action", Placeholder.Kind.ACTION, service.getActionStyle(),
+                    "video.overlay.action.posX", "video.overlay.action.posY", 0.75, 0.05);
+
+            // Einfacher Visualizer: animierte Sinuslinien im Hintergrund, mit sehr wenig Code
+            visualizerTimer = new Timer(40, e -> {
+                phase += 0.08f;
+                repaint();
+            });
+            visualizerTimer.start();
         }
 
-        private void addPlaceholder(String label, Placeholder.Kind kind, VideoOverlayStyle style, int x, int y) {
-            Placeholder p = new Placeholder(label, kind, style, service, this);
-            p.setBounds(x, y, 280, 80);
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2 = (Graphics2D) g.create();
+            int w = getWidth();
+            int h = getHeight();
+
+            // Hintergrundverlauf
+            g2.setPaint(new GradientPaint(0, 0, new Color(40, 40, 40), 0, h, new Color(15, 15, 15)));
+            g2.fillRect(0, 0, w, h);
+
+            // Minimalistischer Visualizer: mehrere Sinuskurven mit Phasenverschiebung
+            g2.setStroke(new BasicStroke(2f));
+            for (int i = 0; i < 4; i++) {
+                float hue = (phase / 10f + i * 0.15f) % 1f;
+                g2.setColor(Color.getHSBColor(hue, 0.6f, 0.9f));
+                int midY = h / 2 + (i - 2) * (h / 10);
+                int prevX = 0;
+                int prevY = midY;
+                for (int x = 1; x < w; x++) {
+                    double t = (double) x / (double) w;
+                    double yOff = Math.sin(t * Math.PI * 4 + phase + i) * (h / 8.0);
+                    int y = midY + (int) yOff;
+                    g2.drawLine(prevX, prevY, x, y);
+                    prevX = x;
+                    prevY = y;
+                }
+            }
+            g2.dispose();
+        }
+
+        private void addPlaceholder(String label, Placeholder.Kind kind, VideoOverlayStyle style,
+                                    String keyX, String keyY,
+                                    double defaultPx, double defaultPy) {
+            double px = getDouble(keyX, defaultPx);
+            double py = getDouble(keyY, defaultPy);
+            if (px < 0 || px > 1) px = defaultPx;
+            if (py < 0 || py > 1) py = defaultPy;
+
+            Placeholder p = new Placeholder(label, kind, style, service, this, keyX, keyY);
+            int w = 280;
+            int h = 80;
+            int x = (int) Math.round(px * (videoSize.width - w));
+            int y = (int) Math.round(py * (videoSize.height - h));
+            p.setBounds(x, y, w, h);
             placeholders.add(p);
             add(p, JLayeredPane.PALETTE_LAYER);
+        }
+
+        private static double getDouble(String key, double def) {
+            Double d = SettingsService.getInstance().get(key, Double.class);
+            if (d == null) {
+                // evtl. als String gespeichert
+                String s = SettingsService.getInstance().get(key, String.class);
+                if (s != null) {
+                    try { d = Double.valueOf(s.trim()); } catch (NumberFormatException ignored) { }
+                }
+            }
+            return d == null ? def : d.doubleValue();
         }
     }
 
@@ -107,12 +173,17 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
 
         private final Kind kind;
         private final VideoOverlayService service;
+        private final String keyPosX;
+        private final String keyPosY;
         private Point dragOffset;
 
         Placeholder(String label, Kind kind, VideoOverlayStyle style,
-                    VideoOverlayService service, JComponent parent) {
+                    VideoOverlayService service, JComponent parent,
+                    String keyPosX, String keyPosY) {
             this.kind = kind;
             this.service = service;
+            this.keyPosX = keyPosX;
+            this.keyPosY = keyPosY;
             setLayout(new BorderLayout(4,4));
 
             setOpaque(false);
@@ -142,6 +213,12 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                     int nx = getX() + e.getX() - dragOffset.x;
                     int ny = getY() + e.getY() - dragOffset.y;
                     setLocation(nx, ny);
+                    // Position als Prozent der Videoauflösung speichern
+                    Dimension size = parent.getSize();
+                    double px = (double) nx / (double) Math.max(1, size.width - getWidth());
+                    double py = (double) ny / (double) Math.max(1, size.height - getHeight());
+                    SettingsService.getInstance().set(keyPosX, px);
+                    SettingsService.getInstance().set(keyPosY, py);
                     parent.repaint();
                 }
             };
