@@ -1428,6 +1428,9 @@ public class TestTreeController {
         ActionNodeCellEditor(JTree tree) {
             this.tree = tree;
             field.setBorder(BorderFactory.createEmptyBorder(1,2,1,2));
+            // kleine Innenmargen gegen Abschneiden des ersten Zeichens
+            try { field.setMargin(new Insets(0, 2, 0, 2)); } catch (Throwable ignore) {}
+            field.setColumns(30); // Grundbreite
             panel.setOpaque(false);
             iconLabel.setOpaque(false);
             panel.add(iconLabel, BorderLayout.WEST);
@@ -1458,12 +1461,21 @@ public class TestTreeController {
             field.setText(start);
             // Icon vom Renderer holen, damit es erhalten bleibt
             java.awt.Component rendComp = tree.getCellRenderer().getTreeCellRendererComponent(tree, value, true, expanded, leaf, row, true);
+            Icon ic = null;
             if (rendComp instanceof JLabel) {
-                Icon ic = ((JLabel) rendComp).getIcon();
+                ic = ((JLabel) rendComp).getIcon();
                 iconLabel.setIcon(ic);
             } else {
                 iconLabel.setIcon(null);
             }
+            // Breite des Editors an Zeilenbreite anpassen
+            Rectangle rb = tree.getRowBounds(row);
+            int iconW = (ic != null) ? ic.getIconWidth() + 6 : 0;
+            int prefW = (rb != null ? rb.width : rendComp.getPreferredSize().width);
+            int fieldW = Math.max(100, prefW - iconW - 8);
+            Dimension d = new Dimension(prefW, rendComp.getPreferredSize().height);
+            panel.setPreferredSize(d);
+            field.setPreferredSize(new Dimension(fieldW, d.height));
             SwingUtilities.invokeLater(() -> { field.requestFocusInWindow(); field.selectAll(); });
             canceled = false;
             return panel;
@@ -1487,6 +1499,14 @@ public class TestTreeController {
             if (!canceled) { try { TestRegistry.getInstance().save(); } catch (Throwable ignore) {} }
             javax.swing.tree.TreeModel m = tree.getModel();
             if (m instanceof DefaultTreeModel) ((DefaultTreeModel) m).nodeChanged(currentNode);
+            // Preview-Tab refreshen: Selektion kurz aufheben und wieder setzen
+            try {
+                TreePath path = new TreePath(currentNode.getPath());
+                TreePath[] old = tree.getSelectionPaths();
+                tree.clearSelection();
+                tree.setSelectionPath(path);
+                if (old != null && old.length > 1) tree.setSelectionPaths(old); // Mehrfachselektion wiederherstellen, falls vorhanden
+            } catch (Throwable ignore) {}
             return currentNode.getUserObject();
         }
         @Override
