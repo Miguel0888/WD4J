@@ -32,7 +32,7 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
 
     private final TestSuite suite;
     private final JTabbedPaneWithHelp innerTabs = new JTabbedPaneWithHelp();
-    private JTextField descField; // neuer editierbarer Header wie in ActionEditorTab
+    private JTextField nameField; // ehemals descField, jetzt für Suite-Name
 
     public SuiteScopeEditorTab(TestSuite suite) {
         super(new BorderLayout());
@@ -40,20 +40,20 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
 
         JPanel header = new JPanel(new BorderLayout());
 
-        // Beschreibung-Header analog ActionEditorTab
+        // Name-Header (statt Beschreibung)
         JPanel headerInner = new JPanel(new BorderLayout());
         headerInner.setBorder(BorderFactory.createEmptyBorder(12, 12, 6, 12));
-        JLabel headerLabel = new JLabel("Beschreibung (optional):");
+        JLabel headerLabel = new JLabel("Name:");
         headerLabel.setBorder(BorderFactory.createEmptyBorder(0,0,4,0));
-        descField = new JTextField(safe(suite.getDescription()));
-        Font baseFont = descField.getFont();
+        nameField = new JTextField(safe(suite.getName()));
+        Font baseFont = nameField.getFont();
         if (baseFont != null) {
-            descField.setFont(baseFont.deriveFont(Font.BOLD, Math.min(22f, baseFont.getSize() + 8f)));
+            nameField.setFont(baseFont.deriveFont(Font.BOLD, Math.min(22f, baseFont.getSize() + 8f)));
         }
-        descField.setBackground(new Color(250,250,235));
-        descField.setToolTipText("Optionale Suite-Beschreibung / Titel. Leer lassen für Standardanzeige.");
+        nameField.setBackground(new Color(250,250,235));
+        nameField.setToolTipText("Name der Testsuite (wird im Baum angezeigt).");
         headerInner.add(headerLabel, BorderLayout.NORTH);
-        headerInner.add(descField, BorderLayout.CENTER);
+        headerInner.add(nameField, BorderLayout.CENTER);
 
         // Rechts: Speichern + Verwerfen
         JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -190,17 +190,16 @@ public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable 
 
     @Override
     public void saveChanges() {
-        // Beschreibung ins Modell übernehmen (leer -> null)
-        String d = descField.getText();
-        suite.setDescription(d != null && d.trim().length() > 0 ? d.trim() : null);
+        // Name ins Modell übernehmen (leer bleibt als leerer String erhalten)
+        String n = nameField.getText();
+        suite.setName(n != null ? n.trim() : "");
         TestRegistry.getInstance().save();
     }
 
     @Override
     public void revertChanges() {
         TestRegistry.getInstance().load();
-        // Modell neu lesen (Suite-Referenz könnte neu sein – hier vereinfachend nur Feld aktualisieren)
-        descField.setText(safe(suite.getDescription()));
+        nameField.setText(safe(suite.getName()));
         revalidate();
         repaint();
     }

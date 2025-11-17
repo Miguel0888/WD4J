@@ -40,15 +40,17 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
         JPanel header = new JPanel(new BorderLayout());
         JPanel headerInner = new JPanel(new BorderLayout());
         headerInner.setBorder(BorderFactory.createEmptyBorder(12,12,6,12));
-        JLabel headerLabel = new JLabel("Beschreibung (optional):");
+        JLabel headerLabel = new JLabel("Name:");
         headerLabel.setBorder(BorderFactory.createEmptyBorder(0,0,4,0));
-        descField = new JTextField(safe(testCase.getName())); // Case hat keine eigene description -> verwende Name als Start
+        descField = new JTextField(safe(testCase.getName()));
+        // Schrift formatieren (fett + größer) und Hintergrund hervorheben
         Font bf = descField.getFont();
         if (bf != null) {
-            descField.setFont(bf.deriveFont(Font.BOLD, Math.min(22f, bf.getSize()+8f)));
+            descField.setFont(bf.deriveFont(Font.BOLD, Math.min(22f, bf.getSize() + 8f)));
         }
         descField.setBackground(new Color(250,250,235));
-        descField.setToolTipText("Optionaler Case-Titel. Leer lassen für Standardanzeige (Case-Name).");
+        // Tooltip ändern
+        descField.setToolTipText("Name des TestCase (wird im Baum angezeigt).");
         headerInner.add(headerLabel, BorderLayout.NORTH);
         headerInner.add(descField, BorderLayout.CENTER);
 
@@ -185,11 +187,8 @@ public class CaseScopeEditorTab extends JPanel implements Saveable, Revertable {
 
     @Override
     public void saveChanges() {
-        // Case besitzt keine description Property → wir nutzen descField als alternativen Anzeigenamen
         String d = descField.getText();
-        if (d != null && d.trim().length() > 0) {
-            testCase.setName(d.trim());
-        }
+        testCase.setName(d != null ? d.trim() : "");
         TestRegistry.getInstance().save();
     }
 
