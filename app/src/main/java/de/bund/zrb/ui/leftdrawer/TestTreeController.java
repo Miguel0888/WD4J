@@ -1495,7 +1495,33 @@ public class TestTreeController {
             Dimension d = new Dimension(prefW, rendComp.getPreferredSize().height);
             panel.setPreferredSize(d);
             field.setPreferredSize(new Dimension(fieldW, d.height));
-            SwingUtilities.invokeLater(() -> { field.requestFocusInWindow(); field.selectAll(); });
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    TreePath path = tree.getPathForRow(row);
+                    if (path == null) return;
+                    Rectangle b = tree.getPathBounds(path);
+                    if (b == null) return;
+                    Rectangle vis = tree.getVisibleRect();
+                    int pad = 4;
+                    // verfügbare Breite von linker Zellkante bis zum rechten sichtbaren Rand
+                    int newW = Math.max(b.width, (vis.x + vis.width) - b.x - pad);
+                    int iconWidthLater = 0; // renamed to avoid shadowing outer iconW
+                    Icon cicon = iconLabel.getIcon();
+                    if (cicon != null) iconWidthLater = cicon.getIconWidth() + 6;
+                    Container p = panel.getParent();
+                    if (p != null) {
+                        // Nur Größe ändern, Position NICHT anfassen, um Verschiebungen zu vermeiden
+                        p.setSize(newW, b.height);
+                        panel.setPreferredSize(new Dimension(newW, b.height));
+                        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, b.height));
+                        field.setPreferredSize(new Dimension(Math.max(60, newW - iconWidthLater - 8), b.height));
+                        p.revalidate();
+                        p.repaint();
+                    }
+                } catch (Throwable ignore) { }
+                field.requestFocusInWindow();
+                field.selectAll();
+            });
             canceled = false;
             return panel;
         }
