@@ -316,9 +316,29 @@ public class TestTreeController {
      * @param onNode betroffener Knoten (optional, derzeit nicht genutzt)
      */
     public void addCommonMenuItems(JPopupMenu menu, TestNode onNode) {
-        JMenuItem renameItem = new JMenuItem("Umbenennen");
-        renameItem.addActionListener(evt -> renameNode());
-        menu.add(renameItem);
+        Object modelRef = onNode != null ? onNode.getModelRef() : null;
+
+        if (modelRef instanceof TestAction) {
+            // In-Place-Umbenennen (Description bearbeiten) als "Umbenennen"
+            JMenuItem inplaceRename = new JMenuItem("Umbenennen");
+            inplaceRename.addActionListener(evt -> {
+                if (onNode == null) return;
+                TreePath path = new TreePath(onNode.getPath());
+                testTree.setSelectionPath(path);
+                testTree.startEditingAtPath(path);
+            });
+            menu.add(inplaceRename);
+
+            // Alte Aktion-Ändern-Logik (ActionPicker) als "Aktion ändern"
+            JMenuItem changeAction = new JMenuItem("Aktion ändern");
+            changeAction.addActionListener(evt -> renameNode());
+            menu.add(changeAction);
+        } else {
+            // Standard-Umbenennen für Suite/Case (Dialog)
+            JMenuItem renameItem = new JMenuItem("Umbenennen");
+            renameItem.addActionListener(evt -> renameNode());
+            menu.add(renameItem);
+        }
 
         JMenuItem deleteItem = new JMenuItem("Löschen");
         deleteItem.addActionListener(evt -> deleteNode());
