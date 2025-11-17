@@ -150,8 +150,9 @@ public class TabManager implements NodeOpenHandler {
 
     private void createOrUpdatePreview(String id, Object ref) {
         tmLog("[TabManager] createOrUpdatePreview id=" + id + " previewExists=" + (previewEntry != null));
-        Component panel = buildEditorPanelFor(ref);
-        if (panel == null) return;
+        Component inner = buildEditorPanelFor(ref);
+        if (inner == null) return;
+        Component panel = wrapIfSaveable(inner);
         String title = derivePreviewTitle(ref);
         if (previewEntry == null || editorTabs.indexOfComponent(previewEntry.component) < 0) {
             previewEntry = new TabEntry();
@@ -175,6 +176,9 @@ public class TabManager implements NodeOpenHandler {
             tmLog("[TabManager] createOrUpdatePreview: new preview tab idx=" + idx);
         } else {
             int idx = editorTabs.indexOfComponent(previewEntry.component);
+            // Auto-Save des bisherigen Preview-Inhalts
+            autoSaveIfSupported(previewEntry.component);
+
             previewEntry.component = panel;
             previewEntry.modelRef = ref;
             previewEntry.id = id;
@@ -196,6 +200,26 @@ public class TabManager implements NodeOpenHandler {
             }
             editorTabs.setSelectedIndex(idx);
             tmLog("[TabManager] createOrUpdatePreview: replaced preview tab idx=" + idx);
+        }
+    }
+
+    private Component wrapIfSaveable(Component c) {
+        if (c instanceof JComponent && c instanceof Saveable && c instanceof Revertable) {
+            return new SaveRevertContainer((JComponent) c);
+        }
+        return c;
+    }
+
+    private void autoSaveIfSupported(Component c) {
+        try {
+            if (c instanceof SaveRevertContainer) {
+                SaveRevertContainer cont = (SaveRevertContainer) c;
+                cont.getSaveable().saveChanges();
+            } else if (c instanceof Saveable) {
+                ((Saveable) c).saveChanges();
+            }
+        } catch (Throwable t) {
+            tmLog("[TabManager] autoSaveIfSupported failed: " + t.getMessage());
         }
     }
 
@@ -222,8 +246,9 @@ public class TabManager implements NodeOpenHandler {
 
     private void createPersistentTab(String id, Object ref) {
         tmLog("[TabManager] createPersistentTab id=" + id);
-        Component panel = buildEditorPanelFor(ref);
-        if (panel == null) return;
+        Component inner = buildEditorPanelFor(ref);
+        if (inner == null) return;
+        Component panel = wrapIfSaveable(inner);
         TabEntry e = new TabEntry();
         e.component = panel;
         e.modelRef = ref;

@@ -9,6 +9,8 @@ import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
 import de.bund.zrb.ui.components.RoundIconButton;
 import de.bund.zrb.ui.tabs.GivenListEditorTab;
 import de.bund.zrb.ui.tabs.PreconditionListValidator;
+import de.bund.zrb.ui.tabs.Saveable;
+import de.bund.zrb.ui.tabs.Revertable;
 
 import javax.swing.*;
 import java.awt.*;
@@ -39,10 +41,13 @@ import java.util.List;
  *        Funktionszeiger (lazy ausgewertet in WHEN).
  *        -> tauchen im Dropdown mit führendem * auf
  */
-public class RootScopeEditorTab extends JPanel {
+public class RootScopeEditorTab extends JPanel implements Saveable, Revertable {
 
     private final RootNode root;
     private final JTabbedPaneWithHelp innerTabs = new JTabbedPaneWithHelp();
+
+    // Snapshot für Revert (deep-copy der Maps/Listen wäre ideal; hier lösen wir es pragmatisch via Reload)
+    private RootNode snapshot;
 
     public RootScopeEditorTab(RootNode root) {
         super(new BorderLayout());
@@ -55,16 +60,11 @@ public class RootScopeEditorTab extends JPanel {
         JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton saveBtn = new JButton("💾 Speichern");
         saveBtn.setToolTipText("Tests speichern");
-        saveBtn.addActionListener(e -> {
-            TestRegistry.getInstance().save();
-            //DEBUG:
-//            JOptionPane.showMessageDialog(
-//                    RootScopeEditorTab.this,
-//                    "Gespeichert.",
-//                    "Info",
-//                    JOptionPane.INFORMATION_MESSAGE
-//            );
-        });
+        saveBtn.addActionListener(e -> { saveChanges(); });
+        JButton revertBtnHeader = new JButton("Änderungen verwerfen");
+        revertBtnHeader.setToolTipText("Ungespeicherte Änderungen verwerfen");
+        revertBtnHeader.addActionListener(e -> { revertChanges(); });
+        savePanel.add(revertBtnHeader);
         savePanel.add(saveBtn);
 
         header.add(title, BorderLayout.CENTER);
@@ -134,6 +134,10 @@ public class RootScopeEditorTab extends JPanel {
             disableTabsFromIndex(1);
             innerTabs.setSelectedIndex(0);
         }
+
+        // Entfernt: eigener SOUTH-Block. Buttons werden durch SaveRevertContainer bereitgestellt.
+        // Snapshot initialisieren (durch flaches Kopieren der relevanten Strukturen via neues Root aus Registry)
+        snapshot = TestRegistry.getInstance().getRoot();
     }
 
     private void disableTabsFromIndex(int startIndex) {
@@ -196,6 +200,20 @@ public class RootScopeEditorTab extends JPanel {
         pane.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
         pane.setCaretPosition(0);
         return pane;
+    }
+
+    @Override
+    public void saveChanges() {
+        TestRegistry.getInstance().save();
+        snapshot = TestRegistry.getInstance().getRoot();
+    }
+
+    @Override
+    public void revertChanges() {
+        // pragmatisch: neu laden (setzt Root-Struktur zurück)
+        TestRegistry.getInstance().load();
+        revalidate();
+        repaint();
     }
 
 }

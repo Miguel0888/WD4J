@@ -9,6 +9,8 @@ import de.bund.zrb.ui.components.JTabbedPaneWithHelp;
 import de.bund.zrb.ui.components.RoundIconButton;
 import de.bund.zrb.ui.tabs.GivenListEditorTab;
 import de.bund.zrb.ui.tabs.PreconditionListValidator;
+import de.bund.zrb.ui.tabs.Saveable;
+import de.bund.zrb.ui.tabs.Revertable;
 
 import javax.swing.*;
 import java.awt.*;
@@ -26,7 +28,7 @@ import java.util.List;
  * Oben rechts: Speichern-Button, der aktuell einfach TestRegistry.save() aufruft.
  * Die Tabellen haben + und – zum Hinzufügen/Entfernen.
  */
-public class SuiteScopeEditorTab extends JPanel {
+public class SuiteScopeEditorTab extends JPanel implements Saveable, Revertable {
 
     private final TestSuite suite;
     private final JTabbedPaneWithHelp innerTabs = new JTabbedPaneWithHelp();
@@ -56,15 +58,12 @@ public class SuiteScopeEditorTab extends JPanel {
         JButton saveBtn = new JButton("💾 Speichern");
         saveBtn.setToolTipText("Änderungen dieser Suite in tests.json schreiben");
         saveBtn.addActionListener(e -> {
-            TestRegistry.getInstance().save();
-            //DEBUG:
-//            JOptionPane.showMessageDialog(
-//                    SuiteScopeEditorTab.this,
-//                    "Gespeichert.",
-//                    "Info",
-//                    JOptionPane.INFORMATION_MESSAGE
-//            );
+            saveChanges();
         });
+        JButton revertBtnHeader = new JButton("Änderungen verwerfen");
+        revertBtnHeader.setToolTipText("Ungespeicherte Änderungen verwerfen");
+        revertBtnHeader.addActionListener(e -> revertChanges());
+        savePanel.add(revertBtnHeader);
         savePanel.add(saveBtn);
         savePanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
@@ -117,6 +116,8 @@ public class SuiteScopeEditorTab extends JPanel {
             disableTabsFromIndex(1);
             innerTabs.setSelectedIndex(0);
         }
+
+        // Entfernt: eigener SOUTH-Block. Buttons werden durch SaveRevertContainer bereitgestellt.
     }
 
     private static String safe(String s) {
@@ -185,5 +186,17 @@ public class SuiteScopeEditorTab extends JPanel {
         pane.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
         pane.setCaretPosition(0);
         return pane;
+    }
+
+    @Override
+    public void saveChanges() {
+        TestRegistry.getInstance().save();
+    }
+
+    @Override
+    public void revertChanges() {
+        TestRegistry.getInstance().load();
+        revalidate();
+        repaint();
     }
 }

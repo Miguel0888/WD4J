@@ -24,7 +24,7 @@ import java.util.TreeSet;
  *      - Variable  -> schreibe {{name}}
  *      - *Template -> schreibe den Template-Body (Value) 1:1, KEIN erzwungenes {{fn()}}
  */
-public class ActionEditorTab extends AbstractEditorTab<TestAction> {
+public class ActionEditorTab extends AbstractEditorTab<TestAction> implements Saveable, Revertable {
 
     private final TestAction action;
 
@@ -37,6 +37,16 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
     private JTextField timeoutField;
     private JTextField descField; // Header-Feld (neu gestaltete Beschreibung)
     private JSpinner spMinDuration; // NEU
+
+    // Snapshot für Revert
+    private String snapAction;
+    private String snapValue;
+    private String snapLocatorTypeKey;
+    private String snapSelectedSelector;
+    private String snapUser;
+    private Integer snapTimeout;
+    private String snapDescription;
+    private Integer snapMinDuration;
 
     public ActionEditorTab(final TestAction action) {
         super("Action Editor", action);
@@ -210,65 +220,20 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
             }
         });
 
-        // Speichern
-        JButton saveButton = new JButton("Speichern");
-        saveButton.addActionListener(new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                // Action
-                action.setAction(stringValue(actionBox.getSelectedItem()));
+        // Snapshot initialisieren
+        snapshotFromModel();
 
-                // Value
-                action.setValue(valueField.getText());
-
-                // LocatorType
-                String typeKey = stringValue(locatorBox.getSelectedItem());
-                LocatorType enumType = LocatorType.fromKey(typeKey);
-                action.setLocatorType(enumType);
-
-                // Selector
-                String selector = stringValue(selectorBox.getSelectedItem());
-                if (!isSelectorValidForType(typeKey, selector)) {
-                    JOptionPane.showMessageDialog(
-                            ActionEditorTab.this,
-                            "Selector passt nicht zum Locator Type (" + typeKey + ").",
-                            "Validierung",
-                            JOptionPane.WARNING_MESSAGE
-                    );
-                    return;
-                }
-                action.setSelectedSelector(selector);
-
-                // User
-                String selUser = stringValue(userBox.getSelectedItem());
-                if (selUser == null || selUser.trim().length() == 0) {
-                    action.setUser(null);
-                } else {
-                    action.setUser(selUser.trim());
-                }
-
-                // Timeout
-                try {
-                    action.setTimeout(Integer.parseInt(timeoutField.getText().trim()));
-                } catch (NumberFormatException ignored) { /* keep old */ }
-
-                // Description aus Header
-                String d = descField.getText();
-                action.setDescription(d != null && d.trim().length() > 0 ? d.trim() : null);
-
-                // Min Duration
-                try {
-                    int val = ((Number) spMinDuration.getValue()).intValue();
-                    action.setMinDurationMs(val > 0 ? val : null);
-                } catch (Exception ignore) { action.setMinDurationMs(null); }
-
-                // Persist
-                TestRegistry.getInstance().save();
-            }
-        });
-
-        JPanel southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        southPanel.add(saveButton);
-        add(southPanel, BorderLayout.SOUTH);
+        // Speichern/Verwerfen (unten rechts) — entfernt, übernimmt SaveRevertContainer
+        // JButton saveButton = new JButton("Speichern");
+        // saveButton.addActionListener(new AbstractAction() {
+        //     public void actionPerformed(ActionEvent e) { saveChanges(); }
+        // });
+        // JButton revertButton = new JButton("Änderungen verwerfen");
+        // revertButton.addActionListener(e -> revertChanges());
+        // JPanel southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        // southPanel.add(revertButton);
+        // southPanel.add(saveButton);
+        // add(southPanel, BorderLayout.SOUTH);
 
         // Live-Update der Beschreibung bei In-Place-Edit aus dem Baum
         ApplicationEventBus.getInstance().subscribe(TestActionUpdatedEvent.class, ev -> {
@@ -280,6 +245,100 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                 });
             }
         });
+    }
+
+    @Override
+    public void saveChanges() {
+        // Action
+        action.setAction(stringValue(actionBox.getSelectedItem()));
+
+        // Value
+        action.setValue(valueField.getText());
+
+        // LocatorType
+        String typeKey = stringValue(locatorBox.getSelectedItem());
+        LocatorType enumType = LocatorType.fromKey(typeKey);
+        action.setLocatorType(enumType);
+
+        // Selector
+        String selector = stringValue(selectorBox.getSelectedItem());
+        if (!isSelectorValidForType(typeKey, selector)) {
+            JOptionPane.showMessageDialog(
+                    ActionEditorTab.this,
+                    "Selector passt nicht zum Locator Type (" + typeKey + ").",
+                    "Validierung",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+        action.setSelectedSelector(selector);
+
+        // User
+        String selUser = stringValue(userBox.getSelectedItem());
+        if (selUser == null || selUser.trim().length() == 0) {
+            action.setUser(null);
+        } else {
+            action.setUser(selUser.trim());
+        }
+
+        // Timeout
+        try {
+            action.setTimeout(Integer.parseInt(timeoutField.getText().trim()));
+        } catch (NumberFormatException ignored) { /* keep old */ }
+
+        // Description aus Header
+        String d = descField.getText();
+        action.setDescription(d != null && d.trim().length() > 0 ? d.trim() : null);
+
+        // Min Duration
+        try {
+            int val = ((Number) spMinDuration.getValue()).intValue();
+            action.setMinDurationMs(val > 0 ? val : null);
+        } catch (Exception ignore) { action.setMinDurationMs(null); }
+
+        // Persist
+        TestRegistry.getInstance().save();
+        // Snapshot aktualisieren
+        snapshotFromModel();
+    }
+
+    @Override
+    public void revertChanges() {
+        // Auf Snapshot zurücksetzen
+        action.setAction(snapAction);
+        action.setValue(snapValue);
+        action.setLocatorType(LocatorType.fromKey(snapLocatorTypeKey));
+        action.setSelectedSelector(snapSelectedSelector);
+        action.setUser((snapUser == null || snapUser.trim().isEmpty()) ? null : snapUser.trim());
+        action.setTimeout(snapTimeout != null ? snapTimeout : action.getTimeout());
+        action.setDescription(snapDescription != null && snapDescription.trim().length() > 0 ? snapDescription.trim() : null);
+        action.setMinDurationMs(snapMinDuration);
+
+        // UI aktualisieren
+        SwingUtilities.invokeLater(() -> {
+            actionBox.setSelectedItem(action.getAction());
+            valueField.setText(action.getValue() != null ? action.getValue() : "");
+            String typeKey = resolveInitialTypeKey(action);
+            locatorBox.setSelectedItem(typeKey);
+            populateSelectorBoxForType(action, selectorBox, typeKey);
+            selectorBox.setSelectedItem(action.getSelectedSelector());
+            String ur = action.getUserRaw();
+            if (ur == null || ur.trim().isEmpty()) userBox.setSelectedIndex(0); else userBox.setSelectedItem(ur);
+            timeoutField.setText(String.valueOf(action.getTimeout()));
+            descField.setText(action.getDescription() != null ? action.getDescription() : "");
+            spMinDuration.setValue(action.getMinDurationMs() != null ? action.getMinDurationMs() : 0);
+        });
+    }
+
+    private void snapshotFromModel() {
+        snapAction = action.getAction();
+        snapValue = action.getValue();
+        snapLocatorTypeKey = resolveInitialTypeKey(action);
+        snapSelectedSelector = action.getSelectedSelector();
+        snapUser = action.getUserRaw();
+        snapTimeout = action.getTimeout();
+        snapDescription = action.getDescription();
+        snapMinDuration = action.getMinDurationMs();
     }
 
     /**
