@@ -100,13 +100,37 @@ public final class ApplicationStatusBar extends JPanel {
         };
         glass.addMouseListener(closer);
 
+        // Settings laden
+        int maxEntries = getIntSetting("overlay.maxEntries", 500);
+        int overlayHeight = getIntSetting("overlay.height", 240);
+        boolean shadow = getBoolSetting("overlay.shadow", true);
+        boolean fade = getBoolSetting("overlay.fade", false);
+        String theme = getStringSetting("overlay.theme", "Hell");
+        trimHistory(maxEntries);
+
         // Overlay Panel bauen (unten über der Statusbar, volle Breite, feste Höhe)
-        JPanel panel = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel(new BorderLayout()) {
+            float alpha = fade ? 0f : 1f;
+            @Override protected void paintComponent(Graphics g) {
+                if (fade && alpha < 1f) {
+                    alpha = Math.min(1f, alpha + 0.1f);
+                    repaint();
+                }
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setComposite(AlphaComposite.SrcOver.derive(alpha));
+                super.paintComponent(g2);
+                g2.dispose();
+            }
+        };
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(1,0,0,0,new Color(0,0,0,60)),
                 BorderFactory.createEmptyBorder(8,12,8,12)
         ));
-        panel.setBackground(new Color(250,250,250,240));
+        panel.setBackground(resolveThemeColor(theme));
+        if (shadow) panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1,0,0,0,new Color(0,0,0,80)),
+                BorderFactory.createEmptyBorder(8,12,8,12))
+        );
 
         // Toolbar mit Titel + Löschen
         JPanel top = new JPanel(new BorderLayout());
@@ -114,10 +138,7 @@ public final class ApplicationStatusBar extends JPanel {
         JLabel title = new JLabel("Status-Verlauf");
         title.setFont(title.getFont().deriveFont(Font.BOLD));
         JButton clear = new JButton("Verlauf löschen");
-        clear.addActionListener(e -> {
-            synchronized (history) { history.clear(); }
-            rebuildHistory(panel);
-        });
+        clear.addActionListener(e -> { synchronized (history) { history.clear(); } rebuildHistory(panel); });
         top.add(title, BorderLayout.WEST);
         top.add(clear, BorderLayout.EAST);
         panel.add(top, BorderLayout.NORTH);
@@ -133,19 +154,25 @@ public final class ApplicationStatusBar extends JPanel {
         int glassW = glass.getWidth();
         int glassH = glass.getHeight();
         int statusBarH = this.getHeight();
-        int prefH = Math.min(300, Math.max(160, glassH/3));
+        int prefH = Math.min(overlayHeight, Math.max(120, overlayHeight));
         int y = Math.max(0, glassH - statusBarH - prefH);
         panel.setBounds(0, y, glassW, prefH);
 
         glass.add(panel);
-        glass.revalidate();
-        glass.repaint();
-        overlay = panel;
+        glass.revalidate(); glass.repaint(); overlay = panel;
 
-        // Konsumiere Klicks IM Panel, damit es nicht sofort schließt
         MouseAdapter eater = new MouseAdapter() { @Override public void mousePressed(MouseEvent e) { e.consume(); } };
-        panel.addMouseListener(eater);
-        scroll.addMouseListener(eater);
+        panel.addMouseListener(eater); scroll.addMouseListener(eater);
+    }
+
+    private void trimHistory(int max) { synchronized(history){ while(history.size()>max) history.remove(0);} }
+    private int getIntSetting(String k, int def){ Integer v=SettingsService.getInstance().get(k,Integer.class); return v!=null?v:def; }
+    private boolean getBoolSetting(String k, boolean def){ Boolean v=SettingsService.getInstance().get(k,Boolean.class); return v!=null?v:def; }
+    private String getStringSetting(String k, String def){ String v=SettingsService.getInstance().get(k,String.class); return v!=null?v:def; }
+    private Color resolveThemeColor(String theme){
+        if ("Dunkel".equalsIgnoreCase(theme)) return new Color(30,30,30,220);
+        if ("Semi-Transparent".equalsIgnoreCase(theme)) return new Color(240,240,240,200);
+        return new Color(250,250,250,240);
     }
 
     private void hideOverlay() {

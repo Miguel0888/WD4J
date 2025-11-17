@@ -56,6 +56,7 @@ public class SettingsCommand extends ShortcutMenuCommand {
         panels.add(new NetworkSettingsPanel());
         panels.add(new ReportSettingsPanel());
         panels.add(new DebugSettingsPanel());
+        panels.add(new OverlaySettingsPanel()); // NEU: Overlay-Einstellungen
 
         // Navigation links
         DefaultListModel<String> model = new DefaultListModel<>();
