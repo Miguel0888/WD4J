@@ -1,10 +1,18 @@
 package de.bund.zrb.ui.widgets;
 
+import de.bund.zrb.event.ApplicationEventBus;
+import de.bund.zrb.event.SavedEntityEvent;
 import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.service.UserRegistry;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -17,12 +25,22 @@ public final class ApplicationStatusBar extends JPanel {
     private final StatusBar statusBar;
     private final JSlider speedSlider;
     private final UserSelectionCombo userCombo;
+    private final JButton historyToggle = new JButton("^");
+    private final List<String> history = new ArrayList<>();
+    private JComponent overlay;
 
     public ApplicationStatusBar(UserRegistry userRegistry) {
         super(new BorderLayout());
         // Build right controls panel
         JPanel rightControls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 2));
         rightControls.setOpaque(false);
+
+        // Toggle '^' links neben Slider (rechtsbündig)
+        historyToggle.setFocusable(false);
+        historyToggle.setMargin(new Insets(0,8,0,8));
+        historyToggle.setToolTipText("Verlauf anzeigen");
+        historyToggle.addActionListener(e -> toggleOverlay());
+        rightControls.add(historyToggle);
 
         // --- Speed (Delay) slider in ms ---
         Integer configuredMinInt = SettingsService.getInstance().get("action.minDurationMillis", Integer.class);
@@ -47,6 +65,123 @@ public final class ApplicationStatusBar extends JPanel {
         // Base status bar with right controls
         statusBar = new StatusBar(rightControls);
         add(statusBar, BorderLayout.CENTER);
+
+        // Sammle SavedEntityEvents in Historie
+        ApplicationEventBus.getInstance().subscribe(SavedEntityEvent.class, ev -> {
+            SavedEntityEvent.Payload p = ev.getPayload();
+            String time = p.timestamp == null ? "" : DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
+                    .format(p.timestamp.atZone(ZoneId.systemDefault()));
+            String line = (time.isEmpty()?"":time+" - ") + p.entityType + ": " + (p.name!=null?p.name:"(unnamed)");
+            synchronized (history) { history.add(line); }
+            // Optional: Größe begrenzen
+            if (history.size() > 500) { history.remove(0); }
+        });
+    }
+
+    private void toggleOverlay() {
+        if (overlay != null && overlay.isVisible()) {
+            hideOverlay();
+        } else {
+            showOverlay();
+        }
+    }
+
+    private void showOverlay() {
+        // Host-Frame ermitteln
+        Window w = SwingUtilities.getWindowAncestor(this);
+        if (!(w instanceof JFrame)) return;
+        JFrame frame = (JFrame) w;
+        JComponent glass = (JComponent) frame.getGlassPane();
+        glass.setVisible(true);
+        glass.setLayout(null);
+        // Außenklick schließt
+        MouseAdapter closer = new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent e) { hideOverlay(); }
+        };
+        glass.addMouseListener(closer);
+
+        // Overlay Panel bauen (oben, volle Breite, feste Höhe)
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0,0,1,0,new Color(0,0,0,60)),
+                BorderFactory.createEmptyBorder(8,12,8,12)
+        ));
+        panel.setBackground(new Color(250,250,250,240));
+
+        // Toolbar mit Titel + Löschen
+        JPanel top = new JPanel(new BorderLayout());
+        top.setOpaque(false);
+        JLabel title = new JLabel("Status-Verlauf");
+        title.setFont(title.getFont().deriveFont(Font.BOLD));
+        JButton clear = new JButton("Verlauf löschen");
+        clear.addActionListener(e -> {
+            synchronized (history) { history.clear(); }
+            rebuildHistory(panel);
+        });
+        top.add(title, BorderLayout.WEST);
+        top.add(clear, BorderLayout.EAST);
+        panel.add(top, BorderLayout.NORTH);
+
+        // History Liste
+        JScrollPane scroll = new JScrollPane(buildHistoryList(),
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scroll.getVerticalScrollBar().setUnitIncrement(14);
+        panel.add(scroll, BorderLayout.CENTER);
+
+        // Größe und Position (oben überdecken, Layout nicht verschieben)
+        int width = frame.getWidth();
+        int height = Math.min(300, Math.max(160, frame.getHeight()/3));
+        panel.setBounds(0, 0, width, height);
+
+        glass.add(panel);
+        glass.revalidate();
+        glass.repaint();
+        overlay = panel;
+
+        // Konsumiere Klicks IM Panel, damit es nicht sofort schließt
+        panel.addMouseListener(new MouseAdapter() { @Override public void mousePressed(MouseEvent e) { e.consume(); } });
+        scroll.addMouseListener(new MouseAdapter() { @Override public void mousePressed(MouseEvent e) { e.consume(); } });
+    }
+
+    private void hideOverlay() {
+        if (overlay == null) return;
+        Window w = SwingUtilities.getWindowAncestor(this);
+        if (!(w instanceof JFrame)) return;
+        JFrame frame = (JFrame) w;
+        JComponent glass = (JComponent) frame.getGlassPane();
+        glass.setVisible(false);
+        glass.removeAll();
+        glass.revalidate();
+        glass.repaint();
+        overlay = null;
+    }
+
+    private void rebuildHistory(JPanel container) {
+        // Ersetze Center mit neuer Liste
+        for (Component c : container.getComponents()) {
+            if (BorderLayout.CENTER.equals(((BorderLayout)container.getLayout()).getConstraints(c))) {
+                container.remove(c);
+                break;
+            }
+        }
+        JScrollPane scroll = new JScrollPane(buildHistoryList(),
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        container.add(scroll, BorderLayout.CENTER);
+        container.revalidate();
+        container.repaint();
+    }
+
+    private JList<String> buildHistoryList() {
+        DefaultListModel<String> model = new DefaultListModel<>();
+        synchronized (history) {
+            for (int i = 0; i < history.size(); i++) model.addElement(history.get(i));
+        }
+        JList<String> list = new JList<>(model);
+        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        list.setFont(list.getFont().deriveFont(12f));
+        return list;
     }
 
     public StatusBar getStatusBar() { return statusBar; }
