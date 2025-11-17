@@ -13,6 +13,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 /** Öffnet ein Preview-Fenster in Videoauflösung, in dem Overlay-Platzhalter frei positioniert und gestaltet werden können. */
 public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
@@ -77,6 +78,7 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
         private final List<Placeholder> placeholders = new ArrayList<>();
         private final Timer visualizerTimer;
         private float phase;
+        private final Random rnd = new Random();
 
         OverlayPreviewPanel(VideoOverlayService service, Dimension videoSize) {
             this.service = service;
@@ -110,27 +112,63 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             int w = getWidth();
             int h = getHeight();
 
-            // Hintergrundverlauf
-            g2.setPaint(new GradientPaint(0, 0, new Color(40, 40, 40), 0, h, new Color(15, 15, 15)));
+            // Weicher Hintergrundverlauf als Basis
+            g2.setPaint(new GradientPaint(0, 0,
+                    new Color(20, 20, 30),
+                    w, h,
+                    new Color(10, 10, 60)));
             g2.fillRect(0, 0, w, h);
 
-            // Minimalistischer Visualizer: mehrere Sinuskurven mit Phasenverschiebung
+            // Künstlerischer Visualizer:
+            // 1) Halbtransparente farbige Bänder (Polylines) über die Breite
             g2.setStroke(new BasicStroke(2f));
-            for (int i = 0; i < 4; i++) {
-                float hue = (phase / 10f + i * 0.15f) % 1f;
-                g2.setColor(Color.getHSBColor(hue, 0.6f, 0.9f));
-                int midY = h / 2 + (i - 2) * (h / 10);
+            int bands = 6;
+            for (int i = 0; i < bands; i++) {
+                float hue = (phase / 10f + i * 0.12f) % 1f;
+                Color base = Color.getHSBColor(hue, 0.7f, 0.95f);
+                Color bandColor = new Color(base.getRed(), base.getGreen(), base.getBlue(), 120);
+                g2.setColor(bandColor);
+
                 int prevX = 0;
-                int prevY = midY;
-                for (int x = 1; x < w; x++) {
+                int prevY = (int) (h * (0.2 + 0.6 * (i / (double) bands))) + (int) (Math.sin(phase + i) * h * 0.05);
+                for (int x = 1; x < w; x += 4) {
                     double t = (double) x / (double) w;
-                    double yOff = Math.sin(t * Math.PI * 4 + phase + i) * (h / 8.0);
-                    int y = midY + (int) yOff;
+                    double noise = Math.sin(t * Math.PI * 6 + phase * 1.3 + i * 0.7)
+                                   + 0.5 * Math.sin(t * Math.PI * 11 - phase * 0.9 + i);
+                    int y = (int) (prevY + noise * (h * 0.03));
                     g2.drawLine(prevX, prevY, x, y);
                     prevX = x;
                     prevY = y;
                 }
             }
+
+            // 2) Sanft pulsierende, bunte Kreise im Hintergrund (wie eine abstrakte Lichtshow)
+            int circles = 18;
+            for (int i = 0; i < circles; i++) {
+                double t = (phase * 0.25 + i * 0.37);
+                float hue = (float) ((t * 0.21) % 1.0);
+                Color c = Color.getHSBColor(hue, 0.8f, 1.0f);
+                int radius = (int) (Math.abs(Math.sin(t * 1.7)) * Math.min(w, h) * 0.2) + 40;
+
+                // Position leicht zufällig, aber durch phase verschoben
+                int cx = (int) ((0.2 + 0.6 * Math.abs(Math.sin(t * 0.9))) * w);
+                int cy = (int) ((0.2 + 0.6 * Math.abs(Math.cos(t * 1.1))) * h);
+
+                // Sehr transparente Füllung, damit sich die Kreise überlagern
+                Color fill = new Color(c.getRed(), c.getGreen(), c.getBlue(), 40);
+                g2.setPaint(new RadialGradientPaint(
+                        new Point(cx, cy), radius,
+                        new float[]{0f, 1f},
+                        new Color[]{fill, new Color(0,0,0,0)}));
+                g2.fillOval(cx - radius, cy - radius, radius * 2, radius * 2);
+            }
+
+            // 3) Dezentes Scanline-Overlay für einen leicht „digitalen“ Look
+            g2.setColor(new Color(255, 255, 255, 10));
+            for (int y = 0; y < h; y += 4) {
+                g2.drawLine(0, y, w, y);
+            }
+
             g2.dispose();
         }
 
