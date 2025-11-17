@@ -4,6 +4,7 @@ import de.bund.zrb.event.ApplicationEventBus;
 import de.bund.zrb.event.SavedEntityEvent;
 import de.bund.zrb.service.SettingsService;
 import de.bund.zrb.service.UserRegistry;
+import de.bund.zrb.ui.components.RoundIconButton;
 
 import javax.swing.*;
 import java.awt.*;
@@ -25,7 +26,7 @@ public final class ApplicationStatusBar extends JPanel {
     private final StatusBar statusBar;
     private final JSlider speedSlider;
     private final UserSelectionCombo userCombo;
-    private final JButton historyToggle = new JButton("^");
+    private final JButton historyToggle = new RoundIconButton("˄");
     private final List<String> history = new ArrayList<>();
     private JComponent overlay;
 
@@ -37,7 +38,6 @@ public final class ApplicationStatusBar extends JPanel {
 
         // Toggle '^' links neben Slider (rechtsbündig)
         historyToggle.setFocusable(false);
-        historyToggle.setMargin(new Insets(0,8,0,8));
         historyToggle.setToolTipText("Verlauf anzeigen");
         historyToggle.addActionListener(e -> toggleOverlay());
         rightControls.add(historyToggle);
@@ -100,10 +100,10 @@ public final class ApplicationStatusBar extends JPanel {
         };
         glass.addMouseListener(closer);
 
-        // Overlay Panel bauen (oben, volle Breite, feste Höhe)
+        // Overlay Panel bauen (unten über der Statusbar, volle Breite, feste Höhe)
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0,0,1,0,new Color(0,0,0,60)),
+                BorderFactory.createMatteBorder(1,0,0,0,new Color(0,0,0,60)),
                 BorderFactory.createEmptyBorder(8,12,8,12)
         ));
         panel.setBackground(new Color(250,250,250,240));
@@ -129,10 +129,13 @@ public final class ApplicationStatusBar extends JPanel {
         scroll.getVerticalScrollBar().setUnitIncrement(14);
         panel.add(scroll, BorderLayout.CENTER);
 
-        // Größe und Position (oben überdecken, Layout nicht verschieben)
-        int width = frame.getWidth();
-        int height = Math.min(300, Math.max(160, frame.getHeight()/3));
-        panel.setBounds(0, 0, width, height);
+        // Größe und Position (unten, direkt über der Statusbar)
+        int glassW = glass.getWidth();
+        int glassH = glass.getHeight();
+        int statusBarH = this.getHeight();
+        int prefH = Math.min(300, Math.max(160, glassH/3));
+        int y = Math.max(0, glassH - statusBarH - prefH);
+        panel.setBounds(0, y, glassW, prefH);
 
         glass.add(panel);
         glass.revalidate();
@@ -140,8 +143,9 @@ public final class ApplicationStatusBar extends JPanel {
         overlay = panel;
 
         // Konsumiere Klicks IM Panel, damit es nicht sofort schließt
-        panel.addMouseListener(new MouseAdapter() { @Override public void mousePressed(MouseEvent e) { e.consume(); } });
-        scroll.addMouseListener(new MouseAdapter() { @Override public void mousePressed(MouseEvent e) { e.consume(); } });
+        MouseAdapter eater = new MouseAdapter() { @Override public void mousePressed(MouseEvent e) { e.consume(); } };
+        panel.addMouseListener(eater);
+        scroll.addMouseListener(eater);
     }
 
     private void hideOverlay() {
