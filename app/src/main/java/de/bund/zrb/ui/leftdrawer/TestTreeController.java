@@ -142,6 +142,10 @@ public class TestTreeController {
     }
 
     public static String renderActionLabel(TestAction action) {
+        // NEU: Wenn description gesetzt, verwende sie als alleinigen Labeltext
+        if (action.getDescription() != null && action.getDescription().trim().length() > 0) {
+            return action.getDescription().trim();
+        }
         String label = action.getAction();
         if (action.getValue() != null && !action.getValue().isEmpty()) {
             label += " [" + action.getValue() + "]";
@@ -176,6 +180,43 @@ public class TestTreeController {
             }
             @Override public void mousePressed(java.awt.event.MouseEvent e) { handlePopup(e); }
             @Override public void mouseReleased(java.awt.event.MouseEvent e) { handlePopup(e); }
+            @Override public void mouseClicked(java.awt.event.MouseEvent e) {
+                // In-Place-Rename bei Doppelklick auf TestAction Node
+                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
+                    TreePath path = testTree.getPathForLocation(e.getX(), e.getY());
+                    if (path == null) return;
+                    Object comp = path.getLastPathComponent();
+                    if (!(comp instanceof TestNode)) return;
+                    TestNode node = (TestNode) comp;
+                    Object ref = node.getModelRef();
+                    if (ref instanceof TestAction) {
+                        TestAction action = (TestAction) ref;
+                        String current = renderActionLabel(action);
+                        String input = JOptionPane.showInputDialog(testTree,
+                                "Neue Beschreibung für Schritt (leer für Standard):",
+                                current);
+                        if (input == null) return; // abgebrochen
+                        String trimmed = input.trim();
+                        // Wenn leer -> Beschreibung entfernen (zurück zu Standard)
+                        if (trimmed.isEmpty()) {
+                            if (action.getDescription() != null) {
+                                action.setDescription(null);
+                                TestRegistry.getInstance().save();
+                                refreshTestTree();
+                                selectNodeByModelRef(action);
+                            }
+                            return;
+                        }
+                        // Nur speichern, wenn geändert
+                        if (!trimmed.equals(current)) {
+                            action.setDescription(trimmed);
+                            TestRegistry.getInstance().save();
+                            refreshTestTree();
+                            selectNodeByModelRef(action);
+                        }
+                    }
+                }
+            }
         });
     }
 
@@ -837,7 +878,7 @@ public class TestTreeController {
         }
 
         // (GivenCondition / ThenExpectation würdest du später analog behandeln.
-        //  Aktuell sind die nicht mehr einzeln als Tree-Knoten sichtbar,
+        //  Aktuell sind die nicht mehr einzeln als Tree-knoten sichtbar,
         //  also lassen wir sie raus.)
 
         if (changed) {

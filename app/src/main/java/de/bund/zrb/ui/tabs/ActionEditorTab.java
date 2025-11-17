@@ -33,7 +33,7 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
     private JComboBox<String> selectorBox;
     private JComboBox<String> userBox;
     private JTextField timeoutField;
-    private JTextField descField; // NEU
+    private JTextField descField; // Header-Feld (neu gestaltete Beschreibung)
     private JSpinner spMinDuration; // NEU
 
     public ActionEditorTab(final TestAction action) {
@@ -42,9 +42,36 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
 
         setLayout(new BorderLayout());
 
+        // ----------------------------- Description Header -----------------------------
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(12, 12, 6, 12));
+
+        descField = new JTextField(action.getDescription() != null ? action.getDescription() : "");
+        // Stil: größere, fette Schrift als "Überschrift" / optionaler Titel
+        Font base = descField.getFont();
+        if (base != null) {
+            descField.setFont(base.deriveFont(Font.BOLD, Math.min(22f, base.getSize() + 8f))); // etwas größer
+        }
+        descField.setForeground(new Color(30, 30, 30));
+        descField.setToolTipText("Optionale Beschreibung/Titel für diesen Schritt. Leer lassen für Standardbezeichnung.");
+        // Leichte Hintergrund-Hervorhebung
+        descField.setBackground(new Color(250, 250, 235));
+
+        // Placeholder-Hinweis, falls leer (einfach via Prompt-Label darüber)
+        JLabel headerLabel = new JLabel("Beschreibung (optional):");
+        headerLabel.setFont(headerLabel.getFont().deriveFont(Font.PLAIN, headerLabel.getFont().getSize2D()));
+        headerLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 4, 0));
+
+        JPanel headerInner = new JPanel(new BorderLayout());
+        headerInner.add(headerLabel, BorderLayout.NORTH);
+        headerInner.add(descField, BorderLayout.CENTER);
+        headerPanel.add(headerInner, BorderLayout.CENTER);
+        add(headerPanel, BorderLayout.NORTH);
+
+        // ----------------------------- Formular (Rest) -----------------------------
         JPanel formPanel = new JPanel(new GridLayout(0, 2, 8, 8));
-        formPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        add(formPanel, BorderLayout.NORTH);
+        formPanel.setBorder(BorderFactory.createEmptyBorder(10, 12, 12, 12));
+        add(formPanel, BorderLayout.CENTER);
 
         // Actions
         Set<String> knownActions = new TreeSet<String>(Arrays.asList(
@@ -77,11 +104,6 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
         valuePanel.add(scopeCombo, BorderLayout.EAST);
 
         formPanel.add(valuePanel);
-
-        // Description (optional) – erscheint im Log statt generierter Detailzeile
-        formPanel.add(new JLabel("Description:"));
-        descField = new JTextField(action.getDescription() != null ? action.getDescription() : "");
-        formPanel.add(descField);
 
         // Mindestdauer
         formPanel.add(new JLabel("Min. Dauer (ms):"));
@@ -227,7 +249,7 @@ public class ActionEditorTab extends AbstractEditorTab<TestAction> {
                     action.setTimeout(Integer.parseInt(timeoutField.getText().trim()));
                 } catch (NumberFormatException ignored) { /* keep old */ }
 
-                // Description
+                // Description aus Header
                 String d = descField.getText();
                 action.setDescription(d != null && d.trim().length() > 0 ? d.trim() : null);
 
