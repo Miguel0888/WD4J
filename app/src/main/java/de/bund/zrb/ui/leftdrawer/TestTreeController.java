@@ -21,21 +21,15 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Controller für den Testbaum (LeftDrawer).
- *
- * WICHTIG: Ab jetzt basiert der Baum nicht mehr auf einer losen List<TestSuite>,
- * sondern auf dem "richtigen" Datenmodell:
- *
- * RootNode
- *   -> List<TestSuite>
- *        -> List<TestCase>
- *             -> List<TestAction>
- *
- * TestRegistry hält genau EIN RootNode.
- *
- * Dieser Controller rendert diesen RootNode in Swing (TestNode-Knoten)
- * und nimmt Änderungen am Modell vor (create/rename/delete/duplicate),
- * ruft danach TestRegistry.save(), und spiegelt die Änderung zurück in den TreeModel.
+ * Controller für den linken Testbaum (LeftDrawer). Verantwortlich für:
+ * <ul>
+ *   <li>Aufbau und Aktualisierung des Swing-JTree aus dem Test-Datenmodell (TestRegistry)</li>
+ *   <li>Selektion, Zustands-Restore (expandierte Knoten / Selektion)</li>
+ *   <li>CRUD-Operationen (Erstellen, Duplizieren, Löschen, Verschieben) für Suites, Cases und Actions</li>
+ *   <li>In-Place-Umbenennen von TestAction-Knoten (Beschreibung als Label)</li>
+ *   <li>Kontextmenü und Hilfsfunktionen zur Modell-Manipulation</li>
+ * </ul>
+ * Der Controller schreibt Änderungen sofort ins Registry und triggert notwendige UI-Refreshes.
  */
 public class TestTreeController {
 
@@ -67,8 +61,9 @@ public class TestTreeController {
     // ========================= Build & Refresh =========================
 
     /**
-     * Erzeugt einen neuen JTree mit unserem RootNode aus der Registry.
-     * (Wird z.B. in LeftDrawer-Konstruktor benutzt.)
+     * Erzeugt einen neuen JTree (nur Struktur, kein Listener) basierend auf dem aktuellen RootNode aus der TestRegistry.
+     * Wird typischerweise beim Initialisieren des LeftDrawer verwendet.
+     * @return neuer JTree mit gesetztem CellRenderer.
      */
     public static JTree buildTestTree() {
         TestRegistry reg = TestRegistry.getInstance();
@@ -82,8 +77,9 @@ public class TestTreeController {
     }
 
     /**
-     * Baut den kompletten UI-Baum NEU aus dem Registry-Modell
-     * und hängt ihn in das existierende JTree rein.
+     * Aktualisiert den existierenden {@link JTree} dieses Controllers vollständig aus dem aktuellen Modell.
+     * <p>Vor dem Austausch der Baumwurzel werden expandierte Knoten und die aktuelle Selektion gesichert
+     * und nach dem Reload wiederhergestellt.</p>
      */
     public void refreshTreeFromRegistry() {
         // Zustand sichern
@@ -107,6 +103,9 @@ public class TestTreeController {
     /**
      * Hilfsfunktion: nimmt RootNode/TestSuite/TestCase/TestAction
      * und erzeugt die Swing-Nodes (TestNode) mit korrekten Labels.
+     * Diese Methode erzeugt KEINE Side-Effects am echten JTree sondern liefert nur die neue Baumwurzel.
+     * @param rootModel RootNode aus der Registry (kann null sein)
+     * @return UI-TestNode als Wurzel des Baumes
      */
     private static TestNode buildUiTreeFromModel(RootNode rootModel) {
         // Root-Knoten im UI zeigt z.B. "Testsuites", hängt aber das RootNode-Objekt an.
@@ -142,6 +141,12 @@ public class TestTreeController {
         return rootUi;
     }
 
+    /**
+     * Liefert den sichtbaren Label-Text für eine Action. Falls eine Beschreibung gesetzt ist, wird diese
+     * bevorzugt als alleiniger Text gezeigt. Andernfalls wird der Action-Name ergänzt um Value oder SelectedSelector.
+     * @param action TestAction Instanz
+     * @return aufbereiteter Label-Text
+     */
     public static String renderActionLabel(TestAction action) {
         // NEU: Wenn description gesetzt, verwende sie als alleinigen Labeltext
         if (action.getDescription() != null && action.getDescription().trim().length() > 0) {
@@ -158,6 +163,10 @@ public class TestTreeController {
 
     // ========================= Context menu (tests) =========================
 
+    /**
+     * Initialisiert das Kontextmenü und registriert Maus- und Tastatur-Handler.
+     * Aktiviert In-Place-Editing per Doppelklick oder F2 für TestAction-Knoten.
+     */
     public void setupContextMenu() {
         // kein statisches PopupMenu direkt am JTree setzen (wir bauen dynamisch)
         testTree.setComponentPopupMenu(null);
@@ -215,7 +224,10 @@ public class TestTreeController {
     }
 
     /**
-     * Bilde das Kontextmenü je nach Node-Typ.
+     * Baut das dynamische Kontextmenü für den übergebenen Knoten.
+     * Menüpunkte hängen vom konkreten Modelltyp (Root, Suite, Case, Action) ab.
+     * @param clicked aktuell angeklickter UI-Knoten (kann null sein)
+     * @return Popup-Menü zur Anzeige
      */
     public JPopupMenu buildContextMenu(TestNode clicked) {
         JPopupMenu menu = new JPopupMenu();
@@ -298,6 +310,11 @@ public class TestTreeController {
         return menu;
     }
 
+    /**
+     * Fügt allgemeine Aktionen (Umbenennen, Löschen, Eigenschaften) zum Kontextmenü hinzu.
+     * @param menu Popup-Menü Instanz
+     * @param onNode betroffener Knoten (optional, derzeit nicht genutzt)
+     */
     public void addCommonMenuItems(JPopupMenu menu, TestNode onNode) {
         JMenuItem renameItem = new JMenuItem("Umbenennen");
         renameItem.addActionListener(evt -> renameNode());
@@ -315,6 +332,12 @@ public class TestTreeController {
 
     // ========================= Aktionen: Suite/Case/Step verschieben als Precondition =========================
 
+    /**
+     * Verschiebt einen TestCase in eine neue Precondition. Der Case wird aus seiner Suite entfernt,
+     * alle When-Schritte werden shallow kopiert und als Actions der Precondition übernommen.
+     * Persistiert Änderungen und aktualisiert den Baum.
+     * @param clickedCase UI-Knoten eines TestCase
+     */
     public void moveCaseToPrecondition(TestNode clickedCase) {
         if (clickedCase == null || !(clickedCase.getModelRef() instanceof TestCase)) return;
 
@@ -357,6 +380,11 @@ public class TestTreeController {
         }
     }
 
+    /**
+     * Verschiebt eine gesamte Testsuite in eine neue Precondition. Alle Actions aller Cases werden zusammengeführt.
+     * Danach wird die Suite aus dem Root entfernt und gespeichert.
+     * @param clickedSuite UI-Knoten einer Testsuite
+     */
     public void moveSuiteToPrecondition(TestNode clickedSuite) {
         if (clickedSuite == null || !(clickedSuite.getModelRef() instanceof TestSuite)) return;
 
@@ -397,6 +425,12 @@ public class TestTreeController {
         }
     }
 
+    /**
+     * Erzeugt aus einem TestCase eine neue Precondition (nur WHEN-Schritte). Andere Scopes / Templates werden ignoriert.
+     * @param src Ursprünglicher TestCase
+     * @param name Name der neuen Precondition
+     * @return erzeugte Precondition
+     */
     private de.bund.zrb.model.Precondition buildPreconditionFromCase(TestCase src, String name) {
         de.bund.zrb.model.Precondition p = PreconditionFactory.newPrecondition(name);
 
@@ -411,6 +445,12 @@ public class TestTreeController {
         return p;
     }
 
+    /**
+     * Erzeugt aus einer Testsuite eine neue Precondition (aggregiert alle Actions aller Cases).
+     * @param src Quell-Suite
+     * @param name Zielname der Precondition
+     * @return neue Precondition
+     */
     private de.bund.zrb.model.Precondition buildPreconditionFromSuite(TestSuite src, String name) {
         de.bund.zrb.model.Precondition p = PreconditionFactory.newPrecondition(name);
 
@@ -431,7 +471,9 @@ public class TestTreeController {
     // ========================= Create/duplicate =========================
 
     /**
-     * Neuer TestCase NACH dem gegebenen Case in derselben Suite.
+     * Legt einen neuen TestCase hinter dem ausgewählten Case an.
+     * Fragt den Namen per Dialog ab, erzeugt das Modellobjekt, speichert und refresht den Baum.
+     * @param caseNode aktuell selektierter Case-Knoten
      */
     public void createNewCase(TestNode caseNode) {
         // Sicherheitscheck: wir erlauben "neuen Case" nur, wenn ein Case angeklickt wurde
@@ -498,7 +540,9 @@ public class TestTreeController {
     }
 
     /**
-     * Neuer Schritt nach gegebenem Schritt im gleichen Case.
+     * Legt eine neue TestAction hinter der ausgewählten Action an (selber Case).
+     * Fragt den Action-Typ über den ActionPickerDialog ab.
+     * @param stepNode UI-Knoten einer bestehenden TestAction
      */
     public void createNewStep(TestNode stepNode) {
         if (stepNode == null || !(stepNode.getModelRef() instanceof TestAction)) {
@@ -573,8 +617,8 @@ public class TestTreeController {
     }
 
     /**
-     * Neue Suite hinter (oder am Ende von Root) einfügen.
-     * Modell ändern, speichern, dann Tree neu rendern.
+     * Legt eine neue Testsuite hinter der ausgewählten Suite an.
+     * @param clickedSuiteNode UI-Knoten der Referenz-Suite; kann null sein (dann ans Ende)
      */
     public void createNewSuiteAfter(TestNode clickedSuiteNode) {
         // 1. Name erfragen
@@ -628,6 +672,9 @@ public class TestTreeController {
         selectNodeByModelRef(newSuite);
     }
 
+    /**
+     * Legt eine neue Testsuite am Anfang der Suite-Liste an.
+     */
     private void createNewSuiteAtFront() {
         String name = JOptionPane.showInputDialog(
                 testTree,
@@ -654,6 +701,10 @@ public class TestTreeController {
         selectNodeByModelRef(newSuite);
     }
 
+    /**
+     * Legt einen neuen TestCase am Anfang einer Suite an.
+     * @param suiteNode Suite-Knoten, unter dem der Case eingefügt wird
+     */
     private void createNewCaseUnderSuite(TestNode suiteNode) {
         if (suiteNode == null || !(suiteNode.getModelRef() instanceof TestSuite)) return;
         String name = JOptionPane.showInputDialog(
@@ -679,6 +730,10 @@ public class TestTreeController {
         selectNodeByModelRef(newCase);
     }
 
+    /**
+     * Legt eine neue TestAction am Anfang eines TestCase an.
+     * @param caseNode Case-Knoten
+     */
     private void createNewStepUnderCase(TestNode caseNode) {
         if (caseNode == null || !(caseNode.getModelRef() instanceof TestCase)) return;
         Window owner = SwingUtilities.getWindowAncestor(testTree);
@@ -706,8 +761,8 @@ public class TestTreeController {
     }
 
     /**
-     * Komfort: versucht nach refreshTestTree() den Knoten zu selektieren,
-     * der dieses Modellobjekt trägt.
+     * Wählt einen UI-Knoten basierend auf der Modell-Referenz wieder aus (z.B. nach Refresh).
+     * @param targetRef Modellobjekt, das ausgewählt werden soll
      */
     private void selectNodeByModelRef(Object targetRef) {
         DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
@@ -721,6 +776,12 @@ public class TestTreeController {
         }
     }
 
+    /**
+     * Rekursive Suche nach dem ersten Knoten, dessen modelRef identisch mit target ist.
+     * @param current Startknoten
+     * @param target Modellreferenz (Identität, kein equals Vergleich)
+     * @return gefundener Knoten oder null
+     */
     private TestNode findNodeByRefRecursive(TestNode current, Object target) {
         if (current.getModelRef() == target) {
             return current;
@@ -738,6 +799,10 @@ public class TestTreeController {
 
     // ========================= Rename / Delete =========================
 
+    /**
+     * Öffnet den passenden Umbenennen-Dialog je nach Modelltyp (Suite / Case / Action).
+     * Für Actions wird der ActionPickerDialog verwendet. Speichert und refresht bei Erfolg.
+     */
     public void renameNode() {
         TestNode selected = getSelectedNode();
         if (selected == null || selected.getParent() == null) {
@@ -815,6 +880,10 @@ public class TestTreeController {
         // Fallback: nichts tun
     }
 
+    /**
+     * Löscht den aktuell selektierten Knoten (Suite, Case oder Action) nach Sicherheitsabfrage.
+     * Passt das Modell an, persistiert und aktualisiert den Baum. Root kann nicht gelöscht werden.
+     */
     public void deleteNode() {
         TestNode selectedNode = getSelectedNode();
         if (selectedNode == null) {
@@ -893,6 +962,8 @@ public class TestTreeController {
     /**
      * Kleine Confirm-Box. Du kannst sie weglassen, wenn es dich nervt.
      * Wenn du später "Silent Delete" willst: gib einfach immer true zurück.
+     * @param ref Modellreferenz des zu löschenden Objekts
+     * @return true wenn bestätigt, sonst false
      */
     private boolean confirmDelete(Object ref) {
         String what;
@@ -918,6 +989,9 @@ public class TestTreeController {
 
     // ========================= Misc / UI Helpers =========================
 
+    /**
+     * Öffnet den PropertiesDialog für den aktuell ausgewählten Knoten (sofern kein Root).
+     */
     public void openPropertiesDialog() {
         DefaultMutableTreeNode selected = getSelectedNode();
         if (selected != null && selected.getParent() != null) {
@@ -926,10 +1000,18 @@ public class TestTreeController {
         }
     }
 
+    /**
+     * @return Den zuletzt selektierten TestNode oder null.
+     */
     public TestNode getSelectedNode() {
         return (TestNode) testTree.getLastSelectedPathComponent();
     }
 
+    /**
+     * Setzt den Status eines Knoten (PASSED/FAILED) und propagiert die Aggregation auf seine Suite-Eltern.
+     * @param node betroffener Knoten
+     * @param passed true wenn bestanden
+     */
     public void updateNodeStatus(TestNode node, boolean passed) {
         node.setStatus(passed ? TestNode.Status.PASSED : TestNode.Status.FAILED);
 
@@ -941,6 +1023,10 @@ public class TestTreeController {
         }
     }
 
+    /**
+     * Aggregiert den Status einer Suite über ihre direkten Kinder (FAIL gewinnt).
+     * @param suite TestNode einer testsuite
+     */
     public void updateSuiteStatus(TestNode suite) {
         if (suite.getChildCount() == 0) return;
 
@@ -962,18 +1048,25 @@ public class TestTreeController {
         }
     }
 
+    /**
+     * @return Root-Knoten des aktuellen JTree
+     */
     public TestNode getRootNode() {
         return (TestNode) testTree.getModel().getRoot();
     }
 
+    /**
+     * Liefert selektierten Knoten oder Root, falls keine Selektion vorhanden ist.
+     * @return ausgewählter oder Root-Knoten
+     */
     public DefaultMutableTreeNode getSelectedNodeOrRoot() {
         DefaultMutableTreeNode selected = getSelectedNode();
         return selected != null ? selected : (DefaultMutableTreeNode) testTree.getModel().getRoot();
     }
 
     /**
-     * Liefert aktuell selektierte Suites, oder alle Suites falls keine selektiert.
-     * Wird noch für den TestPlayer genutzt.
+     * Liefert alle selektierten Suites; falls keine Selektion, alle Suites im Root.
+     * @return Liste von TestSuite
      */
     public List<TestSuite> getSelectedSuites() {
         TreePath[] paths = testTree.getSelectionPaths();
@@ -998,6 +1091,12 @@ public class TestTreeController {
         return selected;
     }
 
+    /**
+     * Shallow-Klon einer TestAction (IDs neu, lokales Mapping kopiert). Optional kann ein Name-Präfix gesetzt werden.
+     * @param src Quell-Action
+     * @param tryPrefixName falls true wird ein evtl. vorhandener Name mit Präfix versehen
+     * @return neue TestAction
+     */
     public TestAction cloneActionShallow(TestAction src, boolean tryPrefixName) {
         TestAction a = new TestAction();
         a.setId(UUID.randomUUID().toString());
@@ -1029,10 +1128,20 @@ public class TestTreeController {
         return a;
     }
 
+    /**
+     * Wandelt einen potenziell leeren Namen in einen lesbaren Ersatz ("unnamed").
+     * @param s Original-String
+     * @return gereinigter Name oder Ersatz
+     */
     public String safeName(String s) {
         return (s == null || s.trim().isEmpty()) ? "unnamed" : s.trim();
     }
 
+    /**
+     * Erzeugt einen eindeutigen Suite-Namen basierend auf einem Basiswert.
+     * @param base Basisname
+     * @return eindeutiger Name
+     */
     public String uniqueSuiteName(String base) {
         List<TestSuite> suites = TestRegistry.getInstance().getRoot().getTestSuites();
         Set<String> used = new HashSet<String>();
@@ -1040,12 +1149,24 @@ public class TestTreeController {
         return makeUnique(base, used);
     }
 
+    /**
+     * Erzeugt einen eindeutigen Case-Namen innerhalb einer Suite.
+     * @param suite Suite-Kontext
+     * @param base Basisname
+     * @return eindeutiger Name
+     */
     public String uniqueCaseName(TestSuite suite, String base) {
         Set<String> used = new HashSet<String>();
         for (TestCase c : suite.getTestCases()) used.add(safeName(c.getName()));
         return makeUnique(base, used);
     }
 
+    /**
+     * Fügt Zähler-Suffixe ("(2)", "(3)", ...) hinzu bis der Name nicht verwendet ist.
+     * @param base Basisname
+     * @param used Menge bereits verwendeter Namen
+     * @return eindeutiger Name
+     */
     public String makeUnique(String base, Set<String> used) {
         String b = safeName(base);
         if (!used.contains(b)) return b;
@@ -1056,7 +1177,11 @@ public class TestTreeController {
         return b + " (copy)";
     }
 
-    // Reflektions-Helfer: optionales getName/setName bei Actions
+    /**
+     * Versucht per Reflection einen getName()-Aufruf auf dem Objekt.
+     * @param bean beliebiges Objekt
+     * @return Name oder null
+     */
     public String getNameIfExists(Object bean) {
         try {
             java.lang.reflect.Method m = bean.getClass().getMethod("getName");
@@ -1064,6 +1189,11 @@ public class TestTreeController {
             return (v != null) ? String.valueOf(v) : null;
         } catch (Exception ignore) { return null; }
     }
+    /**
+     * Setzt per Reflection einen Namen über setName(String) falls vorhanden.
+     * @param bean Zielobjekt
+     * @param name neuer Name
+     */
     public void setNameIfExists(Object bean, String name) {
         try {
             java.lang.reflect.Method m = bean.getClass().getMethod("setName", String.class);
@@ -1071,7 +1201,10 @@ public class TestTreeController {
         } catch (Exception ignore) { /* kein Name vorhanden */ }
     }
 
-    // Komfort: Node selektieren & sichtbar machen
+    /**
+     * Selektiert einen TestNode im JTree, expandiert ggf. dessen Parent und scrollt ihn sichtbar.
+     * @param node Zielknoten
+     */
     public void selectNode(TestNode node) {
         DefaultTreeModel model = (DefaultTreeModel) testTree.getModel();
         TreePath path = new TreePath(node.getPath());
@@ -1083,6 +1216,10 @@ public class TestTreeController {
         model.nodeChanged(node);
     }
 
+    /**
+     * Dupliziert eine Suite (tief), fügt sie direkt hinter das Original ein und selektiert sie.
+     * @param clickedSuiteNode UI-Knoten der zu duplizierenden Suite
+     */
     public void duplicateSuiteAfter(TestNode clickedSuiteNode) {
         if (clickedSuiteNode == null) return;
         Object r = clickedSuiteNode.getModelRef();
@@ -1106,6 +1243,10 @@ public class TestTreeController {
         selectNodeByModelRef(clone);
     }
 
+    /**
+     * Dupliziert einen TestCase innerhalb seiner Suite (tief) und selektiert ihn.
+     * @param clickedCaseNode Case-Knoten
+     */
     public void duplicateCaseAfter(TestNode clickedCaseNode) {
         if (clickedCaseNode == null) return;
 
@@ -1138,6 +1279,10 @@ public class TestTreeController {
         selectNodeByModelRef(clone);
     }
 
+    /**
+     * Dupliziert eine TestAction shallow und fügt sie direkt dahinter ein.
+     * @param clickedActionNode Action-Knoten
+     */
     public void duplicateActionAfter(TestNode clickedActionNode) {
         if (clickedActionNode == null) return;
 
@@ -1168,21 +1313,8 @@ public class TestTreeController {
     }
 
     /**
-     * Rebuild the entire visible "Tests" tree from the current TestRegistry model.
-     *
-     * Model-Hierarchie:
-     *  RootNode (unsichtbar für den User)
-     *    -> TestSuites[]
-     *         -> TestCases[]
-     *              -> TestActions (WHEN steps)
-     *
-     * UI-Hierarchie (JTree):
-     *   "Testsuites" (reiner UI-Knoten, kein echtes Modelobjekt)
-     *      -> suiteNode (modelRef = TestSuite)
-     *           -> caseNode (modelRef = TestCase)
-     *                -> stepNode (modelRef = TestAction)
-     *
-     * Dazu setzen wir die neuen/alten Felder (Status, modelRef) wie gehabt.
+     * Baut den sichtbaren Testbaum komplett neu aus der Registry (ähnlich refreshTreeFromRegistry, aber lokal)
+     * und versucht Expansions / Selektion wiederherzustellen.
      */
     public void refreshTestTree() {
         // Zustand sichern
@@ -1291,6 +1423,11 @@ public class TestTreeController {
         return null;
     }
 
+    /**
+     * Erzeugt einen Schlüssel (Typ:ID) für ein Modellobjekt, um Expansions/Selektion stabil zu halten.
+     * @param ref Modellreferenz
+     * @return Schlüssel oder null
+     */
     private String keyForModel(Object ref) {
         if (ref instanceof RootNode) {
             String id = ((RootNode) ref).getId();
@@ -1467,6 +1604,16 @@ public class TestTreeController {
                 }
             });
         }
+        /**
+         * Erzeugt und initialisiert die Editor-Komponente für eine Action-Zelle.
+         * @param tree der JTree
+         * @param value zu editiender Wert (TestNode)
+         * @param sel ob selektiert
+         * @param expanded ob expandiert
+         * @param leaf ob Blatt
+         * @param row Zeilenindex
+         * @return Editor-Komponente (Panel mit Icon + Textfeld)
+         */
         @Override
         public Component getTreeCellEditorComponent(JTree tree, Object value, boolean sel, boolean expanded, boolean leaf, int row) {
             if (!initFromValue(value)) return new JLabel(String.valueOf(value));
@@ -1512,18 +1659,11 @@ public class TestTreeController {
             return ic;
         }
 
-        private void sizeEditorToRow(JTree tree, Object value, Icon ic, boolean expanded, boolean leaf, int row) {
-            Rectangle rb = tree.getRowBounds(row);
-            Component rendComp = tree.getCellRenderer()
-                    .getTreeCellRendererComponent(tree, value, true, expanded, leaf, row, true);
-            int iconW = (ic != null) ? ic.getIconWidth() + 6 : 0;
-            int prefW = (rb != null ? rb.width : rendComp.getPreferredSize().width);
-            int fieldW = Math.max(100, prefW - iconW - 8);
-            Dimension d = new Dimension(prefW, rendComp.getPreferredSize().height);
-            panel.setPreferredSize(d);
-            field.setPreferredSize(new Dimension(fieldW, d.height));
-        }
-
+        /**
+         * Startet Fokus und selektiert Text, hängt einen Viewport-ChangeListener an zur Breitenanpassung.
+         * @param tree JTree
+         * @param row Zeile im Baum
+         */
         private void deferResizeAndFocus(JTree tree, int row) {
             SwingUtilities.invokeLater(() -> {
                 try {
@@ -1551,6 +1691,29 @@ public class TestTreeController {
                 field.selectAll();
             });
         }
+
+        /**
+         * Passt die Editor-Breite an den sichtbaren Viewport an (volle Breite ab Einrückung bis rechts).
+         * @param tree JTree
+         * @param row Zeilenindex
+         */
+        private void sizeEditorToRow(JTree tree, Object value, Icon ic, boolean expanded, boolean leaf, int row) {
+            Rectangle rb = tree.getRowBounds(row);
+            Component rendComp = tree.getCellRenderer()
+                    .getTreeCellRendererComponent(tree, value, true, expanded, leaf, row, true);
+            int iconW = (ic != null) ? ic.getIconWidth() + 6 : 0;
+            int prefW = (rb != null ? rb.width : rendComp.getPreferredSize().width);
+            int fieldW = Math.max(100, prefW - iconW - 8);
+            Dimension d = new Dimension(prefW, rendComp.getPreferredSize().height);
+            panel.setPreferredSize(d);
+            field.setPreferredSize(new Dimension(fieldW, d.height));
+        }
+
+        /**
+         * Liefert den finalen Wert nach Editierung. Setzt Beschreibung oder entfernt sie bei leerem Eingabefeld.
+         * Persistiert Änderungen und feuert ein Update-Event.
+         * @return neuer Label-Wert
+         */
         @Override
         public Object getCellEditorValue() {
             if (currentNode == null) return null;
@@ -1576,6 +1739,16 @@ public class TestTreeController {
             }
             return currentNode.getUserObject();
         }
+        /**
+         * Entfernt den Viewport-Listener beim Ende oder Abbruch der Editierung um Leaks zu vermeiden.
+         */
+        @Override public boolean stopCellEditing() { super.stopCellEditing(); return true; }
+        @Override public void cancelCellEditing() { super.cancelCellEditing(); }
+        /**
+         * Prüft ob eine Zelle editierbar ist (nur Doppelklick oder F2 auf TestAction).
+         * @param e Input-Event
+         * @return true wenn editierbar
+         */
         @Override
         public boolean isCellEditable(java.util.EventObject e) {
             // Maus-Doppelklick wie gehabt
@@ -1594,7 +1767,5 @@ public class TestTreeController {
             return comp instanceof TestNode && ((TestNode) comp).getModelRef() instanceof TestAction;
         }
         @Override public boolean shouldSelectCell(java.util.EventObject e) { return true; }
-        @Override public boolean stopCellEditing() { super.stopCellEditing(); return true; }
-        @Override public void cancelCellEditing() { super.cancelCellEditing(); }
     }
 }
