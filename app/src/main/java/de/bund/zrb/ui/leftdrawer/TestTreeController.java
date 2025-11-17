@@ -160,7 +160,9 @@ public class TestTreeController {
     public void setupContextMenu() {
         // kein statisches PopupMenu direkt am JTree setzen (wir bauen dynamisch)
         testTree.setComponentPopupMenu(null);
-
+        // In-Place Editing nur für TestAction aktivieren
+        testTree.setEditable(true);
+        testTree.setCellEditor(new ActionNodeCellEditor(testTree));
         testTree.addMouseListener(new java.awt.event.MouseAdapter() {
             private void handlePopup(java.awt.event.MouseEvent e) {
                 if (!e.isPopupTrigger()) return;
@@ -181,39 +183,12 @@ public class TestTreeController {
             @Override public void mousePressed(java.awt.event.MouseEvent e) { handlePopup(e); }
             @Override public void mouseReleased(java.awt.event.MouseEvent e) { handlePopup(e); }
             @Override public void mouseClicked(java.awt.event.MouseEvent e) {
-                // In-Place-Rename bei Doppelklick auf TestAction Node
                 if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
                     TreePath path = testTree.getPathForLocation(e.getX(), e.getY());
                     if (path == null) return;
                     Object comp = path.getLastPathComponent();
-                    if (!(comp instanceof TestNode)) return;
-                    TestNode node = (TestNode) comp;
-                    Object ref = node.getModelRef();
-                    if (ref instanceof TestAction) {
-                        TestAction action = (TestAction) ref;
-                        String current = renderActionLabel(action);
-                        String input = JOptionPane.showInputDialog(testTree,
-                                "Neue Beschreibung für Schritt (leer für Standard):",
-                                current);
-                        if (input == null) return; // abgebrochen
-                        String trimmed = input.trim();
-                        // Wenn leer -> Beschreibung entfernen (zurück zu Standard)
-                        if (trimmed.isEmpty()) {
-                            if (action.getDescription() != null) {
-                                action.setDescription(null);
-                                TestRegistry.getInstance().save();
-                                refreshTestTree();
-                                selectNodeByModelRef(action);
-                            }
-                            return;
-                        }
-                        // Nur speichern, wenn geändert
-                        if (!trimmed.equals(current)) {
-                            action.setDescription(trimmed);
-                            TestRegistry.getInstance().save();
-                            refreshTestTree();
-                            selectNodeByModelRef(action);
-                        }
+                    if (comp instanceof TestNode && ((TestNode) comp).getModelRef() instanceof TestAction) {
+                        testTree.startEditingAtPath(path);
                     }
                 }
             }
@@ -1435,5 +1410,64 @@ public class TestTreeController {
         List<TestAction> steps = parentCase.getWhen();
         int insertIndex = steps.indexOf(originalAction);
         if (insertIndex < 0) steps.add(newAction); else steps.add(insertIndex + 1, newAction);
+    }
+
+    /**
+     * CellEditor für in-place Rename von TestAction: Text wird als description übernommen.
+     */
+    private static class ActionNodeCellEditor extends AbstractCellEditor implements javax.swing.tree.TreeCellEditor {
+        private final JTree tree;
+        private final JTextField field = new JTextField();
+        private TestNode currentNode;
+        private String prevDescription;
+        private String prevRenderedLabel;
+        ActionNodeCellEditor(JTree tree) { this.tree = tree; field.setBorder(BorderFactory.createEmptyBorder(0,2,0,2)); }
+        @Override
+        public Component getTreeCellEditorComponent(JTree tree, Object value, boolean sel, boolean expanded, boolean leaf, int row) {
+            if (!(value instanceof TestNode)) { currentNode = null; return new JLabel(String.valueOf(value)); }
+            currentNode = (TestNode) value;
+            Object ref = currentNode.getModelRef();
+            if (!(ref instanceof TestAction)) { currentNode = null; return new JLabel(String.valueOf(value)); }
+            TestAction action = (TestAction) ref;
+            prevDescription = action.getDescription();
+            prevRenderedLabel = TestTreeController.renderActionLabel(action);
+            String start = (prevDescription != null && !prevDescription.trim().isEmpty()) ? prevDescription.trim() : prevRenderedLabel;
+            field.setText(start);
+            SwingUtilities.invokeLater(() -> { field.requestFocusInWindow(); field.selectAll(); });
+            return field;
+        }
+        @Override
+        public Object getCellEditorValue() {
+            if (currentNode == null) return null;
+            Object ref = currentNode.getModelRef();
+            if (!(ref instanceof TestAction)) return currentNode.getUserObject();
+            TestAction action = (TestAction) ref;
+            String edited = field.getText() != null ? field.getText().trim() : "";
+            if (edited.isEmpty()) {
+                action.setDescription(null); // zurück zu generiertem Label
+            } else if (!edited.equals(prevDescription) && !edited.equals(prevRenderedLabel)) {
+                action.setDescription(edited);
+            } // sonst unverändert
+            currentNode.setUserObject(TestTreeController.renderActionLabel(action));
+            try { TestRegistry.getInstance().save(); } catch (Throwable ignore) {}
+            javax.swing.tree.TreeModel m = tree.getModel();
+            if (m instanceof DefaultTreeModel) ((DefaultTreeModel) m).nodeChanged(currentNode);
+            return currentNode.getUserObject();
+        }
+        @Override
+        public boolean isCellEditable(java.util.EventObject e) {
+            if (e instanceof java.awt.event.MouseEvent) {
+                java.awt.event.MouseEvent me = (java.awt.event.MouseEvent) e;
+                if (me.getClickCount() < 2) return false; // nur Doppelklick
+                TreePath path = tree.getPathForLocation(me.getX(), me.getY());
+                if (path == null) return false;
+                Object comp = path.getLastPathComponent();
+                return comp instanceof TestNode && ((TestNode) comp).getModelRef() instanceof TestAction;
+            }
+            return false;
+        }
+        @Override public boolean shouldSelectCell(java.util.EventObject e) { return true; }
+        @Override public boolean stopCellEditing() { return super.stopCellEditing(); }
+        @Override public void cancelCellEditing() { super.cancelCellEditing(); }
     }
 }
