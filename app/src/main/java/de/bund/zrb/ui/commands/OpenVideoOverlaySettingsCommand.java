@@ -276,7 +276,8 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                             int g = Integer.parseInt(parts[1].trim());
                             int b = Integer.parseInt(parts[2].trim());
                             float af = Float.parseFloat(parts[3].trim());
-                            alpha = (int) Math.round(255 * af);
+                            // af = 0 => voll deckend, af = 1 => voll transparent
+                            alpha = 255 - (int) Math.round(255 * Math.max(0f, Math.min(1f, af)));
                             bg = new Color(r, g, b);
                         } else {
                             bg = Color.decode("#000000");
@@ -289,8 +290,9 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 }
                 Color bgTrans = new Color(bg.getRed(), bg.getGreen(), bg.getBlue(), alpha);
                 setBackground(bgTrans);
-                setOpaque(true);
+                setOpaque(alpha > 0);
                 setForeground(font);
+                // Standard: eckiger Rahmen in Schriftfarbe
                 setBorder(BorderFactory.createLineBorder(font));
             } catch (Exception ignored) {
                 setOpaque(false);
@@ -306,7 +308,7 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             // Aktuelle Farben und Transparenz vorbereiten
             Color initialFont;
             Color initialBg;
-            int initialAlpha = 180;
+            int initialAlphaSlider = 64; // 0 = deckend, 255 = voll transparent
             try {
                 initialFont = Color.decode(current.getFontColor());
             } catch (Exception e) {
@@ -324,7 +326,8 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                             int g = Integer.parseInt(parts[1].trim());
                             int b = Integer.parseInt(parts[2].trim());
                             float af = Float.parseFloat(parts[3].trim());
-                            initialAlpha = (int) Math.round(255 * af);
+                            // af = 0 => voll deckend, af = 1 => voll transparent
+                            initialAlphaSlider = (int) Math.round(255 * Math.max(0f, Math.min(1f, af)));
                             initialBg = new Color(r, g, b);
                         } else {
                             initialBg = getBackground();
@@ -350,14 +353,32 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             bgColorPreview.setBackground(initialBg);
             bgColorPreview.setToolTipText("Hintergrundfarbe auswählen");
 
+            JButton borderColorPreview = new JButton();
+            borderColorPreview.setPreferredSize(new Dimension(24, 24));
+            borderColorPreview.setBackground(initialFont);
+            borderColorPreview.setToolTipText("Rahmenfarbe auswählen");
+
             final Color[] chosenFont = { initialFont };
             final Color[] chosenBg = { initialBg };
+            final Color[] chosenBorder = { initialFont };
+
+            // Transparenz-Slider mit sofortiger Vorschau (0 = deckend, 255 = voll transparent)
+            JSlider alphaSlider = new JSlider(0, 255, initialAlphaSlider);
+            alphaSlider.setPaintTicks(true);
+            alphaSlider.setPaintLabels(true);
+            alphaSlider.setMajorTickSpacing(85);
 
             fontColorPreview.addActionListener(e -> {
                 Color c = JColorChooser.showDialog(parent, "Textfarbe wählen", chosenFont[0]);
                 if (c != null) {
                     chosenFont[0] = c;
                     fontColorPreview.setBackground(c);
+                    setForeground(c);
+                    // Rahmen in Vorschau ebenfalls anpassen, wenn daneben liegt
+                    if (getBorder() instanceof javax.swing.border.LineBorder) {
+                        setBorder(BorderFactory.createLineBorder(chosenBorder[0]));
+                    }
+                    repaint();
                 }
             });
             bgColorPreview.addActionListener(e -> {
@@ -365,22 +386,35 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 if (c != null) {
                     chosenBg[0] = c;
                     bgColorPreview.setBackground(c);
+                    // Hintergrund sofort mit aktuellem Alpha aktualisieren
+                    int sliderVal = alphaSlider.getValue();
+                    int alpha = 255 - sliderVal;
+                    Color bgTrans = new Color(c.getRed(), c.getGreen(), c.getBlue(), alpha);
+                    setBackground(bgTrans);
+                    setOpaque(alpha > 0);
+                    repaint();
                 }
             });
-
-            // Transparenz-Slider mit sofortiger Vorschau
-            JSlider alphaSlider = new JSlider(0, 255, initialAlpha);
-            alphaSlider.setPaintTicks(true);
-            alphaSlider.setPaintLabels(true);
-            alphaSlider.setMajorTickSpacing(85); // 0 / ca. 1/3 / 2/3 / 1
+            borderColorPreview.addActionListener(e -> {
+                Color c = JColorChooser.showDialog(parent, "Rahmenfarbe wählen", chosenBorder[0]);
+                if (c != null) {
+                    chosenBorder[0] = c;
+                    borderColorPreview.setBackground(c);
+                    if (getBorder() instanceof javax.swing.border.LineBorder) {
+                        setBorder(BorderFactory.createLineBorder(c));
+                    }
+                    repaint();
+                }
+            });
 
             alphaSlider.addChangeListener(e -> {
                 Color b = chosenBg[0];
                 if (b != null) {
-                    int a = alphaSlider.getValue();
-                    Color bgTrans = new Color(b.getRed(), b.getGreen(), b.getBlue(), a);
+                    int sliderVal = alphaSlider.getValue();
+                    int alpha = 255 - sliderVal; // hoher Slider => transparenter
+                    Color bgTrans = new Color(b.getRed(), b.getGreen(), b.getBlue(), alpha);
                     setBackground(bgTrans);
-                    setOpaque(true);
+                    setOpaque(alpha > 0);
                     repaint();
                 }
             });
@@ -391,6 +425,11 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             cbType.setSelectedIndex(kind == Kind.CAPTION ? 0 : kind == Kind.SUBTITLE ? 1 : 2);
 
             JSpinner spFontSize = new JSpinner(new SpinnerNumberModel(current.getFontSizePx(), 8, 96, 1));
+
+            // Einfaches Design-Combo für Rahmenform
+            String[] borderStyles = {"Gerader Rahmen", "Abgerundeter Rahmen", "Kein Rahmen"};
+            JComboBox<String> cbBorderStyle = new JComboBox<>(borderStyles);
+            cbBorderStyle.setSelectedIndex(0);
 
             JPanel panel = new JPanel(new GridBagLayout());
             GridBagConstraints c = new GridBagConstraints();
@@ -408,7 +447,13 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             c.gridx = 0; c.gridy = 3; panel.add(new JLabel("Hintergrund-Transparenz:"), c);
             c.gridx = 1; panel.add(alphaSlider, c);
 
-            c.gridx = 0; c.gridy = 4; panel.add(new JLabel("Schriftgröße (px):"), c);
+            c.gridx = 0; c.gridy = 4; panel.add(new JLabel("Rahmenfarbe:"), c);
+            c.gridx = 1; panel.add(borderColorPreview, c);
+
+            c.gridx = 0; c.gridy = 5; panel.add(new JLabel("Rahmendesign:"), c);
+            c.gridx = 1; panel.add(cbBorderStyle, c);
+
+            c.gridx = 0; c.gridy = 6; panel.add(new JLabel("Schriftgröße (px):"), c);
             c.gridx = 1; panel.add(spFontSize, c);
 
             int res = JOptionPane.showConfirmDialog(parent, panel,
@@ -416,12 +461,15 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             if (res == JOptionPane.OK_OPTION) {
                 Color f = chosenFont[0];
                 Color b = chosenBg[0];
-                int a = alphaSlider.getValue();
+                Color borderColor = chosenBorder[0];
+                int sliderVal = alphaSlider.getValue();
+                // Slider: 0 = deckend => alphaFactor=0, 255 = voll transparent => alphaFactor=1
+                double alphaFactor = Math.max(0d, Math.min(1d, sliderVal / 255d));
                 if (f == null || b == null) {
                     return;
                 }
                 String fontHex = String.format("#%02X%02X%02X", f.getRed(), f.getGreen(), f.getBlue());
-                String bgRgba = String.format("rgba(%d,%d,%d,%.3f)", b.getRed(), b.getGreen(), b.getBlue(), a / 255.0);
+                String bgRgba = String.format("rgba(%d,%d,%d,%.3f)", b.getRed(), b.getGreen(), b.getBlue(), alphaFactor);
 
                 VideoOverlayStyle newStyle = new VideoOverlayStyle(
                         fontHex,
@@ -433,6 +481,18 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 if ("Caption".equals(sel)) newKind = Kind.CAPTION;
                 else if ("Subtitle".equals(sel)) newKind = Kind.SUBTITLE;
                 else if ("Action".equals(sel)) newKind = Kind.ACTION;
+
+                // Rahmen-Design anwenden
+                if ("Kein Rahmen".equals(cbBorderStyle.getSelectedItem())) {
+                    setBorder(BorderFactory.createEmptyBorder());
+                } else {
+                    Color useBorder = borderColor != null ? borderColor : f;
+                    if ("Abgerundeter Rahmen".equals(cbBorderStyle.getSelectedItem())) {
+                        setBorder(BorderFactory.createLineBorder(useBorder, 1, true));
+                    } else {
+                        setBorder(BorderFactory.createLineBorder(useBorder, 1, false));
+                    }
+                }
 
                 applyStyle(newStyle);
                 applyToService(newKind, newStyle);
