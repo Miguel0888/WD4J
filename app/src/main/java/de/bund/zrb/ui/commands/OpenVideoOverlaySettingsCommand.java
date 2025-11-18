@@ -1,5 +1,7 @@
 package de.bund.zrb.ui.commands;
 
+import java.util.Locale;
+
 import de.bund.zrb.event.ApplicationEventBus;
 import de.bund.zrb.event.StatusMessageEvent;
 import de.bund.zrb.service.SettingsService;
@@ -613,7 +615,7 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 int sliderVal = alphaSlider.getValue(); double alphaFactor = Math.max(0d, Math.min(1d, sliderVal / 255d));
                 if (f == null || b == null) return;
                 String fontHex = String.format("#%02X%02X%02X", f.getRed(), f.getGreen(), f.getBlue());
-                String bgRgba = String.format("rgba(%d,%d,%d,%.3f)", b.getRed(), b.getGreen(), b.getBlue(), alphaFactor);
+                String bgRgba = String.format(Locale.ROOT, "rgba(%d,%d,%d,%.3f)", b.getRed(), b.getGreen(), b.getBlue(), alphaFactor);
                 int fontPx = (Integer) spFontSize.getValue();
                 VideoOverlayStyle newStyle = new VideoOverlayStyle(fontHex, bgRgba, fontPx);
 
