@@ -227,13 +227,10 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             if (py < 0 || py > 1) py = defaultPy;
 
             Placeholder p = new Placeholder(label, kind, style, service, this, keyX, keyY);
-            int w = 280;
-            int h = 80;
-            int x = (int) Math.round(px * (videoSize.width - w));
-            int y = (int) Math.round(py * (videoSize.height - h));
-            p.setBounds(x, y, w, h);
-            placeholders.add(p);
+            // zunächst hinzufügen, dann mit aktueller Größe positionieren
             add(p, JLayeredPane.PALETTE_LAYER);
+            p.repositionFromPercent();
+            placeholders.add(p);
         }
 
         private static double getDouble(String key, double def) {
@@ -404,6 +401,21 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
           } finally { g.dispose(); }
         }
 
+        // Hilfsmethode: Position anhand gespeicherter Prozentwerte und aktueller Größe neu setzen
+        void repositionFromPercent() {
+            Component parent = getParent();
+            if (parent == null) return;
+            Dimension size = parent.getSize();
+            Double px = SettingsService.getInstance().get(keyPosX, Double.class);
+            Double py = SettingsService.getInstance().get(keyPosY, Double.class);
+            if (px == null) px = 0.05d; if (py == null) py = 0.05d;
+            int w = getWidth() > 0 ? getWidth() : getPreferredSize().width;
+            int h = getHeight() > 0 ? getHeight() : getPreferredSize().height;
+            int x = (int) Math.round(px * Math.max(1, (size.width - w)));
+            int y = (int) Math.round(py * Math.max(1, (size.height - h)));
+            setLocation(x, y);
+        }
+
         void applyStyle(VideoOverlayStyle style) {
             if (style == null) return;
             try {
@@ -531,6 +543,7 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 int fs = (Integer) spFontSize.getValue();
                 previewFontPx = Math.max(8, fs);
                 updateSizeFromText();
+                repositionFromPercent();
             });
 
             String[] borderStyles = {"Gerader Rahmen", "Abgerundeter Rahmen", "Kein Rahmen"};
@@ -634,10 +647,10 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 // Style anwenden
                 if (enabled) {
                     applyStyle(newStyle);
-                    // Erneut benutzerdefinierte Rahmen-/Farben anwenden
                     previewBorderColor = chosenBorder[0] != null ? chosenBorder[0] : chosenFont[0];
                     roundedBorder = !"Gerader Rahmen".equals(cbBorderStyle.getSelectedItem()) && !"Kein Rahmen".equals(cbBorderStyle.getSelectedItem());
                     updateSizeFromText();
+                    repositionFromPercent();
                     applyToService(kind, newStyle);
                 } else {
                     disabled = true; repaint();
