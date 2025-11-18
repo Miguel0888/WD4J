@@ -86,4 +86,30 @@ public final class OverlayBridge {
             ((JcodecWindowRecorder) r).setSubtitleStyle(style);
         }
     }
+
+    // -------- Action (eigene Ebene, frei positionierbar) --------
+    public static void setAction(String text) {
+        Object r = resolve();
+        if (r instanceof WindowRecorder) {
+            WindowRecorder wr = (WindowRecorder) r;
+            wr.setActionVisible(text != null && !text.isEmpty());
+            wr.setActionText(text == null ? "" : text);
+        } else if (r instanceof JcodecWindowRecorder) {
+            JcodecWindowRecorder jr = (JcodecWindowRecorder) r;
+            jr.setActionVisible(text != null && !text.isEmpty());
+            jr.setActionText(text == null ? "" : text);
+        }
+    }
+    public static void clearAction() { setAction(""); }
+
+    /** Stil für Action setzen. */
+    public static void setActionStyle(WindowRecorder.OverlayStyle style) {
+        if (style == null) return;
+        Object r = resolve();
+        if (r instanceof WindowRecorder) {
+            ((WindowRecorder) r).setActionStyle(style);
+        } else if (r instanceof JcodecWindowRecorder) {
+            ((JcodecWindowRecorder) r).setActionStyle(style);
+        }
+    }
 }

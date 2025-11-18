@@ -27,9 +27,10 @@ public class WindowRecorder implements Closeable {
 
     private Path outFileEffective;
 
-    // --- NEU: zwei Overlays ---
+    // --- NEU: drei Overlays ---
     private final CaptionOverlay caption = new CaptionOverlay();
     private final SubtitleOverlay subtitle = new SubtitleOverlay();
+    private final ActionOverlay action = new ActionOverlay();
 
     public WindowRecorder(WinDef.HWND hWnd, Path outFile, int fps) {
         this.hWnd = hWnd;
@@ -49,6 +50,11 @@ public class WindowRecorder implements Closeable {
     public void setSubtitleText(String text) { subtitle.setText(text); }
     public void setSubtitleVisible(boolean visible) { subtitle.setVisible(visible); }
     public void setSubtitleStyle(OverlayStyle style) { subtitle.setStyle(style); }
+
+    // -------- Public API: Action (frei) ---------
+    public void setActionText(String text) { action.setText(text); }
+    public void setActionVisible(boolean visible) { action.setVisible(visible); }
+    public void setActionStyle(OverlayStyle style) { action.setStyle(style); }
 
     public void start() throws Exception {
         CURRENT = this;
@@ -195,6 +201,7 @@ public class WindowRecorder implements Closeable {
     private void applyOverlays(BufferedImage frame) {
         caption.paint(frame);
         subtitle.paint(frame);
+        action.paint(frame);
     }
 
     /** Stil für beide Overlays. */
@@ -217,6 +224,9 @@ public class WindowRecorder implements Closeable {
         public final int lineGapPx;
         public final HAlign hAlign;
         public final VAnchor vAnchor;
+        // NEU: optionale absolute Position in Prozent (0..1). Wenn nicht null → verwendet statt Align/Margins
+        public final Double posXPerc;
+        public final Double posYPerc;
 
         private OverlayStyle(String fontName, int fontStyle, int fontSizePt,
                              Color textColor, boolean textShadow,
@@ -224,7 +234,8 @@ public class WindowRecorder implements Closeable {
                              int paddingPx, int cornerRadius,
                              int marginX, int marginY,
                              double maxWidthRatio, int lineGapPx,
-                             HAlign hAlign, VAnchor vAnchor) {
+                             HAlign hAlign, VAnchor vAnchor,
+                             Double posXPerc, Double posYPerc) {
             this.fontName = fontName;
             this.fontStyle = fontStyle;
             this.fontSizePt = fontSizePt;
@@ -240,10 +251,11 @@ public class WindowRecorder implements Closeable {
             this.lineGapPx = lineGapPx;
             this.hAlign = hAlign;
             this.vAnchor = vAnchor;
+            this.posXPerc = posXPerc;
+            this.posYPerc = posYPerc;
         }
 
         public static OverlayStyle defaultCaption() {
-            // Oben zentriert, etwas größere Schrift
             return new OverlayStyle(
                     "SansSerif", Font.BOLD, 18,
                     Color.WHITE, true,
@@ -251,11 +263,11 @@ public class WindowRecorder implements Closeable {
                     10, 12,
                     12, 12,
                     0.80, 4,
-                    HAlign.CENTER, VAnchor.TOP
+                    HAlign.CENTER, VAnchor.TOP,
+                    null, null
             );
         }
         public static OverlayStyle defaultSubtitle() {
-            // Unten zentriert
             return new OverlayStyle(
                     "SansSerif", Font.BOLD, 14,
                     Color.WHITE, true,
@@ -263,7 +275,8 @@ public class WindowRecorder implements Closeable {
                     8, 10,
                     12, 12,
                     0.80, 4,
-                    HAlign.CENTER, VAnchor.BOTTOM
+                    HAlign.CENTER, VAnchor.BOTTOM,
+                    null, null
             );
         }
 
@@ -272,31 +285,34 @@ public class WindowRecorder implements Closeable {
             public Builder(OverlayStyle base) { this.s = base; }
             public Builder font(String name, int style, int pt){ s = new OverlayStyle(name, style, pt,
                     s.textColor, s.textShadow, s.boxColor, s.boxAlpha, s.paddingPx, s.cornerRadius,
-                    s.marginX, s.marginY, s.maxWidthRatio, s.lineGapPx, s.hAlign, s.vAnchor); return this; }
+                    s.marginX, s.marginY, s.maxWidthRatio, s.lineGapPx, s.hAlign, s.vAnchor, s.posXPerc, s.posYPerc); return this; }
             public Builder text(Color c, boolean shadow){ s = new OverlayStyle(s.fontName, s.fontStyle, s.fontSizePt,
                     c, shadow, s.boxColor, s.boxAlpha, s.paddingPx, s.cornerRadius, s.marginX, s.marginY,
-                    s.maxWidthRatio, s.lineGapPx, s.hAlign, s.vAnchor); return this; }
+                    s.maxWidthRatio, s.lineGapPx, s.hAlign, s.vAnchor, s.posXPerc, s.posYPerc); return this; }
             public Builder box(Color c, float alpha){ s = new OverlayStyle(s.fontName, s.fontStyle, s.fontSizePt,
                     s.textColor, s.textShadow, c, alpha, s.paddingPx, s.cornerRadius, s.marginX, s.marginY,
-                    s.maxWidthRatio, s.lineGapPx, s.hAlign, s.vAnchor); return this; }
+                    s.maxWidthRatio, s.lineGapPx, s.hAlign, s.vAnchor, s.posXPerc, s.posYPerc); return this; }
             public Builder padding(int px){ s = new OverlayStyle(s.fontName, s.fontStyle, s.fontSizePt,
                     s.textColor, s.textShadow, s.boxColor, s.boxAlpha, px, s.cornerRadius, s.marginX, s.marginY,
-                    s.maxWidthRatio, s.lineGapPx, s.hAlign, s.vAnchor); return this; }
+                    s.maxWidthRatio, s.lineGapPx, s.hAlign, s.vAnchor, s.posXPerc, s.posYPerc); return this; }
             public Builder radius(int r){ s = new OverlayStyle(s.fontName, s.fontStyle, s.fontSizePt,
                     s.textColor, s.textShadow, s.boxColor, s.boxAlpha, s.paddingPx, r, s.marginX, s.marginY,
-                    s.maxWidthRatio, s.lineGapPx, s.hAlign, s.vAnchor); return this; }
+                    s.maxWidthRatio, s.lineGapPx, s.hAlign, s.vAnchor, s.posXPerc, s.posYPerc); return this; }
             public Builder margin(int x, int y){ s = new OverlayStyle(s.fontName, s.fontStyle, s.fontSizePt,
                     s.textColor, s.textShadow, s.boxColor, s.boxAlpha, s.paddingPx, s.cornerRadius,
-                    x, y, s.maxWidthRatio, s.lineGapPx, s.hAlign, s.vAnchor); return this; }
+                    x, y, s.maxWidthRatio, s.lineGapPx, s.hAlign, s.vAnchor, s.posXPerc, s.posYPerc); return this; }
             public Builder maxWidth(double ratio){ s = new OverlayStyle(s.fontName, s.fontStyle, s.fontSizePt,
                     s.textColor, s.textShadow, s.boxColor, s.boxAlpha, s.paddingPx, s.cornerRadius, s.marginX, s.marginY,
-                    ratio, s.lineGapPx, s.hAlign, s.vAnchor); return this; }
+                    ratio, s.lineGapPx, s.hAlign, s.vAnchor, s.posXPerc, s.posYPerc); return this; }
             public Builder lineGap(int px){ s = new OverlayStyle(s.fontName, s.fontStyle, s.fontSizePt,
                     s.textColor, s.textShadow, s.boxColor, s.boxAlpha, s.paddingPx, s.cornerRadius, s.marginX, s.marginY,
-                    s.maxWidthRatio, px, s.hAlign, s.vAnchor); return this; }
+                    s.maxWidthRatio, px, s.hAlign, s.vAnchor, s.posXPerc, s.posYPerc); return this; }
             public Builder align(HAlign h, VAnchor v){ s = new OverlayStyle(s.fontName, s.fontStyle, s.fontSizePt,
                     s.textColor, s.textShadow, s.boxColor, s.boxAlpha, s.paddingPx, s.cornerRadius, s.marginX, s.marginY,
-                    s.maxWidthRatio, s.lineGapPx, h, v); return this; }
+                    s.maxWidthRatio, s.lineGapPx, h, v, s.posXPerc, s.posYPerc); return this; }
+            public Builder positionPercent(Double px, Double py){ s = new OverlayStyle(s.fontName, s.fontStyle, s.fontSizePt,
+                    s.textColor, s.textShadow, s.boxColor, s.boxAlpha, s.paddingPx, s.cornerRadius, s.marginX, s.marginY,
+                    s.maxWidthRatio, s.lineGapPx, s.hAlign, s.vAnchor, px, py); return this; }
             public OverlayStyle build() { return s; }
         }
     }
@@ -306,9 +322,7 @@ public class WindowRecorder implements Closeable {
         if (text == null || text.isEmpty() || st == null) return;
 
         Graphics2D g = (Graphics2D) frame.getGraphics();
-        try {
-            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        } catch (Throwable ignore) {}
+        try { g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); } catch (Throwable ignore) {}
         try {
             g.setFont(new Font(st.fontName, st.fontStyle, st.fontSizePt));
             FontMetrics fm = g.getFontMetrics();
@@ -328,29 +342,33 @@ public class WindowRecorder implements Closeable {
             int boxH = textH + 2 * st.paddingPx;
 
             int x;
-            if (st.hAlign == OverlayStyle.HAlign.LEFT) {
-                x = st.marginX;
-            } else if (st.hAlign == OverlayStyle.HAlign.RIGHT) {
-                x = frame.getWidth() - st.marginX - boxW;
-            } else { // CENTER
-                x = (frame.getWidth() - boxW) / 2;
-            }
-
             int y;
-            if (st.vAnchor == OverlayStyle.VAnchor.TOP) {
-                y = st.marginY;
-            } else { // BOTTOM
-                y = frame.getHeight() - st.marginY - boxH;
+            if (st.posXPerc != null && st.posYPerc != null) {
+                double pxx = clamp01(st.posXPerc.floatValue());
+                double pyy = clamp01(st.posYPerc.floatValue());
+                x = (int) Math.round((frame.getWidth() - boxW) * pxx);
+                y = (int) Math.round((frame.getHeight() - boxH) * pyy);
+            } else {
+                if (st.hAlign == OverlayStyle.HAlign.LEFT) {
+                    x = st.marginX;
+                } else if (st.hAlign == OverlayStyle.HAlign.RIGHT) {
+                    x = frame.getWidth() - st.marginX - boxW;
+                } else { // CENTER
+                    x = (frame.getWidth() - boxW) / 2;
+                }
+                if (st.vAnchor == OverlayStyle.VAnchor.TOP) {
+                    y = st.marginY;
+                } else { // BOTTOM
+                    y = frame.getHeight() - st.marginY - boxH;
+                }
             }
 
-            // Box
             Composite old = g.getComposite();
             g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, clamp01(st.boxAlpha)));
             g.setColor(st.boxColor);
             g.fillRoundRect(x, y, boxW, boxH, st.cornerRadius, st.cornerRadius);
             g.setComposite(old);
 
-            // Text (optional Schatten)
             int tx = x + st.paddingPx;
             int ty = y + st.paddingPx + fm.getAscent();
 
@@ -427,6 +445,25 @@ public class WindowRecorder implements Closeable {
         private final AtomicReference<String> text = new AtomicReference<>("");
         private volatile boolean visible = false;
         private volatile OverlayStyle style = OverlayStyle.defaultSubtitle();
+
+        public void setText(String t) { text.set(t == null ? "" : t); }
+        public void setVisible(boolean v) { visible = v; }
+        public void setStyle(OverlayStyle s) { if (s != null) style = s; }
+
+        private void paint(BufferedImage frame) {
+            if (!visible) return;
+            String t = text.get();
+            if (t == null || t.isEmpty()) return;
+            paintOverlay(frame, t, style);
+        }
+    }
+
+    // NEU: freie Action-Ebene
+    public static final class ActionOverlay {
+        private final AtomicReference<String> text = new AtomicReference<>("");
+        private volatile boolean visible = false;
+        private volatile OverlayStyle style = new OverlayStyle.Builder(OverlayStyle.defaultSubtitle())
+                .positionPercent(0.75, 0.05).build();
 
         public void setText(String t) { text.set(t == null ? "" : t); }
         public void setVisible(boolean v) { visible = v; }

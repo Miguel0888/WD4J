@@ -37,6 +37,7 @@ public class JcodecWindowRecorder implements Closeable {
     // Overlays – kompatible API zu WindowRecorder
     private final CaptionOverlay caption = new CaptionOverlay();
     private final SubtitleOverlay subtitle = new SubtitleOverlay();
+    private final ActionOverlay action = new ActionOverlay();
 
     public JcodecWindowRecorder(WinDef.HWND hWnd, Path outFile, int fps) {
         this(hWnd, outFile, fps, false);
@@ -58,6 +59,9 @@ public class JcodecWindowRecorder implements Closeable {
     public void setSubtitleText(String text) { subtitle.setText(text); }
     public void setSubtitleVisible(boolean visible) { subtitle.setVisible(visible); }
     public void setSubtitleStyle(WindowRecorder.OverlayStyle style) { subtitle.setStyle(style); }
+    public void setActionText(String text) { action.setText(text); }
+    public void setActionVisible(boolean visible) { action.setVisible(visible); }
+    public void setActionStyle(WindowRecorder.OverlayStyle style) { action.setStyle(style); }
 
     public void start() throws Exception {
         CURRENT = this;
@@ -139,9 +143,10 @@ public class JcodecWindowRecorder implements Closeable {
     private void applyOverlays(BufferedImage frame) {
         caption.paint(frame);
         subtitle.paint(frame);
+        action.paint(frame);
     }
 
-    // ===== Overlay-Implementation (kopiert aus WindowRecorder, kompatibel) =====
+    // ===== Overlay-Implementation (angepasst) =====
 
     private static void paintOverlay(BufferedImage frame, String text, WindowRecorder.OverlayStyle st) {
         if (text == null || text.isEmpty() || st == null) return;
@@ -157,13 +162,20 @@ public class JcodecWindowRecorder implements Closeable {
             textH += st.lineGapPx * Math.max(0, lines.size() - 1);
             int boxW = textW + 2 * st.paddingPx;
             int boxH = textH + 2 * st.paddingPx;
-            int x;
-            if (st.hAlign == WindowRecorder.OverlayStyle.HAlign.LEFT) x = st.marginX;
-            else if (st.hAlign == WindowRecorder.OverlayStyle.HAlign.RIGHT) x = frame.getWidth() - st.marginX - boxW;
-            else x = (frame.getWidth() - boxW) / 2;
-            int y = (st.vAnchor == WindowRecorder.OverlayStyle.VAnchor.TOP)
-                    ? st.marginY
-                    : frame.getHeight() - st.marginY - boxH;
+            int x; int y;
+            if (st.posXPerc != null && st.posYPerc != null) {
+                float px = clamp01(st.posXPerc.floatValue());
+                float py = clamp01(st.posYPerc.floatValue());
+                x = Math.round((frame.getWidth() - boxW) * px);
+                y = Math.round((frame.getHeight() - boxH) * py);
+            } else {
+                if (st.hAlign == WindowRecorder.OverlayStyle.HAlign.LEFT) x = st.marginX;
+                else if (st.hAlign == WindowRecorder.OverlayStyle.HAlign.RIGHT) x = frame.getWidth() - st.marginX - boxW;
+                else x = (frame.getWidth() - boxW) / 2;
+                y = (st.vAnchor == WindowRecorder.OverlayStyle.VAnchor.TOP)
+                        ? st.marginY
+                        : frame.getHeight() - st.marginY - boxH;
+            }
             Composite old = g.getComposite();
             g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, clamp01(st.boxAlpha)));
             g.setColor(st.boxColor);
@@ -172,12 +184,12 @@ public class JcodecWindowRecorder implements Closeable {
             int tx = x + st.paddingPx;
             int ty = y + st.paddingPx + fm.getAscent();
             if (st.textShadow) {
-                g.setColor(new Color(0, 0, 0, 200));
-                for (String ln : lines) { g.drawString(ln, tx + 1, ty + 1); ty += fm.getAscent() + fm.getDescent() + st.lineGapPx; }
+                g.setColor(new Color(0,0,0,200));
+                for (String ln : lines) { g.drawString(ln, tx+1, ty+1); ty += fm.getAscent()+fm.getDescent()+st.lineGapPx; }
                 ty = y + st.paddingPx + fm.getAscent();
             }
             g.setColor(st.textColor);
-            for (String ln : lines) { g.drawString(ln, tx, ty); ty += fm.getAscent() + fm.getDescent() + st.lineGapPx; }
+            for (String ln : lines) { g.drawString(ln, tx, ty); ty += fm.getAscent()+fm.getDescent()+st.lineGapPx; }
         } finally { g.dispose(); }
     }
 
@@ -185,7 +197,7 @@ public class JcodecWindowRecorder implements Closeable {
 
     private static List<String> wrapLines(String text, FontMetrics fm, int maxWidth) {
         List<String> out = new ArrayList<>();
-        for (String raw : text.split("\\r?\\n")) {
+        for (String raw : text.split("\r?\n")) {
             String line = raw.trim();
             if (line.isEmpty()) { out.add(""); continue; }
             StringBuilder buf = new StringBuilder();
@@ -215,6 +227,18 @@ public class JcodecWindowRecorder implements Closeable {
         private String text = "";
         private boolean visible = false;
         private WindowRecorder.OverlayStyle style = WindowRecorder.OverlayStyle.defaultSubtitle();
+        void setText(String t) { this.text = t == null ? "" : t; }
+        void setVisible(boolean v) { this.visible = v; }
+        void setStyle(WindowRecorder.OverlayStyle s) { if (s != null) this.style = s; }
+        void paint(BufferedImage frame) { if (visible) paintOverlay(frame, text, style); }
+    }
+
+    // NEU: Action-Overlay
+    private static final class ActionOverlay {
+        private String text = "";
+        private boolean visible = false;
+        private WindowRecorder.OverlayStyle style = new WindowRecorder.OverlayStyle.Builder(WindowRecorder.OverlayStyle.defaultSubtitle())
+                .positionPercent(0.75, 0.05).build();
         void setText(String t) { this.text = t == null ? "" : t; }
         void setVisible(boolean v) { this.visible = v; }
         void setStyle(WindowRecorder.OverlayStyle s) { if (s != null) this.style = s; }

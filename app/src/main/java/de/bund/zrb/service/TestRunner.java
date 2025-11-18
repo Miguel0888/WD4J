@@ -194,7 +194,10 @@ public class TestRunner {
             if (caseNode != null && caseNode.getModelRef() instanceof TestCase) {
                 ensureCaseInitForAction(caseNode, (TestCase) caseNode.getModelRef());
             }
-            ApplicationEventBus.getInstance().publish(new VideoOverlayEvent(VideoOverlayEvent.Kind.ACTION, action.getType().name()));
+            ApplicationEventBus.getInstance().publish(new VideoOverlayEvent(
+                    VideoOverlayEvent.Kind.ACTION,
+                    buildActionOverlayText(action)
+            ));
             ok = playSingleAction(runContext, action, stepLog);
             if (!ok) err = "Action returned false";
         } catch (RuntimeException ex) {
@@ -478,6 +481,20 @@ public class TestRunner {
         sb.append("Aktion: ").append(action.getAction());
         if (action.getSelectedSelector() != null) sb.append(" @").append(action.getSelectedSelector());
         if (action.getValue() != null) sb.append(" → ").append(action.getValue());
+        return sb.toString();
+    }
+
+    private String buildActionOverlayText(TestAction action) {
+        if (action == null) return "";
+        String desc = action.getDescription();
+        if (desc != null && !desc.trim().isEmpty()) return desc.trim();
+        StringBuilder sb = new StringBuilder();
+        if (action.getAction() != null) sb.append(action.getAction());
+        String val = action.getValue();
+        if (val != null && !val.trim().isEmpty()) {
+            if (sb.length() > 0) sb.append(" ");
+            sb.append(val.trim());
+        }
         return sb.toString();
     }
 
