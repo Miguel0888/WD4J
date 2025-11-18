@@ -160,6 +160,7 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             for (Placeholder p : placeholders) {
                 VideoOverlayStyle s = p.getCurrentStyle();
                 p.applyStyle(s);
+                p.syncEnabledFromService();
                 // Position aktualisieren
                 double px = getDouble(p.keyPosX, 0.05d);
                 double py = getDouble(p.keyPosY, 0.05d);
@@ -243,7 +244,7 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             if (py < 0 || py > 1) py = defaultPy;
 
             Placeholder p = new Placeholder(label, kind, style, service, this, keyX, keyY);
-            // zunächst hinzufügen, dann mit aktueller Größe positionieren
+            p.syncEnabledFromService();
             add(p, JLayeredPane.PALETTE_LAYER);
             p.repositionFromPercent();
             placeholders.add(p);
@@ -433,6 +434,15 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             } catch (Exception ignore) { previewBgBase = new Color(0,0,0); previewBgAlpha255 = 128; }
             previewFontPx = Math.max(8, style.getFontSizePx());
             updateSizeFromText();
+        }
+
+        void syncEnabledFromService() {
+            boolean enabled;
+            if (kind == Kind.CAPTION) enabled = service.isCaptionEnabled();
+            else if (kind == Kind.SUBTITLE) enabled = service.isSubtitleEnabled();
+            else enabled = service.isActionTransientEnabled();
+            this.disabled = !enabled;
+            repaint();
         }
 
         private void openConfigDialog(Component parent) {
@@ -648,9 +658,11 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                     roundedBorder = !"Gerader Rahmen".equals(cbBorderStyle.getSelectedItem()) && !"Kein Rahmen".equals(cbBorderStyle.getSelectedItem());
                     updateSizeFromText();
                     repositionFromPercent();
+                    this.disabled = false; // explizit aktiv
                     applyToService(kind, newStyle);
                 } else {
-                    disabled = true; repaint();
+                    this.disabled = true; // explizit inaktiv
+                    repaint();
                 }
             }
         }
