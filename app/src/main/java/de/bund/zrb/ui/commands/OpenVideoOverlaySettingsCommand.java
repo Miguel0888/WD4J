@@ -11,6 +11,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -118,7 +119,7 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             });
         }
 
-        private void resetToDefaults() {
+        public void resetToDefaults() {
             // Sinnvolle Default-Styles mit gutem Kontrast und ~50% Transparenz
             VideoOverlayStyle caption = new VideoOverlayStyle("#FFFFFF", "rgba(0,0,0,0.50)", 26);
             VideoOverlayStyle subtitle = new VideoOverlayStyle("#FFFFFF", "rgba(0,0,0,0.50)", 20);
@@ -260,8 +261,13 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
         final String keyPosY;
         private Point dragOffset;
         private boolean disabled; // wenn Typ "Nicht verwenden" gewählt ist
-        private JLabel titleLabel;
-        private JTextArea textArea;
+        private String previewText;
+        private Color previewFontColor;
+        private Color previewBgBase; // ohne Alpha
+        private int previewBgAlpha255 = 180; // 0=transparent, 255=deckend (für Füllung verwenden wir 255-alphaSlider in alter Logik)
+        private int previewFontPx = 16;
+        private Color previewBorderColor;
+        private boolean roundedBorder = true;
 
         Placeholder(String label, Kind kind, VideoOverlayStyle style,
                     VideoOverlayService service, JComponent parent,
@@ -270,31 +276,14 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             this.service = service;
             this.keyPosX = keyPosX;
             this.keyPosY = keyPosY;
-            setLayout(new BorderLayout(4,4));
-
+            this.previewText = "Beispieltext " + label;
+            setLayout(null); // eigenes Painting übernimmt Layout
             setOpaque(false);
             applyStyle(style);
 
-            titleLabel = new JLabel(label);
-            titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD));
-            add(titleLabel, BorderLayout.NORTH);
-
-            textArea = new JTextArea("Beispieltext " + label);
-            textArea.setLineWrap(true);
-            textArea.setWrapStyleWord(true);
-            textArea.setOpaque(false);
-            textArea.setEditable(false);
-            add(textArea, BorderLayout.CENTER);
-
-            JButton edit = new JButton("Design / Typ...");
-            edit.setToolTipText("Schriftart, Farben, Hintergrund und Typ des Overlays anpassen");
-            edit.addActionListener(e -> openConfigDialog(parent));
-            add(edit, BorderLayout.SOUTH);
-
+            // Dragging beibehalten
             MouseAdapter ma = new MouseAdapter() {
-                @Override public void mousePressed(MouseEvent e) {
-                    dragOffset = e.getPoint();
-                }
+                @Override public void mousePressed(MouseEvent e) { dragOffset = e.getPoint(); }
                 @Override public void mouseDragged(MouseEvent e) {
                     if (dragOffset == null || disabled) return;
                     int nx = getX() + e.getX() - dragOffset.x;
@@ -307,73 +296,134 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                     SettingsService.getInstance().set(keyPosY, py);
                     parent.repaint();
                 }
+                @Override public void mouseClicked(MouseEvent e) {
+                    if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
+                        openConfigDialog(parent);
+                    }
+                }
             };
             addMouseListener(ma);
             addMouseMotionListener(ma);
+
+            // Kontextmenü: Einstellungen öffnen + Standard
+            JPopupMenu pm = new JPopupMenu();
+            JMenuItem miCfg = new JMenuItem("Einstellungen...");
+            miCfg.addActionListener(ev -> openConfigDialog(parent));
+            JMenuItem miReset = new JMenuItem("Auf Standard zurücksetzen");
+            miReset.addActionListener(ev -> {
+                java.awt.Component c = SwingUtilities.getAncestorOfClass(OverlayPreviewPanel.class, this);
+                if (c instanceof OverlayPreviewPanel) ((OverlayPreviewPanel) c).resetToDefaults();
+            });
+            pm.add(miCfg); pm.add(miReset);
+            addMouseListener(new MouseAdapter(){
+                @Override public void mousePressed(MouseEvent e){ maybeShow(e);} @Override public void mouseReleased(MouseEvent e){ maybeShow(e);}
+                private void maybeShow(MouseEvent e){ if (e.isPopupTrigger()) pm.show(Placeholder.this, e.getX(), e.getY()); }
+            });
+
+            // Initialgröße passend zum Text setzen
+            updateSizeFromText();
         }
 
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-            if (disabled) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setColor(new Color(200, 200, 200, 120));
-                g2.fillRect(0, 0, getWidth(), getHeight());
-                g2.setColor(new Color(120, 120, 120, 200));
-                g2.drawRect(0, 0, getWidth()-1, getHeight()-1);
-                g2.drawString("(Nicht verwendet)", 8, getHeight()/2);
+            Graphics2D g2 = (Graphics2D) g.create();
+            try {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (disabled) {
+                    g2.setColor(new Color(200,200,200,120)); g2.fillRect(0,0,getWidth(),getHeight());
+                    g2.setColor(new Color(120,120,120,200)); g2.drawRect(0,0,getWidth()-1,getHeight()-1);
+                    g2.setColor(new Color(80,80,80,200));
+                    String t = "(Nicht verwendet)";
+                    FontMetrics fm = g2.getFontMetrics(getFont());
+                    int tx = (getWidth()-fm.stringWidth(t))/2; int ty = (getHeight()+fm.getAscent()-fm.getDescent())/2;
+                    g2.drawString(t, Math.max(4,tx), Math.max(fm.getAscent()+2,ty));
+                    return;
+                }
+                // Box zeichnen
+                int w = getWidth(); int h = getHeight();
+                Color fill = new Color(previewBgBase.getRed(), previewBgBase.getGreen(), previewBgBase.getBlue(), Math.max(0, Math.min(255, previewBgAlpha255)));
+                g2.setColor(fill);
+                int arc = roundedBorder ? Math.min(24, Math.min(w,h)/4) : 0;
+                if (arc > 0) g2.fillRoundRect(0,0,w,h, arc, arc); else g2.fillRect(0,0,w,h);
+                // Text zentriert
+                g2.setFont(new Font(getFont().getName(), Font.PLAIN, previewFontPx));
+                g2.setColor(previewFontColor != null ? previewFontColor : Color.WHITE);
+                FontMetrics fm = g2.getFontMetrics();
+                java.util.List<String> lines = wrapLines(previewText, fm, w - 16);
+                int textH = 0; for (String ln : lines) textH += fm.getAscent()+fm.getDescent();
+                int y = (h - textH)/2 + fm.getAscent();
+                for (String ln : lines) {
+                    int tw = fm.stringWidth(ln);
+                    int x = (w - tw)/2;
+                    g2.drawString(ln, Math.max(8,x), y);
+                    y += fm.getAscent()+fm.getDescent();
+                }
+                // Rahmen
+                g2.setColor(previewBorderColor != null ? previewBorderColor : (previewFontColor != null ? previewFontColor : Color.WHITE));
+                if (arc > 0) g2.drawRoundRect(0,0,w-1,h-1, arc, arc); else g2.drawRect(0,0,w-1,h-1);
+            } finally {
                 g2.dispose();
             }
+        }
+
+        private java.util.List<String> wrapLines(String text, FontMetrics fm, int maxW) {
+          java.util.List<String> out = new java.util.ArrayList<>();
+          if (text == null) { out.add(""); return out; }
+          for (String raw : text.split("\\r?\\n")) {
+            String line = raw.trim(); if (line.isEmpty()) { out.add(""); continue; }
+            StringBuilder buf = new StringBuilder();
+            for (String word : line.split("\\s+")) {
+              if (buf.length()==0) buf.append(word);
+              else {
+                String trial = buf + " " + word;
+                if (fm.stringWidth(trial) <= Math.max(32, maxW)) buf.append(" ").append(word);
+                else { out.add(buf.toString()); buf.setLength(0); buf.append(word); }
+              }
+            }
+            out.add(buf.toString());
+          }
+          return out;
+        }
+
+        private void updateSizeFromText() {
+          Font f = new Font(getFont().getName(), Font.PLAIN, previewFontPx);
+          BufferedImage tmp = new BufferedImage(1,1,BufferedImage.TYPE_INT_ARGB);
+          Graphics2D g = tmp.createGraphics();
+          try {
+            FontMetrics fm = g.getFontMetrics(f);
+            java.util.List<String> lines = wrapLines(previewText, fm, (int)Math.round(getParent() != null ? getParent().getWidth()*0.5 : 400));
+            int textW = 0; int textH = 0;
+            for (String ln : lines) { textW = Math.max(textW, fm.stringWidth(ln)); textH += fm.getAscent()+fm.getDescent(); }
+            int pad = 16;
+            int w = Math.max(80, textW + pad*2);
+            int h = Math.max(40, textH + pad*2);
+            setSize(w, h);
+            setPreferredSize(new Dimension(w,h));
+            revalidate(); repaint();
+          } finally { g.dispose(); }
         }
 
         void applyStyle(VideoOverlayStyle style) {
             if (style == null) return;
             try {
-                Color font = Color.decode(style.getFontColor());
-                Color bg;
-                int alpha = 180;
+                previewFontColor = Color.decode(style.getFontColor());
+            } catch (Exception ignore) { previewFontColor = Color.WHITE; }
+            try {
                 String bgStr = style.getBackgroundColor();
                 if (bgStr != null && bgStr.toLowerCase().startsWith("rgba")) {
-                    // einfaches rgba( r, g, b, a )-Parsing
-                    int start = bgStr.indexOf('(');
-                    int end = bgStr.indexOf(')');
-                    if (start >= 0 && end > start) {
-                        String[] parts = bgStr.substring(start + 1, end).split(",");
-                        if (parts.length >= 4) {
-                            int r = Integer.parseInt(parts[0].trim());
-                            int g = Integer.parseInt(parts[1].trim());
-                            int b = Integer.parseInt(parts[2].trim());
-                            float af = Float.parseFloat(parts[3].trim());
-                            // af = 0 => voll deckend, af = 1 => voll transparent
-                            alpha = 255 - (int) Math.round(255 * Math.max(0f, Math.min(1f, af)));
-                            bg = new Color(r, g, b);
-                        } else {
-                            bg = Color.decode("#000000");
-                        }
-                    } else {
-                        bg = Color.decode("#000000");
-                    }
+                    int a = bgStr.indexOf('('), b = bgStr.indexOf(')');
+                    String[] p = bgStr.substring(a+1,b).split(",");
+                    int r=Integer.parseInt(p[0].trim()), g=Integer.parseInt(p[1].trim()), bl=Integer.parseInt(p[2].trim());
+                    float af = Float.parseFloat(p[3].trim()); // 0 deckend, 1 transparent
+                    previewBgBase = new Color(r,g,bl);
+                    previewBgAlpha255 = 255 - Math.round(255 * Math.max(0f, Math.min(1f, af)));
                 } else {
-                    bg = Color.decode(style.getBackgroundColor());
+                    Color c = Color.decode(style.getBackgroundColor()); previewBgBase = c; previewBgAlpha255 = 128;
                 }
-                Color bgTrans = new Color(bg.getRed(), bg.getGreen(), bg.getBlue(), alpha);
-                setBackground(bgTrans);
-                setOpaque(alpha > 0);
-                setForeground(font);
-                setBorder(BorderFactory.createLineBorder(font));
-                // Schriftgröße sauber an Vorschau-Komponenten anwenden
-                int px = Math.max(8, style.getFontSizePx());
-                Font base = getFont();
-                if (base == null) base = UIManager.getFont("Label.font");
-                setFont(new Font(base.getName(), Font.PLAIN, px));
-                if (titleLabel != null) titleLabel.setFont(new Font(base.getName(), Font.BOLD, px));
-                if (textArea != null) textArea.setFont(new Font(base.getName(), Font.PLAIN, px));
-            } catch (Exception ignored) {
-                setOpaque(false);
-                setBorder(BorderFactory.createDashedBorder(Color.LIGHT_GRAY));
-            }
-            revalidate();
-            repaint();
+            } catch (Exception ignore) { previewBgBase = new Color(0,0,0); previewBgAlpha255 = 128; }
+            previewFontPx = Math.max(8, style.getFontSizePx());
+            updateSizeFromText();
         }
 
         private void openConfigDialog(Component parent) {
@@ -447,11 +497,7 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 if (c != null) {
                     chosenFont[0] = c;
                     fontColorPreview.setBackground(c);
-                    setForeground(c);
-                    // Rahmen in Vorschau ebenfalls anpassen, wenn daneben liegt
-                    if (getBorder() instanceof javax.swing.border.LineBorder) {
-                        setBorder(BorderFactory.createLineBorder(chosenBorder[0]));
-                    }
+                    previewFontColor = c;
                     repaint();
                 }
             });
@@ -460,12 +506,7 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 if (c != null) {
                     chosenBg[0] = c;
                     bgColorPreview.setBackground(c);
-                    // Hintergrund sofort mit aktuellem Alpha aktualisieren
-                    int sliderVal = alphaSlider.getValue();
-                    int alpha = 255 - sliderVal;
-                    Color bgTrans = new Color(c.getRed(), c.getGreen(), c.getBlue(), alpha);
-                    setBackground(bgTrans);
-                    setOpaque(alpha > 0);
+                    previewBgBase = c;
                     repaint();
                 }
             });
@@ -474,47 +515,37 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 if (c != null) {
                     chosenBorder[0] = c;
                     borderColorPreview.setBackground(c);
-                    if (getBorder() instanceof javax.swing.border.LineBorder) {
-                        setBorder(BorderFactory.createLineBorder(c));
-                    }
+                    previewBorderColor = c;
                     repaint();
                 }
             });
 
             alphaSlider.addChangeListener(e -> {
-                Color b = chosenBg[0];
-                if (b != null) {
-                    int sliderVal = alphaSlider.getValue();
-                    int alpha = 255 - sliderVal; // hoher Slider => transparenter
-                    Color bgTrans = new Color(b.getRed(), b.getGreen(), b.getBlue(), alpha);
-                    setBackground(bgTrans);
-                    setOpaque(alpha > 0);
-                    repaint();
-                }
+                int sliderVal = alphaSlider.getValue();
+                previewBgAlpha255 = 255 - sliderVal; // hoher Slider => transparenter Hintergrund
+                repaint();
             });
 
-            // Aktiviert-Checkbox (statt Typ-Dropdown)
-            JCheckBox enabledCheck = new JCheckBox("Aktiviert");
-            boolean initiallyEnabled;
-            if (kind == Kind.CAPTION) initiallyEnabled = service.isCaptionEnabled();
-            else if (kind == Kind.SUBTITLE) initiallyEnabled = service.isSubtitleEnabled();
-            else initiallyEnabled = service.isActionTransientEnabled();
-            enabledCheck.setSelected(initiallyEnabled);
-
-            // Schriftgröße mit Live-Vorschau auf Textbereich
             JSpinner spFontSize = new JSpinner(new SpinnerNumberModel(current.getFontSizePx(), 8, 96, 1));
             spFontSize.addChangeListener(e -> {
                 int fs = (Integer) spFontSize.getValue();
-                Font base = getFont() != null ? getFont() : UIManager.getFont("Label.font");
-                if (textArea != null) textArea.setFont(new Font(base.getName(), Font.PLAIN, fs));
-                if (titleLabel != null) titleLabel.setFont(new Font(base.getName(), Font.BOLD, fs));
-                revalidate(); repaint();
+                previewFontPx = Math.max(8, fs);
+                updateSizeFromText();
             });
 
-            // Rahmen-Design
             String[] borderStyles = {"Gerader Rahmen", "Abgerundeter Rahmen", "Kein Rahmen"};
             JComboBox<String> cbBorderStyle = new JComboBox<>(borderStyles);
-            cbBorderStyle.setSelectedIndex(0);
+            cbBorderStyle.setSelectedIndex(1);
+            cbBorderStyle.addActionListener(e -> {
+                String sel = (String) cbBorderStyle.getSelectedItem();
+                if ("Kein Rahmen".equals(sel)) {
+                    previewBorderColor = new Color(0,0,0,0); // unsichtbar
+                } else {
+                    if (previewBorderColor == null) previewBorderColor = previewFontColor;
+                }
+                roundedBorder = "Abgerundeter Rahmen".equals(sel);
+                repaint();
+            });
 
             // Dauer-Slider inkl. ∞
             int currentDuration = (kind == Kind.ACTION) ? service.getActionTransientDurationMs() :
@@ -527,6 +558,14 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             Runnable updateDurationLabel = () -> durationValueLabel.setText(durationSlider.getValue() >= specialMaxValue ? "∞" : durationSlider.getValue() + " ms");
             durationSlider.addChangeListener(e -> updateDurationLabel.run());
             updateDurationLabel.run();
+
+            // Aktiviert-Checkbox (statt Typ-Dropdown)
+            final JCheckBox enabledCheck = new JCheckBox("Aktiviert");
+            boolean initiallyEnabled;
+            if (kind == Kind.CAPTION) initiallyEnabled = service.isCaptionEnabled();
+            else if (kind == Kind.SUBTITLE) initiallyEnabled = service.isSubtitleEnabled();
+            else initiallyEnabled = service.isActionTransientEnabled();
+            enabledCheck.setSelected(initiallyEnabled);
 
             // Panel layout
             JPanel panel = new JPanel(new GridBagLayout());
@@ -592,12 +631,15 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 else if (kind == Kind.SUBTITLE) service.setCaseDisplayDurationMs(durationToStore);
                 else service.setActionTransientDurationMs(durationToStore);
 
-                // Style anwenden, wenn aktiv
+                // Style anwenden
                 if (enabled) {
                     applyStyle(newStyle);
+                    // Erneut benutzerdefinierte Rahmen-/Farben anwenden
+                    previewBorderColor = chosenBorder[0] != null ? chosenBorder[0] : chosenFont[0];
+                    roundedBorder = !"Gerader Rahmen".equals(cbBorderStyle.getSelectedItem()) && !"Kein Rahmen".equals(cbBorderStyle.getSelectedItem());
+                    updateSizeFromText();
                     applyToService(kind, newStyle);
                 } else {
-                    // Visuell disable markieren
                     disabled = true; repaint();
                 }
             }
