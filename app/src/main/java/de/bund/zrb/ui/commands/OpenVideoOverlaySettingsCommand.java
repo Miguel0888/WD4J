@@ -101,6 +101,58 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 repaint();
             });
             visualizerTimer.start();
+
+            // Kontextmenü für Reset-auf-Standard
+            JPopupMenu menu = new JPopupMenu();
+            JMenuItem reset = new JMenuItem("Auf Standard zurücksetzen");
+            reset.addActionListener(e -> resetToDefaults());
+            menu.add(reset);
+            addMouseListener(new MouseAdapter() {
+                @Override public void mousePressed(MouseEvent e) { maybeShow(e); }
+                @Override public void mouseReleased(MouseEvent e) { maybeShow(e); }
+                private void maybeShow(MouseEvent e) {
+                    if (e.isPopupTrigger()) {
+                        menu.show(OverlayPreviewPanel.this, e.getX(), e.getY());
+                    }
+                }
+            });
+        }
+
+        private void resetToDefaults() {
+            // Sinnvolle Default-Styles mit gutem Kontrast und ~50% Transparenz
+            VideoOverlayStyle caption = new VideoOverlayStyle("#FFFFFF", "rgba(0,0,0,0.50)", 26);
+            VideoOverlayStyle subtitle = new VideoOverlayStyle("#FFFFFF", "rgba(0,0,0,0.50)", 20);
+            VideoOverlayStyle action = new VideoOverlayStyle("#000000", "rgba(255,255,0,0.40)", 18);
+
+            service.applyCaptionStyle(caption);
+            service.applySubtitleStyle(subtitle);
+            service.applyActionStyle(action);
+            service.setCaptionEnabled(true);
+            service.setSubtitleEnabled(true);
+            service.setActionTransientEnabled(true);
+
+            // Default-Positionen in Settings zurücksetzen (oben links, unten mittig, oben rechts)
+            SettingsService.getInstance().set("video.overlay.caption.posX", 0.05d);
+            SettingsService.getInstance().set("video.overlay.caption.posY", 0.05d);
+            SettingsService.getInstance().set("video.overlay.subtitle.posX", 0.50d);
+            SettingsService.getInstance().set("video.overlay.subtitle.posY", 0.85d);
+            SettingsService.getInstance().set("video.overlay.action.posX", 0.75d);
+            SettingsService.getInstance().set("video.overlay.action.posY", 0.05d);
+
+            // Preview-Placeholder neu aus Styles befüllen
+            for (Placeholder p : placeholders) {
+                VideoOverlayStyle s = p.getCurrentStyle();
+                p.applyStyle(s);
+                // Position aktualisieren
+                double px = getDouble(p.keyPosX, 0.05d);
+                double py = getDouble(p.keyPosY, 0.05d);
+                int w = p.getWidth();
+                int h = p.getHeight();
+                int x = (int) Math.round(px * (videoSize.width - w));
+                int y = (int) Math.round(py * (videoSize.height - h));
+                p.setLocation(x, y);
+            }
+            repaint();
         }
 
         @Override
@@ -204,9 +256,10 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
 
         private final Kind kind;
         private final VideoOverlayService service;
-        private final String keyPosX;
-        private final String keyPosY;
+        final String keyPosX;
+        final String keyPosY;
         private Point dragOffset;
+        private boolean disabled; // wenn Typ "Nicht verwenden" gewählt ist
 
         Placeholder(String label, Kind kind, VideoOverlayStyle style,
                     VideoOverlayService service, JComponent parent,
@@ -241,11 +294,10 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                     dragOffset = e.getPoint();
                 }
                 @Override public void mouseDragged(MouseEvent e) {
-                    if (dragOffset == null) return;
+                    if (dragOffset == null || disabled) return;
                     int nx = getX() + e.getX() - dragOffset.x;
                     int ny = getY() + e.getY() - dragOffset.y;
                     setLocation(nx, ny);
-                    // Position als Prozent der Videoauflösung speichern
                     Dimension size = parent.getSize();
                     double px = (double) nx / (double) Math.max(1, size.width - getWidth());
                     double py = (double) ny / (double) Math.max(1, size.height - getHeight());
@@ -258,7 +310,21 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             addMouseMotionListener(ma);
         }
 
-        private void applyStyle(VideoOverlayStyle style) {
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            if (disabled) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setColor(new Color(200, 200, 200, 120));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setColor(new Color(120, 120, 120, 200));
+                g2.drawRect(0, 0, getWidth()-1, getHeight()-1);
+                g2.drawString("(Nicht verwendet)", 8, getHeight()/2);
+                g2.dispose();
+            }
+        }
+
+        void applyStyle(VideoOverlayStyle style) {
             if (style == null) return;
             try {
                 Color font = Color.decode(style.getFontColor());
@@ -292,13 +358,12 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 setBackground(bgTrans);
                 setOpaque(alpha > 0);
                 setForeground(font);
-                // Standard: eckiger Rahmen in Schriftfarbe
                 setBorder(BorderFactory.createLineBorder(font));
+                setFont(getFont().deriveFont((float) style.getFontSizePx()));
             } catch (Exception ignored) {
                 setOpaque(false);
                 setBorder(BorderFactory.createDashedBorder(Color.LIGHT_GRAY));
             }
-            revalidate();
             repaint();
         }
 
@@ -419,18 +484,62 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 }
             });
 
-            // Typ-Auswahl und Schriftgröße wie bisher
-            String[] types = {"Caption", "Subtitle", "Action"};
+            // Typ-Auswahl inkl. "Nicht verwenden"; Bezeichnungen Suite/Case/Action
+            String[] types = {"Nicht verwenden", "Suite", "Case", "Action"};
             JComboBox<String> cbType = new JComboBox<>(types);
-            cbType.setSelectedIndex(kind == Kind.CAPTION ? 0 : kind == Kind.SUBTITLE ? 1 : 2);
+            int selIndex = 0;
+            if (kind == Kind.CAPTION) selIndex = 1;      // Suite
+            else if (kind == Kind.SUBTITLE) selIndex = 2; // Case
+            else if (kind == Kind.ACTION) selIndex = 3;
+            cbType.setSelectedIndex(selIndex);
 
+            // Schriftgröße mit Live-Vorschau
             JSpinner spFontSize = new JSpinner(new SpinnerNumberModel(current.getFontSizePx(), 8, 96, 1));
+            spFontSize.addChangeListener(e -> {
+                int fs = (Integer) spFontSize.getValue();
+                setFont(getFont().deriveFont((float) fs));
+                revalidate();
+                repaint();
+            });
 
-            // Einfaches Design-Combo für Rahmenform
+            // Rahmen-Design wie zuvor
             String[] borderStyles = {"Gerader Rahmen", "Abgerundeter Rahmen", "Kein Rahmen"};
             JComboBox<String> cbBorderStyle = new JComboBox<>(borderStyles);
             cbBorderStyle.setSelectedIndex(0);
 
+            // Anzeigedauer (nur sinnvoll für Action-Overlay), Einheit ms
+            int currentDuration = (kind == Kind.ACTION)
+                    ? service.getActionTransientDurationMs()
+                    : 2000;
+            int minMs = 250;
+            int maxMs = 10_000;
+            final int specialMaxValue = 11_000; // = "bis zum nächsten Element"
+
+            int sliderInit;
+            if (kind == Kind.ACTION && currentDuration >= specialMaxValue) {
+                sliderInit = specialMaxValue;
+            } else {
+                sliderInit = Math.min(Math.max(currentDuration, minMs), maxMs);
+            }
+
+            JSlider durationSlider = new JSlider(minMs, specialMaxValue, sliderInit);
+            durationSlider.setPaintTicks(true);
+            durationSlider.setMajorTickSpacing(2500);
+            durationSlider.setMinorTickSpacing(250);
+
+            JLabel durationValueLabel = new JLabel();
+            Runnable updateDurationLabel = () -> {
+                int v = durationSlider.getValue();
+                if (v >= specialMaxValue) {
+                    durationValueLabel.setText("∞");
+                } else {
+                    durationValueLabel.setText(v + " ms");
+                }
+            };
+            durationSlider.addChangeListener(e -> updateDurationLabel.run());
+            updateDurationLabel.run();
+
+            // Panel layout
             JPanel panel = new JPanel(new GridBagLayout());
             GridBagConstraints c = new GridBagConstraints();
             c.insets = new Insets(4,4,4,4);
@@ -456,6 +565,13 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             c.gridx = 0; c.gridy = 6; panel.add(new JLabel("Schriftgröße (px):"), c);
             c.gridx = 1; panel.add(spFontSize, c);
 
+            // Anzeigedauer nur für Action wirklich relevant, UI aber immer sichtbar und erklärt
+            c.gridx = 0; c.gridy = 7; panel.add(new JLabel("Anzeigedauer (Action):"), c);
+            JPanel durationPanel = new JPanel(new BorderLayout(4,0));
+            durationPanel.add(durationSlider, BorderLayout.CENTER);
+            durationPanel.add(durationValueLabel, BorderLayout.EAST);
+            c.gridx = 1; panel.add(durationPanel, c);
+
             int res = JOptionPane.showConfirmDialog(parent, panel,
                     "Overlay-Platzhalter konfigurieren", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
             if (res == JOptionPane.OK_OPTION) {
@@ -463,7 +579,6 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 Color b = chosenBg[0];
                 Color borderColor = chosenBorder[0];
                 int sliderVal = alphaSlider.getValue();
-                // Slider: 0 = deckend => alphaFactor=0, 255 = voll transparent => alphaFactor=1
                 double alphaFactor = Math.max(0d, Math.min(1d, sliderVal / 255d));
                 if (f == null || b == null) {
                     return;
@@ -478,9 +593,11 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
 
                 String sel = (String) cbType.getSelectedItem();
                 Kind newKind = kind;
-                if ("Caption".equals(sel)) newKind = Kind.CAPTION;
-                else if ("Subtitle".equals(sel)) newKind = Kind.SUBTITLE;
+                boolean use = true;
+                if ("Suite".equals(sel)) newKind = Kind.CAPTION;
+                else if ("Case".equals(sel)) newKind = Kind.SUBTITLE;
                 else if ("Action".equals(sel)) newKind = Kind.ACTION;
+                else { use = false; }
 
                 // Rahmen-Design anwenden
                 if ("Kein Rahmen".equals(cbBorderStyle.getSelectedItem())) {
@@ -494,12 +611,33 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                     }
                 }
 
-                applyStyle(newStyle);
-                applyToService(newKind, newStyle);
+                disabled = !use;
+                if (use) {
+                    applyStyle(newStyle);
+                    applyToService(newKind, newStyle);
+
+                    // Anzeigedauer nur für Action-Typ sinnvoll: Spezialwert für "bis zum nächsten Element"
+                    if (newKind == Kind.ACTION) {
+                        int v = durationSlider.getValue();
+                        int durationToStore = (v >= specialMaxValue) ? specialMaxValue : v;
+                        service.setActionTransientDurationMs(durationToStore);
+                    }
+
+                    if (newKind == Kind.CAPTION) service.setCaptionEnabled(true);
+                    else if (newKind == Kind.SUBTITLE) service.setSubtitleEnabled(true);
+                    else if (newKind == Kind.ACTION) service.setActionTransientEnabled(true);
+                } else {
+                    // Nicht verwenden: im Service deaktivieren
+                    if (kind == Kind.CAPTION) service.setCaptionEnabled(false);
+                    else if (kind == Kind.SUBTITLE) service.setSubtitleEnabled(false);
+                    else if (kind == Kind.ACTION) service.setActionTransientEnabled(false);
+                }
+
+                repaint();
             }
         }
 
-        private VideoOverlayStyle getCurrentStyle() {
+        VideoOverlayStyle getCurrentStyle() {
             switch (kind) {
                 case CAPTION:
                     return service.getCaptionStyle();
