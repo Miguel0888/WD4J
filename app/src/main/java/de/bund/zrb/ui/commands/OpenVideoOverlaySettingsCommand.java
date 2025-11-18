@@ -95,6 +95,12 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                     "video.overlay.subtitle.posX", "video.overlay.subtitle.posY", 0.05, 0.75);
             addPlaceholder("Action", Placeholder.Kind.ACTION, service.getActionStyle(),
                     "video.overlay.action.posX", "video.overlay.action.posY", 0.75, 0.05);
+            // Nach dem Hinzufügen einmalig sicher repositionieren
+            SwingUtilities.invokeLater(this::positionAll);
+            // Bei Größe ändern neu positionieren
+            addComponentListener(new java.awt.event.ComponentAdapter() {
+                @Override public void componentResized(java.awt.event.ComponentEvent e) { positionAll(); }
+            });
 
             // Ruhigere Animation: langsamere Phase und weichere Bewegung
             visualizerTimer = new Timer(70, e -> {
@@ -117,6 +123,14 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                     }
                 }
             });
+        }
+
+        private void positionAll() {
+            if (getWidth() <= 0 || getHeight() <= 0) { SwingUtilities.invokeLater(this::positionAll); return; }
+            for (Placeholder p : placeholders) {
+                p.repositionFromPercent();
+            }
+            repaint();
         }
 
         public void resetToDefaults() {
@@ -337,25 +351,23 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                     g2.drawString(t, Math.max(4,tx), Math.max(fm.getAscent()+2,ty));
                     return;
                 }
-                // Box zeichnen
                 int w = getWidth(); int h = getHeight();
                 Color fill = new Color(previewBgBase.getRed(), previewBgBase.getGreen(), previewBgBase.getBlue(), Math.max(0, Math.min(255, previewBgAlpha255)));
                 g2.setColor(fill);
                 int arc = roundedBorder ? Math.min(24, Math.min(w,h)/4) : 0;
                 if (arc > 0) g2.fillRoundRect(0,0,w,h, arc, arc); else g2.fillRect(0,0,w,h);
-                // Text zentriert
+
+                // Einzeiliger, zentrierter Text
                 g2.setFont(new Font(getFont().getName(), Font.PLAIN, previewFontPx));
                 g2.setColor(previewFontColor != null ? previewFontColor : Color.WHITE);
                 FontMetrics fm = g2.getFontMetrics();
-                java.util.List<String> lines = wrapLines(previewText, fm, w - 16);
-                int textH = 0; for (String ln : lines) textH += fm.getAscent()+fm.getDescent();
-                int y = (h - textH)/2 + fm.getAscent();
-                for (String ln : lines) {
-                    int tw = fm.stringWidth(ln);
-                    int x = (w - tw)/2;
-                    g2.drawString(ln, Math.max(8,x), y);
-                    y += fm.getAscent()+fm.getDescent();
-                }
+                String line = previewText != null ? previewText : "";
+                int tw = fm.stringWidth(line);
+                int textBlockH = fm.getAscent() + fm.getDescent();
+                int y = (h - textBlockH) / 2 + fm.getAscent();
+                int x = (w - tw) / 2;
+                g2.drawString(line, Math.max(8, x), Math.max(fm.getAscent(), y));
+
                 // Rahmen
                 g2.setColor(previewBorderColor != null ? previewBorderColor : (previewFontColor != null ? previewFontColor : Color.WHITE));
                 if (arc > 0) g2.drawRoundRect(0,0,w-1,h-1, arc, arc); else g2.drawRect(0,0,w-1,h-1);
@@ -364,41 +376,22 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             }
         }
 
-        private java.util.List<String> wrapLines(String text, FontMetrics fm, int maxW) {
-          java.util.List<String> out = new java.util.ArrayList<>();
-          if (text == null) { out.add(""); return out; }
-          for (String raw : text.split("\\r?\\n")) {
-            String line = raw.trim(); if (line.isEmpty()) { out.add(""); continue; }
-            StringBuilder buf = new StringBuilder();
-            for (String word : line.split("\\s+")) {
-              if (buf.length()==0) buf.append(word);
-              else {
-                String trial = buf + " " + word;
-                if (fm.stringWidth(trial) <= Math.max(32, maxW)) buf.append(" ").append(word);
-                else { out.add(buf.toString()); buf.setLength(0); buf.append(word); }
-              }
-            }
-            out.add(buf.toString());
-          }
-          return out;
-        }
-
         private void updateSizeFromText() {
-          Font f = new Font(getFont().getName(), Font.PLAIN, previewFontPx);
-          BufferedImage tmp = new BufferedImage(1,1,BufferedImage.TYPE_INT_ARGB);
-          Graphics2D g = tmp.createGraphics();
-          try {
-            FontMetrics fm = g.getFontMetrics(f);
-            java.util.List<String> lines = wrapLines(previewText, fm, (int)Math.round(getParent() != null ? getParent().getWidth()*0.5 : 400));
-            int textW = 0; int textH = 0;
-            for (String ln : lines) { textW = Math.max(textW, fm.stringWidth(ln)); textH += fm.getAscent()+fm.getDescent(); }
-            int pad = 16;
-            int w = Math.max(80, textW + pad*2);
-            int h = Math.max(40, textH + pad*2);
-            setSize(w, h);
-            setPreferredSize(new Dimension(w,h));
-            revalidate(); repaint();
-          } finally { g.dispose(); }
+            Font f = new Font(getFont().getName(), Font.PLAIN, previewFontPx);
+            BufferedImage tmp = new BufferedImage(1,1,BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = tmp.createGraphics();
+            try {
+                FontMetrics fm = g.getFontMetrics(f);
+                String line = previewText != null ? previewText : "";
+                int textW = fm.stringWidth(line);
+                int textH = fm.getAscent() + fm.getDescent();
+                int pad = 16;
+                int w = Math.max(80, textW + pad*2);
+                int h = Math.max(40, textH + pad*2);
+                setSize(w, h);
+                setPreferredSize(new Dimension(w,h));
+                revalidate(); repaint();
+            } finally { g.dispose(); }
         }
 
         // Hilfsmethode: Position anhand gespeicherter Prozentwerte und aktueller Größe neu setzen
@@ -409,10 +402,12 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             Double px = SettingsService.getInstance().get(keyPosX, Double.class);
             Double py = SettingsService.getInstance().get(keyPosY, Double.class);
             if (px == null) px = 0.05d; if (py == null) py = 0.05d;
+            double pxx = Math.max(0d, Math.min(1d, px));
+            double pyy = Math.max(0d, Math.min(1d, py));
             int w = getWidth() > 0 ? getWidth() : getPreferredSize().width;
             int h = getHeight() > 0 ? getHeight() : getPreferredSize().height;
-            int x = (int) Math.round(px * Math.max(1, (size.width - w)));
-            int y = (int) Math.round(py * Math.max(1, (size.height - h)));
+            int x = (int) Math.round(pxx * Math.max(1, (size.width - w)));
+            int y = (int) Math.round(pyy * Math.max(1, (size.height - h)));
             setLocation(x, y);
         }
 
