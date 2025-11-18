@@ -618,7 +618,6 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
 
                     // Dauer für die gewählte Kategorie speichern
                     int v = durationSlider.getValue();
-                    int specialMaxValue = durationSlider.getMaximum();
                     int durationToStore = (v >= specialMaxValue) ? specialMaxValue : v;
                     if (newKind == Kind.CAPTION) {
                         VideoOverlayService.getInstance().setSuiteDisplayDurationMs(durationToStore);
