@@ -26,9 +26,8 @@ public final class VideoOverlayController {
             switch (p.kind) {
                 case SUITE:
                 case ROOT: {
-                    // Neue Suite blendet Suite-Overlay ein; Dauer berücksichtigen
                     if (suiteTimer != null) { suiteTimer.stop(); suiteTimer = null; }
-                    if (svc.isCaptionEnabled()) {
+                    if (svc.isCaptionEnabled() && p.name != null && !p.name.isEmpty()) {
                         sink.setCaption(p.name, svc.getCaptionStyle());
                         long dur = svc.getSuiteDisplayDurationMs();
                         long special = svc.getInfinityMarkerMs();
@@ -44,7 +43,7 @@ public final class VideoOverlayController {
                 }
                 case CASE: {
                     if (caseTimer != null) { caseTimer.stop(); caseTimer = null; }
-                    if (svc.isSubtitleEnabled()) {
+                    if (svc.isSubtitleEnabled() && p.name != null && !p.name.isEmpty()) {
                         sink.setSubtitle(p.name, svc.getSubtitleStyle());
                         long dur = svc.getCaseDisplayDurationMs();
                         long special = svc.getInfinityMarkerMs();
@@ -59,16 +58,14 @@ public final class VideoOverlayController {
                     break;
                 }
                 case ACTION: {
-                    // Transient auf Subtitle-Kanal – Dauer aus Service
-                    if (svc.isActionTransientEnabled()) {
-                        long dur = svc.getActionTransientDurationMs();
-                        long special = svc.getInfinityMarkerMs();
-                        if (dur >= special) {
-                            // Bis zum nächsten Action-Event sichtbar lassen
-                            sink.setSubtitle(p.name, svc.getActionStyle());
-                        } else {
-                            sink.showTransient(p.name, svc.getActionStyle(), dur);
-                        }
+                    if (!svc.isActionTransientEnabled()) { sink.clearAction(); break; }
+                    long dur = svc.getActionTransientDurationMs();
+                    long special = svc.getInfinityMarkerMs();
+                    if (p.name == null || p.name.isEmpty()) { sink.clearAction(); break; }
+                    if (dur >= special) {
+                        sink.setAction(p.name, svc.getActionStyle());
+                    } else {
+                        sink.showTransientAction(p.name, svc.getActionStyle(), dur);
                     }
                     break;
                 }

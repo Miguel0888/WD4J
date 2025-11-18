@@ -8,7 +8,13 @@ public interface VideoOverlaySink {
     void setSubtitle(String text, VideoOverlayStyle style);
     void clearSubtitle();
 
-    /** Optional: kurzzeitiger Hinweis (z. B. für Actions). Default-Implementierung kann noop sein. */
-    default void showTransient(String text, VideoOverlayStyle style, long millis) { /* noop */ }
-}
+    /** Kurzzeitiger Hinweis für Actions (alter Kanal – nicht mehr benutzt für persistente Action). */
+    default void showTransient(String text, VideoOverlayStyle style, long millis) { /* legacy noop */ }
 
+    // NEU: Eigener Action-Kanal (dritte Box)
+    void setAction(String text, VideoOverlayStyle style);
+    void clearAction();
+
+    /** Transiente Action-Nachricht auf eigener Action-Ebene. */
+    default void showTransientAction(String text, VideoOverlayStyle style, long millis) { /* optional */ }
+}

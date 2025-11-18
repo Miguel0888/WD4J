@@ -497,9 +497,8 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             JSpinner spFontSize = new JSpinner(new SpinnerNumberModel(current.getFontSizePx(), 8, 96, 1));
             spFontSize.addChangeListener(e -> {
                 int fs = (Integer) spFontSize.getValue();
-                setFont(getFont().deriveFont((float) fs));
-                revalidate();
-                repaint();
+                setFont(new Font(getFont().getName(), Font.PLAIN, fs));
+                revalidate(); repaint();
             });
 
             // Rahmen-Design wie zuvor
@@ -586,54 +585,32 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 String fontHex = String.format("#%02X%02X%02X", f.getRed(), f.getGreen(), f.getBlue());
                 String bgRgba = String.format("rgba(%d,%d,%d,%.3f)", b.getRed(), b.getGreen(), b.getBlue(), alphaFactor);
 
-                VideoOverlayStyle newStyle = new VideoOverlayStyle(
-                        fontHex,
-                        bgRgba,
-                        (Integer) spFontSize.getValue());
+                int fontPx = (Integer) spFontSize.getValue();
+                VideoOverlayStyle newStyle = new VideoOverlayStyle(fontHex, bgRgba, fontPx);
 
-                String sel = (String) cbType.getSelectedItem();
+                // Typ zuordnen
                 Kind newKind = kind;
                 boolean use = true;
+                String sel = (String) cbType.getSelectedItem();
                 if ("Suite".equals(sel)) newKind = Kind.CAPTION;
                 else if ("Case".equals(sel)) newKind = Kind.SUBTITLE;
                 else if ("Action".equals(sel)) newKind = Kind.ACTION;
                 else { use = false; }
 
-                // Rahmen-Design anwenden
-                if ("Kein Rahmen".equals(cbBorderStyle.getSelectedItem())) {
-                    setBorder(BorderFactory.createEmptyBorder());
-                } else {
-                    Color useBorder = borderColor != null ? borderColor : f;
-                    if ("Abgerundeter Rahmen".equals(cbBorderStyle.getSelectedItem())) {
-                        setBorder(BorderFactory.createLineBorder(useBorder, 1, true));
-                    } else {
-                        setBorder(BorderFactory.createLineBorder(useBorder, 1, false));
-                    }
-                }
+                // Enabled Flags aus Einstellung erzwingen
+                if (newKind == Kind.CAPTION) VideoOverlayService.getInstance().setCaptionEnabled(use);
+                if (newKind == Kind.SUBTITLE) VideoOverlayService.getInstance().setSubtitleEnabled(use);
+                if (newKind == Kind.ACTION) VideoOverlayService.getInstance().setActionTransientEnabled(use);
 
-                disabled = !use;
+                // Dauer speichern
+                int v = durationSlider.getValue();
+                int durationToStore = (v >= specialMaxValue) ? specialMaxValue : v;
+                if (newKind == Kind.CAPTION) VideoOverlayService.getInstance().setSuiteDisplayDurationMs(durationToStore);
+                else if (newKind == Kind.SUBTITLE) VideoOverlayService.getInstance().setCaseDisplayDurationMs(durationToStore);
+                else if (newKind == Kind.ACTION) VideoOverlayService.getInstance().setActionTransientDurationMs(durationToStore);
+
                 if (use) {
-                    applyStyle(newStyle);
                     applyToService(newKind, newStyle);
-
-                    // Dauer für die gewählte Kategorie speichern
-                    int v = durationSlider.getValue();
-                    int durationToStore = (v >= specialMaxValue) ? specialMaxValue : v;
-                    if (newKind == Kind.CAPTION) {
-                        VideoOverlayService.getInstance().setSuiteDisplayDurationMs(durationToStore);
-                    } else if (newKind == Kind.SUBTITLE) {
-                        VideoOverlayService.getInstance().setCaseDisplayDurationMs(durationToStore);
-                    } else if (newKind == Kind.ACTION) {
-                        VideoOverlayService.getInstance().setActionTransientDurationMs(durationToStore);
-                    }
-
-                    if (newKind == Kind.CAPTION) VideoOverlayService.getInstance().setCaptionEnabled(true);
-                    else if (newKind == Kind.SUBTITLE) VideoOverlayService.getInstance().setSubtitleEnabled(true);
-                    else if (newKind == Kind.ACTION) VideoOverlayService.getInstance().setActionTransientEnabled(true);
-                } else {
-                    if (kind == Kind.CAPTION) VideoOverlayService.getInstance().setCaptionEnabled(false);
-                    else if (kind == Kind.SUBTITLE) VideoOverlayService.getInstance().setSubtitleEnabled(false);
-                    else if (kind == Kind.ACTION) VideoOverlayService.getInstance().setActionTransientEnabled(false);
                 }
 
                 repaint();
