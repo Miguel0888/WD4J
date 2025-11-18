@@ -87,10 +87,10 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             setBackground(Color.DARK_GRAY);
             setOpaque(true);
 
-            // Platzhalter anhand gespeicherter prozentualer Positionen anlegen
-            addPlaceholder("Caption", Placeholder.Kind.CAPTION, service.getCaptionStyle(),
+            // Labels angepasst: Suite/Case/Action (statt Caption/Subtitle)
+            addPlaceholder("Suite", Placeholder.Kind.CAPTION, service.getCaptionStyle(),
                     "video.overlay.caption.posX", "video.overlay.caption.posY", 0.05, 0.05);
-            addPlaceholder("Subtitle", Placeholder.Kind.SUBTITLE, service.getSubtitleStyle(),
+            addPlaceholder("Case", Placeholder.Kind.SUBTITLE, service.getSubtitleStyle(),
                     "video.overlay.subtitle.posX", "video.overlay.subtitle.posY", 0.05, 0.75);
             addPlaceholder("Action", Placeholder.Kind.ACTION, service.getActionStyle(),
                     "video.overlay.action.posX", "video.overlay.action.posY", 0.75, 0.05);
@@ -260,6 +260,8 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
         final String keyPosY;
         private Point dragOffset;
         private boolean disabled; // wenn Typ "Nicht verwenden" gewählt ist
+        private JLabel titleLabel;
+        private JTextArea textArea;
 
         Placeholder(String label, Kind kind, VideoOverlayStyle style,
                     VideoOverlayService service, JComponent parent,
@@ -273,16 +275,16 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             setOpaque(false);
             applyStyle(style);
 
-            JLabel title = new JLabel(label);
-            title.setFont(title.getFont().deriveFont(Font.BOLD));
-            add(title, BorderLayout.NORTH);
+            titleLabel = new JLabel(label);
+            titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD));
+            add(titleLabel, BorderLayout.NORTH);
 
-            JTextArea area = new JTextArea("Beispieltext " + label);
-            area.setLineWrap(true);
-            area.setWrapStyleWord(true);
-            area.setOpaque(false);
-            area.setEditable(false);
-            add(area, BorderLayout.CENTER);
+            textArea = new JTextArea("Beispieltext " + label);
+            textArea.setLineWrap(true);
+            textArea.setWrapStyleWord(true);
+            textArea.setOpaque(false);
+            textArea.setEditable(false);
+            add(textArea, BorderLayout.CENTER);
 
             JButton edit = new JButton("Design / Typ...");
             edit.setToolTipText("Schriftart, Farben, Hintergrund und Typ des Overlays anpassen");
@@ -359,11 +361,18 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 setOpaque(alpha > 0);
                 setForeground(font);
                 setBorder(BorderFactory.createLineBorder(font));
-                setFont(getFont().deriveFont((float) style.getFontSizePx()));
+                // Schriftgröße sauber an Vorschau-Komponenten anwenden
+                int px = Math.max(8, style.getFontSizePx());
+                Font base = getFont();
+                if (base == null) base = UIManager.getFont("Label.font");
+                setFont(new Font(base.getName(), Font.PLAIN, px));
+                if (titleLabel != null) titleLabel.setFont(new Font(base.getName(), Font.BOLD, px));
+                if (textArea != null) textArea.setFont(new Font(base.getName(), Font.PLAIN, px));
             } catch (Exception ignored) {
                 setOpaque(false);
                 setBorder(BorderFactory.createDashedBorder(Color.LIGHT_GRAY));
             }
+            revalidate();
             repaint();
         }
 
@@ -484,67 +493,46 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                 }
             });
 
-            // Typ-Auswahl inkl. "Nicht verwenden"; Bezeichnungen Suite/Case/Action
-            String[] types = {"Nicht verwenden", "Suite", "Case", "Action"};
-            JComboBox<String> cbType = new JComboBox<>(types);
-            int selIndex = 0;
-            if (kind == Kind.CAPTION) selIndex = 1;      // Suite
-            else if (kind == Kind.SUBTITLE) selIndex = 2; // Case
-            else if (kind == Kind.ACTION) selIndex = 3;
-            cbType.setSelectedIndex(selIndex);
+            // Aktiviert-Checkbox (statt Typ-Dropdown)
+            JCheckBox enabledCheck = new JCheckBox("Aktiviert");
+            boolean initiallyEnabled;
+            if (kind == Kind.CAPTION) initiallyEnabled = service.isCaptionEnabled();
+            else if (kind == Kind.SUBTITLE) initiallyEnabled = service.isSubtitleEnabled();
+            else initiallyEnabled = service.isActionTransientEnabled();
+            enabledCheck.setSelected(initiallyEnabled);
 
-            // Schriftgröße mit Live-Vorschau
+            // Schriftgröße mit Live-Vorschau auf Textbereich
             JSpinner spFontSize = new JSpinner(new SpinnerNumberModel(current.getFontSizePx(), 8, 96, 1));
             spFontSize.addChangeListener(e -> {
                 int fs = (Integer) spFontSize.getValue();
-                setFont(new Font(getFont().getName(), Font.PLAIN, fs));
+                Font base = getFont() != null ? getFont() : UIManager.getFont("Label.font");
+                if (textArea != null) textArea.setFont(new Font(base.getName(), Font.PLAIN, fs));
+                if (titleLabel != null) titleLabel.setFont(new Font(base.getName(), Font.BOLD, fs));
                 revalidate(); repaint();
             });
 
-            // Rahmen-Design wie zuvor
+            // Rahmen-Design
             String[] borderStyles = {"Gerader Rahmen", "Abgerundeter Rahmen", "Kein Rahmen"};
             JComboBox<String> cbBorderStyle = new JComboBox<>(borderStyles);
             cbBorderStyle.setSelectedIndex(0);
 
-            // Anzeigedauer (nur sinnvoll für Action-Overlay), Einheit ms
-            int currentDuration = (kind == Kind.ACTION)
-                    ? service.getActionTransientDurationMs()
-                    : 2000;
-            int minMs = 250;
-            int maxMs = 10_000;
-            final int specialMaxValue = 11_000; // = "bis zum nächsten Element"
-
-            int sliderInit;
-            if (kind == Kind.ACTION && currentDuration >= specialMaxValue) {
-                sliderInit = specialMaxValue;
-            } else {
-                sliderInit = Math.min(Math.max(currentDuration, minMs), maxMs);
-            }
-
+            // Dauer-Slider inkl. ∞
+            int currentDuration = (kind == Kind.ACTION) ? service.getActionTransientDurationMs() :
+                    (kind == Kind.CAPTION ? service.getSuiteDisplayDurationMs() : service.getCaseDisplayDurationMs());
+            int minMs = 250; final int specialMaxValue = 11_000;
+            int sliderInit = (currentDuration >= specialMaxValue) ? specialMaxValue : Math.max(minMs, Math.min(10_000, currentDuration));
             JSlider durationSlider = new JSlider(minMs, specialMaxValue, sliderInit);
-            durationSlider.setPaintTicks(true);
-            durationSlider.setMajorTickSpacing(2500);
-            durationSlider.setMinorTickSpacing(250);
-
+            durationSlider.setPaintTicks(true); durationSlider.setMajorTickSpacing(2500); durationSlider.setMinorTickSpacing(250);
             JLabel durationValueLabel = new JLabel();
-            Runnable updateDurationLabel = () -> {
-                int v = durationSlider.getValue();
-                if (v >= specialMaxValue) {
-                    durationValueLabel.setText("∞");
-                } else {
-                    durationValueLabel.setText(v + " ms");
-                }
-            };
+            Runnable updateDurationLabel = () -> durationValueLabel.setText(durationSlider.getValue() >= specialMaxValue ? "∞" : durationSlider.getValue() + " ms");
             durationSlider.addChangeListener(e -> updateDurationLabel.run());
             updateDurationLabel.run();
 
             // Panel layout
             JPanel panel = new JPanel(new GridBagLayout());
-            GridBagConstraints c = new GridBagConstraints();
-            c.insets = new Insets(4,4,4,4);
-            c.gridx = 0; c.gridy = 0; c.anchor = GridBagConstraints.WEST;
-            panel.add(new JLabel("Overlay-Typ:"), c);
-            c.gridx = 1; panel.add(cbType, c);
+            GridBagConstraints c = new GridBagConstraints(); c.insets = new Insets(4,4,4,4);
+            c.gridx = 0; c.gridy = 0; c.anchor = GridBagConstraints.WEST; panel.add(new JLabel("Aktiviert:"), c);
+            c.gridx = 1; panel.add(enabledCheck, c);
 
             c.gridx = 0; c.gridy = 1; panel.add(new JLabel("Textfarbe:"), c);
             c.gridx = 1; panel.add(fontColorPreview, c);
@@ -564,7 +552,6 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             c.gridx = 0; c.gridy = 6; panel.add(new JLabel("Schriftgröße (px):"), c);
             c.gridx = 1; panel.add(spFontSize, c);
 
-            // Anzeigedauer nur für Action wirklich relevant, UI aber immer sichtbar und erklärt
             c.gridx = 0; c.gridy = 7; panel.add(new JLabel("Anzeigedauer:"), c);
             JPanel durationPanel = new JPanel(new BorderLayout(4,0));
             durationPanel.add(durationSlider, BorderLayout.CENTER);
@@ -574,46 +561,45 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             int res = JOptionPane.showConfirmDialog(parent, panel,
                     "Overlay-Platzhalter konfigurieren", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
             if (res == JOptionPane.OK_OPTION) {
-                Color f = chosenFont[0];
-                Color b = chosenBg[0];
-                Color borderColor = chosenBorder[0];
-                int sliderVal = alphaSlider.getValue();
-                double alphaFactor = Math.max(0d, Math.min(1d, sliderVal / 255d));
-                if (f == null || b == null) {
-                    return;
-                }
+                // Farben ermitteln
+                Color f = chosenFont[0]; Color b = chosenBg[0]; Color borderColor = chosenBorder[0];
+                int sliderVal = alphaSlider.getValue(); double alphaFactor = Math.max(0d, Math.min(1d, sliderVal / 255d));
+                if (f == null || b == null) return;
                 String fontHex = String.format("#%02X%02X%02X", f.getRed(), f.getGreen(), f.getBlue());
                 String bgRgba = String.format("rgba(%d,%d,%d,%.3f)", b.getRed(), b.getGreen(), b.getBlue(), alphaFactor);
-
                 int fontPx = (Integer) spFontSize.getValue();
                 VideoOverlayStyle newStyle = new VideoOverlayStyle(fontHex, bgRgba, fontPx);
 
-                // Typ zuordnen
-                Kind newKind = kind;
-                boolean use = true;
-                String sel = (String) cbType.getSelectedItem();
-                if ("Suite".equals(sel)) newKind = Kind.CAPTION;
-                else if ("Case".equals(sel)) newKind = Kind.SUBTITLE;
-                else if ("Action".equals(sel)) newKind = Kind.ACTION;
-                else { use = false; }
+                // Rahmen setzen
+                if ("Kein Rahmen".equals(cbBorderStyle.getSelectedItem())) {
+                    setBorder(BorderFactory.createEmptyBorder());
+                } else {
+                    Color useBorder = borderColor != null ? borderColor : f;
+                    boolean rounded = "Abgerundeter Rahmen".equals(cbBorderStyle.getSelectedItem());
+                    setBorder(BorderFactory.createLineBorder(useBorder, 1, rounded));
+                }
 
-                // Enabled Flags aus Einstellung erzwingen
-                if (newKind == Kind.CAPTION) VideoOverlayService.getInstance().setCaptionEnabled(use);
-                if (newKind == Kind.SUBTITLE) VideoOverlayService.getInstance().setSubtitleEnabled(use);
-                if (newKind == Kind.ACTION) VideoOverlayService.getInstance().setActionTransientEnabled(use);
+                // Aktiviert-Flag speichern
+                boolean enabled = enabledCheck.isSelected();
+                if (kind == Kind.CAPTION) service.setCaptionEnabled(enabled);
+                else if (kind == Kind.SUBTITLE) service.setSubtitleEnabled(enabled);
+                else service.setActionTransientEnabled(enabled);
 
                 // Dauer speichern
                 int v = durationSlider.getValue();
                 int durationToStore = (v >= specialMaxValue) ? specialMaxValue : v;
-                if (newKind == Kind.CAPTION) VideoOverlayService.getInstance().setSuiteDisplayDurationMs(durationToStore);
-                else if (newKind == Kind.SUBTITLE) VideoOverlayService.getInstance().setCaseDisplayDurationMs(durationToStore);
-                else if (newKind == Kind.ACTION) VideoOverlayService.getInstance().setActionTransientDurationMs(durationToStore);
+                if (kind == Kind.CAPTION) service.setSuiteDisplayDurationMs(durationToStore);
+                else if (kind == Kind.SUBTITLE) service.setCaseDisplayDurationMs(durationToStore);
+                else service.setActionTransientDurationMs(durationToStore);
 
-                if (use) {
-                    applyToService(newKind, newStyle);
+                // Style anwenden, wenn aktiv
+                if (enabled) {
+                    applyStyle(newStyle);
+                    applyToService(kind, newStyle);
+                } else {
+                    // Visuell disable markieren
+                    disabled = true; repaint();
                 }
-
-                repaint();
             }
         }
 
