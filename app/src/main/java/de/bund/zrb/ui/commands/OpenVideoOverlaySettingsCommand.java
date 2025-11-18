@@ -566,7 +566,7 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
             c.gridx = 1; panel.add(spFontSize, c);
 
             // Anzeigedauer nur für Action wirklich relevant, UI aber immer sichtbar und erklärt
-            c.gridx = 0; c.gridy = 7; panel.add(new JLabel("Anzeigedauer (Action):"), c);
+            c.gridx = 0; c.gridy = 7; panel.add(new JLabel("Anzeigedauer:"), c);
             JPanel durationPanel = new JPanel(new BorderLayout(4,0));
             durationPanel.add(durationSlider, BorderLayout.CENTER);
             durationPanel.add(durationValueLabel, BorderLayout.EAST);
