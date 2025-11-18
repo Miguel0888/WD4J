@@ -15,6 +15,9 @@ public final class VideoOverlayController {
         this.sink = sink == null ? new DefaultVideoOverlaySink() : sink;
     }
 
+    private javax.swing.Timer suiteTimer;
+    private javax.swing.Timer caseTimer;
+
     private final java.util.function.Consumer<VideoOverlayEvent> listener = new java.util.function.Consumer<VideoOverlayEvent>() {
         @Override public void accept(VideoOverlayEvent ev) {
             VideoOverlayEvent.Payload p = ev.getPayload();
@@ -22,19 +25,54 @@ public final class VideoOverlayController {
             VideoOverlayService svc = VideoOverlayService.getInstance();
             switch (p.kind) {
                 case SUITE:
-                case ROOT:
-                    if (svc.isCaptionEnabled()) sink.setCaption(p.name, svc.getCaptionStyle()); else sink.clearCaption();
-                    break;
-                case CASE:
-                    if (svc.isSubtitleEnabled()) sink.setSubtitle(p.name, svc.getSubtitleStyle()); else sink.clearSubtitle();
-                    break;
-                case ACTION:
-                    if (svc.isActionTransientEnabled()) {
-                        sink.showTransient(p.name, svc.getActionStyle(), svc.getActionTransientDurationMs());
+                case ROOT: {
+                    // Neue Suite blendet Suite-Overlay ein; Dauer berücksichtigen
+                    if (suiteTimer != null) { suiteTimer.stop(); suiteTimer = null; }
+                    if (svc.isCaptionEnabled()) {
+                        sink.setCaption(p.name, svc.getCaptionStyle());
+                        long dur = svc.getSuiteDisplayDurationMs();
+                        long special = svc.getInfinityMarkerMs();
+                        if (dur > 0 && dur < special) {
+                            suiteTimer = new javax.swing.Timer((int) dur, e -> { sink.clearCaption(); suiteTimer.stop(); });
+                            suiteTimer.setRepeats(false);
+                            suiteTimer.start();
+                        }
+                    } else {
+                        sink.clearCaption();
                     }
                     break;
-                default:
+                }
+                case CASE: {
+                    if (caseTimer != null) { caseTimer.stop(); caseTimer = null; }
+                    if (svc.isSubtitleEnabled()) {
+                        sink.setSubtitle(p.name, svc.getSubtitleStyle());
+                        long dur = svc.getCaseDisplayDurationMs();
+                        long special = svc.getInfinityMarkerMs();
+                        if (dur > 0 && dur < special) {
+                            caseTimer = new javax.swing.Timer((int) dur, e -> { sink.clearSubtitle(); caseTimer.stop(); });
+                            caseTimer.setRepeats(false);
+                            caseTimer.start();
+                        }
+                    } else {
+                        sink.clearSubtitle();
+                    }
                     break;
+                }
+                case ACTION: {
+                    // Transient auf Subtitle-Kanal – Dauer aus Service
+                    if (svc.isActionTransientEnabled()) {
+                        long dur = svc.getActionTransientDurationMs();
+                        long special = svc.getInfinityMarkerMs();
+                        if (dur >= special) {
+                            // Bis zum nächsten Action-Event sichtbar lassen
+                            sink.setSubtitle(p.name, svc.getActionStyle());
+                        } else {
+                            sink.showTransient(p.name, svc.getActionStyle(), dur);
+                        }
+                    }
+                    break;
+                }
+                default: break;
             }
         }
     };
@@ -51,6 +89,8 @@ public final class VideoOverlayController {
         if (!active) return;
         ApplicationEventBus.getInstance().unsubscribe(VideoOverlayEvent.class, listener);
         active = false;
+        if (suiteTimer != null) { suiteTimer.stop(); suiteTimer = null; }
+        if (caseTimer != null) { caseTimer.stop(); caseTimer = null; }
         sink.clearSubtitle();
         sink.clearCaption();
     }

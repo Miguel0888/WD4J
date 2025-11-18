@@ -616,21 +616,25 @@ public class OpenVideoOverlaySettingsCommand extends ShortcutMenuCommand {
                     applyStyle(newStyle);
                     applyToService(newKind, newStyle);
 
-                    // Anzeigedauer nur für Action-Typ sinnvoll: Spezialwert für "bis zum nächsten Element"
-                    if (newKind == Kind.ACTION) {
-                        int v = durationSlider.getValue();
-                        int durationToStore = (v >= specialMaxValue) ? specialMaxValue : v;
-                        service.setActionTransientDurationMs(durationToStore);
+                    // Dauer für die gewählte Kategorie speichern
+                    int v = durationSlider.getValue();
+                    int specialMaxValue = durationSlider.getMaximum();
+                    int durationToStore = (v >= specialMaxValue) ? specialMaxValue : v;
+                    if (newKind == Kind.CAPTION) {
+                        VideoOverlayService.getInstance().setSuiteDisplayDurationMs(durationToStore);
+                    } else if (newKind == Kind.SUBTITLE) {
+                        VideoOverlayService.getInstance().setCaseDisplayDurationMs(durationToStore);
+                    } else if (newKind == Kind.ACTION) {
+                        VideoOverlayService.getInstance().setActionTransientDurationMs(durationToStore);
                     }
 
-                    if (newKind == Kind.CAPTION) service.setCaptionEnabled(true);
-                    else if (newKind == Kind.SUBTITLE) service.setSubtitleEnabled(true);
-                    else if (newKind == Kind.ACTION) service.setActionTransientEnabled(true);
+                    if (newKind == Kind.CAPTION) VideoOverlayService.getInstance().setCaptionEnabled(true);
+                    else if (newKind == Kind.SUBTITLE) VideoOverlayService.getInstance().setSubtitleEnabled(true);
+                    else if (newKind == Kind.ACTION) VideoOverlayService.getInstance().setActionTransientEnabled(true);
                 } else {
-                    // Nicht verwenden: im Service deaktivieren
-                    if (kind == Kind.CAPTION) service.setCaptionEnabled(false);
-                    else if (kind == Kind.SUBTITLE) service.setSubtitleEnabled(false);
-                    else if (kind == Kind.ACTION) service.setActionTransientEnabled(false);
+                    if (kind == Kind.CAPTION) VideoOverlayService.getInstance().setCaptionEnabled(false);
+                    else if (kind == Kind.SUBTITLE) VideoOverlayService.getInstance().setSubtitleEnabled(false);
+                    else if (kind == Kind.ACTION) VideoOverlayService.getInstance().setActionTransientEnabled(false);
                 }
 
                 repaint();

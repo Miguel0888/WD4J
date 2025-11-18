@@ -50,6 +50,17 @@ public final class OverlayBridge {
     }
     public static void clearCaption() { setCaption(""); }
 
+    /** Stil für Caption setzen. */
+    public static void setCaptionStyle(WindowRecorder.OverlayStyle style) {
+        if (style == null) return;
+        Object r = resolve();
+        if (r instanceof WindowRecorder) {
+            ((WindowRecorder) r).setCaptionStyle(style);
+        } else if (r instanceof JcodecWindowRecorder) {
+            ((JcodecWindowRecorder) r).setCaptionStyle(style);
+        }
+    }
+
     // -------- Subtitle (unten) --------
     public static void setSubtitle(String text) {
         Object r = resolve();
@@ -64,4 +75,15 @@ public final class OverlayBridge {
         }
     }
     public static void clearSubtitle() { setSubtitle(""); }
+
+    /** Stil für Subtitle setzen. */
+    public static void setSubtitleStyle(WindowRecorder.OverlayStyle style) {
+        if (style == null) return;
+        Object r = resolve();
+        if (r instanceof WindowRecorder) {
+            ((WindowRecorder) r).setSubtitleStyle(style);
+        } else if (r instanceof JcodecWindowRecorder) {
+            ((JcodecWindowRecorder) r).setSubtitleStyle(style);
+        }
+    }
 }

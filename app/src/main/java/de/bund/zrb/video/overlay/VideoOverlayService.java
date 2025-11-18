@@ -68,11 +68,19 @@ public final class VideoOverlayService {
         );
     }
 
+    // Sichtbarkeit
     public boolean isCaptionEnabled() { return bool("video.overlay.caption.enabled", true); }
     public boolean isSubtitleEnabled() { return bool("video.overlay.subtitle.enabled", true); }
     public boolean isActionTransientEnabled() { return bool("video.overlay.action.transient.enabled", false); }
+
+    // Dauern (ms); Infinity-Marker = spezieller Maximalwert
+    public int getSuiteDisplayDurationMs() { return intVal("video.overlay.suite.durationMs", getInfinityMarkerMs()); }
+    public int getCaseDisplayDurationMs() { return intVal("video.overlay.case.durationMs", getInfinityMarkerMs()); }
     public int getActionTransientDurationMs() { return intVal("video.overlay.action.transient.durationMs", 1500); }
 
+    public int getInfinityMarkerMs() { return 11_000; }
+
+    // Anwenden/Speichern
     public void applyCaptionStyle(VideoOverlayStyle s) { saveStyle("caption", s); }
     public void applySubtitleStyle(VideoOverlayStyle s) { saveStyle("subtitle", s); }
     public void applyActionStyle(VideoOverlayStyle s) { saveStyle("action", s); }
@@ -80,6 +88,9 @@ public final class VideoOverlayService {
     public void setCaptionEnabled(boolean b) { SettingsService.getInstance().set("video.overlay.caption.enabled", b); }
     public void setSubtitleEnabled(boolean b) { SettingsService.getInstance().set("video.overlay.subtitle.enabled", b); }
     public void setActionTransientEnabled(boolean b) { SettingsService.getInstance().set("video.overlay.action.transient.enabled", b); }
+
+    public void setSuiteDisplayDurationMs(int ms) { SettingsService.getInstance().set("video.overlay.suite.durationMs", ms); }
+    public void setCaseDisplayDurationMs(int ms) { SettingsService.getInstance().set("video.overlay.case.durationMs", ms); }
     public void setActionTransientDurationMs(int ms) { SettingsService.getInstance().set("video.overlay.action.transient.durationMs", ms); }
 
     private void saveStyle(String prefix, VideoOverlayStyle s) {
