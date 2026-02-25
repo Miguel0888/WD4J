@@ -14,6 +14,7 @@
             <option value="$PROJECT_DIR$/playwright-delegator" />
             <option value="$PROJECT_DIR$/playwright-java" />
             <option value="$PROJECT_DIR$/wd4j" />
+            <option value="$PROJECT_DIR$/wd4j2cdp" />
           </set>
         </option>
       </GradleProjectSettings>
