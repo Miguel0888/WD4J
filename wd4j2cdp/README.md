@@ -2,8 +2,13 @@
 
 Dieses Modul stellt einen Adapter bereit, der WebDriver-BiDi-Kommandos über das
 Chrome DevTools Protocol (CDP) tunnelt. Dazu wird der von Google bereitgestellte
-**chromium-bidi Mapper** (`mapperTab.js`) in einem versteckten Chrome-Tab
+**chromium-bidi Mapper** (`mapperTab.js`) in einem versteckten Browser-Tab
 ausgeführt, der eingehende BiDi-Nachrichten in CDP-Aufrufe übersetzt.
+
+Der Adapter funktioniert mit allen Chromium-basierten Browsern:
+- **Google Chrome**
+- **Microsoft Edge**
+- **Chromium**
 
 ## Projektstruktur
 
