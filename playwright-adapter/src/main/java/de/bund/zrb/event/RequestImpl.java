@@ -23,8 +23,8 @@ public class RequestImpl implements Request {
     private final List<HttpHeader> headersArray;
     private final String resourceType;
     private final boolean navigationRequest;
-    private final String failure;
-    private final Response response;
+    private String failure;
+    private Response response;
 
     /** Konstruktor für network.beforeRequestSent */
     public RequestImpl(WDNetworkEvent.BeforeRequestSent beforeRequestSent) {
@@ -260,5 +260,34 @@ public class RequestImpl implements Request {
         @Override public String statusText() { return ok() ? "OK" : ""; }
         @Override public String text() { throw new PlaywrightException("Response body is not available for completed responses."); }
         @Override public String url() { return url; }
+    }
+
+    // ----- Enrichment methods for reusing RequestImpl across events -----
+    
+    /**
+     * Enriches this RequestImpl with response data from a ResponseCompleted event.
+     * Called when onRequestFinished is triggered.
+     */
+    public void enrichWithResponse(WDNetworkEvent.ResponseCompleted completed) {
+        if (completed == null) return;
+        WDNetworkEvent.ResponseCompleted.ResponseCompletedParametersWD params = completed.getParams();
+        de.bund.zrb.type.network.WDResponseData respData = params != null ? params.getResponse() : null;
+        
+        if (respData != null) {
+            this.response = new MinimalResponse(respData, this);
+        }
+    }
+    
+    /**
+     * Enriches this RequestImpl with error data from a FetchError event.
+     * Called when onRequestFailed is triggered.
+     */
+    public void enrichWithError(WDNetworkEvent.FetchError fetchError) {
+        if (fetchError == null) return;
+        WDNetworkEvent.FetchError.FetchErrorParametersWD params = fetchError.getParams();
+        
+        if (params != null && params.getErrorText() != null) {
+            this.failure = params.getErrorText();
+        }
     }
 }
